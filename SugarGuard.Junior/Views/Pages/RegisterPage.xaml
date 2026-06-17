@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:SugarGuard.Junior.Views.Controls"
+             x:Class="SugarGuard.Junior.Views.Pages.RegisterPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource PaddingPage}"
+                             Spacing="{StaticResource Spacing24}">
+
+            <!-- Шаг 1: Выбор способа регистрации -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing24}"
+                                 IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=0}">
+
+                <VerticalStackLayout Spacing="{StaticResource Spacing8}" HorizontalOptions="Center">
+                    <Label Text="SugarGuard"
+                           Style="{StaticResource PageTitleTextCentered}"
+                           TextColor="{StaticResource Primary}" />
+                    <Label Text="Создать аккаунт"
+                           Style="{StaticResource BodyTextMuted}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                    <VerticalStackLayout Spacing="{StaticResource Spacing16}">
+                        <Label Text="Выберите способ регистрации"
+                               Style="{StaticResource SectionHeadingText}"
+                               HorizontalTextAlignment="Center" />
+
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource CaptionText}"
+                               TextColor="{StaticResource GlucoseDangerColor}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
+
+                        <Button Text="Зарегистрироваться по email"
+                                Command="{Binding GoToNextStepCommand}"
+                                Style="{StaticResource PrimaryButton}" />
+
+                        <Label Text="— или —"
+                               Style="{StaticResource CaptionTextFaint}"
+                               HorizontalTextAlignment="Center" />
+
+                        <Button Text="Войти через Яндекс"
+                                Command="{Binding LoginWithYandexCommand}"
+                                Style="{StaticResource SecondaryButton}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label HorizontalTextAlignment="Center" Style="{StaticResource CaptionText}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Уже есть аккаунт? " />
+                            <Span Text="Войти"
+                                  TextColor="{StaticResource Primary}"
+                                  FontAttributes="Bold">
+                                <Span.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnLoginTapped" />
+                                </Span.GestureRecognizers>
+                            </Span>
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </VerticalStackLayout>
+
+            <!-- Шаг 2: Данные пользователя -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing20}"
+                                 IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=1}">
+
+                <VerticalStackLayout Spacing="{StaticResource Spacing8}">
+                    <Label Text="Регистрация"
+                           Style="{StaticResource PageTitleTextCentered}" />
+                    <Label Text="Заполните данные"
+                           Style="{StaticResource BodyTextMuted}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                    <VerticalStackLayout Spacing="{StaticResource Spacing16}">
+
+                        <!-- Имя -->
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Имя" Style="{StaticResource CaptionText}" FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                <Entry Text="{Binding FirstName}"
+                                       Placeholder="Имя ребёнка"
+                                       Style="{StaticResource EntryText}"
+                                       HeightRequest="48" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- Email -->
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Email" Style="{StaticResource CaptionText}" FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                <Entry Text="{Binding Email}"
+                                       Placeholder="example@mail.ru"
+                                       Keyboard="Email"
+                                       Style="{StaticResource EntryText}"
+                                       HeightRequest="48" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- Пароль -->
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Пароль" Style="{StaticResource CaptionText}" FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                <Entry Text="{Binding Password}"
+                                       Placeholder="Не менее 8 символов"
+                                       IsPassword="True"
+                                       Style="{StaticResource EntryText}"
+                                       HeightRequest="48" />
+                            </Border>
+                            <controls:PasswordStrengthBar Password="{Binding Password}" />
+                        </VerticalStackLayout>
+
+                        <!-- Подтверждение пароля -->
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Подтвердите пароль" Style="{StaticResource CaptionText}" FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                <Entry Text="{Binding ConfirmPassword}"
+                                       Placeholder="Повторите пароль"
+                                       IsPassword="True"
+                                       Style="{StaticResource EntryText}"
+                                       HeightRequest="48" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- Дата рождения -->
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Дата рождения" Style="{StaticResource CaptionText}" FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                <DatePicker Date="{Binding DateOfBirth}"
+                                            MaximumDate="{Binding MaxDate}"
+                                            Style="{StaticResource DatePickerText}"
+                                            HeightRequest="48" />
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <!-- Согласие родителя (152-ФЗ) -->
+                        <Border Style="{StaticResource DataCard}"
+                                Padding="{StaticResource PaddingMd}"
+                                IsVisible="{Binding ParentConsentRequired}">
+                            <HorizontalStackLayout Spacing="{StaticResource Spacing12}">
+                                <CheckBox IsChecked="{Binding ParentConsentGiven}"
+                                          Color="{StaticResource Primary}" />
+                                <Label Text="Для регистрации лиц младше 14 лет требуется согласие родителя или законного представителя"
+                                       Style="{StaticResource CaptionText}"
+                                       VerticalTextAlignment="Center" />
+                            </HorizontalStackLayout>
+                        </Border>
+
+                        <!-- Ошибка -->
+                        <Label Text="{Binding ErrorMessage}"
+                               TextColor="{StaticResource GlucoseDangerColor}"
+                               Style="{StaticResource CaptionText}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
+
+                        <!-- Кнопки -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Spacing12}">
+                            <Button Text="Назад"
+                                    Command="{Binding GoToPreviousStepCommand}"
+                                    Style="{StaticResource GhostButton}"
+                                    Grid.Column="0" />
+                            <Button Text="Далее"
+                                    Command="{Binding RegisterCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Grid.Column="1"
+                                    IsEnabled="{Binding CanGoNext}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Индикатор загрузки -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

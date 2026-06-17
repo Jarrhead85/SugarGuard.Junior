@@ -1,0 +1,773 @@
+﻿@* Детальная карточка пациента для врача *@
+
+@page "/doctor/patients/{ChildId:guid}"
+@using SugarGuard.Web.Services
+@using DoctorNoteVm = SugarGuard.Web.ViewModels.DoctorNoteVm
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@using SugarGuard.Web.Models.Analytics
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>Пациент — SugarGuard</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="sg-loading-screen">
+        <div class="sg-spinner"></div>
+        <p class="sg-loading-text">Загружаем данные пациента…</p>
+    </div>
+}
+else if (_loadError is not null)
+{
+    <div class="sg-error-banner">
+        <span class="sg-error-icon">⚠</span>
+        <span>@_loadError</span>
+        <button class="sg-btn sg-btn--ghost sg-btn--sm" @onclick="LoadAllAsync">
+            Повторить
+        </button>
+    </div>
+}
+else if (_patient is not null)
+{
+    <PageHeader Breadcrumbs="@_breadcrumbs"
+                Subtitle="@_patientSubtitle">
+        <LeadingContent>
+            <div class="sg-patient-header__avatar" aria-hidden="true">
+                @_patient.FirstName[0]@_patient.LastName[0]
+            </div>
+        </LeadingContent>
+        <TrailingContent>
+            <button class="sg-btn sg-btn--primary sg-btn--sm"
+                    @onclick="OpenNoteModal"
+                    aria-label="Добавить заметку">
+                + Заметка
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @* KPI-плитки *@
+    <div class="sg-kpi-grid" role="region" aria-label="Ключевые показатели">
+        @* Последний сахар *@
+        <div class="sg-kpi-card sg-kpi-card--@GetUiStateClass(_patient.LatestGlucoseUiState)">
+            <span class="sg-kpi-card__label">Сахар сейчас</span>
+            @if (_patient.LatestGlucose.HasValue)
+            {
+                <span class="sg-kpi-card__value">
+                    @_patient.LatestGlucose.Value.ToString("F1")
+                    <small class="sg-kpi-card__unit">ммоль/л</small>
+                </span>
+                <span class="sg-kpi-card__sub @GetUiStateClass(_patient.LatestGlucoseUiState)">
+                    @GetUiStateLabel(_patient.LatestGlucoseUiState)
+                </span>
+            }
+            else
+            {
+                <span class="sg-kpi-card__value sg-kpi-card__value--empty">—</span>
+                <span class="sg-kpi-card__sub">нет данных</span>
+            }
+        </div>
+
+        @* TIR 7 дней *@
+        <div class="sg-kpi-card">
+            <span class="sg-kpi-card__label">TIR за 7 дней</span>
+            <span class="sg-kpi-card__value">
+                @_patient.TimeInTargetRange.ToString("F1")<small class="sg-kpi-card__unit">%</small>
+            </span>
+            <div class="sg-tir-bar" role="progressbar"
+                 aria-valuenow="@((int)_patient.TimeInTargetRange)"
+                 aria-valuemin="0" aria-valuemax="100">
+                <div class="sg-tir-bar__fill"
+                     style="width: @((int)_patient.TimeInTargetRange)%"></div>
+            </div>
+        </div>
+
+        @* Критические эпизоды *@
+        <div class="sg-kpi-card @(_patient.CriticalEventsLast7Days > 0 ? "sg-kpi-card--danger" : "")">
+            <span class="sg-kpi-card__label">Критических за 7д</span>
+            <span class="sg-kpi-card__value">@_patient.CriticalEventsLast7Days</span>
+            <span class="sg-kpi-card__sub">
+                @(_patient.CriticalEventsLast7Days == 0 ? "всё в норме" : "требует внимания")
+            </span>
+        </div>
+
+        @* Измерений за 7 дней *@
+        <div class="sg-kpi-card">
+            <span class="sg-kpi-card__label">Измерений за 7д</span>
+            <span class="sg-kpi-card__value">@_patient.MeasurementsLast7Days</span>
+            <span class="sg-kpi-card__sub">записей</span>
+        </div>
+    </div>
+
+    @* Табы *@
+    <div class="sg-tabs" role="tablist" aria-label="Разделы пациента">
+        <button class="sg-tab @(_activeTab == Tab.Measurements ? "sg-tab--active" : "")"
+                role="tab"
+                aria-selected="@(_activeTab == Tab.Measurements)"
+                @onclick='() => SetTab(Tab.Measurements)'>
+            Измерения
+        </button>
+        <button class="sg-tab @(_activeTab == Tab.Notes ? "sg-tab--active" : "")"
+                role="tab"
+                aria-selected="@(_activeTab == Tab.Notes)"
+                @onclick='() => SetTab(Tab.Notes)'>
+            Заметки
+            @if (_notes?.Count > 0)
+            {
+                <span class="sg-badge sg-badge--accent sg-tab__badge">@_notes.Count</span>
+            }
+        </button>
+        <button class="sg-tab @(_activeTab == Tab.Statistics ? "sg-tab--active" : "")"
+                role="tab"
+                aria-selected="@(_activeTab == Tab.Statistics)"
+                @onclick='() => SetTab(Tab.Statistics)'>
+            Статистика
+        </button>
+    </div>
+
+    @* Содержимое табов *@
+    <div class="sg-tab-panel" role="tabpanel">
+
+        @* ТАБ: Измерения *@
+        @if (_activeTab == Tab.Measurements)
+        {
+            <div class="sg-panel">
+                <div class="sg-panel__toolbar">
+                    <div class="sg-date-range">
+                        <label class="sg-label" for="meas-from">С</label>
+                        <input id="meas-from" type="date" class="sg-input sg-input--sm"
+                               @bind="_measFrom" @bind:format="yyyy-MM-dd" />
+                        <label class="sg-label" for="meas-to">По</label>
+                        <input id="meas-to" type="date" class="sg-input sg-input--sm"
+                               @bind="_measTo" @bind:format="yyyy-MM-dd" />
+                        <button class="sg-btn sg-btn--secondary sg-btn--sm"
+                                @onclick="LoadMeasurementsAsync"
+                                disabled="@_isMeasLoading">
+                            Обновить
+                        </button>
+                    </div>
+                </div>
+
+                @if (_isMeasLoading)
+                {
+                    <div class="sg-skeleton-list">
+                        @for (var i = 0; i < 5; i++)
+                        {
+                            <div class="sg-skeleton sg-skeleton--row"></div>
+                        }
+                    </div>
+                }
+                else if (_measurements is { Count: 0 })
+                {
+                    <div class="sg-empty-state">
+                        <span class="sg-empty-state__icon" aria-hidden="true">📊</span>
+                        <p class="sg-empty-state__text">
+                            Измерений за выбранный период нет
+                        </p>
+                    </div>
+                }
+                else if (_measurements is not null)
+                {
+                    <div class="sg-table-wrap" role="region" aria-label="Таблица измерений">
+                        <table class="sg-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Дата и время</th>
+                                    <th scope="col">Глюкоза</th>
+                                    <th scope="col">Статус</th>
+                                    <th scope="col">Состояние</th>
+                                    <th scope="col">Источник</th>
+                                    <th scope="col">Заметки</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var m in _measurements)
+                                {
+                                    <tr class="sg-table__row sg-table__row--@GetUiStateClass(m.GlucoseUiState)">
+                                        <td class="sg-table__cell sg-table__cell--mono">
+                                            @FormatDateTime(m.MeasurementTime)
+                                        </td>
+                                        <td class="sg-table__cell sg-table__cell--glucose">
+                                            <strong>@m.GlucoseValue.ToString("F1")</strong>
+                                            <small> ммоль/л</small>
+                                        </td>
+                                        <td class="sg-table__cell">
+                                            <span class="sg-badge sg-badge--@GetUiStateClass(m.GlucoseUiState)">
+                                                @GetUiStateLabel(m.GlucoseUiState)
+                                            </span>
+                                        </td>
+                                        <td class="sg-table__cell">
+                                            @(m.ChildState ?? "—")
+                                        </td>
+                                        <td class="sg-table__cell">
+                                            @(m.DataSource ?? "—")
+                                        </td>
+                                        <td class="sg-table__cell sg-table__cell--notes">
+                                            @(m.Notes ?? "—")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+
+        @* ТАБ: Заметки *@
+        @if (_activeTab == Tab.Notes)
+        {
+            <div class="sg-panel">
+                <div class="sg-panel__toolbar">
+                    <button class="sg-btn sg-btn--primary sg-btn--sm"
+                            @onclick="OpenNoteModal">
+                        + Добавить заметку
+                    </button>
+                </div>
+
+                @if (_isNotesLoading)
+                {
+                    <div class="sg-skeleton-list">
+                        @for (var i = 0; i < 3; i++)
+                        {
+                            <div class="sg-skeleton sg-skeleton--card"></div>
+                        }
+                    </div>
+                }
+                else if (_notes is { Count: 0 })
+                {
+                    <div class="sg-empty-state">
+                        <span class="sg-empty-state__icon" aria-hidden="true">📝</span>
+                        <p class="sg-empty-state__text">Заметок пока нет</p>
+                        <button class="sg-btn sg-btn--primary sg-btn--sm"
+                                @onclick="OpenNoteModal">
+                            Написать первую заметку
+                        </button>
+                    </div>
+                }
+                else if (_notes is not null)
+                {
+                    <div class="sg-notes-list" role="list">
+                        @foreach (var note in _notes)
+                        {
+                            <div class="sg-note-card @(note.IsImportant ? "sg-note-card--important" : "")"
+                                 role="listitem">
+                                <div class="sg-note-card__header">
+                                    <span class="sg-note-card__author">
+                                        @note.DoctorName
+                                    </span>
+                                    @if (note.IsImportant)
+                                    {
+                                        <span class="sg-badge sg-badge--warning"
+                                              title="Важная заметка">
+                                            ⚑ Важно
+                                        </span>
+                                    }
+                                    <span class="sg-note-card__date">
+                                        @FormatDateTime(note.CreatedAt)
+                                    </span>
+                                </div>
+                                <p class="sg-note-card__text">@note.NoteText</p>
+                                @if (note.UpdatedAt.HasValue)
+                                {
+                                    <small class="sg-note-card__edited">
+                                        изменено @FormatDateTime(note.UpdatedAt.Value)
+                                    </small>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @* ТАБ: Статистика *@
+        @if (_activeTab == Tab.Statistics)
+        {
+            <div class="sg-panel">
+                <div class="sg-panel__toolbar">
+                    <div class="sg-period-selector" role="group" aria-label="Период статистики">
+                        @foreach (var (label, value) in _periodOptions)
+                        {
+                            <button class="sg-period-btn @(_statsPeriod == value ? "sg-period-btn--active" : "")"
+                                    @onclick='() => SetStatsPeriod(value)'>
+                                @label
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                @if (_isStatsLoading)
+                {
+                    <div class="sg-skeleton-list">
+                        <div class="sg-skeleton sg-skeleton--stats"></div>
+                    </div>
+                }
+                else if (_stats is not null)
+                {
+                    <div class="sg-stats-grid" role="region" aria-label="Статистика глюкозы">
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Средняя глюкоза</span>
+                            <span class="sg-stat-card__value">
+                                @_stats.AverageGlucose.ToString("F1")
+                                <small>ммоль/л</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Минимум</span>
+                            <span class="sg-stat-card__value sg-stat-card__value--low">
+                                @_stats.MinGlucose.ToString("F1")
+                                <small>ммоль/л</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Максимум</span>
+                            <span class="sg-stat-card__value sg-stat-card__value--high">
+                                @_stats.MaxGlucose.ToString("F1")
+                                <small>ммоль/л</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Отклонение (SD)</span>
+                            <span class="sg-stat-card__value">
+                                @_stats.StandardDeviation.ToString("F2")
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">TIR (целевой диапазон)</span>
+                            <span class="sg-stat-card__value">
+                                @_stats.TimeInTargetRange.ToString("F1")<small>%</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Ниже нормы</span>
+                            <span class="sg-stat-card__value sg-stat-card__value--low">
+                                @_stats.TimeBelowRange.ToString("F1")<small>%</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Выше нормы</span>
+                            <span class="sg-stat-card__value sg-stat-card__value--high">
+                                @_stats.TimeAboveRange.ToString("F1")<small>%</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Гипо-эпизоды</span>
+                            <span class="sg-stat-card__value @(_stats.HypoEpisodes > 0 ? "sg-stat-card__value--danger" : "")">
+                                @_stats.HypoEpisodes
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Гипер-эпизоды</span>
+                            <span class="sg-stat-card__value @(_stats.HyperEpisodes > 0 ? "sg-stat-card__value--danger" : "")">
+                                @_stats.HyperEpisodes
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">GMI</span>
+                            <span class="sg-stat-card__value">
+                                @_stats.Gmi.ToString("F1")<small>%</small>
+                            </span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Измерений</span>
+                            <span class="sg-stat-card__value">@_stats.TotalMeasurements</span>
+                        </div>
+                        <div class="sg-stat-card">
+                            <span class="sg-stat-card__label">Критически низко</span>
+                            <span class="sg-stat-card__value @(_stats.TimeCriticallyLow > 0 ? "sg-stat-card__value--danger" : "")">
+                                @_stats.TimeCriticallyLow.ToString("F1")<small>%</small>
+                            </span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="sg-empty-state">
+                        <span class="sg-empty-state__icon" aria-hidden="true">📈</span>
+                        <p class="sg-empty-state__text">
+                            Недостаточно данных за выбранный период
+                        </p>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@* Модалка новой заметки *@
+@if (_isNoteModalOpen)
+{
+    <div class="sg-modal-overlay" @onclick="CloseNoteModal" role="dialog"
+         aria-modal="true" aria-labelledby="note-modal-title">
+        <div class="sg-modal" @onclick:stopPropagation>
+            <div class="sg-modal__header">
+                <h2 id="note-modal-title" class="sg-modal__title">Новая заметка</h2>
+                <button class="sg-modal__close" @onclick="CloseNoteModal"
+                        aria-label="Закрыть">✕</button>
+            </div>
+            <div class="sg-modal__body">
+                <div class="sg-form-group">
+                    <label class="sg-label" for="note-text">Текст заметки</label>
+                    <textarea id="note-text"
+                              class="sg-textarea"
+                              rows="5"
+                              placeholder="Введите заметку…"
+                              maxlength="4000"
+                              @bind="_noteText"
+                              aria-required="true"></textarea>
+                    <small class="sg-hint">@_noteText.Length / 4000 символов</small>
+                </div>
+                <div class="sg-form-group sg-form-group--inline">
+                    <input id="note-important"
+                           type="checkbox"
+                           class="sg-checkbox"
+                           @bind="_noteIsImportant" />
+                    <label class="sg-label" for="note-important">
+                        Отметить как важную
+                    </label>
+                </div>
+                @if (_noteError is not null)
+                {
+                    <div class="sg-error-banner sg-error-banner--inline" role="alert">
+                        @_noteError
+                    </div>
+                }
+            </div>
+            <div class="sg-modal__footer">
+                <button class="sg-btn sg-btn--ghost" @onclick="CloseNoteModal"
+                        disabled="@_isNoteSubmitting">
+                    Отмена
+                </button>
+                <button class="sg-btn sg-btn--primary"
+                        @onclick="SubmitNoteAsync"
+                        disabled="@(_isNoteSubmitting || _noteText.Trim().Length == 0)">
+                    @if (_isNoteSubmitting)
+                    {
+                        <span class="sg-spinner sg-spinner--sm" aria-hidden="true"></span>
+                        <span>Сохраняем…</span>
+                    }
+                    else
+                    {
+                        <span>Сохранить</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Параметры 
+    [Parameter] public Guid ChildId { get; set; } //ID ребёнка, переданный из маршрута
+
+    // Перечисления
+    private enum Tab { Measurements, Notes, Statistics }
+
+    // Состояние страницы
+    private bool _isLoading;
+    private string? _loadError;
+    private Tab _activeTab = Tab.Measurements;
+    private CancellationTokenSource _cts = new();
+
+    // Данные пациента
+    private DoctorPatientSummaryVm? _patient;
+
+    private List<BreadcrumbItem> _breadcrumbs =>
+        _patient is not null
+            ? new() { new("Мои пациенты", "/doctor/patients"), new($"{_patient.FirstName} {_patient.LastName}", null) }
+            : new() { new("Мои пациенты", "/doctor/patients") };
+
+    private string? _patientSubtitle =>
+        _patient is not null
+            ? $"{_patient.DiabetesType} · Возраст: {CalculateAge(_patient.DateOfBirth)} лет{(_patient.LatestMeasurementTime.HasValue ? $" · Последнее измерение: {FormatDateTime(_patient.LatestMeasurementTime.Value)}" : "")}"
+            : null;
+
+    // Измерения 
+    private List<MeasurementVm>? _measurements;
+    private bool _isMeasLoading;
+    private DateTime _measFrom = DateTime.Today.AddDays(-7);
+    private DateTime _measTo   = DateTime.Today;
+
+    // Заметки 
+    private List<DoctorNoteVm>? _notes;
+    private bool _isNotesLoading;
+    private bool _isNoteModalOpen;
+    private string _noteText       = string.Empty;
+    private bool   _noteIsImportant;
+    private bool   _isNoteSubmitting;
+    private string? _noteError;
+
+    // Статистика 
+    private StatisticsVm? _stats;
+    private bool _isStatsLoading;
+    private string _statsPeriod = "week";
+
+    private static readonly (string Label, string Value)[] _periodOptions =
+    [
+        ("День",    "day"),
+        ("Неделя",  "week"),
+        ("Месяц",   "month"),
+        ("Год",     "year"),
+    ];
+
+    // Жизненный цикл 
+    /// <inheritdoc />
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAllAsync();
+    }
+
+    /// <summary>
+    /// Загружает все данные страницы параллельно
+    /// </summary>
+    private async Task LoadAllAsync()
+    {
+        _isLoading  = true;
+        _loadError  = null;
+        StateHasChanged();
+
+        try
+        {
+            // Загружаем список пациентов и ищем нужного
+            var patients = await ApiService.GetDoctorPatientsAsync(cancellationToken: _cts.Token);
+            _patient = patients?.FirstOrDefault(p => p.ChildId == ChildId);
+
+            if (_patient is null)
+            {
+                _loadError = "Пациент не найден или у вас нет доступа к его данным.";
+                return;
+            }
+
+            await Task.WhenAll(
+                LoadMeasurementsAsync(),
+                LoadNotesAsync()
+            );
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Не удалось загрузить данные: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Загружает измерения за выбранный диапазон дат
+    /// </summary>
+    private async Task LoadMeasurementsAsync()
+    {
+        _isMeasLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            _measurements = await ApiService.GetMeasurementsAsync(
+                ChildId,
+                _measFrom.ToUniversalTime(),
+                _measTo.AddDays(1).ToUniversalTime(),
+                _cts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _loadError = $"Ошибка загрузки измерений: {ex.Message}";
+        }
+        finally
+        {
+            _isMeasLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Загружает заметки врача для пациента
+    /// </summary>
+    private async Task LoadNotesAsync()
+    {
+        _isNotesLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var notesResult = await ApiService.GetDoctorNotesAsync(ChildId, page: 1, pageSize: 50, onlyImportant: false, cancellationToken: _cts.Token);
+            _notes = notesResult.Items;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _noteError = $"Ошибка загрузки заметок: {ex.Message}";
+        }
+        finally
+        {
+            _isNotesLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Загружает статистику за выбранный период
+    /// </summary>
+    private async Task LoadStatisticsAsync()
+    {
+        _isStatsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            _stats = await ApiService.GetStatisticsVmAsync(
+                ChildId, _statsPeriod, _cts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _loadError = $"Ошибка загрузки статистики: {ex.Message}";
+        }
+        finally
+        {
+            _isStatsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Переключение табов
+    /// <summary>
+    /// Переключает активный таб и подгружает нужные данные
+    /// </summary>
+    private async void SetTab(Tab tab)
+    {
+        _activeTab = tab;
+
+        if (tab == Tab.Statistics && _stats is null)
+            await LoadStatisticsAsync();
+        else
+            StateHasChanged();
+    }
+
+    // Статистика: смена периода
+    /// <summary>
+    /// Меняет период статистики и перезагружает данные
+    /// </summary>
+    private async void SetStatsPeriod(string period)
+    {
+        _statsPeriod = period;
+        _stats       = null;
+        await LoadStatisticsAsync();
+    }
+
+    // Модалка заметки
+    /// <summary>
+    /// Открывает модальное окно создания заметки
+    /// </summary>
+    private void OpenNoteModal()
+    {
+        _noteText        = string.Empty;
+        _noteIsImportant = false;
+        _noteError       = null;
+        _isNoteModalOpen = true;
+    }
+
+    /// <summary>
+    /// Закрывает модальное окно заметки без сохранения
+    /// </summary>
+    private void CloseNoteModal()
+    {
+        if (_isNoteSubmitting) return;
+        _isNoteModalOpen = false;
+    }
+
+    /// <summary>
+    /// Отправляет заметку через API и обновляет список
+    /// </summary>
+    private async Task SubmitNoteAsync()
+    {
+        if (_noteText.Trim().Length == 0) return;
+
+        _isNoteSubmitting = true;
+        _noteError        = null;
+        StateHasChanged();
+
+        try
+        {
+            await ApiService.CreateDoctorNoteAsync(
+                new CreateDoctorNoteVmRequest
+                {
+                    ChildId = ChildId,
+                    NoteText = _noteText.Trim(),
+                    IsImportant = _noteIsImportant
+                },
+                _cts.Token);
+
+            // Обновляем список заметок
+            var notesResult = await ApiService.GetDoctorNotesAsync(ChildId, page: 1, pageSize: 50, onlyImportant: false, cancellationToken: _cts.Token);
+            _notes = notesResult.Items;
+
+            _isNoteModalOpen = false;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            _noteError = $"Не удалось сохранить заметку: {ex.Message}";
+        }
+        finally
+        {
+            _isNoteSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    // Вспомогательные методы 
+    /// <summary>
+    /// Вычисляет полных лет по дате рождения
+    /// </summary>
+    private static int CalculateAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age   = today.Year - dateOfBirth.Year;
+        if (dateOfBirth.AddYears(age) > today) age--;
+        return age;
+    }
+
+    /// <summary>
+    /// Форматирует дату и время в локальное представление
+    /// </summary>
+    private static string FormatDateTime(DateTime utc)
+        => utc.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+
+    /// <summary>
+    /// Возвращает CSS-класс для UI-состояния глюкозы
+    /// </summary>
+    private static string GetUiStateClass(string? uiState) => uiState switch
+    {
+        "Critical" => "danger",
+        "Attention" => "warning",
+        "Normal"    => "success",
+        _           => "neutral",
+    };
+
+    /// <summary>
+    /// Возвращает читаемую подпись UI-состояния глюкозы
+    /// </summary>
+    private static string GetUiStateLabel(string? uiState) => uiState switch
+    {
+        "Critical" => "Критично",
+        "Attention" => "Внимание",
+        "Normal"    => "Норма",
+        _           => "—",
+    };
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

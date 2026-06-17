@@ -1,0 +1,175 @@
+﻿@namespace SugarGuard.Web.Components.Shared
+
+@if (_visible)
+{
+    <div class="cd-backdrop" role="presentation" aria-hidden="true" @onclick="HandleCancelAsync"></div>
+    <div class="cd-overlay" role="alertdialog" aria-modal="true"
+         aria-labelledby="cd-title" aria-describedby="cd-desc">
+        <div class="cd-dialog" @onclick:stopPropagation="true">
+            <div class="cd-icon" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.75"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <h2 class="cd-title" id="cd-title">@Title</h2>
+            <p class="cd-desc" id="cd-desc">@Message</p>
+            <div class="cd-actions">
+                <button class="cd-btn cd-btn--ghost" type="button"
+                        disabled="@_isBusy" @onclick="HandleCancelAsync">
+                    @CancelText
+                </button>
+                <button class="cd-btn cd-btn--danger" type="button"
+                        disabled="@_isBusy" @onclick="HandleConfirmAsync">
+                    @if (_isBusy)
+                    {
+                        <span class="cd-spinner" aria-hidden="true"></span>
+                    }
+                    @ConfirmText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+   
+    [Parameter] 
+    public string Title { get; set; } = "Подтвердите действие"; // Заголовок диалога
+   
+    [Parameter] 
+    public string Message { get; set; } = "Вы уверены?"; // Текст вопроса
+   
+    [Parameter] 
+    public string ConfirmText { get; set; } = "Удалить"; // Текст кнопки подтверждения
+   
+    [Parameter] 
+    public string CancelText { get; set; } = "Отмена"; // Текст кнопки отмены
+   
+    [Parameter] 
+    public EventCallback OnConfirmed { get; set; } // Callback при подтверждении
+   
+    [Parameter] 
+    public EventCallback OnCancelled { get; set; } // Callback при отмене
+
+    private bool _visible;
+    private bool _isBusy;
+
+    // Показывает диалог
+    public Task ShowAsync()
+    {
+        _isBusy = false;
+        _visible = true;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    // Скрывает диалог программно
+    public void Hide()
+    {
+        _visible = false;
+        _isBusy = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleConfirmAsync()
+    {
+        _isBusy = true;
+        StateHasChanged();
+        await OnConfirmed.InvokeAsync();
+        _visible = false;
+        _isBusy = false;
+    }
+
+    private async Task HandleCancelAsync()
+    {
+        if (_isBusy) return;
+        _visible = false;
+        await OnCancelled.InvokeAsync();
+    }
+}
+
+<style>
+    .cd-backdrop {
+        position: fixed; inset: 0; z-index: 400;
+        background: rgba(22, 33, 62, 0.45);
+        backdrop-filter: blur(2px);
+        animation: cd-fade-in 180ms ease both;
+    }
+    .cd-overlay {
+        position: fixed; inset: 0; z-index: 401;
+        display: flex; align-items: center; justify-content: center;
+        padding: var(--space-16, 1rem);
+        pointer-events: none;
+    }
+    .cd-dialog {
+        pointer-events: all;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl, 1rem);
+        box-shadow: var(--shadow-lg);
+        padding: var(--space-24, 1.5rem);
+        max-width: 400px; width: 100%;
+        display: flex; flex-direction: column; align-items: center;
+        gap: var(--space-12, 0.75rem);
+        text-align: center;
+        animation: cd-slide-up 220ms cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .cd-icon {
+        color: var(--color-glucose-danger, #DB5967);
+        display: flex; align-items: center; justify-content: center;
+        width: 52px; height: 52px; border-radius: 50%;
+        background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 10%, transparent);
+        flex-shrink: 0;
+    }
+    .cd-title {
+        font-family: var(--font-display); font-size: var(--text-lg, 1.25rem);
+        font-weight: 700; color: var(--color-text); margin: 0;
+    }
+    .cd-desc {
+        font-size: var(--text-sm, 0.875rem); color: var(--color-text-muted);
+        line-height: 1.6; margin: 0; max-width: 32ch;
+    }
+    .cd-actions {
+        display: flex; gap: var(--space-8, 0.5rem);
+        width: 100%; margin-top: var(--space-4, 0.25rem);
+    }
+    .cd-btn {
+        flex: 1; min-height: 44px; border-radius: var(--radius-md, 0.5rem);
+        font-family: var(--font-body); font-size: 14px; font-weight: 600;
+        cursor: pointer; border: none;
+        transition: background 180ms cubic-bezier(0.16,1,0.3,1),
+                    transform 180ms cubic-bezier(0.16,1,0.3,1);
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .cd-btn--ghost {
+        background: var(--color-surface-offset);
+        color: var(--color-text-muted);
+        border: 1px solid var(--color-border);
+    }
+    .cd-btn--ghost:hover:not(:disabled) { background: var(--color-surface-dynamic); }
+    .cd-btn--danger {
+        background: var(--color-glucose-danger, #DB5967);
+        color: #fff;
+    }
+    .cd-btn--danger:hover:not(:disabled) {
+        background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 85%, black);
+        transform: translateY(-1px);
+    }
+    .cd-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .cd-spinner {
+        width: 14px; height: 14px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.35);
+        border-top-color: #fff;
+        animation: cd-spin 0.7s linear infinite;
+    }
+    @@keyframes cd-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @@keyframes cd-slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @@keyframes cd-spin { to { transform: rotate(360deg); } }
+    @@media (prefers-reduced-motion: reduce) {
+        .cd-backdrop, .cd-dialog, .cd-spinner { animation: none; transition: none; }
+    }
+</style>

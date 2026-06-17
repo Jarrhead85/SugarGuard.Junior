@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Shadow brushes -->
+    <!-- Light theme: warm-deep healthcare tint -->
+    <SolidColorBrush x:Key="ShadowBrushLight" Color="#121F3A" />
+
+    <!-- Dark theme: classic deep black shadow -->
+    <SolidColorBrush x:Key="ShadowBrushDark" Color="#000000" />
+
+    <!-- 2. Base system shadows / Light theme -->
+    <Shadow x:Key="ShadowSmLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.07" />
+
+    <Shadow x:Key="ShadowMdLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,24"
+            Radius="48"
+            Opacity="0.11" />
+
+    <Shadow x:Key="ShadowLgLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,32"
+            Radius="90"
+            Opacity="0.16" />
+
+    <!-- 3. Base system shadows / Dark theme -->
+    <Shadow x:Key="ShadowSmDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.28" />
+
+    <Shadow x:Key="ShadowMdDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,24"
+            Radius="58"
+            Opacity="0.34" />
+
+    <Shadow x:Key="ShadowLgDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,36"
+            Radius="100"
+            Opacity="0.48" />
+
+    <!-- 4. Semantic shadows / Components -->
+    <!-- Regular cards -->
+    <Shadow x:Key="CardShadowLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.07" />
+
+    <Shadow x:Key="CardShadowDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.28" />
+
+    <!-- Hero cards / KPI / major surfaces -->
+    <Shadow x:Key="HeroShadowLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,24"
+            Radius="48"
+            Opacity="0.11" />
+
+    <Shadow x:Key="HeroShadowDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,24"
+            Radius="58"
+            Opacity="0.34" />
+
+    <!-- Overlays / dialogs / elevated glass blocks -->
+    <Shadow x:Key="OverlayShadowLight"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,32"
+            Radius="90"
+            Opacity="0.16" />
+
+    <Shadow x:Key="OverlayShadowDark"
+            Brush="{StaticResource ShadowBrushDark}"
+            Offset="0,36"
+            Radius="100"
+            Opacity="0.48" />
+
+    <!-- 5. Neutral fallback aliases -->
+    <Shadow x:Key="ShadowSm"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.07" />
+
+    <Shadow x:Key="ShadowMd"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,24"
+            Radius="48"
+            Opacity="0.11" />
+
+    <Shadow x:Key="ShadowLg"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,32"
+            Radius="90"
+            Opacity="0.16" />
+
+    <!-- 6. Semantic fallback aliases -->
+    <Shadow x:Key="CardShadow"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.07" />
+
+    <Shadow x:Key="HeroShadow"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,24"
+            Radius="48"
+            Opacity="0.11" />
+
+    <Shadow x:Key="OverlayShadow"
+            Brush="{StaticResource ShadowBrushLight}"
+            Offset="0,32"
+            Radius="90"
+            Opacity="0.16" />
+
+</ResourceDictionary>

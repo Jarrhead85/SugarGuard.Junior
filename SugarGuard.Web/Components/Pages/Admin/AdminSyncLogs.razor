@@ -1,0 +1,54 @@
+@page "/admin/sync-logs"
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@layout Layout.AdminLayout
+@inject SugarGuardApiService Api
+
+<h1>Sync Logs</h1>
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="error-message">@_errorMessage</div>
+}
+<div class="panel">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Entity</th>
+                <th>Status</th>
+                <th>Conflict</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in _logs)
+        {
+            <tr>
+                <td>@item.CreatedAt.ToLocalTime()</td>
+                <td>@item.EntityType</td>
+                <td><span class="chip">@item.Status</span></td>
+                <td>@(item.IsConflict ? "Yes" : "No")</td>
+                <td>@(item.Error ?? "-")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private IReadOnlyList<SyncLogVm> _logs = [];
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _logs = await Api.GetSyncLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _logs = [];
+        }
+    }
+}

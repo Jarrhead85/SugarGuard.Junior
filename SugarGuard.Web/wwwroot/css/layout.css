@@ -1,0 +1,1261 @@
+﻿/* =============================================================================
+   SugarGuard.Web — wwwroot/css/layout.css
+   Структурные лейауты: MainLayout, AuthLayout, страницы Dashboard, Profile,
+   Settings, Reports, Admin, Login, Register, Email Verification.
+   Все размеры, цвета и отступы через токены variables.css.
+   ============================================================================= */
+
+
+/* =============================================================================
+   1. MAIN LAYOUT — сетка приложения (TopNav + Sidebar + Content)
+   ============================================================================= */
+
+/* Корневая сетка: топнав растянут на всю ширину, слева sidebar 220px */
+.main-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: 60px 1fr;
+    grid-template-areas:
+        "topnav  topnav"
+        "sidebar content";
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+}
+
+/* ── TopNav ─────────────────────────────────────────────────────────────────── */
+
+.main-layout__topnav {
+    grid-area: topnav;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-topnav);
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: 0 var(--space-20);
+    height: 60px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    /* Предотвращаем схлопывание при маленьком контенте */
+    min-width: 0;
+}
+
+.topnav__logo-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.topnav__logo-text {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.topnav__spacer {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Название текущей страницы в центре/слева топнава (опционально) */
+.topnav__page-title {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topnav__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    flex-shrink: 0;
+}
+
+/* Аватар пользователя в топнаве */
+.topnav__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    border: 2px solid var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: box-shadow var(--transition);
+}
+
+    .topnav__avatar:hover {
+        box-shadow: 0 0 0 3px var(--color-primary-soft);
+    }
+
+/* Иконка hamburger — видна только на мобиле */
+.topnav__hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap-target-min);
+    height: var(--tap-target-min);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: background var(--transition), color var(--transition);
+}
+
+    .topnav__hamburger:hover {
+        background: var(--color-surface-offset);
+        color: var(--color-text);
+    }
+
+/* Theme-toggle кнопка */
+.topnav__theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap-target-min);
+    height: var(--tap-target-min);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    transition: background var(--transition), color var(--transition);
+}
+
+    .topnav__theme-toggle:hover {
+        background: var(--color-surface-offset);
+        color: var(--color-text);
+    }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────────── */
+
+.main-layout__sidebar {
+    grid-area: sidebar;
+    width: 220px;
+    position: sticky;
+    top: 60px;
+    height: calc(100dvh - 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: var(--space-16) var(--space-12) var(--space-24);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    /* Скрываем скроллбар визуально, оставляем функционал */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+    .main-layout__sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .main-layout__sidebar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .main-layout__sidebar::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: var(--radius-full);
+    }
+
+/* Группа навигации в sidebar */
+.sidebar-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 2px);
+}
+
+    .sidebar-group + .sidebar-group {
+        margin-top: var(--space-8);
+        padding-top: var(--space-8);
+        border-top: 1px solid var(--color-divider);
+    }
+
+.sidebar__label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-faint);
+    padding: var(--space-8) var(--space-12) var(--space-4);
+    user-select: none;
+}
+
+/* Ссылка-элемент sidebar */
+.sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-12);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    min-height: var(--tap-target-min);
+    transition: background var(--transition), color var(--transition);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+
+    .sidebar__link svg {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        stroke-width: 1.8;
+    }
+
+    .sidebar__link:hover {
+        background: var(--color-surface-offset);
+        color: var(--color-text);
+    }
+
+    .sidebar__link:active {
+        transform: scale(0.98);
+        transition-duration: var(--duration-press);
+    }
+
+    /* Активный элемент */
+    .sidebar__link.active {
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+/* Бейдж-счётчик рядом с иконкой */
+.sidebar__badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+/* Нижний блок sidebar — профиль / выход */
+.sidebar__footer {
+    margin-top: auto;
+    padding-top: var(--space-12);
+    border-top: 1px solid var(--color-divider);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* ── Content ─────────────────────────────────────────────────────────────────── */
+
+.main-layout__content {
+    grid-area: content;
+    min-width: 0; /* предотвращает overflow в grid */
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Внутренняя область с отступами — оборачивает конкретную страницу */
+.page-body {
+    flex: 1;
+    padding: var(--space-24) var(--space-20);
+    max-width: 1200px;
+    width: 100%;
+    margin-inline: auto;
+}
+
+/* Вариант без ограничения по ширине (Admin-таблицы, отчёты) */
+.page-body--wide {
+    max-width: 100%;
+    padding: var(--space-20) var(--space-24);
+}
+
+/* Вариант узкий (формы настроек, профиль) */
+.page-body--narrow {
+    max-width: 640px;
+    padding: var(--space-24) var(--space-20);
+}
+
+/* StateBanner на уровне page (под topnav, над контентом) */
+.page-banner-area {
+    padding: var(--space-12) var(--space-20) 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+/* Заголовок страницы с опциональным действием справа */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-16);
+    margin-bottom: var(--space-24);
+    flex-wrap: wrap;
+}
+
+.page-header__title {
+    font-family: var(--font-display);
+    font-size: clamp(22px, 2.5vw, 30px);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.15;
+}
+
+.page-header__subtitle {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    margin-top: var(--space-4);
+    line-height: 1.4;
+}
+
+.page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Backdrop для мобильного sidebar drawer */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(22, 33, 62, 0.25);
+    z-index: calc(var(--z-modal) - 1);
+    animation: fadeInBackdrop var(--duration-dialog) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .sidebar-backdrop {
+    background: rgba(0, 0, 0, 0.40);
+}
+
+.sidebar-backdrop.is-visible {
+    display: block;
+}
+
+@keyframes fadeInBackdrop {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+
+/* =============================================================================
+   2. AUTH LAYOUT — страницы входа, регистрации, подтверждения email
+   ============================================================================= */
+
+.auth-layout {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16);
+    background-color: var(--color-bg);
+    /* Лёгкий паттерн фона — не отвлекает, добавляет глубину */
+    background-image: radial-gradient( ellipse 80% 60% at 50% -10%, rgba(27, 142, 139, 0.07) 0%, transparent 70% );
+}
+
+/* Карточка формы: 80×80dp logo + form */
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-24);
+}
+
+/* Лого-блок: 80×80dp по UIKit */
+.auth-logo {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+    background: var(--color-primary-soft);
+    border: 2px solid rgba(27, 142, 139, 0.15);
+    flex-shrink: 0;
+}
+
+    .auth-logo svg {
+        width: 44px;
+        height: 44px;
+        color: var(--color-primary);
+    }
+
+.auth-title {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-text);
+    text-align: center;
+    line-height: 1.15;
+}
+
+.auth-subtitle {
+    font-size: var(--text-base);
+    color: var(--color-text-muted);
+    text-align: center;
+    max-width: 32ch;
+    line-height: 1.5;
+}
+
+/* Форма входа/регистрации */
+.auth-form {
+    width: 100%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-24);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+}
+
+/* Разделитель «или» */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    color: var(--color-text-faint);
+    font-size: var(--text-sm);
+}
+
+    .auth-divider::before,
+    .auth-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--color-divider);
+    }
+
+/* Вспомогательные ссылки под формой */
+.auth-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.auth-link {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+    .auth-link:hover {
+        color: var(--color-primary);
+    }
+
+    .auth-link span {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+/* Rate-limit StateBanner на странице входа */
+.auth-form .state-banner {
+    margin-top: var(--space-4);
+}
+
+/* Email-verification layout — отдельный flow */
+.verify-layout {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16);
+    background-color: var(--color-bg);
+}
+
+.verify-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-32) var(--space-24);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-20);
+    text-align: center;
+}
+
+.verify-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+    .verify-icon svg {
+        width: 32px;
+        height: 32px;
+    }
+
+
+/* =============================================================================
+   3. DASHBOARD PAGE
+   ============================================================================= */
+
+/* Hero-секция (MainPage hero — GlucoseUiState) */
+.dashboard-hero {
+    border-radius: var(--radius-xl);
+    padding: var(--space-24);
+    margin-bottom: var(--space-20);
+    position: relative;
+    overflow: hidden;
+    transition: background var(--transition-medium), border-color var(--transition-medium);
+}
+
+    /* Состояния hero по GlucoseUiState */
+    .dashboard-hero.state-normal {
+        background: rgba(55, 165, 99, 0.12);
+        border: 1px solid rgba(55, 165, 99, 0.20);
+    }
+
+    .dashboard-hero.state-warning {
+        background: rgba(227, 163, 43, 0.12);
+        border: 1px solid rgba(227, 163, 43, 0.20);
+    }
+
+    .dashboard-hero.state-danger {
+        background: rgba(219, 89, 103, 0.12);
+        border: 1px solid rgba(219, 89, 103, 0.20);
+    }
+
+/* Большое значение глюкозы — ClashDisplay Bold 48sp */
+.dashboard-hero__value {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+}
+
+.dashboard-hero__unit {
+    font-family: var(--font-body);
+    font-size: var(--text-lg);
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-left: var(--space-4);
+}
+
+.dashboard-hero__label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: var(--space-8);
+}
+
+.dashboard-hero__delta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+}
+
+/* Секция KPI под hero */
+.dashboard-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+    gap: var(--space-12);
+    margin-bottom: var(--space-20);
+}
+
+/* График — занимает всю ширину */
+.dashboard-chart-section {
+    margin-bottom: var(--space-20);
+}
+
+.dashboard-chart-wrapper {
+    position: relative;
+    height: 220px;
+    width: 100%;
+}
+
+/* Переключатели периода графика (chips) */
+.dashboard-chart-filters {
+    display: flex;
+    gap: var(--space-8);
+    margin-bottom: var(--space-12);
+    flex-wrap: wrap;
+}
+
+/* Два столбца: таймлайн + быстрые действия */
+.dashboard-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: var(--space-16);
+    align-items: start;
+}
+
+/* Timeline измерений */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.timeline__item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-12);
+    padding: var(--space-12) 0;
+    border-bottom: 1px solid var(--color-divider);
+    position: relative;
+}
+
+    .timeline__item:last-child {
+        border-bottom: none;
+    }
+
+.timeline__time {
+    font-size: var(--text-sm);
+    color: var(--color-text-faint);
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+.timeline__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    margin-top: 5px;
+}
+
+    .timeline__dot.normal {
+        background: var(--color-glucose-normal);
+    }
+
+    .timeline__dot.warning {
+        background: var(--color-glucose-warning);
+    }
+
+    .timeline__dot.danger {
+        background: var(--color-glucose-danger);
+    }
+
+.timeline__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.timeline__value {
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+}
+
+.timeline__meta {
+    font-size: var(--text-xs);
+    color: var(--color-text-faint);
+    margin-top: 2px;
+}
+
+
+/* =============================================================================
+   4. PROFILE / SETTINGS PAGE
+   ============================================================================= */
+
+/* Профиль: аватар + имя сверху, секции ниже */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+    padding: var(--space-20);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-20);
+    box-shadow: var(--shadow-card);
+}
+
+.profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    border: 3px solid var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-primary);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.profile-name {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.15;
+}
+
+.profile-role {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-4);
+}
+
+/* Секции настроек: карточка-группа */
+.settings-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: var(--space-16);
+    box-shadow: var(--shadow-card);
+}
+
+.settings-section__title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-faint);
+    padding: var(--space-12) var(--space-20);
+    border-bottom: 1px solid var(--color-divider);
+    background: var(--color-surface-offset);
+}
+
+/* Строка настройки */
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    padding: var(--space-16) var(--space-20);
+    border-bottom: 1px solid var(--color-divider);
+    min-height: var(--tap-target-min);
+    transition: background var(--transition);
+}
+
+    .settings-row:last-child {
+        border-bottom: none;
+    }
+
+    .settings-row:hover {
+        background: var(--color-surface-offset);
+    }
+
+.settings-row--clickable {
+    cursor: pointer;
+}
+
+.settings-row__label {
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.settings-row__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+.settings-row__value {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.settings-row__chevron {
+    color: var(--color-text-faint);
+    flex-shrink: 0;
+}
+
+/* Опасная зона (удаление аккаунта) */
+.settings-danger-zone {
+    background: var(--color-banner-danger-bg);
+    border: 1px solid rgba(219, 89, 103, 0.20);
+    border-radius: var(--radius-lg);
+    padding: var(--space-20);
+    margin-top: var(--space-24);
+}
+
+.settings-danger-zone__title {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-glucose-danger);
+    margin-bottom: var(--space-8);
+}
+
+.settings-danger-zone__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-16);
+    max-width: 48ch;
+}
+
+
+/* =============================================================================
+   5. REPORTS PAGE
+   ============================================================================= */
+
+/* Фильтр-бар: период + экспорт */
+.reports-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin-bottom: var(--space-20);
+    flex-wrap: wrap;
+}
+
+.reports-filter-bar__period {
+    display: flex;
+    gap: var(--space-8);
+}
+
+.reports-filter-bar__spacer {
+    flex: 1;
+}
+
+.reports-filter-bar__export {
+    display: flex;
+    gap: var(--space-8);
+}
+
+/* Сетка статистических карточек */
+.reports-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+    gap: var(--space-12);
+    margin-bottom: var(--space-20);
+}
+
+/* Большой график (занимает 2/3) + TIR круговой (1/3) */
+.reports-chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: var(--space-16);
+    margin-bottom: var(--space-20);
+    align-items: start;
+}
+
+.reports-chart-grid__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+}
+
+.reports-chart-wrapper {
+    position: relative;
+    height: 260px;
+    width: 100%;
+}
+
+/* TIR — Time In Range, правая колонка */
+.tir-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-16);
+    padding: var(--space-20);
+}
+
+.tir-chart-wrapper {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+}
+
+.tir-legend {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.tir-legend__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.tir-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    margin-right: var(--space-8);
+}
+
+.tir-legend__label {
+    flex: 1;
+    color: var(--color-text-muted);
+}
+
+.tir-legend__value {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+
+/* =============================================================================
+   6. ADMIN PAGE
+   ============================================================================= */
+
+/* Таб-переключатель (Users / Logs / Health) */
+.admin-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--color-divider);
+    margin-bottom: var(--space-20);
+}
+
+.admin-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-16);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+    text-decoration: none;
+    user-select: none;
+    min-height: var(--tap-target-min);
+}
+
+    .admin-tab:hover {
+        color: var(--color-text);
+    }
+
+    .admin-tab.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+    }
+
+/* Toolbar: поиск + фильтры + действия */
+.admin-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin-bottom: var(--space-16);
+    flex-wrap: wrap;
+}
+
+.admin-toolbar__search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+}
+
+    .admin-toolbar__search .input-field {
+        padding-left: 38px;
+        min-height: 40px;
+    }
+
+.admin-toolbar__search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-faint);
+    pointer-events: none;
+    width: 16px;
+    height: 16px;
+}
+
+.admin-toolbar__spacer {
+    flex: 1;
+}
+
+.admin-toolbar__actions {
+    display: flex;
+    gap: var(--space-8);
+    flex-shrink: 0;
+}
+
+/* Health checks grid */
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+    gap: var(--space-12);
+}
+
+.health-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-16);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.health-item__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+    .health-item__dot.healthy {
+        background: var(--color-glucose-normal);
+    }
+
+    .health-item__dot.degraded {
+        background: var(--color-glucose-warning);
+    }
+
+    .health-item__dot.unhealthy {
+        background: var(--color-glucose-danger);
+    }
+
+.health-item__name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.health-item__status {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+
+/* =============================================================================
+   7. MOBILE RESPONSIVE (≤ 768px)
+   ============================================================================= */
+
+@media (max-width: 768px) {
+
+    /* Сетка переходит в single-column */
+    .main-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "topnav"
+            "content";
+    }
+
+    /* Sidebar становится drawer */
+    .main-layout__sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        z-index: var(--z-modal);
+        transform: translateX(-100%);
+        transition: transform var(--duration-slide) cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-overlay);
+        padding-top: calc(var(--space-20) + env(safe-area-inset-top));
+    }
+
+        .main-layout__sidebar.is-open {
+            transform: translateX(0);
+        }
+
+    /* Hamburger — виден только на мобиле */
+    .topnav__hamburger {
+        display: flex;
+    }
+
+    /* Content без левого отступа sidebar */
+    .page-body {
+        padding: var(--space-16);
+    }
+
+    .page-body--wide {
+        padding: var(--space-12) var(--space-16);
+    }
+
+    /* Page header — вертикальная раскладка */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-12);
+        margin-bottom: var(--space-16);
+    }
+
+    /* Dashboard: single column */
+    .dashboard-bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Reports: single column */
+    .reports-chart-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .reports-filter-bar {
+        gap: var(--space-8);
+    }
+
+    .reports-filter-bar__spacer {
+        display: none;
+    }
+
+    .reports-filter-bar__export {
+        width: 100%;
+    }
+
+        .reports-filter-bar__export .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+    /* Admin: toolbar в столбик */
+    .admin-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-toolbar__search {
+        min-width: 0;
+    }
+
+    .admin-toolbar__spacer {
+        display: none;
+    }
+
+    .admin-toolbar__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    /* Auth-карточка: без отступов по бокам на очень маленьких экранах */
+    .auth-form {
+        padding: var(--space-20);
+    }
+
+    /* Bottom tab bar — добавляем отступ снизу content */
+    .main-layout__content {
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    }
+}
+
+/* Промежуточный брейкпойнт — планшет */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+    .main-layout {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .main-layout__sidebar {
+        width: 200px;
+    }
+
+    .reports-chart-grid {
+        grid-template-columns: 1fr 240px;
+    }
+
+    .dashboard-kpi-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+
+/* =============================================================================
+   8. PRINT
+   ============================================================================= */
+
+@media print {
+    .main-layout__topnav,
+    .main-layout__sidebar,
+    .topnav__actions,
+    .page-header__actions,
+    .reports-filter-bar__export,
+    .admin-toolbar,
+    .admin-tabs,
+    .sidebar-backdrop {
+        display: none !important;
+    }
+
+    .main-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas: "content";
+    }
+
+    .main-layout__content {
+        grid-area: content;
+    }
+
+    .page-body {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .card,
+    .settings-section {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        break-inside: avoid;
+    }
+
+    body {
+        background: white;
+        color: black;
+    }
+}

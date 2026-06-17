@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Тени карточек -->
+    <!-- Базовая мягкая тень -->
+    <Shadow x:Key="CardShadowBase"
+            Brush="{AppThemeBinding Light=#121F3A, Dark=#000000}"
+            Offset="0,12"
+            Radius="28"
+            Opacity="0.08" />
+
+    <!-- Более спокойная тень для списков -->
+    <Shadow x:Key="CardShadowList"
+            Brush="{AppThemeBinding Light=#121F3A, Dark=#000000}"
+            Offset="0,10"
+            Radius="22"
+            Opacity="0.06" />
+
+    <!-- Более плотная тень для data-card -->
+    <Shadow x:Key="CardShadowData"
+            Brush="{AppThemeBinding Light=#121F3A, Dark=#000000}"
+            Offset="0,14"
+            Radius="30"
+            Opacity="0.10" />
+
+    <!-- Accent glow для hero-card -->
+    <Shadow x:Key="CardShadowHeroGlow"
+            Brush="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}"
+            Offset="0,18"
+            Radius="42"
+            Opacity="0.20" />
+
+    <!-- Accent glow для action-card -->
+    <Shadow x:Key="CardShadowActionGlow"
+            Brush="{AppThemeBinding Light=#2678D9, Dark=#56D0BF}"
+            Offset="0,16"
+            Radius="36"
+            Opacity="0.16" />
+
+    <!-- 2. Базовая карточка -->
+    <Style x:Key="BaseCard" TargetType="Border">
+        <!-- Мягкая glass-поверхность -->
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#D6FFFFFF" Dark="#BC121824" />
+            </Setter.Value>
+        </Setter>
+
+        <!-- Полупрозрачная мягкая граница -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1A16213E" Dark="#17EDF4FF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="StrokeThickness" Value="1" />
+
+        <!-- Большой дружелюбный радиус -->
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+
+        <!-- Комфортный внутренний ритм -->
+        <Setter Property="Padding" Value="20" />
+
+        <!-- Нейтральная глубина -->
+        <Setter Property="Shadow" Value="{StaticResource CardShadowBase}" />
+    </Style>
+
+    <!-- Алиас базовой карточки для явного использования -->
+    <Style x:Key="Card" TargetType="Border" BasedOn="{StaticResource BaseCard}" />
+
+    <!-- Implicit-стиль для совместимости -->
+    <Style TargetType="Border" BasedOn="{StaticResource BaseCard}" />
+
+    <!-- 3. Hero Card -->
+    <Style x:Key="HeroCard" TargetType="Border" BasedOn="{StaticResource BaseCard}">
+        <!-- Более выразительная поверхность с фирменным акцентом -->
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Offset="0.0" Color="{AppThemeBinding Light=#F4FFFFFF, Dark=#E01A2433}" />
+                    <GradientStop Offset="0.55" Color="{AppThemeBinding Light=#221B8E8B, Dark=#2A56D0BF}" />
+                    <GradientStop Offset="1.0" Color="{AppThemeBinding Light=#182678D9, Dark=#162678D9}" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+
+        <!-- Граница чуть заметнее, чем у обычной карточки -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#261B8E8B" Dark="#2C56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="StrokeThickness" Value="1.2" />
+
+        <!-- Hero должен быть чуть крупнее и свободнее -->
+        <Setter Property="StrokeShape" Value="RoundRectangle 32" />
+        <Setter Property="Padding" Value="24" />
+
+        <!-- Accent glow для фокусного блока -->
+        <Setter Property="Shadow" Value="{StaticResource CardShadowHeroGlow}" />
+    </Style>
+
+    <!-- 4. Data Card -->
+    <Style x:Key="DataCard" TargetType="Border" BasedOn="{StaticResource BaseCard}">
+        <!-- Более плотная и читаемая поверхность -->
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F2FFFFFF" Dark="#D6172437" />
+            </Setter.Value>
+        </Setter>
+
+        <!-- Нейтральная, но чуть более уверенная граница -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1816213E" Dark="#1AEDF4FF" />
+            </Setter.Value>
+        </Setter>
+
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="Shadow" Value="{StaticResource CardShadowData}" />
+    </Style>
+
+    <!-- 5. Action Card -->
+    <Style x:Key="ActionCard" TargetType="Border" BasedOn="{StaticResource BaseCard}">
+        <!-- Мягкая акцентная подложка без агрессии -->
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Offset="0.0" Color="{AppThemeBinding Light=#EEFFFFFF, Dark=#D1142030}" />
+                    <GradientStop Offset="0.65" Color="{AppThemeBinding Light=#161B8E8B, Dark=#1E56D0BF}" />
+                    <GradientStop Offset="1.0" Color="{AppThemeBinding Light=#122678D9, Dark=#142678D9}" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+
+        <!-- Рамка чуть мягче, чем у hero -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1E1B8E8B" Dark="#2256D0BF" />
+            </Setter.Value>
+        </Setter>
+
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="Shadow" Value="{StaticResource CardShadowActionGlow}" />
+    </Style>
+
+    <!-- 6. List Card -->
+    <Style x:Key="ListCard" TargetType="Border" BasedOn="{StaticResource BaseCard}">
+        <!-- Самая спокойная карточка: меньше акцента, больше структуры -->
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#EFFFFFFF" Dark="#C8121A26" />
+            </Setter.Value>
+        </Setter>
+
+        <!-- Почти невидимая, но читаемая граница -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1416213E" Dark="#14EDF4FF" />
+            </Setter.Value>
+        </Setter>
+
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+
+        <!-- Список обычно чуть компактнее -->
+        <Setter Property="Padding" Value="16" />
+
+        <!-- Менее заметная тень, чтобы лента не выглядела тяжелой -->
+        <Setter Property="Shadow" Value="{StaticResource CardShadowList}" />
+    </Style>
+
+    <!-- 7. Pending Sync Dot (индикатор ожидающей синхронизации) -->
+    <Style x:Key="PendingSyncDot" TargetType="Border">
+        <Setter Property="WidthRequest" Value="8" />
+        <Setter Property="HeightRequest" Value="8" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 4" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Shadow" Value="{x:Null}" />
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#2678D9" Dark="#6DAEFF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <!-- Активный Pending Sync Dot (с пульсацией) -->
+    <Style x:Key="PendingSyncDotActive" TargetType="Border" BasedOn="{StaticResource PendingSyncDot}">
+        <Setter Property="Shadow" Value="{StaticResource StatePendingGlow}" />
+    </Style>
+
+    <!-- Выключенный Pending Sync Dot (синхронизировано) -->
+    <Style x:Key="PendingSyncDotDone" TargetType="Border" BasedOn="{StaticResource PendingSyncDot}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#37A563" Dark="#62D889" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StateSuccessGlow}" />
+    </Style>
+
+</ResourceDictionary>

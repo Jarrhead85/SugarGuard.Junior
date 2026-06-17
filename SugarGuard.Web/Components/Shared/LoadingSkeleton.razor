@@ -1,0 +1,153 @@
+﻿@using SugarGuard.Web.Components.Shared
+@* компонент-заглушка загрузки*@
+
+@if (Variant == SkeletonVariant.Custom)
+{
+    @* Произвольный набор строк *@
+    <div class="sk-wrapper @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        @ChildContent
+    </div>
+}
+else if (Variant == SkeletonVariant.Card)
+{
+    @* Карточка: заголовок + 3 строки текста *@
+    <div class="sk-wrapper sk-card @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        <div class="sk-card-header">
+            <div class="sk-block sk-avatar"></div>
+            <div class="sk-card-header-text">
+                <div class="sk-block sk-line" style="width: 55%; height: 14px;"></div>
+                <div class="sk-block sk-line" style="width: 38%; height: 11px; margin-top: var(--space-4);"></div>
+            </div>
+        </div>
+        <div class="sk-card-body">
+            @for (int i = 0; i < Lines; i++)
+            {
+                var width = _lineWidths[i % _lineWidths.Length];
+                <div class="sk-block sk-line" style="width: @width; height: 13px;"></div>
+            }
+        </div>
+    </div>
+}
+else if (Variant == SkeletonVariant.KpiCard)
+{
+    @* KPI-карточка: маленькая метка + большое значение + подпись *@
+    <div class="sk-wrapper sk-kpi-card @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        <div class="sk-block sk-line" style="width: 48%; height: 11px;"></div>
+        <div class="sk-block sk-kpi-value" style="margin-top: var(--space-8);"></div>
+        <div class="sk-block sk-line" style="width: 62%; height: 11px; margin-top: var(--space-8);"></div>
+    </div>
+}
+else if (Variant == SkeletonVariant.Chart)
+{
+    @* Область графика: высота задаётся через HeightPx *@
+    <div class="sk-wrapper @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true"
+         style="height: @HeightPx px">
+        <div class="sk-block sk-chart" style="height: @HeightPx px; border-radius: var(--radius-md);"></div>
+    </div>
+}
+else if (Variant == SkeletonVariant.TableRow)
+{
+    @* Строка таблицы: несколько ячеек разной ширины *@
+    <div class="sk-wrapper sk-table-row @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        <div class="sk-block sk-line" style="width: 18%; height: 13px;"></div>
+        <div class="sk-block sk-line" style="width: 28%; height: 13px;"></div>
+        <div class="sk-block sk-line" style="width: 14%; height: 13px;"></div>
+        <div class="sk-block sk-line" style="width: 20%; height: 13px;"></div>
+        <div class="sk-block sk-line" style="width: 12%; height: 13px; border-radius: var(--radius-full);"></div>
+    </div>
+}
+else if (Variant == SkeletonVariant.Avatar)
+{
+    @* Одиночный аватар с опциональными строками справа *@
+    <div class="sk-wrapper sk-avatar-row @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        <div class="sk-block sk-avatar @(AvatarRound ? "sk-avatar--round" : "")"></div>
+        @if (Lines > 0)
+        {
+            <div class="sk-avatar-lines">
+                @for (int i = 0; i < Lines; i++)
+                {
+                    var width = _lineWidths[i % _lineWidths.Length];
+                    var height = i == 0 ? "14px" : "11px";
+                    <div class="sk-block sk-line"
+                         style="width: @width; height: @height;"></div>
+                }
+            </div>
+        }
+    </div>
+}
+else if (Variant == SkeletonVariant.Heading)
+{
+    @* Заголовок страницы или секции *@
+    <div class="sk-wrapper @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        <div class="sk-block sk-line" style="width: @Width; height: @HeightPx px;"></div>
+    </div>
+}
+else
+{
+    @* одна или несколько строк текста *@
+    <div class="sk-wrapper @CssClass"
+         role="status"
+         aria-label="@AriaLabel"
+         aria-busy="true">
+        @for (int i = 0; i < Lines; i++)
+        {
+            var isLast = i == Lines - 1;
+            var width = isLast
+                ? LastLineWidth
+                : _lineWidths[i % _lineWidths.Length];
+            <div class="sk-block sk-line"
+                 style="width: @width; height: @HeightPx px;"></div>
+        }
+    </div>
+}
+
+@code {
+    // Параметры    
+    [Parameter] public SkeletonVariant Variant { get; set; } = SkeletonVariant.Text; // Визуальный пресет skeleton-блока
+   
+    [Parameter] public int Lines { get; set; } = 3; // Количество строк
+   
+    [Parameter] public string Width { get; set; } = "100%"; // Ширина блока
+   
+    [Parameter] public int HeightPx { get; set; } = 13; // Высота одной строки
+   
+    [Parameter] public string LastLineWidth { get; set; } = "60%"; // Ширина последней строки текста
+   
+    [Parameter] public bool AvatarRound { get; set; } = true; // Округлый аватар
+  
+    [Parameter] public RenderFragment? ChildContent { get; set; } // Произвольный контент для варианта
+   
+    [Parameter] public string? CssClass { get; set; } // Дополнительный CSS-класс корневого элемента
+   
+    [Parameter] public string AriaLabel { get; set; } = "Загрузка данных"; // aria-label для screen reader — по умолчанию "Загрузка данных"
+
+    // Внутренние данные
+    /// <summary>
+    /// Предустановленные ширины строк для создания визуально естественного текстового ритма
+    /// </summary>
+    private static readonly string[] _lineWidths =
+    [
+        "100%", "92%", "100%", "85%", "96%", "78%"
+    ];
+}

@@ -1,0 +1,19 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using SugarGuard.Web.Components.Shared
+
+<AuthorizeView Roles="Admin,SupportAdmin">
+    <Authorized>
+        <nav class="sg-sidenav">
+            <NavItem Href="/admin" Icon="grid" Label="Дашборд" Match="NavLinkMatch.All" />
+            <NavItem Href="/admin/users" Icon="users" Label="Пользователи" />
+            <NavItem Href="/admin/doctor-requests" Icon="user-check" Label="Заявки врачей" />
+            <NavItem Href="/admin/roles" Icon="shield" Label="Роли" />
+            <NavItem Href="/admin/links" Icon="link" Label="Связки" />
+            <NavItem Href="/admin/sync-logs" Icon="refresh-cw" Label="Sync Logs" />
+            <NavItem Href="/admin/export-logs" Icon="download" Label="Экспорт" />
+            <NavItem Href="/admin/faq" Icon="help-circle" Label="FAQ" />
+            <NavItem Href="/admin/system-stats" Icon="activity" Label="Статистика" />
+        </nav>
+    </Authorized>
+</AuthorizeView>

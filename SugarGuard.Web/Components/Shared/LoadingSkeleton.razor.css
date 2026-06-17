@@ -1,0 +1,140 @@
+﻿.sk-block {
+    background: var(--color-surface-offset, #E9EFF9);
+    border-radius: var(--radius-sm, 14px);
+    position: relative;
+    overflow: hidden;
+    min-height: 8px;
+}
+
+    /* shimmer — псевдоэлемент движется по X */
+    .sk-block::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient( 90deg, transparent 0%, var(--color-surface-dynamic, rgba(255, 255, 255, 0.55)) 50%, transparent 100% );
+        background-size: 200% 100%;
+        animation: sk-shimmer 1500ms linear infinite;
+    }
+
+@keyframes sk-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Обёртка */
+.sk-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    width: 100%;
+}
+
+/* Строка текста */
+.sk-line {
+    height: 13px;
+    border-radius: var(--radius-sm, 14px);
+    flex-shrink: 0;
+}
+
+/* Аватар */
+.sk-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md, 18px);
+    flex-shrink: 0;
+}
+
+.sk-avatar--round {
+    border-radius: var(--radius-full, 9999px);
+}
+
+/* Аватар + строки рядом */
+.sk-avatar-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+.sk-avatar-lines {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Карточка */
+.sk-card {
+    background: var(--color-surface, rgba(255, 255, 255, 0.85));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 24px);
+    padding: var(--space-20);
+    box-shadow: var(--shadow-card, 0 12px 28px rgba(22, 33, 62, 0.07));
+    gap: var(--space-16);
+}
+
+.sk-card-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+.sk-card-header-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.sk-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+/* KPI-карточка */
+.sk-kpi-card {
+    background: var(--color-surface, rgba(255, 255, 255, 0.85));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 24px);
+    padding: var(--space-20);
+    box-shadow: var(--shadow-card, 0 12px 28px rgba(22, 33, 62, 0.07));
+}
+
+.sk-kpi-value {
+    height: 36px;
+    width: 70%;
+    border-radius: var(--radius-md, 18px);
+}
+
+/* Область графика */
+.sk-chart {
+    width: 100%;
+    flex-shrink: 0;
+}
+
+/* Строка таблицы */
+.sk-table-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-16);
+    padding: var(--space-12) 0;
+    border-bottom: 1px solid var(--color-divider);
+}
+
+    .sk-table-row .sk-line {
+        flex-shrink: 0;
+    }
+
+/* Reduced motion*/
+@media (prefers-reduced-motion: reduce) {
+    .sk-block::after {
+        animation: none;
+        background: transparent;
+    }
+}

@@ -1,0 +1,448 @@
+/*
+ * ============================================================
+ * SugarGuard — sg-tokens.css
+ * Слой совместимости: короткие алиасы → канонические переменные
+ * из variables.css (UIKit v2.0, §19.1)
+ *
+ * ЗАЧЕМ ЭТОТ ФАЙЛ
+ * ---------------------------------------------------------------
+ * В проекте сосуществуют три соглашения об именах CSS-переменных:
+ *   1. Канонические (variables.css)  — --color-primary, --space-8
+ *   2. Компонентные sg-префиксы      — --sg-primary, --sg-shadow-sm
+ *   3. Минимальные алиасы            — --primary, --tx, --p1, --mt
+ *
+ * Этот файл сводит соглашения 2 и 3 к соглашению 1,
+ * не ломая существующие компоненты (.sg-stat-card, LoadingSkeleton,
+ * GlucoseChart и т.д.) до их постепенного рефакторинга.
+ *
+ * ПОРЯДОК ПОДКЛЮЧЕНИЯ в App.razor / Host.cshtml:
+ *   1. variables.css   ← источник истины
+ *   2. sg-tokens.css   ← этот файл (алиасы поверх)
+ *   3. app.css         ← компонентные стили
+ *
+ * ПРАВИЛА ПРАВКИ
+ * - Новые компоненты пишем ТОЛЬКО через --color-*, --space-* из variables.css
+ * - Алиасы в этом файле ТОЛЬКО читают variables.css, ничего не переопределяют
+ * - При рефакторинге компонента — убираем его алиасы из этого файла
+ * ============================================================
+ */
+
+/* ============================================================
+ * § 1. SG-КОМПОНЕНТНЫЕ АЛИАСЫ (--sg-* → --color-*/ --space-*)
+*
+* Используются в: StatCard.razor, LoadingSkeleton.razor,
+* StatusChip.razor, SyncBanner.razor, GlucoseChart.razor
+* ============================================================ */
+
+:root,
+[data-theme="light"] {
+    /* --- Поверхности --- */
+    --sg-bg: var(--color-bg);
+    --sg-surface: var(--color-surface);
+    --sg-surface-2: var(--color-surface-2);
+    --sg-surface-offset: var(--color-surface-offset);
+    /* --- Границы и разделители --- */
+    --sg-border: var(--color-border);
+    --sg-divider: var(--color-divider);
+    /* --- Текст --- */
+    --sg-text: var(--color-text);
+    --sg-text-muted: var(--color-text-muted);
+    --sg-text-faint: var(--color-text-faint);
+    /* --- Основной акцент (Primary = #1B8E8B light) --- */
+    --sg-primary: var(--color-primary);
+    --sg-primary-2: var(--color-primary-alt);
+    --sg-primary-soft: var(--color-primary-soft);
+    --sg-primary-grad: var(--color-primary-grad);
+    /* --- Глюкозные статусы --- */
+    --sg-ok: var(--color-glucose-normal);
+    --sg-ok-soft: var(--color-glucose-normal-soft);
+    --sg-warn: var(--color-glucose-warning);
+    --sg-warn-soft: var(--color-glucose-warning-soft);
+    --sg-danger: var(--color-glucose-danger);
+    --sg-danger-soft: var(--color-glucose-danger-soft);
+    /* --- Тени (именование sg-shadow-* → --shadow-*) --- */
+    --sg-shadow-sm: var(--shadow-card-sm);
+    --sg-shadow-md: var(--shadow-card);
+    --sg-shadow-lg: var(--shadow-hero);
+    /* --- Transition --- */
+    --sg-transition: var(--transition);
+    /* --- Glow (фоновый градиент hero-секций) --- */
+    --sg-glow: var(--color-bg-glow);
+    /* --- Радиусы: sg-radius-* → --radius-* --- */
+    --sg-radius-sm: var(--radius-sm); /* 14px */
+    --sg-radius-md: var(--radius-md); /* 18px */
+    --sg-radius-lg: var(--radius-lg); /* 24px */
+    --sg-radius-xl: var(--radius-xl); /* 32px */
+    --sg-radius-full: var(--radius-full); /* 9999px */
+    /* --- Типографика: sg-font-* → --font-* + --text-* --- */
+    --sg-font-display: var(--font-display);
+    --sg-font-body: var(--font-body);
+    --sg-font-label: var(--text-xs); /* 12–14px, chips/badges */
+    --sg-font-kpi: var(--text-kpi); /* clamp(1.75rem,…,3.5rem) */
+    /* --- Статусные цвета (используются в StatCard --sg-color-*) --- */
+    --sg-color-safe: var(--color-glucose-normal);
+    --sg-color-warning: var(--color-glucose-warning);
+    --sg-color-danger: var(--color-glucose-danger);
+}
+
+/* ============================================================
+ * § 1-DARK. SG-АЛИАСЫ — ТЁМНАЯ ТЕМА
+ *
+ * Все значения унаследуют тёмные версии из variables.css
+ * автоматически через var(--color-*), так как variables.css
+ * переопределяет их в [data-theme="dark"].
+ * Дополнительные переопределения нужны только там, где sg-*
+ * не совпадает 1-в-1 с канонической переменной.
+ * ============================================================ */
+
+[data-theme="dark"] {
+    /*
+     * В тёмной теме UIKit v2.0:
+     *   Primary = #56D0BF   (тот же цвет что и PrimaryStrong в light)
+     *   PrimaryHover = #1B8E8B (более тёмный — инвертировано относительно light)
+     *
+     * variables.css уже переопределяет --color-primary и --color-primary-hover
+     * для dark, поэтому --sg-primary и --sg-primary-2 наследуются корректно.
+     *
+     * Переопределяем только glow — в тёмной теме он интенсивнее.
+     */
+    --sg-glow: var(--color-bg-glow); /* variables.css даёт тёмный вариант */
+}
+
+/* ============================================================
+ * § 2. МИНИМАЛЬНЫЕ АЛИАСЫ (--primary, --tx и т.д.)
+ *
+ * Используются в:
+ *   - landing.html (--p1, --p2, --tx, --mt, --bg)
+ *   - admin-prototype (--primary, --surface, --bg)
+ *   - parent-prototype (--primary, --font-d, --font-b)
+ *
+ * ВАЖНО: эти алиасы — временные. При рефакторинге страниц
+ * заменить на полные имена из §1 или variables.css и удалить
+ * соответствующие строки здесь.
+ * ============================================================ */
+
+:root,
+[data-theme="light"] {
+    /* ---------- Admin dashboard алиасы ---------- */
+    --primary: var(--color-primary);
+    --primary-hover: var(--color-primary-hover);
+    --alt: var(--color-primary-alt);
+    --surface: var(--color-surface);
+    --surface-2: var(--color-surface-2);
+    --bg: var(--color-bg);
+    --border: var(--color-border);
+    --text: var(--color-text);
+    --text-muted: var(--color-text-muted);
+    --text-faint: var(--color-text-faint);
+    --ok: var(--color-glucose-normal);
+    --warn: var(--color-glucose-warning);
+    --danger: var(--color-glucose-danger);
+    --shadow-sm: var(--shadow-card-sm);
+    --shadow-md: var(--shadow-card);
+    --r-sm: var(--radius-sm);
+    --r-md: var(--radius-md);
+    --r-lg: var(--radius-lg);
+    --r-full: var(--radius-full);
+    /* ---------- Parent dashboard алиасы ---------- */
+    --font-d: var(--font-display);
+    --font-b: var(--font-body);
+    /* ---------- Landing алиасы (landing.html) ---------- */
+    --p1: var(--color-primary);
+    --p2: var(--color-primary-alt);
+    --tx: var(--color-text);
+    --mt: var(--color-text-muted);
+    --ft: var(--color-text-faint);
+    --bd: var(--color-border);
+    --dv: var(--color-divider);
+    --tr: var(--transition);
+    /* ---------- Doctor dashboard алиасы (полные, но без --color- префикса) --- */
+    /* Используются как --primary в doctor-prototype напрямую,          */
+    /* перекрыты блоком Admin выше — дублирования нет.                  */
+}
+
+/* ============================================================
+ * § 3. SPACING-АЛИАСЫ
+ *
+ * Конфликт соглашений в проекте:
+ *   - UIKit и variables.css: --space-4 = 4px (имя = значение в px)
+ *   - Ряд компонентов:       --space-4 = 4-й шаг = 16px (имя = шаг)
+ *
+ * В этом файле мы следуем соглашению UIKit:
+ *   --space-N = N пикселей.
+ *
+ * Компоненты, использующие шаговое соглашение (sg-stat-card,
+ * sg-skeleton-card), через --sg-* или явные px-значения.
+ * ============================================================ */
+
+:root,
+[data-theme="light"] {
+    /* Прямые алиасы: имя = значение */
+    --space-0: var(--space-0-base); /* 0px   */
+    --space-4: var(--spacing-4); /* 4px   */
+    --space-8: var(--spacing-8); /* 8px   */
+    --space-12: var(--spacing-12); /* 12px  */
+    --space-16: var(--spacing-16); /* 16px  */
+    --space-20: var(--spacing-20); /* 20px  */
+    --space-24: var(--spacing-24); /* 24px  */
+    --space-32: var(--spacing-32); /* 32px  */
+    --space-40: var(--spacing-40); /* 40px  */
+    --space-48: var(--spacing-48); /* 48px  */
+    --space-64: var(--spacing-64); /* 64px  */
+}
+
+/* ============================================================
+ * § 4. SHADOW-АЛИАСЫ
+ *
+ * variables.css использует семантические имена:
+ *   --shadow-card-sm, --shadow-card, --shadow-hero, --shadow-overlay
+ *
+ * Ряд прототипов и компонентов обращается к:
+ *   --shadow-card  — совпадает → алиас не нужен
+ *   --shadow-sm    — нужен алиас (используется в admin/parent prototype)
+ *   --shadow-md    — нужен алиас
+ *   --shadow-lg    — нужен алиас
+ * ============================================================ */
+
+:root,
+[data-theme="light"] {
+    /* Алиасы для прототипов и старых компонентов */
+    --shadow-sm: var(--shadow-card-sm);
+    --shadow-md: var(--shadow-card);
+    --shadow-lg: var(--shadow-hero);
+    /* --shadow-card и --shadow-overlay — уже в variables.css, алиасы не нужны */
+}
+
+/* ============================================================
+ * § 5. CHIP-ТОКЕНЫ
+ *
+ * StatusChip.razor использует CSS-классы .status-chip--normal /
+ * --warning / --danger. Цвета берём из UIKit v2.0 §9.
+ *
+ * UIKit v2.0 §9, StatusChip, Light:
+ *   Normal:  bg 1F37A563, border 3337A563, text 216E43
+ *   Warning: bg 1FE3A32B, border 33E3A32B, text 8B5C00
+ *   Danger:  bg 1FDB5967, border 33DB5967, text A43846
+ *
+ * UIKit v2.0 §9, StatusChip, Dark:
+ *   Normal:  bg 1F62D889, border 3362D889, text DFFFE A (≈ #DFFFEA)
+ *   Warning: bg 1FF4BC56, border 33F4BC56, text FFF2D1
+ *   Danger:  bg 1FFF7A8B, border 33FF7A8B, text FFE5E8
+ * ============================================================ */
+
+:root,
+[data-theme="light"] {
+    /* Normal (зелёный) */
+    --chip-normal-bg: rgba(55, 165, 99, 0.12);
+    --chip-normal-border: rgba(55, 165, 99, 0.20);
+    --chip-normal-text: #216E43;
+    /* Warning (жёлтый) */
+    --chip-warning-bg: rgba(227, 163, 43, 0.12);
+    --chip-warning-border: rgba(227, 163, 43, 0.20);
+    --chip-warning-text: #8B5C00;
+    /* Danger (красный) */
+    --chip-danger-bg: rgba(219, 89, 103, 0.12);
+    --chip-danger-border: rgba(219, 89, 103, 0.20);
+    --chip-danger-text: #A43846;
+}
+
+[data-theme="dark"] {
+    /* Normal */
+    --chip-normal-bg: rgba(98, 216, 137, 0.12);
+    --chip-normal-border: rgba(98, 216, 137, 0.20);
+    --chip-normal-text: #DFFFEA;
+    /* Warning */
+    --chip-warning-bg: rgba(244, 188, 86, 0.12);
+    --chip-warning-border: rgba(244, 188, 86, 0.20);
+    --chip-warning-text: #FFF2D1;
+    /* Danger */
+    --chip-danger-bg: rgba(255, 122, 139, 0.12);
+    --chip-danger-border: rgba(255, 122, 139, 0.20);
+    --chip-danger-text: #FFE5E8;
+}
+
+/* ============================================================
+ * § 6. GLUCOSE BADGE АЛИАСЫ
+ *
+ * Используются в DoctorPatients.razor (.glucose-badge--normal/warning/danger)
+ * и GlucoseChart.razor (cssVar('--color-glucose-normal')).
+ *
+ * Алиасы уже покрыты variables.css через --color-glucose-*.
+ * Этот блок добавляет только highlight-цвета для badge-фонов,
+ * которые отсутствуют в variables.css и нужны DoctorPatients.razor.
+ * ============================================================ */
+
+:root,
+[data-theme="light"] {
+    --color-glucose-normal-highlight: rgba(55, 165, 99, 0.10);
+    --color-glucose-warning-highlight: rgba(227, 163, 43, 0.10);
+    --color-glucose-danger-highlight: rgba(219, 89, 103, 0.10);
+}
+
+[data-theme="dark"] {
+    --color-glucose-normal-highlight: rgba(98, 216, 137, 0.13);
+    --color-glucose-warning-highlight: rgba(244, 188, 86, 0.13);
+    --color-glucose-danger-highlight: rgba(255, 122, 139, 0.13);
+}
+
+/* ============================================================
+ * § 7. CHART.JS ИНТЕГРАЦИЯ
+ *
+ * glucoseChart.js читает CSS-переменные через cssVar('--color-*').
+ * Следующие переменные должны быть доступны на :root в момент
+ * вызова Chart.js (после DOMContentLoaded).
+ *
+ * Все они уже определены в variables.css. Этот блок —
+ * документационный: перечисляет, что ОЖИДАЕТ glucoseChart.js.
+ *
+ * glucoseChart.js читает:
+ *   --color-glucose-normal   → цвет линии и fill-градиента
+ *   --color-glucose-warning  → цвет точек-предупреждений
+ *   --color-glucose-danger   → цвет критических точек
+ *   --color-divider          → цвет сеточных линий
+ *   --color-text-faint       → цвет меток осей
+ *   --color-surface-2        → фон тултипа
+ *   --color-text             → заголовок тултипа
+ *   --color-text-muted       → тело тултипа
+ *   --color-border           → рамка тултипа
+ *
+ * Если glucoseChart.js падает с "пустой цвет" — проверь,
+ * что variables.css подключён ДО sg-tokens.css.
+ * ============================================================ */
+
+/* ============================================================
+ * § 8. ИСПРАВЛЕНИЕ НАРУШЕНИЯ UIKit — UNREAD NOTIFICATION BORDER
+ *
+ * UIKit v2.0 §1 запрещает: "BorderLeft 3px solid accent"
+ * В parent-prototype было: .notif-item.unread { border-left: 3px solid var(--primary); }
+ *
+ * Правильный паттерн — левая полоска через ::before или точка.
+ * Переопределяем здесь глобально, чтобы сломать нарушение,
+ * пока компонент не отрефакторен.
+ * ============================================================ */
+
+/* Временный override до рефакторинга NotificationItem.razor */
+.notif-item.unread {
+    /* Убираем запрещённый border-left */
+    border-left: none !important;
+    /* Заменяем на разрешённый паттерн: фоновый тинт */
+    background-color: var(--color-primary-soft) !important;
+    /* Левый акцент через box-shadow — не "border", не нарушает UIKit */
+    box-shadow: inset 3px 0 0 var(--color-primary), var(--shadow-card-sm);
+}
+
+/* ============================================================
+ * § 9. ИСПРАВЛЕНИЕ РАСХОЖДЕНИЯ ТЕНЕЙ В PARENT PROTOTYPE
+ *
+ * Parent-prototype использовал rgba(18,31,58,...) вместо
+ * канонического rgba(22,33,62,...) из UIKit v2.0 §2.
+ *
+ * В variables.css уже исправлено. Этот блок — страховка:
+ * если где-то осталось хардкодное rgba(18,31,58,...),
+ * заменить при рефакторинге на var(--shadow-*).
+ * ============================================================ */
+
+/* ============================================================
+ * § 10. ИСПРАВЛЕНИЕ SurfaceCard OPACITY В PARENT PROTOTYPE
+ *
+ * Parent-prototype: rgba(17,24,37,0.78) в dark mode.
+ * UIKit v2.0 §2: SurfaceCard dark = rgba(17,24,37,0.80).
+ *
+ * Исправлено в variables.css (--color-surface dark = rgba(17,24,37,0.80)).
+ * Компоненты через var(--color-surface) получают правильное значение.
+ * ============================================================ */
+
+/* ============================================================
+ * § 11. КНОПКИ — УНИФИКАЦИЯ ГРАДИЕНТ vs СПЛОШНОЙ
+ *
+ * Расхождение (см. аудит UIKit):
+ *   - UIKit v2.0 §7: btn-primary = сплошной --color-primary, БЕЗ градиента
+ *   - Admin/Landing прототипы: linear-gradient(135deg, --primary, --alt)
+ *
+ * РЕШЕНИЕ: сплошной цвет согласно UIKit — это эталон.
+ * Градиент в прототипах был иллюстративным.
+ * app.css реализует .sg-btn--primary без градиента.
+ *
+ * Если дизайнер захочет вернуть градиент — добавить в UIKit §7
+ * явную запись и убрать этот комментарий.
+ *
+ * Временный override для любых компонентов с gradien-кнопкой:
+ * ============================================================ */
+
+.btn-primary,
+.sg-btn--primary {
+    /* Принудительно сплошной цвет согласно UIKit v2.0 §7 */
+    background: var(--color-primary) !important;
+    background-image: none !important;
+    color: #ffffff;
+}
+
+    .btn-primary:hover,
+    .sg-btn--primary:hover {
+        background: var(--color-primary-hover) !important;
+        transform: translateY(-1px);
+    }
+
+    .btn-primary:active,
+    .sg-btn--primary:active {
+        background: var(--color-primary-active) !important;
+        transform: translateY(0);
+    }
+
+/* ============================================================
+ * § 12. PREFERS-REDUCED-MOTION
+ *
+ * Все анимационные переменные сбрасываем для пользователей
+ * с включённой опцией "Уменьшить движение".
+ * ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition: 0ms;
+        --sg-transition: 0ms;
+        --tr: 0ms;
+    }
+}
+
+/* ============================================================
+ * § 13. СИСТЕМНАЯ ТЁМНАЯ ТЕМА (без JS, до инициализации theme.js)
+ *
+ * Если theme.js ещё не установил data-theme — CSS сам применит
+ * тёмные значения для пользователей с тёмной системной темой.
+ * Это устраняет мигание при первой загрузке.
+ *
+ * Дублирует ключевые sg-* значения из [data-theme="dark"],
+ * которые наследуются из variables.css автоматически через var().
+ * Отдельного дублирования здесь не нужно — variables.css
+ * уже содержит @media (prefers-color-scheme: dark) { :root:not([data-theme]) }.
+ * ============================================================ */
+
+/*
+ * ============================================================
+ * РЕЕСТР КОМПОНЕНТОВ И ИХ ЗАВИСИМОСТИ ОТ ЭТОГО ФАЙЛА
+ * ============================================================
+ *
+ * Компонент                         Использует §
+ * ------------------------------------------------
+ * StatCard.razor                    §1, §3
+ * LoadingSkeleton.razor             §1, §3
+ * StatusChip.razor                  §1, §5
+ * SyncBanner.razor                  §1
+ * GlucoseChart.razor / chart.js     §1 (через cssVar), §7
+ * Patients.razor                    §1, §6
+ * NotificationItem.razor (parent)   §8
+ * landing.html                      §2 (--p1, --p2, --tx ...)
+ * admin-prototype pages             §2 (--primary, --surface ...)
+ * parent-prototype pages            §2 (--font-d, --font-b ...)
+ * app.css (глобальный)              §11 (кнопки)
+ * ------------------------------------------------
+ *
+ * ПЛАН РЕФАКТОРИНГА (удаляем алиасы по мере замены):
+ *   Sprint 3: DoctorPatients.razor   → убрать §6 highlight-алиасы
+ *   Sprint 3: landing.html           → убрать §2 (--p1, --p2 ...)
+ *   Sprint 4: admin/parent prototypes → убрать §2 (--primary, --font-d ...)
+ *   Sprint 4: StatCard / Skeleton    → убрать §1 --sg-* после замены в .razor
+ *   Sprint 5: NotificationItem       → убрать §8 override после рефакторинга
+ *   Sprint 5: btn-primary в landing  → убрать §11 после замены на .sg-btn--primary
+ * ============================================================
+ */

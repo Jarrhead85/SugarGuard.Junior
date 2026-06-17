@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Базовый фон страниц -->
+
+    <Style TargetType="ContentPage">
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource BackgroundPage}, Dark={StaticResource BackgroundPage}}" />
+    </Style>
+
+    <Style TargetType="Page" ApplyToDerivedTypes="True">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource BackgroundPage}, Dark={StaticResource BackgroundPage}}" />
+    </Style>
+
+    <!-- 2. Совместимый базовый контейнерный слой -->
+
+    <Style TargetType="Frame">
+        <Setter Property="HasShadow" Value="False" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource SurfaceCard}, Dark={StaticResource SurfaceCard}}" />
+        <Setter Property="BorderColor"
+                Value="{AppThemeBinding Light={StaticResource BorderDefault}, Dark={StaticResource BorderDefault}}" />
+    </Style>
+
+    <Style TargetType="Border">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="Stroke"
+                Value="{AppThemeBinding Light={StaticResource BorderDefault}, Dark={StaticResource BorderDefault}}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="Rectangle" />
+    </Style>
+
+    <Style TargetType="BoxView">
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerColor}}" />
+    </Style>
+
+    <!-- 3. Базовая типографика -->
+
+    <Style TargetType="Label">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+
+    <!-- 4. Базовые текстовые и вводные контролы -->
+
+    <Style TargetType="Entry">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="PlaceholderColor"
+                Value="{AppThemeBinding Light={StaticResource TextFaintColor}, Dark={StaticResource TextFaintColor}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="Editor">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="PlaceholderColor"
+                Value="{AppThemeBinding Light={StaticResource TextFaintColor}, Dark={StaticResource TextFaintColor}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="Picker">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="TitleColor"
+                Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondary}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="DatePicker">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="TimePicker">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="SearchBar">
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="PlaceholderColor"
+                Value="{AppThemeBinding Light={StaticResource TextFaintColor}, Dark={StaticResource TextFaintColor}}" />
+        <Setter Property="CancelButtonColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <!-- 5. Базовые интерактивные контролы -->
+
+    <Style TargetType="ImageButton">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style TargetType="CheckBox">
+        <Setter Property="Color"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="RadioButton">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor"
+                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="Switch">
+        <Setter Property="OnColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+        <Setter Property="ThumbColor"
+                Value="{AppThemeBinding Light={StaticResource SurfaceCardStrong}, Dark={StaticResource SurfaceCardStrong}}" />
+    </Style>
+
+    <Style TargetType="Slider">
+        <Setter Property="MinimumTrackColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+        <Setter Property="MaximumTrackColor"
+                Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerColor}}" />
+        <Setter Property="ThumbColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+    <Style TargetType="ProgressBar">
+        <Setter Property="ProgressColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+    <Style TargetType="RefreshView">
+        <Setter Property="RefreshColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+    <Style TargetType="ActivityIndicator">
+        <Setter Property="Color"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+    <!-- 6. Базовые служебные элементы -->
+
+    <Style TargetType="IndicatorView">
+        <Setter Property="IndicatorColor"
+                Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerColor}}" />
+        <Setter Property="SelectedIndicatorColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+    <Style TargetType="ListView">
+        <Setter Property="SeparatorColor"
+                Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerColor}}" />
+        <Setter Property="RefreshControlColor"
+                Value="{AppThemeBinding Light={StaticResource InteractivePrimary}, Dark={StaticResource InteractivePrimary}}" />
+    </Style>
+
+</ResourceDictionary>

@@ -1,0 +1,110 @@
+﻿@implements IDisposable
+
+@using SugarGuard.Web.Utilities
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+
+    /// <summary>
+    /// Подписка на изменения для реактивного редиректа
+    /// </summary>
+    private bool _disposed;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChangedAsync;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        HandleAuthState(authState);
+    }
+
+    /// <summary>
+    /// Обработчик события изменения 
+    /// </summary>
+    private async void OnAuthenticationStateChangedAsync(Task<AuthenticationState> authStateTask)
+    {
+        try
+        {
+            var authState = await authStateTask;
+
+            if (!authState.User.Identity?.IsAuthenticated ?? true)
+            {
+                await InvokeAsync(RedirectToLoginPage);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Анализирует и выполняет нужный редирект
+    /// </summary>
+    private void HandleAuthState(AuthenticationState authState)
+    {
+        var user = authState.User;
+
+        if (!user.Identity?.IsAuthenticated ?? true)
+        {
+            RedirectToLoginPage();
+        }
+        else
+        {
+            RedirectToAccessDenied();
+        }
+    }
+
+    /// <summary>
+    /// Перенаправляет на страницу входа
+    /// </summary>
+    private void RedirectToLoginPage()
+    {
+        var currentUri = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+        if (IsAuthPage(currentUri))
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var safePath = SafeRedirect.SanitizeReturnUrl("/" + currentUri.TrimStart('/'));
+        var encodedReturnUrl = Uri.EscapeDataString(safePath);
+        Navigation.NavigateTo($"/login?returnUrl={encodedReturnUrl}", replace: true);
+    }
+
+    /// <summary>
+    /// Перенаправляет аутентифицированного пользователя без нужных прав
+    /// </summary>
+    private void RedirectToAccessDenied()
+    {
+        Navigation.NavigateTo("/access-denied", replace: true);
+    }
+
+    /// <summary>
+    /// Проверяет, является ли переданный путь страницей аутентификации
+    /// </summary>
+    private static bool IsAuthPage(string relativeUri)
+    {
+        var path = relativeUri.Split('?')[0].Split('#')[0]
+            .Trim('/')
+            .ToLowerInvariant();
+
+        return path is "login"
+            or "register"
+            or "forgot-password"
+            or "reset-password"
+            or "verify-email"
+            or "access-denied";
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChangedAsync;
+    }
+}

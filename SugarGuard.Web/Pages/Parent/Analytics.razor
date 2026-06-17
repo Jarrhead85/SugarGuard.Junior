@@ -1,0 +1,648 @@
+﻿@page "/parent/analytics/{ChildId:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using SugarGuard.Web.Shared
+@using SugarGuard.Web.Models.Analytics
+@attribute [Authorize(Roles = "Parent")]
+@inject SugarGuardApiService ApiService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Аналитика — SugarGuard</PageTitle>
+
+<PageHeader Title="Аналитика"
+            Subtitle="Статистика и паттерны глюкозы"
+            ShowBackButton="true"
+            BackButtonAriaLabel="Назад на дашборд"
+            OnBackClicked="NavigateBackAsync">
+    <TrailingContent>
+        <div class="period-tabs" role="tablist" aria-label="Период анализа">
+            @foreach (var p in _periods)
+            {
+                <button class="period-tab @(_selectedPeriod == p.Key ? "period-tab--active" : "")"
+                        role="tab"
+                        aria-selected="@(_selectedPeriod == p.Key)"
+                        @onclick="() => SelectPeriodAsync(p.Key)">
+                    @p.Label
+                </button>
+            }
+        </div>
+    </TrailingContent>
+</PageHeader>
+
+@* Глобальный баннер ошибки *@
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <StateBanner Kind="StateBanner.BannerKind.Error"
+                 Title="Ошибка загрузки"
+                 Message="@_errorMessage" />
+}
+
+@* KPI-карточки *@
+<section class="analytics-section" aria-label="Ключевые показатели">
+    <h2 class="section-heading">Показатели за период</h2>
+
+    @if (_statsLoading)
+    {
+        <div class="kpi-grid" aria-busy="true" aria-label="Загрузка показателей">
+            @for (var i = 0; i < 6; i++)
+            {
+                <div class="kpi-card kpi-card--skeleton">
+                    <div class="skeleton skeleton-text skeleton-text--sm"></div>
+                    <div class="skeleton skeleton-text skeleton-text--lg"></div>
+                    <div class="skeleton skeleton-text skeleton-text--xs"></div>
+                </div>
+            }
+        </div>
+    }
+    else if (_stats is not null)
+    {
+        <div class="kpi-grid">
+            @* Среднее значение *@
+            <div class="kpi-card @GetUiStateClass(_stats.AverageGlucose)"
+                 role="article" aria-label="Среднее значение глюкозы">
+                <span class="kpi-label">Среднее, ммоль/л</span>
+                <span class="kpi-value">
+                    @_stats.AverageGlucose.ToString("F1")
+                    @if (_comparison is not null)
+                    {
+                        <span class="kpi-delta @GetDeltaClass(_comparison.AverageGlucoseDelta)">
+                            @FormatDelta(_comparison.AverageGlucoseDelta)
+                        </span>
+                    }
+                </span>
+                <span class="kpi-hint">Цель: 4.0–10.0</span>
+            </div>
+
+            @* TIR *@
+            <div class="kpi-card @GetTirClass(_stats.TimeInTargetRange)"
+                 role="article" aria-label="Время в целевом диапазоне">
+                <span class="kpi-label">TIR, %</span>
+                <span class="kpi-value">
+                    @_stats.TimeInTargetRange.ToString("F1")
+                    <span class="kpi-unit">%</span>
+                    @if (_comparison is not null)
+                    {
+                        <span class="kpi-delta @GetDeltaClass(_comparison.TimeInRangeDelta)">
+                            @FormatDelta(_comparison.TimeInRangeDelta)
+                        </span>
+                    }
+                </span>
+                <span class="kpi-hint">Цель: ≥ 70%</span>
+            </div>
+
+            @* GMI *@
+            <div class="kpi-card" role="article" aria-label="Индекс управления глюкозой">
+                <span class="kpi-label">GMI, %</span>
+                <span class="kpi-value">
+                    @(_stats.Gmi > 0 ? _stats.Gmi.ToString("F1") : "—")
+                </span>
+                <span class="kpi-hint">HbA1c-приближение</span>
+            </div>
+
+            @* Стандартное отклонение *@
+            <div class="kpi-card @GetSdClass(_stats.StandardDeviation)"
+                 role="article" aria-label="Вариабельность глюкозы">
+                <span class="kpi-label">SD, ммоль/л</span>
+                <span class="kpi-value">@_stats.StandardDeviation.ToString("F2")</span>
+                <span class="kpi-hint">Цель: &lt; 2.0</span>
+            </div>
+
+            @* Гипо-эпизоды *@
+            <div class="kpi-card @(_stats.HypoEpisodes > 0 ? "kpi-card--danger" : "kpi-card--ok")"
+                 role="article" aria-label="Гипогликемические эпизоды">
+                <span class="kpi-label">Гипо-эпизоды</span>
+                <span class="kpi-value">
+                    @_stats.HypoEpisodes
+                    @if (_comparison is not null && _comparison.HypoEpisodesDelta != 0)
+                    {
+                        <span class="kpi-delta @GetDeltaClassInverse(_comparison.HypoEpisodesDelta)">
+                            @FormatDeltaInt(_comparison.HypoEpisodesDelta)
+                        </span>
+                    }
+                </span>
+                <span class="kpi-hint">Цель: 0</span>
+            </div>
+
+            @* Гипер-эпизоды *@
+            <div class="kpi-card @(_stats.HyperEpisodes > 0 ? "kpi-card--warning" : "kpi-card--ok")"
+                 role="article" aria-label="Гипергликемические эпизоды">
+                <span class="kpi-label">Гипер-эпизоды</span>
+                <span class="kpi-value">
+                    @_stats.HyperEpisodes
+                    @if (_comparison is not null && _comparison.HyperEpisodesDelta != 0)
+                    {
+                        <span class="kpi-delta @GetDeltaClassInverse(_comparison.HyperEpisodesDelta)">
+                            @FormatDeltaInt(_comparison.HyperEpisodesDelta)
+                        </span>
+                    }
+                </span>
+                <span class="kpi-hint">Цель: минимум</span>
+            </div>
+        </div>
+
+        @* Ненадёжность сравнения *@
+        @if (_comparison is not null && !_comparison.IsReliable &&
+             !string.IsNullOrWhiteSpace(_comparison.UnreliableReason))
+        {
+            <p class="unreliable-note" role="note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                @_comparison.UnreliableReason
+            </p>
+        }
+    }
+    else if (!_statsLoading)
+    {
+        <div class="empty-state" role="status">
+            <svg class="empty-state__icon" width="48" height="48" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M3 3v18h18"/>
+                <path d="M18 17V9M13 17V5M8 17v-3"/>
+            </svg>
+            <p class="empty-state__text">Нет данных за выбранный период</p>
+        </div>
+    }
+</section>
+
+@* TIR-диаграмма (горизонтальный стек) *@
+@if (_stats is not null && _stats.TotalMeasurements > 0)
+{
+    <section class="analytics-section" aria-label="Распределение времени по зонам">
+        <h2 class="section-heading">Распределение по зонам</h2>
+        <div class="tir-chart card" role="img"
+             aria-label="Горизонтальная диаграмма времени в зонах глюкозы">
+
+            @* Легенда *@
+            <div class="tir-legend">
+                @foreach (var zone in GetTirZones())
+                {
+                    <div class="tir-legend__item">
+                        <span class="tir-legend__dot" style="background:@zone.Color" aria-hidden="true"></span>
+                        <span class="tir-legend__label">@zone.Label</span>
+                        <span class="tir-legend__value">@zone.Percent.ToString("F1")%</span>
+                    </div>
+                }
+            </div>
+
+            @* Прогресс-бар *@
+            <div class="tir-bar" role="presentation">
+                @foreach (var zone in GetTirZones())
+                {
+                    @if (zone.Percent > 0.5)
+                    {
+                        <div class="tir-bar__segment"
+                             style="width:@zone.Percent.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%;background:@zone.Color"
+                             title="@zone.Label: @zone.Percent.ToString("F1")%">
+                        </div>
+                    }
+                }
+            </div>
+
+            @* Итого измерений *@
+            <p class="tir-total">Всего измерений: <strong>@_stats.TotalMeasurements</strong></p>
+        </div>
+    </section>
+}
+
+@* Паттерны *@
+<section class="analytics-section" aria-label="Повторяющиеся паттерны глюкозы">
+    <div class="section-header">
+        <h2 class="section-heading">Паттерны за 14 дней</h2>
+        <span class="section-badge">Автоопределение</span>
+    </div>
+
+    @if (_patternsLoading)
+    {
+        <div class="patterns-list" aria-busy="true" aria-label="Загрузка паттернов">
+            @for (var i = 0; i < 3; i++)
+            {
+                <div class="pattern-card card card--skeleton">
+                    <div class="skeleton skeleton-text skeleton-text--md"></div>
+                    <div class="skeleton skeleton-text skeleton-text--sm"></div>
+                </div>
+            }
+        </div>
+    }
+    else if (_patterns.Count > 0)
+    {
+        <ul class="patterns-list" role="list">
+            @foreach (var pattern in _patterns)
+            {
+                <li class="pattern-card card @GetPatternClass(pattern.PatternType)"
+                    role="listitem">
+                    <div class="pattern-card__header">
+                        <span class="pattern-card__icon" aria-hidden="true">
+                            @GetPatternIcon(pattern.PatternType)
+                        </span>
+                        <div class="pattern-card__meta">
+                            <span class="pattern-card__type">
+                                @GetPatternLabel(pattern.PatternType)
+                            </span>
+                            <span class="pattern-card__time">
+                                ~@pattern.PeakHour:00
+                            </span>
+                        </div>
+                        <span class="pattern-card__badge">
+                            @pattern.OccurrenceDays из 14 дн.
+                        </span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(pattern.Description))
+                    {
+                        <p class="pattern-card__desc">@pattern.Description</p>
+                    }
+                    <div class="pattern-card__stat">
+                        <span class="pattern-card__stat-label">Ср. глюкоза в окне</span>
+                        <span class="pattern-card__stat-value">
+                            @pattern.AverageGlucoseInWindow.ToString("F1") ммоль/л
+                        </span>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+    else if (!_patternsLoading)
+    {
+        <div class="empty-state empty-state--small" role="status">
+            <svg class="empty-state__icon" width="40" height="40" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12l2 2 4-4"/>
+            </svg>
+            <p class="empty-state__text">Паттерны не обнаружены — отличный результат!</p>
+        </div>
+    }
+</section>
+
+@* Диапазоны мин/макс *@
+@if (_stats is not null && _stats.TotalMeasurements > 0)
+{
+    <section class="analytics-section" aria-label="Диапазон значений глюкозы">
+        <h2 class="section-heading">Диапазон значений</h2>
+        <div class="range-card card">
+            <div class="range-row">
+                <span class="range-label">Минимум</span>
+                <span class="range-value range-value--low">
+                    @_stats.MinGlucose.ToString("F1") ммоль/л
+                </span>
+            </div>
+            <div class="range-divider" aria-hidden="true"></div>
+            <div class="range-row">
+                <span class="range-label">Среднее</span>
+                <span class="range-value">
+                    @_stats.AverageGlucose.ToString("F1") ммоль/л
+                </span>
+            </div>
+            <div class="range-divider" aria-hidden="true"></div>
+            <div class="range-row">
+                <span class="range-label">Максимум</span>
+                <span class="range-value range-value--high">
+                    @_stats.MaxGlucose.ToString("F1") ммоль/л
+                </span>
+            </div>
+        </div>
+    </section>
+}
+
+@* Экспорт PDF *@
+<section class="analytics-section analytics-section--export" aria-label="Экспорт отчёта">
+    <h2 class="section-heading">Экспорт</h2>
+    <div class="export-actions">
+        <button class="btn-primary export-btn"
+                @onclick="ExportPdfAsync"
+                disabled="@_exportLoading"
+                aria-busy="@_exportLoading">
+            @if (_exportLoading)
+            {
+                <span class="spinner spinner--sm" aria-hidden="true"></span>
+                <span>Генерация...</span>
+            }
+            else
+            {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Скачать PDF</span>
+            }
+        </button>
+        <button class="btn-secondary export-btn"
+                @onclick="ExportDetailedPdfAsync"
+                disabled="@_exportLoading"
+                aria-busy="@_exportLoading">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span>Детальный PDF</span>
+        </button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(_exportError))
+    {
+        <p class="export-error" role="alert">@_exportError</p>
+    }
+</section>
+
+@code {
+    // Параметры    
+    [Parameter]
+    public Guid ChildId { get; set; } // Идентификатор ребёнка, передаётся из маршрута
+
+    // Вспомогательные типы    
+    private sealed record PeriodTab(string Key, string Label); // Элемент вкладки периода
+
+    private sealed record TirZone(string Label, double Percent, string Color); // Зона TIR-диаграммы
+
+    // Состояние компонента 
+    private bool _statsLoading;
+    private bool _patternsLoading;
+    private bool _exportLoading;
+
+    private string? _errorMessage;
+    private string? _exportError;
+
+    private string _selectedPeriod = "week";
+
+    private StatisticsVm? _stats;
+    private PeriodComparisonVm? _comparison;
+    private IReadOnlyList<GlucosePatternVm> _patterns = Array.Empty<GlucosePatternVm>();
+
+    // Справочник вкладок 
+    private static readonly PeriodTab[] _periods =
+    {
+        new("day",   "День"),
+        new("week",  "Неделя"),
+        new("month", "Месяц"),
+        new("year",  "Год"),
+    };
+
+    // Жизненный цикл
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllAsync(CancellationToken.None);
+    }
+
+    // Загрузка данных
+    /// <summary>
+    /// Загружает статистику, сравнение и паттерны параллельно
+    /// </summary>
+    private async Task LoadAllAsync(CancellationToken cancellationToken)
+    {
+        _errorMessage = null;
+
+        var statsTask    = LoadStatsAsync(cancellationToken);
+        var patternsTask = LoadPatternsAsync(cancellationToken);
+
+        await Task.WhenAll(statsTask, patternsTask);
+    }
+
+    /// <summary>
+    /// Загружает статистику за выбранный период и данные для сравнения
+    /// </summary>
+    private async Task LoadStatsAsync(CancellationToken cancellationToken)
+    {
+        _statsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var statsTask = ApiService.GetStatisticsVmAsync(ChildId, _selectedPeriod, cancellationToken);
+
+            var comparisonTask = _selectedPeriod is "week" or "month"
+                ? ApiService.GetComparisonAsync(ChildId, _selectedPeriod, cancellationToken)
+                : Task.FromResult<PeriodComparisonVm?>(null);
+
+            await Task.WhenAll(statsTask, comparisonTask);
+
+            _stats      = await statsTask;
+            _comparison = await comparisonTask;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Не удалось загрузить статистику: {ex.Message}";
+        }
+        finally
+        {
+            _statsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Загружает паттерны глюкозы за последние 14 дней
+    /// </summary>
+    private async Task LoadPatternsAsync(CancellationToken cancellationToken)
+    {
+        _patternsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            _patterns = await ApiService.GetPatternsAsync(ChildId, cancellationToken);
+        }
+        catch
+        {
+            _patterns = Array.Empty<GlucosePatternVm>();
+        }
+        finally
+        {
+            _patternsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Обработчики UI 
+    /// <summary>
+    /// Переключает активный период и перезагружает статистику
+    /// </summary>
+    private async Task SelectPeriodAsync(string period)
+    {
+        if (_selectedPeriod == period) return;
+        _selectedPeriod = period;
+        await LoadStatsAsync(CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Возвращает на страницу дашборда родителя
+    /// </summary>
+    private Task NavigateBackAsync()
+    {
+        NavigationManager.NavigateTo($"/parent/dashboard/{ChildId}");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Запрашивает стандартный PDF-отчёт и инициирует скачивание
+    /// </summary>
+    private async Task ExportPdfAsync()
+        => await RunExportAsync(detailed: false);
+
+    /// <summary>
+    /// Запрашивает детальный PDF-отчёт
+    /// </summary>
+    private async Task ExportDetailedPdfAsync()
+        => await RunExportAsync(detailed: true);
+
+    /// <summary>
+    /// Общая логика экспорта PDF
+    /// </summary>
+    private async Task RunExportAsync(bool detailed)
+    {
+        _exportError   = null;
+        _exportLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var bytes = await ApiService.ExportStatisticsToPdfAsync(
+                ChildId, _selectedPeriod, detailed, CancellationToken.None);
+
+            if (bytes != null && bytes.Length > 0)
+            {
+                var fileName =
+                    $"SugarGuard_{_selectedPeriod}_{DateTime.Today:yyyyMMdd}" +
+                    (detailed ? "_detailed" : "") + ".pdf";
+
+                await JS.InvokeVoidAsync("sugarGuardDownload", fileName, "application/pdf", bytes);
+            }
+            else
+            {
+                _exportError = "PDF не был сформирован. Попробуйте позже.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _exportError = $"Ошибка экспорта: {ex.Message}";
+        }
+        finally
+        {
+            _exportLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Вспомогательные методы: стили 
+    /// <summary>
+    /// Возвращает CSS-модификатор карточки на основе значения глюкозы
+    /// </summary>
+    private static string GetUiStateClass(double glucose)
+    {
+        if (glucose < 3.0)
+            return "kpi-card--danger";
+
+        if (glucose < 4.0)
+            return "kpi-card--warning";
+
+        if (glucose <= 10.0)
+            return "kpi-card--ok";
+
+        if (glucose <= 14.0)
+            return "kpi-card--warning";
+
+        return "kpi-card--danger";
+    }
+
+    /// <summary>
+    /// Модификатор карточки TIR
+    /// </summary>
+    private static string GetTirClass(double tir)
+    {
+        if (tir >= 70.0)
+            return "kpi-card--ok";
+
+        if (tir >= 50.0)
+            return "kpi-card--warning";
+
+        return "kpi-card--danger";
+    }
+
+    private static string GetSdClass(double sd)
+    {
+        if (sd > 3.0)
+            return "kpi-card--danger";
+
+        if (sd > 2.0)
+            return "kpi-card--warning";
+
+        return "kpi-card--ok";
+    }
+
+    /// <summary>
+    /// Зелёный для положительной дельты, красный — для отрицательной
+    /// </summary>
+    private static string GetDeltaClass(double delta) =>
+        delta >= 0 ? "kpi-delta--positive" : "kpi-delta--negative";
+
+    /// <summary>
+    /// Инвертированная логика (меньше эпизодов — лучше)
+    /// </summary>
+    private static string GetDeltaClassInverse(int delta) =>
+        delta <= 0 ? "kpi-delta--positive" : "kpi-delta--negative";
+
+    private static string FormatDelta(double delta) =>
+        delta >= 0 ? $"+{delta:F1}" : delta.ToString("F1");
+
+    private static string FormatDeltaInt(int delta) =>
+        delta >= 0 ? $"+{delta}" : delta.ToString();
+
+    // TIR-зоны
+    /// <summary>
+    /// Формирует список TIR-зон из текущей статистики
+    /// </summary>
+    private IReadOnlyList<TirZone> GetTirZones()
+    {
+        if (_stats is null) return Array.Empty<TirZone>();
+
+        var critLow  = _stats.TimeCriticallyLow;
+        var low      = Math.Max(0, _stats.TimeBelowRange - critLow);
+        var inRange  = _stats.TimeInTargetRange;
+        var critHigh = _stats.TimeCriticallyHigh;
+        var high     = Math.Max(0, _stats.TimeAboveRange - critHigh);
+
+        return new[]
+        {
+            new TirZone("Крит. низкий < 3.0",  critLow,  "#DB5967"),
+            new TirZone("Низкий 3.0–3.9",       low,      "#E3A32B"),
+            new TirZone("Целевой 4.0–10.0",     inRange,  "#37A563"),
+            new TirZone("Высокий 10.1–14.0",    high,     "#E3A32B"),
+            new TirZone("Крит. высокий > 14.0", critHigh, "#DB5967"),
+        };
+    }
+
+    // Паттерны: иконки и метки
+
+    private static string GetPatternLabel(string patternType) => patternType switch
+    {
+        "NocturnalEpisode" => "Ночной эпизод",
+        "RecurringHypo"    => "Повторяющееся гипо",
+        "RecurringHyper"   => "Повторяющееся гипер",
+        "PostMealSpike"    => "Постпрандиальный пик",
+        _                  => patternType,
+    };
+
+    private static string GetPatternClass(string patternType) => patternType switch
+    {
+        "NocturnalEpisode" or "RecurringHypo" => "pattern-card--danger",
+        "RecurringHyper"   or "PostMealSpike" => "pattern-card--warning",
+        _                                      => "pattern-card--neutral",
+    };
+
+    private static MarkupString GetPatternIcon(string patternType) => patternType switch
+    {
+        "NocturnalEpisode" => new MarkupString("<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"/></svg>"),
+        "RecurringHypo" => new MarkupString("<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><polyline points=\"23 6 13.5 15.5 8.5 10.5 1 18\"/><polyline points=\"17 6 23 6 23 12\"/></svg>"),
+        "RecurringHyper" => new MarkupString("<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><polyline points=\"23 18 13.5 8.5 8.5 13.5 1 6\"/><polyline points=\"17 18 23 18 23 12\"/></svg>"),
+        _ => new MarkupString("<svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"12\"/><line x1=\"12\" y1=\"16\" x2=\"12.01\" y2=\"16\"/></svg>"),
+    };
+}

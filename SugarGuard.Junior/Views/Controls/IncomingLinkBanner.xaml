@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Controls.IncomingLinkBanner"
+             x:Name="banner">
+
+    <Border Style="{StaticResource Card}"
+            BackgroundColor="{DynamicResource SurfacePrimarySoft}"
+            Stroke="{StaticResource Primary}"
+            Padding="{StaticResource PaddingLg}"
+            IsVisible="{Binding Source={x:Reference banner}, Path=IsVisible}">
+        <VerticalStackLayout Spacing="{StaticResource Spacing12}">
+            <Label x:Name="messageLabel"
+                   Style="{StaticResource BodyText}" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Spacing12}">
+                <Button Text="Подтвердить"
+                        Clicked="OnApproveClicked"
+                        Style="{StaticResource PrimaryButton}"
+                        Grid.Column="0" />
+                <Button Text="Отклонить"
+                        Clicked="OnRejectClicked"
+                        Style="{StaticResource GhostButton}"
+                        Grid.Column="1" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+
+</ContentView>

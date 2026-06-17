@@ -1,0 +1,241 @@
+﻿@* переиспользуемый бейдж статуса глюкозы *@
+
+<span class="sg-glucose-badge sg-glucose-badge--@_uiState sg-glucose-badge--@Size"
+      role="status"
+      aria-label="@_ariaLabel"
+      title="@_ariaLabel">
+
+    @* Цветная точка-индикатор *@
+    <span class="sg-glucose-badge__dot" aria-hidden="true"></span>
+
+    @* Значение глюкозы *@
+    <span class="sg-glucose-badge__value">
+        @GlucoseValue.ToString("F1")
+    </span>
+
+    @* Единица измерения *@
+    @if (ShowUnit)
+    {
+        <span class="sg-glucose-badge__unit" aria-hidden="true">ммоль/л</span>
+    }
+
+    @* Текстовая метка статуса *@
+    @if (ShowLabel)
+    {
+        <span class="sg-glucose-badge__label" aria-hidden="true">@_labelText</span>
+    }
+
+</span>
+
+<style>
+    /* Базовые стили бейджа */
+    .sg-glucose-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        border-radius: var(--radius-full);
+        font-family: var(--font-body);
+        font-weight: 600;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        transition:
+            background var(--transition-interactive),
+            color var(--transition-interactive),
+            border-color var(--transition-interactive);
+        user-select: none;
+    }
+
+    /* Размеры */
+    .sg-glucose-badge--sm {
+        padding: 2px 8px;
+        font-size: var(--text-xs);
+        min-height: 22px;
+    }
+
+    .sg-glucose-badge--md {
+        padding: 4px 12px;
+        font-size: var(--text-sm);
+        min-height: 28px;
+    }
+
+    .sg-glucose-badge--lg {
+        padding: 6px 16px;
+        font-size: var(--text-base);
+        min-height: 36px;
+    }
+
+    /* Точка-индикатор */
+    .sg-glucose-badge__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: var(--radius-full);
+        flex-shrink: 0;
+        background: currentColor;
+    }
+
+    .sg-glucose-badge--sm .sg-glucose-badge__dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .sg-glucose-badge--lg .sg-glucose-badge__dot {
+        width: 8px;
+        height: 8px;
+    }
+
+    /* Значение */
+    .sg-glucose-badge__value {
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    /* Единица измерения */
+    .sg-glucose-badge__unit {
+        font-weight: 400;
+        opacity: 0.75;
+        font-size: 0.85em;
+    }
+
+    /* Текстовая метка */
+    .sg-glucose-badge__label {
+        font-weight: 500;
+        font-size: 0.9em;
+        opacity: 0.85;
+    }
+
+    /* Цветовые состояния */
+    /* Normal: 4.0 – 10.0 ммоль/л */
+    .sg-glucose-badge--normal {
+        color: var(--color-glucose-normal, #37A563);
+        background: color-mix(in oklab, var(--color-glucose-normal, #37A563) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-normal, #37A563) 25%, transparent);
+    }
+
+    /* Warning: 3.0–3.9 или 10.1–13.9 ммоль/л */
+    .sg-glucose-badge--warning {
+        color: var(--color-glucose-warning, #E3A32B);
+        background: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 25%, transparent);
+    }
+
+    /* Danger:  3.0 или > 14.0 ммоль/л */
+    .sg-glucose-badge--danger {
+        color: var(--color-glucose-danger, #DB5967);
+        background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 25%, transparent);
+    }
+
+    /* Critical */
+    .sg-glucose-badge--critical {
+        color: var(--color-glucose-danger, #DB5967);
+        background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 15%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 30%, transparent);
+        font-weight: 700;
+    }
+
+    /* Unknown */
+    .sg-glucose-badge--unknown {
+        color: var(--color-text-muted);
+        background: color-mix(in oklab, var(--color-text-muted) 10%, transparent);
+        border-color: var(--color-border);
+    }
+
+    /* Пульсирующая анимация для критических значений */
+    @@keyframes sg-badge-pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.55; }
+    }
+
+    .sg-glucose-badge--critical .sg-glucose-badge__dot,
+    .sg-glucose-badge--danger   .sg-glucose-badge__dot {
+        animation: sg-badge-pulse 1.6s ease-in-out infinite;
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-glucose-badge--critical .sg-glucose-badge__dot,
+        .sg-glucose-badge--danger   .sg-glucose-badge__dot {
+            animation: none;
+        }
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public decimal GlucoseValue { get; set; } // Значение глюкозы в ммоль/л
+
+    [Parameter]
+    public string? GlucoseUiState { get; set; } // Явное UI-состояние с сервера
+
+    [Parameter]
+    public string Size { get; set; } = "md"; // Размер бейджа
+
+    [Parameter]
+    public bool ShowUnit { get; set; } // Показывать ли единицу измерения ммоль/л
+
+    [Parameter]
+    public bool ShowLabel { get; set; } // Показывать ли текстовую метку статуса
+
+    // Вычисляемые значения    
+    private string _uiState = "unknown"; //Итоговое UI-состояние для CSS-класса
+   
+    private string _labelText = string.Empty; // Текст метки статуса на русском
+   
+    private string _ariaLabel = string.Empty; // ARIA-метка для скринридеров
+
+    /// <inheritdoc/>
+    protected override void OnParametersSet()
+    {
+        _uiState = !string.IsNullOrWhiteSpace(GlucoseUiState)
+            ? NormalizeUiState(GlucoseUiState)
+            : ComputeUiState(GlucoseValue);
+
+        _labelText  = GetLabelText(_uiState);
+        _ariaLabel  = BuildAriaLabel(GlucoseValue, _uiState);
+    }
+
+    // Вспомогательные методы 
+    /// <summary>
+    /// Вычисляет UI-состояние по значению глюкозы
+    /// </summary>
+    private static string ComputeUiState(decimal value) =>
+        value switch
+        {
+            <= 3.0m => "critical",
+            < 4.0m              => "warning",
+            <= 10.0m            => "normal",
+            <= 13.9m            => "warning",
+            _                   => "danger"
+        };
+
+    /// <summary>
+    /// Нормализует строку UiState к нижнему регистру и корректному значению
+    /// </summary>
+    private static string NormalizeUiState(string uiState) =>
+        uiState.ToLowerInvariant() switch
+        {
+            "normal"   => "normal",
+            "warning"  => "warning",
+            "danger"   => "danger",
+            "critical" => "critical",
+            _          => "unknown"
+        };
+
+    /// <summary>
+    /// Возвращает локализованный текст метки для состояния
+    /// </summary>
+    private static string GetLabelText(string uiState) =>
+        uiState switch
+        {
+            "normal"   => "Норма",
+            "warning"  => "Внимание",
+            "danger"   => "Высокий",
+            "critical" => "Критический",
+            _          => "Нет данных"
+        };
+
+    /// <summary>
+    /// Строит ARIA-метку вида «7,4 ммоль/л — Норма».
+    /// </summary>
+    private static string BuildAriaLabel(decimal value, string uiState) =>
+        $"{value:F1} ммоль/л — {GetLabelText(uiState)}";
+}

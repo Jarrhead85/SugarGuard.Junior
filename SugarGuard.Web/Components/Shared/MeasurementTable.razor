@@ -1,0 +1,711 @@
+﻿@* таблица последних измерений глюкозы *@
+
+<div class="sg-measurement-table-wrap" role="region" aria-label="@AriaLabel">
+
+    @* Заголовок секции *@
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <div class="sg-mt-header">
+            <h2 class="sg-mt-title">@Title</h2>
+            @if (HeaderContent is not null)
+            {
+                <div class="sg-mt-header-actions">
+                    @HeaderContent
+                </div>
+            }
+        </div>
+    }
+
+    @* Скелетон при загрузке *@
+    @if (IsLoading)
+    {
+        <div class="sg-mt-skeleton" aria-busy="true" aria-label="Загрузка измерений…">
+            @for (var i = 0; i < SkeletonRows; i++)
+            {
+                <div class="sg-mt-skeleton-row">
+                    <div class="sg-skeleton sg-skeleton--pill"></div>
+                    <div class="sg-skeleton sg-skeleton--text sg-skeleton--w60"></div>
+                    <div class="sg-skeleton sg-skeleton--text sg-skeleton--w40"></div>
+                    <div class="sg-skeleton sg-skeleton--text sg-skeleton--w50"></div>
+                    <div class="sg-skeleton sg-skeleton--text sg-skeleton--w30"></div>
+                </div>
+            }
+        </div>
+    }
+    @* Ошибка загрузки *@
+    else if (ErrorMessage is not null)
+    {
+        <div class="sg-mt-error" role="alert">
+            <svg class="sg-mt-error__icon" viewBox="0 0 20 20" fill="none"
+                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <circle cx="10" cy="10" r="8" />
+                <line x1="10" y1="6" x2="10" y2="10" />
+                <circle cx="10" cy="13.5" r="0.8" fill="currentColor" stroke="none" />
+            </svg>
+            <span>@ErrorMessage</span>
+        </div>
+    }
+    @* Пустое состояние *@
+    else if (Items is null || !Items.Any())
+    {
+        <div class="sg-mt-empty" role="status">
+            <svg class="sg-mt-empty__icon" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                <rect x="9" y="3" width="6" height="4" rx="1" />
+                <line x1="9" y1="12" x2="15" y2="12" />
+                <line x1="9" y1="16" x2="12" y2="16" />
+            </svg>
+            <p class="sg-mt-empty__text">@EmptyText</p>
+        </div>
+    }
+    @* Таблица с данными *@
+    else
+    {
+        <div class="sg-mt-table-scroll">
+            <table class="sg-mt-table" aria-label="@AriaLabel">
+                <thead>
+                    <tr>
+                        <th scope="col" class="sg-mt-th sg-mt-th--glucose">Глюкоза</th>
+                        <th scope="col" class="sg-mt-th sg-mt-th--time">Время</th>
+                        <th scope="col" class="sg-mt-th sg-mt-th--state">Состояние</th>
+                        <th scope="col" class="sg-mt-th sg-mt-th--source">Источник</th>
+                        @if (ShowNotes)
+                        {
+                            <th scope="col" class="sg-mt-th sg-mt-th--notes">Заметки</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Items)
+                    {
+                        <tr class="sg-mt-row @(item.IsCritical ? "sg-mt-row--critical" : "")"
+                            @key="item.MeasurementId">
+
+                            @* Глюкоза + бейдж статуса *@
+                            <td class="sg-mt-td sg-mt-td--glucose">
+                                <div class="sg-mt-glucose-cell">
+                                    <span class="sg-mt-glucose-value sg-mt-glucose--@GetUiStateClass(item.GlucoseUiState)"
+                                          aria-label="@($"{item.GlucoseValue:F1} ммоль/л")">
+                                        @item.GlucoseValue.ToString("F1")
+                                    </span>
+                                    <span class="sg-mt-unit" aria-hidden="true">ммоль/л</span>
+                                    @if (item.IsCritical)
+                                    {
+                                        <span class="sg-mt-badge sg-mt-badge--critical" role="img"
+                                              aria-label="Критическое значение">
+                                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                                 stroke-width="1.8" aria-hidden="true">
+                                                <path d="M8 2 L14 13 H2 Z" />
+                                                <line x1="8" y1="7" x2="8" y2="10" />
+                                                <circle cx="8" cy="12" r="0.6" fill="currentColor" stroke="none" />
+                                            </svg>
+                                        </span>
+                                    }
+                                </div>
+                            </td>
+
+                            @* Время измерения *@
+                            <td class="sg-mt-td sg-mt-td--time">
+                                <time datetime="@item.MeasurementTime.ToString("yyyy-MM-ddTHH:mm:ssZ")"
+                                      class="sg-mt-time">
+                                    @FormatTime(item.MeasurementTime)
+                                </time>
+                                <span class="sg-mt-date">@FormatDate(item.MeasurementTime)</span>
+                            </td>
+
+                            @* Состояние ребёнка *@
+                            <td class="sg-mt-td sg-mt-td--state">
+                                @if (!string.IsNullOrWhiteSpace(item.ChildState))
+                                {
+                                    <span class="sg-mt-child-state">
+                                        @TranslateChildState(item.ChildState)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="sg-mt-empty-cell" aria-label="Не указано">—</span>
+                                }
+                            </td>
+
+                            @* Источник данных *@
+                            <td class="sg-mt-td sg-mt-td--source">
+                                <span class="sg-mt-source-badge sg-mt-source--@GetSourceClass(item.DataSource)"
+                                      title="@TranslateDataSource(item.DataSource)">
+                                    @TranslateDataSource(item.DataSource)
+                                </span>
+                            </td>
+
+                            @* Заметки *@
+                            @if (ShowNotes)
+                            {
+                                <td class="sg-mt-td sg-mt-td--notes">
+                                    @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                    {
+                                        <span class="sg-mt-notes" title="@item.Notes">
+                                            @TruncateNotes(item.Notes)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sg-mt-empty-cell" aria-label="Нет заметок">—</span>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @* Футер: кнопка «Показать больше» *@
+        @if (OnShowMore.HasDelegate)
+        {
+            <div class="sg-mt-footer">
+                <button class="sg-btn sg-btn--ghost sg-btn--sm"
+                        @onclick="OnShowMore"
+                        aria-label="Показать больше измерений">
+                    Показать больше
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                         stroke-width="1.8" aria-hidden="true">
+                        <path d="M4 6 L8 10 L12 6" />
+                    </svg>
+                </button>
+            </div>
+        }
+    }
+
+</div>
+
+@* Стили компонента *@
+<style>
+    /* Обёртка */
+    .sg-measurement-table-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* Заголовок */
+    .sg-mt-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+
+    .sg-mt-title {
+        font-family: var(--font-display);
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0;
+    }
+
+    .sg-mt-header-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+    }
+
+    /* Скролл-обёртка таблицы */
+    .sg-mt-table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-border);
+    }
+
+    /* Таблица */
+    .sg-mt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--text-sm);
+        color: var(--color-text);
+        min-width: 520px;
+    }
+
+    /* Заголовки колонок */
+    .sg-mt-th {
+        padding: var(--space-3) var(--space-4);
+        text-align: left;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-muted);
+        background: var(--color-surface-offset);
+        border-bottom: 1px solid var(--color-border);
+        white-space: nowrap;
+    }
+
+    .sg-mt-th--glucose {
+        width: 160px;
+    }
+
+    .sg-mt-th--time {
+        width: 120px;
+    }
+
+    .sg-mt-th--state {
+        width: 140px;
+    }
+
+    .sg-mt-th--source {
+        width: 110px;
+    }
+
+    .sg-mt-th--notes {
+        min-width: 160px;
+    }
+
+    /* Строки */
+    .sg-mt-row {
+        border-bottom: 1px solid var(--color-divider);
+        transition: background var(--transition-interactive);
+    }
+
+        .sg-mt-row:last-child {
+            border-bottom: none;
+        }
+
+        .sg-mt-row:hover {
+            background: var(--color-surface-offset);
+        }
+
+    .sg-mt-row--critical {
+        background: color-mix(in oklab, var(--color-error) 5%, transparent);
+    }
+
+        .sg-mt-row--critical:hover {
+            background: color-mix(in oklab, var(--color-error) 9%, transparent);
+        }
+
+    /* Ячейки данных */
+    .sg-mt-td {
+        padding: var(--space-3) var(--space-4);
+        vertical-align: middle;
+    }
+
+    /* Глюкоза */
+    .sg-mt-glucose-cell {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .sg-mt-glucose-value {
+        font-size: var(--text-base);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    /* Цвета по состоянию глюкозы */
+    .sg-mt-glucose--normal {
+        color: var(--color-success);
+    }
+
+    .sg-mt-glucose--warning {
+        color: var(--color-gold);
+    }
+
+    .sg-mt-glucose--danger {
+        color: var(--color-warning);
+    }
+
+    .sg-mt-glucose--critical {
+        color: var(--color-error);
+    }
+
+    .sg-mt-unit {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+    }
+
+    /* Бейдж критического значения */
+    .sg-mt-badge--critical {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        color: var(--color-error);
+        flex-shrink: 0;
+    }
+
+        .sg-mt-badge--critical svg {
+            width: 14px;
+            height: 14px;
+        }
+
+    /* Время */
+    .sg-mt-td--time {
+        white-space: nowrap;
+    }
+
+    .sg-mt-time {
+        display: block;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        color: var(--color-text);
+        font-size: var(--text-sm);
+    }
+
+    .sg-mt-date {
+        display: block;
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        margin-top: 1px;
+    }
+
+    /* Состояние ребёнка */
+    .sg-mt-child-state {
+        font-size: var(--text-xs);
+        color: var(--color-text);
+    }
+
+    /* Источник данных */
+    .sg-mt-source-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .sg-mt-source--manual {
+        background: color-mix(in oklab, var(--color-text-muted) 12%, transparent);
+        color: var(--color-text-muted);
+    }
+
+    .sg-mt-source--mobileapp {
+        background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+        color: var(--color-primary);
+    }
+
+    .sg-mt-source--cgm {
+        background: color-mix(in oklab, var(--color-blue) 12%, transparent);
+        color: var(--color-blue);
+    }
+
+    .sg-mt-source--unknown {
+        background: var(--color-surface-offset);
+        color: var(--color-text-faint);
+    }
+
+    /* Заметки */
+    .sg-mt-notes {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-width: 220px;
+    }
+
+    /* Пустая ячейка */
+    .sg-mt-empty-cell {
+        color: var(--color-text-faint);
+        font-size: var(--text-sm);
+    }
+
+    /* Футер */
+    .sg-mt-footer {
+        display: flex;
+        justify-content: center;
+        padding: var(--space-4) 0 var(--space-2);
+    }
+
+    /* Пустое состояние */
+    .sg-mt-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-10) var(--space-8);
+        color: var(--color-text-muted);
+        text-align: center;
+    }
+
+    .sg-mt-empty__icon {
+        width: 40px;
+        height: 40px;
+        color: var(--color-text-faint);
+    }
+
+    .sg-mt-empty__text {
+        margin: 0;
+        font-size: var(--text-sm);
+        max-width: 36ch;
+    }
+
+    /* Ошибка */
+    .sg-mt-error {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4) var(--space-5);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        background: color-mix(in oklab, var(--color-error) 8%, transparent);
+        border: 1px solid color-mix(in oklab, var(--color-error) 20%, transparent);
+        color: var(--color-error);
+    }
+
+    .sg-mt-error__icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    /* Скелетон */
+    .sg-mt-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-2) 0;
+    }
+
+    .sg-mt-skeleton-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+    }
+
+    .sg-skeleton {
+        background: linear-gradient( 90deg, var(--color-surface-offset) 25%, var(--color-surface-2) 50%, var(--color-surface-offset) 75% );
+        background-size: 200% 100%;
+        animation: sg-mt-shimmer 1.5s ease-in-out infinite;
+        border-radius: var(--radius-sm);
+    }
+
+    .sg-skeleton--pill {
+        width: 80px;
+        height: 24px;
+        border-radius: var(--radius-full);
+        flex-shrink: 0;
+    }
+
+    .sg-skeleton--text {
+        height: 14px;
+        flex: 1;
+    }
+
+    .sg-skeleton--w60 {
+        max-width: 120px;
+    }
+
+    .sg-skeleton--w50 {
+        max-width: 100px;
+    }
+
+    .sg-skeleton--w40 {
+        max-width: 80px;
+    }
+
+    .sg-skeleton--w30 {
+        max-width: 60px;
+    }
+
+    @@keyframes sg-mt-shimmer {
+        0%
+
+    {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+
+    }
+
+    /* Кнопки */
+    .sg-btn {
+        min-height: 44px;
+        padding: 0 var(--space-6);
+        border-radius: var(--radius-full);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        font-family: var(--font-body);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        cursor: pointer;
+        border: none;
+        transition: transform var(--transition-interactive), background var(--transition-interactive), opacity var(--transition-interactive);
+        white-space: nowrap;
+    }
+
+        .sg-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .sg-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .sg-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .sg-btn--sm {
+        min-height: 36px;
+        padding: 0 var(--space-4);
+        font-size: var(--text-xs);
+    }
+
+    .sg-btn--ghost {
+        background: transparent;
+        color: var(--color-text-muted);
+        border: 1px solid var(--color-border);
+    }
+
+        .sg-btn--ghost:hover:not(:disabled) {
+            background: var(--color-surface-offset);
+            color: var(--color-text);
+        }
+
+        .sg-btn--ghost svg {
+            width: 14px;
+            height: 14px;
+        }
+
+    /* Адаптив */
+    @@media (max-width: 640px) {
+        .sg-mt-th--notes, .sg-mt-td--notes
+
+    {
+        display: none;
+    }
+
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-skeleton
+
+    {
+        animation: none;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<MeasurementVm>? Items { get; set; } // Список измерений для отображения в таблице
+
+    [Parameter]
+    public string? Title { get; set; } // Заголовок секции над таблицей
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; } // Произвольный контент в правой части заголовка
+
+    [Parameter]
+    public bool IsLoading { get; set; } // Признак загрузки данных
+
+    [Parameter]
+    public string? ErrorMessage { get; set; } // Сообщение об ошибке
+
+    [Parameter]
+    public string EmptyText { get; set; } = "Измерений пока нет"; // Текст пустого состояния
+
+    [Parameter]
+    public bool ShowNotes { get; set; } // Показывать ли колонку «Заметки»
+
+    [Parameter]
+    public int SkeletonRows { get; set; } = 5; // Количество строк в скелетоне загрузки
+
+    [Parameter]
+    public EventCallback OnShowMore { get; set; } // Колбэк кнопки «Показать больше»
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Таблица измерений глюкозы"; // ARIA-метка для region и таблицы
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Возвращает CSS-класс цвета для значения глюкозы
+    /// </summary>
+    private static string GetUiStateClass(string? uiState) =>
+        uiState?.ToLowerInvariant() switch
+        {
+            "normal" => "normal",
+            "warning" => "warning",
+            "danger" => "danger",
+            "critical" => "critical",
+            _ => "normal"
+        };
+
+    /// <summary>
+    /// Возвращает CSS-класс для бейджа источника данных
+    /// </summary>
+    private static string GetSourceClass(string? dataSource) =>
+        dataSource?.ToLowerInvariant() switch
+        {
+            "manual" => "manual",
+            "mobileapp" => "mobileapp",
+            "cgm" => "cgm",
+            _ => "unknown"
+        };
+
+    /// <summary>
+    /// Локализует источник данных на русский
+    /// </summary>
+    private static string TranslateDataSource(string? dataSource) =>
+        dataSource?.ToLowerInvariant() switch
+        {
+            "manual" => "Вручную",
+            "mobileapp" => "Приложение",
+            "cgm" => "CGM",
+            _ => "—"
+        };
+
+    /// <summary>
+    /// Локализует состояние ребёнка на русский
+    /// </summary>
+    private static string TranslateChildState(string? childState) =>
+        childState?.ToLowerInvariant() switch
+        {
+            "active" or "активный" => "Активный",
+            "sleeping" or "спит" => "Спит",
+            "eating" or "ест" => "Ест",
+            "resting" or "отдыхает" => "Отдыхает",
+            "sports" or "спорт" => "Спорт",
+            _ => childState ?? "—"
+        };
+
+    /// <summary>
+    /// Форматирует время измерения в HH:mm
+    /// </summary>
+    private static string FormatTime(DateTime utc) =>
+        utc.ToLocalTime().ToString("HH:mm");
+
+    /// <summary>
+    /// Форматирует дату измерения в короткий русский формат
+    /// </summary>
+    private static string FormatDate(DateTime utc)
+    {
+        var local = utc.ToLocalTime().Date;
+        var today = DateTime.Today;
+
+        if (local == today) return "Сегодня";
+        if (local == today.AddDays(-1)) return "Вчера";
+
+        return utc.ToLocalTime().ToString("d MMM",
+            new System.Globalization.CultureInfo("ru-RU"));
+    }
+
+    /// <summary>
+    /// Обрезает текст заметки до 80 символов для отображения в таблице
+    /// </summary>
+    private static string TruncateNotes(string notes) =>
+        notes.Length > 80 ? notes[..80] + "…" : notes;
+}

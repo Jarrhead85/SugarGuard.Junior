@@ -1,0 +1,1324 @@
+﻿@page "/admin/audit-log"
+@attribute [Authorize(Roles = Roles.Admin + "," + Roles.SupportAdmin)]
+@implements IDisposable
+
+@using System.Globalization
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Shared.Constants
+
+@inject HttpClient Http
+
+<PageTitle>Audit Log — SugarGuard Admin</PageTitle>
+
+<div class="admin-audit-page">
+    <PageHeader Eyebrow="Admin / Audit Log"
+                Title="Журнал аудита"
+                Subtitle="Просмотр административных и системных событий: логины, смена ролей, создание связей и другие действия, записанные в audit log.">
+        <TrailingContent>
+            <button class="sg-btn sg-btn-soft"
+                    type="button"
+                    @onclick="LoadAuditLogsAsync"
+                    disabled="@_isRefreshing">
+                @(_isRefreshing ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <div class="sg-alert @GetStatusClass()">
+            @_statusMessage
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <section class="sg-panel sg-loading-panel">
+            <div class="sg-spinner"></div>
+            <p>Загружаем audit log...</p>
+        </section>
+    }
+    else
+    {
+        <section class="sg-stats-grid">
+            <StatCard Label="Загружено записей"
+                      Value="@_logs.Count.ToString()"
+                      Subtitle="С учётом текущих фильтров API"
+                      Status="neutral" />
+
+            <StatCard Label="С актором"
+                      Value="@_logs.Count(x => x.ActorUserId.HasValue).ToString()"
+                      Subtitle="Есть ActorUserId"
+                      Status="neutral" />
+
+            <StatCard Label="Уникальные action"
+                      Value="@_logs.Select(x => x.Action).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString()"
+                      Subtitle="По текущей выдаче"
+                      Status="neutral" />
+
+            <StatCard Label="Последнее событие"
+                      Value="@GetLatestTimestamp()"
+                      Subtitle="UTC"
+                      Status="neutral" />
+        </section>
+
+        <section class="sg-main-layout">
+            <div class="sg-main-column">
+                <section class="sg-panel">
+                    <SectionHeader Title="Фильтры"
+                                   Description="Фильтрация выполняется через endpoint audit log. Пустые поля не отправляются в query string.">
+                        <TrailingContent>
+                            <span class="sg-pill sg-pill-neutral">
+                                Limit: @_filter.Limit
+                            </span>
+                        </TrailingContent>
+                    </SectionHeader>
+
+                    <div class="sg-form-grid sg-form-grid-filters">
+                        <div class="sg-field">
+                            <label class="sg-label" for="audit-actor-user-id">ActorUserId</label>
+                            <input id="audit-actor-user-id"
+                                   class="sg-input"
+                                   type="text"
+                                   @bind="_filter.ActorUserId"
+                                   @bind:event="oninput"
+                                   placeholder="GUID пользователя" />
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="audit-action">Action</label>
+                            <input id="audit-action"
+                                   class="sg-input"
+                                   type="text"
+                                   @bind="_filter.Action"
+                                   @bind:event="oninput"
+                                   placeholder="Например: admin.rolechanged" />
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="audit-from">From (UTC)</label>
+                            <input id="audit-from"
+                                   class="sg-input"
+                                   type="datetime-local"
+                                   value="@_filter.FromText"
+                                   @onchange="OnFromChanged" />
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="audit-to">To (UTC)</label>
+                            <input id="audit-to"
+                                   class="sg-input"
+                                   type="datetime-local"
+                                   value="@_filter.ToText"
+                                   @onchange="OnToChanged" />
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="audit-limit">Limit</label>
+                            <select id="audit-limit"
+                                    class="sg-select"
+                                    value="@_filter.Limit.ToString(CultureInfo.InvariantCulture)"
+                                    @onchange="OnLimitChanged">
+                                @foreach (var limit in _availableLimits)
+                                {
+                                    <option value="@limit.ToString(CultureInfo.InvariantCulture)">@limit</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="sg-filter-actions">
+                            <button class="sg-btn sg-btn-primary"
+                                    type="button"
+                                    @onclick="ApplyFiltersAsync"
+                                    disabled="@_isRefreshing">
+                                @(_isRefreshing ? "Применяем..." : "Применить")
+                            </button>
+
+                            <button class="sg-btn sg-btn-soft"
+                                    type="button"
+                                    @onclick="ResetFiltersAsync"
+                                    disabled="@_isRefreshing">
+                                Сбросить
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sg-panel">
+                    <SectionHeader Title="События"
+                                   Description="Записи отсортированы по убыванию времени создания на стороне API.">
+                        <TrailingContent>
+                            <span class="sg-pill sg-pill-neutral">
+                                Показано: @_logs.Count
+                            </span>
+                        </TrailingContent>
+                    </SectionHeader>
+
+                    @if (_logs.Count == 0)
+                    {
+                        <div class="sg-empty-state">
+                            <div class="sg-empty-icon">∅</div>
+                            <h3>Записи не найдены</h3>
+                            <p>Измените параметры фильтра или увеличьте limit.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="sg-audit-list">
+                            @foreach (var log in _logs)
+                            {
+                                <article class="sg-audit-card" @key="log.AuditLogId">
+                                    <div class="sg-audit-card-header">
+                                        <div class="sg-audit-title-block">
+                                            <div class="sg-audit-title-row">
+                                                <h3>@log.Action</h3>
+                                                <span class="sg-pill @GetActionPillClass(log.Action)">
+                                                    @GetActionCategory(log.Action)
+                                                </span>
+                                            </div>
+
+                                            <div class="sg-audit-meta">
+                                                <span><strong>Created:</strong> @FormatUtc(log.CreatedAt)</span>
+                                                <span><strong>AuditLogId:</strong> @log.AuditLogId</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="sg-audit-grid">
+                                        <div class="sg-info-tile">
+                                            <span class="sg-info-label">ActorUserId</span>
+                                            <span class="sg-info-value">@(log.ActorUserId?.ToString() ?? "—")</span>
+                                        </div>
+
+                                        <div class="sg-info-tile">
+                                            <span class="sg-info-label">TargetType</span>
+                                            <span class="sg-info-value">@(!string.IsNullOrWhiteSpace(log.TargetType) ? log.TargetType : "—")</span>
+                                        </div>
+
+                                        <div class="sg-info-tile">
+                                            <span class="sg-info-label">TargetId</span>
+                                            <span class="sg-info-value sg-break-anywhere">@(!string.IsNullOrWhiteSpace(log.TargetId) ? log.TargetId : "—")</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="sg-details-block">
+                                        <span class="sg-info-label">Details</span>
+
+                                        @if (string.IsNullOrWhiteSpace(log.Details))
+                                        {
+                                            <div class="sg-details-empty">Детали отсутствуют</div>
+                                        }
+                                        else
+                                        {
+                                            <pre class="sg-details-content">@log.Details</pre>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+
+            <aside class="sg-side-column">
+                <section class="sg-panel">
+                    <SectionHeader Title="Быстрые пресеты"
+                                   Description="Частые срезы для ручной диагностики." />
+
+                    <div class="sg-presets-list">
+                        <button class="sg-preset-card" type="button" @onclick="ApplyAuthPresetAsync">
+                            <span class="sg-preset-title">Логины</span>
+                            <span class="sg-preset-desc">Action содержит auth.login</span>
+                        </button>
+
+                        <button class="sg-preset-card" type="button" @onclick="ApplyRoleChangesPresetAsync">
+                            <span class="sg-preset-title">Смена ролей</span>
+                            <span class="sg-preset-desc">Action: admin.rolechanged</span>
+                        </button>
+
+                        <button class="sg-preset-card" type="button" @onclick="ApplyParentLinksPresetAsync">
+                            <span class="sg-preset-title">Parent-child</span>
+                            <span class="sg-preset-desc">Создание и удаление parent-child связей</span>
+                        </button>
+
+                        <button class="sg-preset-card" type="button" @onclick="ApplyDoctorLinksPresetAsync">
+                            <span class="sg-preset-title">Doctor-child</span>
+                            <span class="sg-preset-desc">Создание и удаление doctor-child связей</span>
+                        </button>
+
+                        <button class="sg-preset-card" type="button" @onclick="ApplyLast24HoursPresetAsync">
+                            <span class="sg-preset-title">Последние 24 часа</span>
+                            <span class="sg-preset-desc">Ограничение диапазона по UTC</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="sg-panel">
+                    <div class="sg-section-header">
+                        <div>
+                            <h2>Подсказки</h2>
+                            <p>Что важно при чтении журнала.</p>
+                        </div>
+                    </div>
+
+                    <ul class="sg-hints-list">
+                        <li>Фильтр <strong>Action</strong> работает как contains / LIKE на стороне API.</li>
+                        <li>Диапазон <strong>From/To</strong> должен быть корректным: from не позже to.</li>
+                        <li><strong>ActorUserId</strong> может быть пустым у системных или анонимных событий.</li>
+                        <li><strong>Limit</strong> ограничен API значениями от 1 до 1000.</li>
+                        <li>Время в карточках отображается в UTC, чтобы совпадать с API и БД.</li>
+                    </ul>
+                </section>
+
+                <section class="sg-panel">
+                    <SectionHeader Title="Частые action"
+                                   Description="Полезные шаблоны для фильтра." />
+
+                    <div class="sg-chip-wrap">
+                        @foreach (var action in _commonActions)
+                        {
+                            <button class="sg-chip-button"
+                                    type="button"
+                                    @onclick="() => ApplyActionAsync(action)">
+                                @action
+                            </button>
+                        }
+                    </div>
+                </section>
+            </aside>
+        </section>
+    }
+</div>
+
+<style>
+    .admin-audit-page {
+        display: grid;
+        gap: 20px;
+        color: var(--sg-text, #16213E);
+    }
+
+    .sg-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface, rgba(255, 255, 255, 0.84));
+        box-shadow: var(--shadow-md, 0 24px 48px rgba(18, 31, 58, 0.11));
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        padding: 24px;
+    }
+
+    .admin-audit-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        background: radial-gradient(circle at top left, rgba(86, 208, 191, 0.16), transparent 28%), radial-gradient(circle at top right, rgba(109, 174, 255, 0.12), transparent 24%), var(--sg-surface, rgba(255, 255, 255, 0.84));
+    }
+
+    .hero-copy {
+        display: grid;
+        gap: 12px;
+        max-width: 760px;
+    }
+
+        .hero-copy h1 {
+            margin: 0;
+            font-size: clamp(30px, 4vw, 46px);
+            line-height: 1;
+            font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-copy p {
+            margin: 0;
+            color: var(--sg-text-muted, #667694);
+            font-size: 15px;
+            line-height: 1.65;
+            max-width: 66ch;
+        }
+
+    .hero-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text-muted, #667694);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-label-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--sg-primary, #1B8E8B), var(--sg-primary-alt, #2678D9));
+        box-shadow: 0 0 0 4px rgba(27, 142, 139, 0.12);
+    }
+
+    .hero-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-start;
+        flex-shrink: 0;
+    }
+
+    .sg-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .sg-stat-card {
+        display: grid;
+        gap: 8px;
+        padding: 20px;
+        border-radius: 22px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface, rgba(255, 255, 255, 0.84));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-stat-label {
+        color: var(--sg-text-faint, #96A2B8);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .sg-stat-value {
+        font-size: clamp(28px, 3vw, 38px);
+        line-height: 1;
+        font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    }
+
+    .sg-stat-value-sm {
+        font-size: clamp(18px, 2vw, 24px);
+        line-height: 1.2;
+    }
+
+    .sg-stat-hint {
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+    }
+
+    .sg-main-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+        gap: 20px;
+        align-items: start;
+    }
+
+    .sg-main-column,
+    .sg-side-column {
+        display: grid;
+        gap: 20px;
+    }
+
+    .sg-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+        .sg-section-header h2 {
+            margin: 0 0 6px 0;
+            font-size: 24px;
+            line-height: 1.1;
+            font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+        }
+
+        .sg-section-header p {
+            margin: 0;
+            color: var(--sg-text-muted, #667694);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+    .sg-form-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .sg-form-grid-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: end;
+    }
+
+    .sg-field {
+        display: grid;
+        gap: 8px;
+    }
+
+    .sg-label {
+        color: var(--sg-text-faint, #96A2B8);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .sg-input,
+    .sg-select {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text, #16213E);
+        font: inherit;
+        outline: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+        .sg-input:focus,
+        .sg-select:focus {
+            border-color: rgba(27, 142, 139, 0.45);
+            box-shadow: 0 0 0 4px rgba(27, 142, 139, 0.12);
+        }
+
+    .sg-filter-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .sg-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 999px;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+        white-space: nowrap;
+    }
+
+        .sg-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .sg-btn:disabled {
+            cursor: default;
+            opacity: 0.65;
+            transform: none;
+        }
+
+    .sg-btn-primary {
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--sg-primary, #1B8E8B), var(--sg-primary-alt, #2678D9));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-btn-soft {
+        color: var(--sg-primary, #1B8E8B);
+        background: rgba(27, 142, 139, 0.12);
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+    }
+
+    .sg-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
+
+    .sg-pill-neutral {
+        color: var(--sg-text-muted, #667694);
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        border-color: var(--sg-border, rgba(22, 33, 62, 0.10));
+    }
+
+    .sg-pill-auth {
+        color: var(--sg-primary-alt, #2678D9);
+        background: rgba(38, 120, 217, 0.12);
+    }
+
+    .sg-pill-admin {
+        color: #7D4BDB;
+        background: rgba(125, 75, 219, 0.12);
+    }
+
+    .sg-pill-link {
+        color: var(--sg-primary, #1B8E8B);
+        background: rgba(27, 142, 139, 0.12);
+    }
+
+    .sg-pill-measurement {
+        color: var(--sg-success, #37A563);
+        background: rgba(55, 165, 99, 0.14);
+    }
+
+    .sg-pill-other {
+        color: #D97706;
+        background: rgba(217, 119, 6, 0.12);
+    }
+
+    .sg-audit-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .sg-audit-card {
+        display: grid;
+        gap: 16px;
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-audit-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .sg-audit-title-block {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .sg-audit-title-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+        .sg-audit-title-row h3 {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+    .sg-audit-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .sg-audit-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .sg-info-tile {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .sg-info-label {
+        color: var(--sg-text-faint, #96A2B8);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .sg-info-value {
+        color: var(--sg-text, #16213E);
+        font-size: 14px;
+        line-height: 1.55;
+        word-break: break-word;
+    }
+
+    .sg-break-anywhere {
+        overflow-wrap: anywhere;
+    }
+
+    .sg-details-block {
+        display: grid;
+        gap: 8px;
+    }
+
+    .sg-details-empty {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px dashed var(--sg-border, rgba(22, 33, 62, 0.10));
+        color: var(--sg-text-muted, #667694);
+        background: rgba(255, 255, 255, 0.35);
+        font-size: 14px;
+    }
+
+    .sg-details-content {
+        margin: 0;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: rgba(255, 255, 255, 0.40);
+        color: var(--sg-text, #16213E);
+        font-family: "JetBrains Mono", "Consolas", monospace;
+        font-size: 13px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-x: auto;
+    }
+
+    .sg-presets-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .sg-preset-card {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        padding: 14px 16px;
+        text-align: left;
+        border-radius: 18px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text, #16213E);
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+        .sg-preset-card:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+            border-color: rgba(27, 142, 139, 0.24);
+        }
+
+    .sg-preset-title {
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .sg-preset-desc {
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .sg-chip-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .sg-chip-button {
+        min-height: 38px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text, #16213E);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+        .sg-chip-button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(38, 120, 217, 0.24);
+            box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+        }
+
+    .sg-hints-list {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 10px;
+        color: var(--sg-text-muted, #667694);
+        line-height: 1.6;
+        font-size: 14px;
+    }
+
+    .sg-alert {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.5;
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-alert-info {
+        color: var(--sg-primary-alt, #2678D9);
+        background: rgba(38, 120, 217, 0.12);
+        border-color: rgba(38, 120, 217, 0.18);
+    }
+
+    .sg-alert-success {
+        color: var(--sg-success, #37A563);
+        background: rgba(55, 165, 99, 0.14);
+        border-color: rgba(55, 165, 99, 0.20);
+    }
+
+    .sg-alert-danger {
+        color: var(--sg-danger, #DB5967);
+        background: rgba(219, 89, 103, 0.14);
+        border-color: rgba(219, 89, 103, 0.20);
+    }
+
+    .sg-loading-panel {
+        display: grid;
+        place-items: center;
+        gap: 12px;
+        min-height: 180px;
+        color: var(--sg-text-muted, #667694);
+    }
+
+    .sg-spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 3px solid rgba(38, 120, 217, 0.14);
+        border-top-color: var(--sg-primary-alt, #2678D9);
+        animation: sg-spin 0.9s linear infinite;
+    }
+
+    .sg-empty-state {
+        display: grid;
+        place-items: center;
+        text-align: center;
+        gap: 10px;
+        min-height: 220px;
+        border-radius: 20px;
+        border: 1px dashed var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: rgba(255, 255, 255, 0.35);
+        color: var(--sg-text-muted, #667694);
+    }
+
+        .sg-empty-state h3 {
+            margin: 0;
+            color: var(--sg-text, #16213E);
+            font-size: 18px;
+        }
+
+        .sg-empty-state p {
+            margin: 0;
+            max-width: 42ch;
+        }
+
+    .sg-empty-icon {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        background: rgba(27, 142, 139, 0.12);
+        color: var(--sg-primary, #1B8E8B);
+        font-size: 24px;
+        font-weight: 900;
+    }
+
+    @@keyframes sg-spin {
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    @@media (max-width: 1180px) {
+        .sg-stats-grid
+
+    {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sg-main-layout {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    @@media (max-width: 900px) {
+        .admin-audit-hero
+
+    {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .hero-actions {
+        justify-content: stretch;
+    }
+
+        .hero-actions .sg-btn {
+            width: 100%;
+        }
+
+    .sg-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .sg-form-grid-filters,
+    .sg-audit-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sg-filter-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+        .sg-filter-actions .sg-btn {
+            width: 100%;
+        }
+
+    }
+
+    @@media (max-width: 640px) {
+        .sg-panel
+
+    {
+        padding: 18px;
+        border-radius: 20px;
+    }
+
+    .sg-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sg-audit-meta {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .sg-btn,
+    .sg-select,
+    .sg-input {
+        width: 100%;
+    }
+
+    }
+</style>
+
+@code {
+    private readonly CancellationTokenSource _disposeCts = new();
+
+    private readonly List<AuditLogItem> _logs = [];
+    private readonly AuditLogFilterModel _filter = new();
+
+    private static readonly int[] _availableLimits = [50, 100, 200, 500, 1000];
+
+    private static readonly string[] _commonActions =
+    [
+        "auth.login",
+        "auth.login.failed",
+        "admin.rolechanged",
+        "admin.userdeactivated",
+        "admin.parentchildlinkcreated",
+        "admin.parentchildlinkdeleted",
+        "admin.doctorchildlinkcreated",
+        "admin.doctorchildlinkdeleted",
+        "measurement.created",
+        "sync.batchcompleted"
+    ];
+
+    private bool _isLoading = true;
+    private bool _isRefreshing;
+
+    private string? _statusMessage;
+    private StatusTone _statusTone = StatusTone.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task LoadAuditLogsAsync()
+    {
+        if (_isRefreshing)
+        {
+            return;
+        }
+
+        var cancellationToken = _disposeCts.Token;
+
+        try
+        {
+            _isRefreshing = true;
+
+            if (_logs.Count == 0)
+            {
+                _isLoading = true;
+            }
+
+            if (!ValidateRange())
+            {
+                return;
+            }
+
+            ClearStatus();
+
+            var url = BuildRequestUrl();
+
+            using var response = await Http.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
+                return;
+            }
+
+            var logs = await response.Content.ReadFromJsonAsync<List<AuditLogItem>>(cancellationToken: cancellationToken) ?? [];
+
+            _logs.Clear();
+            _logs.AddRange(logs.OrderByDescending(x => x.CreatedAt));
+
+            SetStatus($"Загружено записей: {_logs.Count}.", StatusTone.Success);
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Не удалось загрузить audit log: {ex.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        _filter.ActorUserId = string.Empty;
+        _filter.Action = string.Empty;
+        _filter.FromUtc = null;
+        _filter.ToUtc = null;
+        _filter.Limit = 200;
+
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyActionAsync(string action)
+    {
+        _filter.Action = action;
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyAuthPresetAsync()
+    {
+        _filter.Action = "auth.login";
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyRoleChangesPresetAsync()
+    {
+        _filter.Action = "admin.rolechanged";
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyParentLinksPresetAsync()
+    {
+        _filter.Action = "admin.parentchildlink";
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyDoctorLinksPresetAsync()
+    {
+        _filter.Action = "admin.doctorchildlink";
+        await LoadAuditLogsAsync();
+    }
+
+    private async Task ApplyLast24HoursPresetAsync()
+    {
+        var nowUtc = DateTime.UtcNow;
+        _filter.FromUtc = nowUtc.AddHours(-24);
+        _filter.ToUtc = nowUtc;
+        await LoadAuditLogsAsync();
+    }
+
+    private void OnFromChanged(ChangeEventArgs args)
+    {
+        _filter.FromUtc = ParseDateTimeLocal(args.Value?.ToString());
+    }
+
+    private void OnToChanged(ChangeEventArgs args)
+    {
+        _filter.ToUtc = ParseDateTimeLocal(args.Value?.ToString());
+    }
+
+    private void OnLimitChanged(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var limit))
+        {
+            _filter.Limit = Math.Clamp(limit, 1, 1000);
+        }
+    }
+
+    private bool ValidateRange()
+    {
+        if (_filter.FromUtc.HasValue && _filter.ToUtc.HasValue && _filter.FromUtc.Value > _filter.ToUtc.Value)
+        {
+            SetStatus("Период задан некорректно: from не может быть позже to.", StatusTone.Danger);
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_filter.ActorUserId)
+            && !Guid.TryParse(_filter.ActorUserId, out _))
+        {
+            SetStatus("ActorUserId должен быть корректным GUID.", StatusTone.Danger);
+            return false;
+        }
+
+        _filter.Limit = Math.Clamp(_filter.Limit, 1, 1000);
+
+        return true;
+    }
+
+    private string BuildRequestUrl()
+    {
+        var parameters = new List<string>
+        {
+            $"limit={_filter.Limit.ToString(CultureInfo.InvariantCulture)}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(_filter.ActorUserId))
+        {
+            parameters.Add($"actorUserId={Uri.EscapeDataString(_filter.ActorUserId.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_filter.Action))
+        {
+            parameters.Add($"action={Uri.EscapeDataString(_filter.Action.Trim())}");
+        }
+
+        if (_filter.FromUtc.HasValue)
+        {
+            parameters.Add($"from={Uri.EscapeDataString(_filter.FromUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        if (_filter.ToUtc.HasValue)
+        {
+            parameters.Add($"to={Uri.EscapeDataString(_filter.ToUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        return $"api/admin/audit-logs?{string.Join("&", parameters)}";
+    }
+
+    private static DateTime? ParseDateTimeLocal(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (DateTime.TryParse(
+                value,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+        }
+
+        if (DateTime.TryParse(value, out parsed))
+        {
+            return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+        }
+
+        return null;
+    }
+
+    private static string FormatUtc(DateTime value)
+    {
+        return value.ToUniversalTime().ToString("dd.MM.yyyy HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
+    }
+
+    private string GetLatestTimestamp()
+    {
+        if (_logs.Count == 0)
+        {
+            return "—";
+        }
+
+        return FormatUtc(_logs.Max(x => x.CreatedAt));
+    }
+
+    private static string GetActionCategory(string? action)
+    {
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            return "Other";
+        }
+
+        var normalized = action.Trim().ToLowerInvariant();
+
+        if (normalized.StartsWith("auth.", StringComparison.Ordinal))
+        {
+            return "Auth";
+        }
+
+        if (normalized.StartsWith("admin.", StringComparison.Ordinal))
+        {
+            return "Admin";
+        }
+
+        if (normalized.Contains("link", StringComparison.Ordinal))
+        {
+            return "Links";
+        }
+
+        if (normalized.StartsWith("measurement.", StringComparison.Ordinal)
+            || normalized.StartsWith("sync.", StringComparison.Ordinal))
+        {
+            return "Data";
+        }
+
+        return "Other";
+    }
+
+    private string GetActionPillClass(string? action)
+    {
+        return GetActionCategory(action) switch
+        {
+            "Auth" => "sg-pill-auth",
+            "Admin" => "sg-pill-admin",
+            "Links" => "sg-pill-link",
+            "Data" => "sg-pill-measurement",
+            _ => "sg-pill-other"
+        };
+    }
+
+    private string GetStatusClass()
+    {
+        return _statusTone switch
+        {
+            StatusTone.Success => "sg-alert-success",
+            StatusTone.Danger => "sg-alert-danger",
+            _ => "sg-alert-info"
+        };
+    }
+
+    private async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(cancellationToken: cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(payload?.Message))
+            {
+                return payload.Message;
+            }
+
+            if (!string.IsNullOrWhiteSpace(payload?.Error))
+            {
+                return payload.Error;
+            }
+        }
+        catch
+        {
+        }
+
+        return $"Ошибка API: {(int)response.StatusCode} {response.ReasonPhrase}";
+    }
+
+    private void SetStatus(string message, StatusTone tone)
+    {
+        _statusMessage = message;
+        _statusTone = tone;
+    }
+
+    private void ClearStatus()
+    {
+        _statusMessage = null;
+        _statusTone = StatusTone.Info;
+    }
+
+    public void Dispose()
+    {
+        if (_disposeCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
+    }
+
+    private sealed class AuditLogItem
+    {
+        public Guid AuditLogId { get; set; }
+        public Guid? ActorUserId { get; set; }
+        public string Action { get; set; } = string.Empty;
+        public string? TargetType { get; set; }
+        public string? TargetId { get; set; }
+        public string? Details { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class AuditLogFilterModel
+    {
+        public string ActorUserId { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public DateTime? FromUtc { get; set; }
+        public DateTime? ToUtc { get; set; }
+        public int Limit { get; set; } = 200;
+
+        public string FromText =>
+            FromUtc.HasValue
+                ? FromUtc.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+                : string.Empty;
+
+        public string ToText =>
+            ToUtc.HasValue
+                ? ToUtc.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+                : string.Empty;
+    }
+
+    private sealed class ApiErrorResponse
+    {
+        public string? Error { get; set; }
+        public string? Message { get; set; }
+    }
+
+    private enum StatusTone
+    {
+        Info,
+        Success,
+        Danger
+    }
+}

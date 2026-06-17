@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:SugarGuard.Junior.Views.Controls"
+             x:Class="SugarGuard.Junior.Views.Pages.OnboardingPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <Shell.TitleView>
+        <Grid ColumnDefinitions="Auto,*,Auto" Padding="{StaticResource PaddingHorizontalLg}">
+            <Button Text="Пропустить"
+                    Command="{Binding SkipOnboardingCommand}"
+                    Style="{StaticResource GhostButton}"
+                    Grid.Column="2" />
+        </Grid>
+    </Shell.TitleView>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource PaddingPage}"
+                             Spacing="{StaticResource Spacing24}">
+
+            <!-- Progress bar -->
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="{StaticResource Spacing8}" HeightRequest="4">
+                <BoxView Grid.Column="0" CornerRadius="2"
+                         BackgroundColor="{DynamicResource SurfaceOffset}">
+                    <BoxView.Triggers>
+                        <DataTrigger TargetType="BoxView" Binding="{Binding IsStep0Active}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                        </DataTrigger>
+                    </BoxView.Triggers>
+                </BoxView>
+                <BoxView Grid.Column="1" CornerRadius="2"
+                         BackgroundColor="{DynamicResource SurfaceOffset}">
+                    <BoxView.Triggers>
+                        <DataTrigger TargetType="BoxView" Binding="{Binding IsStep1Active}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                        </DataTrigger>
+                    </BoxView.Triggers>
+                </BoxView>
+                <BoxView Grid.Column="2" CornerRadius="2"
+                         BackgroundColor="{DynamicResource SurfaceOffset}">
+                    <BoxView.Triggers>
+                        <DataTrigger TargetType="BoxView" Binding="{Binding IsStep2Active}" Value="True">
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                        </DataTrigger>
+                    </BoxView.Triggers>
+                </BoxView>
+            </Grid>
+
+            <!-- Шаг 1: Имя / никнейм -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing20}"
+                                 IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=0}">
+                <Label Text="Как к вам обращаться?"
+                       Style="{StaticResource PageTitleTextCentered}" />
+
+                <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                    <VerticalStackLayout Spacing="{StaticResource Spacing16}">
+                        <Label Text="Введите имя или никнейм ребёнка"
+                               Style="{StaticResource BodyTextMuted}" />
+
+                        <Border StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                Stroke="{DynamicResource InputBorderColor}"
+                                StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                            <Entry Text="{Binding NickName}"
+                                   Placeholder="Имя или никнейм"
+                                   Style="{StaticResource EntryText}"
+                                   HeightRequest="48" />
+                        </Border>
+
+                        <Button Text="Далее"
+                                Command="{Binding GoToNextStepCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                IsEnabled="{Binding CanGoNext}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Шаг 2: Тип диабета -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing20}"
+                                 IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=1}">
+                <Label Text="Тип диабета"
+                       Style="{StaticResource PageTitleTextCentered}" />
+
+                <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                    <VerticalStackLayout Spacing="{StaticResource Spacing16}">
+                        <Label Text="Выберите тип диабета"
+                               Style="{StaticResource BodyTextMuted}" />
+
+                        <Border StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                Stroke="{DynamicResource InputBorderColor}"
+                                StrokeThickness="1"
+                                Padding="{StaticResource PaddingInput}">
+                            <Picker ItemsSource="{Binding DiabetesTypes}"
+                                    SelectedIndex="{Binding DiabetesTypeIndex}"
+                                    TextColor="{DynamicResource TextPrimary}"
+                                    Title="Выберите тип диабета" />
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Spacing12}">
+                            <Button Text="Назад"
+                                    Command="{Binding GoToPreviousStepCommand}"
+                                    Style="{StaticResource GhostButton}"
+                                    Grid.Column="0" />
+                            <Button Text="Далее"
+                                    Command="{Binding GoToNextStepCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Grid.Column="1"
+                                    IsEnabled="{Binding CanGoNext}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Шаг 3: Целевой диапазон -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing20}"
+                                 IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=2}">
+                <Label Text="Целевой диапазон"
+                       Style="{StaticResource PageTitleTextCentered}" />
+
+                <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                    <VerticalStackLayout Spacing="{StaticResource Spacing16}">
+                        <Label Text="Установите целевой диапазон глюкозы"
+                               Style="{StaticResource BodyTextMuted}" />
+
+                        <controls:RangeSlider MinGlucose="{Binding TargetRangeMin}"
+                                              MaxGlucose="{Binding TargetRangeMax}" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Spacing12}">
+                            <Button Text="Назад"
+                                    Command="{Binding GoToPreviousStepCommand}"
+                                    Style="{StaticResource GhostButton}"
+                                    Grid.Column="0" />
+                            <Button Text="Готово"
+                                    Command="{Binding CompleteOnboardingCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Grid.Column="1"
+                                    IsEnabled="{Binding CanGoNext}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Ошибка -->
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource CaptionText}"
+                   TextColor="{StaticResource GlucoseDangerColor}"
+                   HorizontalTextAlignment="Center"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

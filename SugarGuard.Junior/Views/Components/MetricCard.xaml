@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Components.MetricCard"
+             x:Name="this">
+
+    <!-- Универсальная KPI-карточка. -->
+
+    <Border MinimumHeightRequest="120"
+            HorizontalOptions="Fill"
+            VerticalOptions="Start">
+
+        <Grid RowDefinitions="Auto,Auto,Auto"
+              RowSpacing="8">
+
+            <!-- Верхняя строка: заголовок + необязательный badge -->
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="8">
+
+                <Label Grid.Column="0"
+                       Text="{Binding Source={x:Reference this}, Path=Label}"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="12"
+                       LineBreakMode="TailTruncation"
+                       TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
+                       VerticalOptions="Center" />
+
+                <Border Grid.Column="1"
+                        IsVisible="{Binding Source={x:Reference this}, Path=HasBadge}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 999"
+                        Padding="8,4"
+                        BackgroundColor="{AppThemeBinding Light=#1F1B8E8B, Dark=#2256D0BF}"
+                        HorizontalOptions="End"
+                        VerticalOptions="Center">
+
+                    <Label Text="{Binding Source={x:Reference this}, Path=BadgeText}"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}"
+                           LineBreakMode="NoWrap"
+                           VerticalOptions="Center" />
+                </Border>
+            </Grid>
+
+            <!-- Основной KPI-блок -->
+            <HorizontalStackLayout Grid.Row="1"
+                                   Spacing="4"
+                                   VerticalOptions="End">
+
+                <Label Text="{Binding Source={x:Reference this}, Path=ResolvedValue}"
+                       FontFamily="{StaticResource ClashDisplay}"
+                       FontSize="32"
+                       FontAttributes="Bold"
+                       LineBreakMode="NoWrap"
+                       TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}"
+                       VerticalOptions="End" />
+
+                <Label Text="{Binding Source={x:Reference this}, Path=Unit}"
+                       IsVisible="{Binding Source={x:Reference this}, Path=HasUnit}"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="14"
+                       LineBreakMode="NoWrap"
+                       TextColor="{AppThemeBinding Light=#96A2B8, Dark=#6F7D99}"
+                       VerticalOptions="End"
+                       Margin="0,0,0,4" />
+            </HorizontalStackLayout>
+
+            <!-- Нижняя helper-подпись -->
+            <Label Grid.Row="2"
+                   Text="{Binding Source={x:Reference this}, Path=HelperText}"
+                   IsVisible="{Binding Source={x:Reference this}, Path=HasHelperText}"
+                   FontFamily="{StaticResource Satoshi}"
+                   FontSize="13"
+                   LineBreakMode="WordWrap"
+                   MaxLines="2"
+                   TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
+        </Grid>
+    </Border>
+</ContentView>

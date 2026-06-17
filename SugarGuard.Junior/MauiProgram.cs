@@ -1,0 +1,68 @@
+﻿using Microcharts.Maui;
+using Microsoft.Extensions.Logging;
+using Plugin.LocalNotification;
+using SugarGuard.Junior.Extensions;
+using SugarGuard.Junior.Services.Interfaces;
+
+namespace SugarGuard.Junior;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            var ex = args.ExceptionObject as Exception;
+            // Разворачиваем до самого глубокого InnerException
+            var inner = ex;
+            while (inner?.InnerException != null)
+                inner = inner.InnerException;
+
+            System.Diagnostics.Debug.WriteLine("=== CRASH ROOT CAUSE ===");
+            System.Diagnostics.Debug.WriteLine(inner?.GetType().FullName);
+            System.Diagnostics.Debug.WriteLine(inner?.Message);
+            System.Diagnostics.Debug.WriteLine(inner?.StackTrace);
+            System.Diagnostics.Debug.WriteLine("=== FULL EXCEPTION ===");
+            System.Diagnostics.Debug.WriteLine(ex?.ToString());
+        };
+
+        var builder = MauiApp.CreateBuilder();
+
+        builder
+            .UseMauiApp<App>()
+            .UseMicrocharts()
+            .UseLocalNotification()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                fonts.AddFont("OpenSans-Regular.ttf", "Satoshi");
+                fonts.AddFont("OpenSans-Semibold.ttf", "ClashDisplay");
+            });
+
+        // ЛОГИРОВАНИЕ
+        builder.Services.AddLogging(logging =>
+        {
+#if DEBUG
+            logging.AddDebug();
+#endif
+        });
+
+        // DOMAIN LAYER 
+        builder.Services.AddDomainServices();
+
+        // APPLICATION LAYER 
+        builder.Services.AddApplicationServices();
+
+        // INFRASTRUCTURE LAYER 
+        builder.Services.AddInfrastructureServices();
+
+        // PRESENTATION LAYER 
+        builder.Services.AddPresentationServices();
+
+        builder.Services.AddTransient(sp =>
+            new Lazy<IAuthenticationService>(sp.GetRequiredService<IAuthenticationService>));
+
+        return builder.Build();
+    }
+}

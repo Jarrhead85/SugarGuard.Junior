@@ -1,0 +1,240 @@
+﻿@using Microsoft.AspNetCore.Components
+@using SugarGuard.Shared.Constants
+
+<article class="sg-user-row">
+    <div class="sg-user-main">
+        <div class="sg-user-title-row">
+            <h3>@GetUserTitle()</h3>
+
+            <div class="sg-user-badges">
+                <span class="sg-pill @GetRolePillClass(Role)">
+                    @Role
+                </span>
+
+                <span class="sg-pill @(IsActive ? "sg-pill-success" : "sg-pill-danger")">
+                    @(IsActive ? "Активен" : "Неактивен")
+                </span>
+            </div>
+        </div>
+
+        <div class="sg-user-meta">
+            <span><strong>ID:</strong> @UserId</span>
+            <span><strong>Telegram:</strong> @(TelegramId?.ToString() ?? "—")</span>
+            <span><strong>Создан:</strong> @FormatUtc(CreatedAt)</span>
+        </div>
+    </div>
+
+    <div class="sg-user-actions">
+        <div class="sg-field sg-field-grow">
+            <label class="sg-label" for="@_roleSelectId">Новая роль</label>
+
+            <select id="@_roleSelectId"
+                    class="sg-select"
+                    value="@_selectedRole"
+                    @onchange="OnSelectedRoleChangedAsync"
+                    disabled="@AreActionsDisabled">
+                @foreach (var role in _resolvedAssignableRoles)
+                {
+                    <option value="@role">@role</option>
+                }
+            </select>
+        </div>
+
+        <button class="sg-btn sg-btn-primary"
+                type="button"
+                @onclick="OnSaveClickedAsync"
+                disabled="@IsSaveDisabled">
+            @(IsSaving ? "Сохраняем..." : SaveButtonText)
+        </button>
+    </div>
+</article>
+
+@code {
+    private static readonly string[] DefaultAssignableRoles =
+    [
+        Roles.Parent,
+        Roles.Doctor,
+        Roles.Admin,
+        Roles.SupportAdmin
+    ];
+
+    private readonly string _roleSelectId = $"role-{Guid.NewGuid():N}";
+
+    private IReadOnlyList<string> _resolvedAssignableRoles = DefaultAssignableRoles;
+    private string _selectedRole = string.Empty;
+
+    [Parameter]
+    [EditorRequired]
+    public Guid UserId { get; set; } // Уникальный идентификатор пользователя
+
+    [Parameter]
+    public string? EmailForLogin { get; set; } // Email пользователя для логина
+
+    [Parameter]
+    public long? TelegramId { get; set; } // Telegram ID пользователя
+
+    [Parameter]
+    [EditorRequired]
+    public string Role { get; set; } = string.Empty; // Текущая роль пользователя
+
+    [Parameter]
+    public bool IsActive { get; set; } = true; // Признак активности пользователя
+
+    [Parameter]
+    public DateTime CreatedAt { get; set; } // Дата создания пользователя
+
+    [Parameter]
+    public string? SelectedRole { get; set; } // Выбранная роль
+
+    [Parameter]
+    public IReadOnlyList<string>? AssignableRoles { get; set; } // Список ролей, доступных для выбора в селекте
+
+    [Parameter]
+    public bool IsSaving { get; set; } // Признак активного сохранения для текущей строки
+
+    [Parameter]
+    public bool DisableActions { get; set; } // Признак внешней блокировки действий строки
+
+    [Parameter]
+    public string SaveButtonText { get; set; } = "Сохранить роль"; // Текст кнопки сохранения в обычном состоянии
+
+    [Parameter]
+    public EventCallback<string> SelectedRoleChanged { get; set; } // Событие изменения выбранной роли
+
+    [Parameter]
+    public EventCallback<string> SaveRequested { get; set; } // Событие запроса сохранения выбранной роли
+
+    private bool AreActionsDisabled => DisableActions || IsSaving;
+
+    private bool IsSaveDisabled =>
+        AreActionsDisabled
+        || string.IsNullOrWhiteSpace(_selectedRole)
+        || !IsAssignableRole(_selectedRole)
+        || string.Equals(_selectedRole, Role, StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnParametersSet()
+    {
+        _resolvedAssignableRoles = ResolveAssignableRoles(AssignableRoles);
+
+        var fallbackRole = string.IsNullOrWhiteSpace(Role)
+            ? _resolvedAssignableRoles.FirstOrDefault() ?? string.Empty
+            : Role;
+
+        var incomingSelectedRole = string.IsNullOrWhiteSpace(SelectedRole)
+            ? fallbackRole
+            : SelectedRole!.Trim();
+
+        if (!IsAssignableRole(incomingSelectedRole))
+        {
+            incomingSelectedRole = fallbackRole;
+        }
+
+        if (!string.Equals(_selectedRole, incomingSelectedRole, StringComparison.OrdinalIgnoreCase))
+        {
+            _selectedRole = incomingSelectedRole;
+        }
+    }
+
+    private async Task OnSelectedRoleChangedAsync(ChangeEventArgs args)
+    {
+        var newRole = args.Value?.ToString()?.Trim() ?? string.Empty;
+
+        if (!IsAssignableRole(newRole))
+        {
+            newRole = Role;
+        }
+
+        _selectedRole = newRole;
+
+        if (SelectedRoleChanged.HasDelegate)
+        {
+            await SelectedRoleChanged.InvokeAsync(_selectedRole);
+        }
+    }
+
+    private async Task OnSaveClickedAsync()
+    {
+        if (IsSaveDisabled)
+        {
+            return;
+        }
+
+        if (SaveRequested.HasDelegate)
+        {
+            await SaveRequested.InvokeAsync(_selectedRole);
+        }
+    }
+
+    private static IReadOnlyList<string> ResolveAssignableRoles(IReadOnlyList<string>? roles)
+    {
+        if (roles is null || roles.Count == 0)
+        {
+            return DefaultAssignableRoles;
+        }
+
+        var resolved = roles
+            .Where(static x => !string.IsNullOrWhiteSpace(x))
+            .Select(static x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return resolved.Length == 0
+            ? DefaultAssignableRoles
+            : resolved;
+    }
+
+    private bool IsAssignableRole(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return false;
+        }
+
+        return _resolvedAssignableRoles.Contains(role.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private string GetUserTitle()
+    {
+        if (!string.IsNullOrWhiteSpace(EmailForLogin))
+        {
+            return EmailForLogin;
+        }
+
+        return $"Пользователь {UserId}";
+    }
+
+    private static string FormatUtc(DateTime value)
+    {
+        return value.ToUniversalTime().ToString("dd.MM.yyyy HH:mm 'UTC'");
+    }
+
+    private static bool IsRole(string? left, string? right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetRolePillClass(string? role)
+    {
+        if (IsRole(role, Roles.Parent))
+        {
+            return "sg-pill-parent";
+        }
+
+        if (IsRole(role, Roles.Doctor))
+        {
+            return "sg-pill-doctor";
+        }
+
+        if (IsRole(role, Roles.Admin))
+        {
+            return "sg-pill-admin";
+        }
+
+        if (IsRole(role, Roles.SupportAdmin))
+        {
+            return "sg-pill-support";
+        }
+
+        return "sg-pill-neutral";
+    }
+}

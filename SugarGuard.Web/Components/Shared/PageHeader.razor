@@ -1,0 +1,180 @@
+﻿@using SugarGuard.Web.Components.Shared
+@* заголовок страницы *@
+
+<header class="page-header @CssClass" role="banner">
+
+    @* Верхняя строка: leading + title + trailing *@
+    <div class="page-header__bar">
+
+        @* Leading: кнопка «Назад» или произвольный контент *@
+        <div class="page-header__leading">
+            @if (LeadingContent is not null)
+            {
+                @LeadingContent
+            }
+            else if (ShowBackButton)
+            {
+                <button class="ph-icon-btn"
+                        type="button"
+                        aria-label="@BackButtonAriaLabel"
+                        @onclick="OnBackClickedAsync">
+                    <svg width="20" height="20" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <path d="M19 12H5M12 5l-7 7 7 7" />
+                    </svg>
+                </button>
+            }
+        </div>
+
+        @* Title блок *@
+        <div class="page-header__title-block @(Centered ? "page-header__title-block--centered" : "")">
+
+            @if (!string.IsNullOrWhiteSpace(Eyebrow))
+            {
+                <span class="page-header__eyebrow">@Eyebrow</span>
+            }
+
+            @if (TitleContent is not null)
+            {
+                @* Произвольный заголовок *@
+                <div class="page-header__title-wrap">
+                    @TitleContent
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <h1 class="page-header__title">@Title</h1>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p class="page-header__subtitle">@Subtitle</p>
+            }
+
+        </div>
+
+        @* Trailing: кнопки действий или произвольный контент *@
+        <div class="page-header__trailing">
+            @if (TrailingContent is not null)
+            {
+                @TrailingContent
+            }
+        </div>
+
+    </div>
+
+    @* Breadcrumbs *@
+    @if (Breadcrumbs is { Count: > 0 })
+    {
+        <nav class="page-header__breadcrumbs"
+             aria-label="Навигационная цепочка">
+            <ol class="ph-breadcrumb-list">
+                @for (int i = 0; i < Breadcrumbs.Count; i++)
+                {
+                    var item = Breadcrumbs[i];
+                    var isLast = i == Breadcrumbs.Count - 1;
+
+                    <li class="ph-breadcrumb-item">
+                        @if (isLast || string.IsNullOrWhiteSpace(item.Href))
+                        {
+                            <span class="ph-breadcrumb-current"
+                                  aria-current="@(isLast ? "page" : null)">
+                                @item.Label
+                            </span>
+                        }
+                        else
+                        {
+                            <a class="ph-breadcrumb-link" href="@item.Href">
+                                @item.Label
+                            </a>
+                        }
+
+                        @if (!isLast)
+                        {
+                            <svg class="ph-breadcrumb-sep"
+                                 width="14" height="14"
+                                 viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round"
+                                 aria-hidden="true">
+                                <path d="M9 18l6-6-6-6" />
+                            </svg>
+                        }
+                    </li>
+                }
+            </ol>
+        </nav>
+    }
+
+    @* Горизонтальный разделитель *@
+    @if (ShowDivider)
+    {
+        <div class="page-header__divider" role="separator" aria-hidden="true"></div>
+    }
+
+    @* Нижний слот: StateBanner / фильтры / вкладки  *@
+    @if (BottomContent is not null)
+    {
+        <div class="page-header__bottom">
+            @BottomContent
+        </div>
+    }
+
+</header>
+
+@code {
+    // Параметры 
+
+    [Parameter] public string? Title { get; set; } // Основной заголовок страницы
+
+    [Parameter] public string? Eyebrow { get; set; } // Надзаголовок-бейдж над заголовком
+
+    [Parameter] public string? Subtitle { get; set; } // Подзаголовок / описание под заголовком
+
+    [Parameter] public RenderFragment? TitleContent { get; set; } // Произвольный контент заголовка вместо строки
+
+    [Parameter] public RenderFragment? LeadingContent { get; set; } // Слот левой части: по умолчанию кнопка «Назад»
+
+    [Parameter] public RenderFragment? TrailingContent { get; set; } // Слот правой части
+
+    [Parameter] public RenderFragment? BottomContent { get; set; } // Нижний слот: StateBanner, фильтры
+
+    [Parameter] public bool ShowBackButton { get; set; } // Показывать кнопку «Назад»
+
+    [Parameter] public string BackButtonAriaLabel { get; set; } = "Назад"; // aria-label кнопки «Назад»
+
+    [Parameter] public EventCallback OnBackClicked { get; set; } // Колбэк нажатия на кнопку «Назад»
+
+    [Parameter] public string? BackHref { get; set; } // Ссылка для навигации «Назад»
+
+    [Parameter] public List<BreadcrumbItem>? Breadcrumbs { get; set; } // Навигационная цепочка breadcrumb
+
+    [Parameter] public bool Centered { get; set; } // Центрировать блок заголовка по горизонтали
+
+    [Parameter] public bool ShowDivider { get; set; } = true; // Показывать горизонтальный разделитель под заголовком
+
+    [Parameter] public string? CssClass { get; set; } // Дополнительный CSS-класс корневого элемента
+
+    // Обработчики 
+
+    /// <summary>
+    /// Нажатие кнопки «Назад»: навигация или вызов колбэка
+    /// </summary>
+    private async Task OnBackClickedAsync()
+    {
+        if (OnBackClicked.HasDelegate)
+        {
+            await OnBackClicked.InvokeAsync();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(BackHref))
+        {
+            Navigation.NavigateTo(BackHref);
+        }
+    }
+
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+}

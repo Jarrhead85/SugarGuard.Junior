@@ -1,0 +1,233 @@
+﻿@* карточка заметки врача *@
+
+@using SugarGuard.Web.ViewModels
+@using SugarGuard.Shared.Constants
+
+@inject ILogger<DoctorNoteCard> Logger
+
+<article class="sg-note-card @(Note.IsImportant ? "sg-note-card--important" : string.Empty)"
+         role="article"
+         aria-label="@CardAriaLabel"
+         aria-live="polite">
+
+    <div class="sg-note-card__header">
+
+        @* Бейджи: важная / флаг / привязана к замеру *@
+        <div class="sg-note-card__badges">
+            @if (Note.IsImportant)
+            {
+                <span class="sg-note-card__badge sg-note-card__badge--important"
+                      role="status"
+                      aria-label="Важная заметка">
+                    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                         stroke-width="1.8" aria-hidden="true">
+                        <polygon points="7,1 9,5.5 14,6.2 10.5,9.5 11.5,14 7,11.5 2.5,14 3.5,9.5 0,6.2 5,5.5" />
+                    </svg>
+                    Важная
+                </span>
+            }
+
+            @if (Note.MeasurementId.HasValue)
+            {
+                <span class="sg-note-card__badge sg-note-card__badge--measurement"
+                      title="Привязана к замеру глюкозы"
+                      aria-label="Привязана к замеру глюкозы">
+                    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                         stroke-width="1.8" aria-hidden="true">
+                        <circle cx="7" cy="7" r="5" />
+                        <line x1="7" y1="4" x2="7" y2="7" />
+                        <line x1="7" y1="7" x2="9.5" y2="9" />
+                    </svg>
+                    Замер
+                </span>
+            }
+        </div>
+
+        @* Кнопки редактирования и удаления *@
+        @if (OnEdit.HasDelegate || OnDelete.HasDelegate)
+        {
+            <div class="sg-note-card__actions">
+                @if (OnEdit.HasDelegate)
+                {
+                    <button class="sg-note-card__action-btn"
+                            type="button"
+                            @onclick="HandleEditAsync"
+                            disabled="@_isBusy"
+                            aria-label="Редактировать заметку">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                             stroke-width="1.8" aria-hidden="true">
+                            <path d="M11 2l3 3L5 14H2v-3L11 2z" />
+                        </svg>
+                    </button>
+                }
+
+                @if (OnDelete.HasDelegate)
+                {
+                    <button class="sg-note-card__action-btn sg-note-card__action-btn--danger"
+                            type="button"
+                            @onclick="HandleDeleteAsync"
+                            disabled="@_isBusy"
+                            aria-label="Удалить заметку"
+                            aria-busy="@_isDeleting">
+                        @if (_isDeleting)
+                        {
+                            <span class="sg-spinner sg-spinner--sm" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                 stroke-width="1.8" aria-hidden="true">
+                                <path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5L11 4" />
+                                <line x1="6.5" y1="7" x2="6.5" y2="10.5" />
+                                <line x1="9.5" y1="7" x2="9.5" y2="10.5" />
+                            </svg>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    @* Тело заметки *@
+    <div class="sg-note-card__body">
+        <p class="sg-note-card__text">@Note.NoteText</p>
+    </div>
+
+    @* Футер: автор + даты *@
+    <footer class="sg-note-card__footer">
+        <div class="sg-note-card__author">
+            <div class="sg-note-card__author-avatar" aria-hidden="true">
+                @DoctorInitials
+            </div>
+            <span class="sg-note-card__author-name">@Note.DoctorName</span>
+        </div>
+
+        <div class="sg-note-card__dates">
+            <time class="sg-note-card__date"
+                  datetime="@Note.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")"
+                  title="@Note.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                @FormatDate(Note.CreatedAt)
+            </time>
+
+            @if (Note.UpdatedAt.HasValue)
+            {
+                <span class="sg-note-card__date-sep" aria-hidden="true">·</span>
+                <time class="sg-note-card__date sg-note-card__date--edited"
+                      datetime="@Note.UpdatedAt.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")"
+                      title="@Note.UpdatedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                    изм. @FormatDate(Note.UpdatedAt.Value)
+                </time>
+            }
+        </div>
+    </footer>
+
+</article>
+
+@code {
+    // Параметры 
+    [Parameter, EditorRequired]
+    public DoctorNoteVm Note { get; set; } = default!; // ViewModel заметки
+
+    [Parameter]
+    public EventCallback<DoctorNoteVm> OnEdit { get; set; } // Callback нажатия «Редактировать»
+
+    [Parameter]
+    public EventCallback<DoctorNoteVm> OnDelete { get; set; } // Callback нажатия «Удалить»
+
+    // Состояние    
+    private bool _isDeleting; // Флаг выполняемого удаления
+
+    private bool _isBusy => _isDeleting; // Общий флаг занятости
+
+    // Вычисляемые свойства
+    /// <summary>
+    /// Инициалы врача: первые буквы имени и фамилии
+    /// </summary>
+    private string DoctorInitials
+    {
+        get
+        {
+            var parts = (Note.DoctorName ?? string.Empty)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            return parts.Length switch
+            {
+                0 => "?",
+                1 => parts[0][0].ToString().ToUpperInvariant(),
+                _ => $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant()
+            };
+        }
+    }
+
+    /// <summary>
+    /// Текст aria-label для всей карточки
+    /// </summary>
+    private string CardAriaLabel
+    {
+        get
+        {
+            var importance = Note.IsImportant ? "Важная заметка. " : string.Empty;
+            var author = $"Врач: {Note.DoctorName}. ";
+            var date = $"Дата: {FormatDate(Note.CreatedAt)}.";
+            return $"{importance}{author}{date}";
+        }
+    }
+
+    // Обработчики событий
+    private async Task HandleEditAsync()
+    {
+        if (!OnEdit.HasDelegate) return;
+
+        try
+        {
+            await OnEdit.InvokeAsync(Note);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при вызове OnEdit для заметки {NoteId}.", Note.NoteId);
+        }
+    }
+
+    private async Task HandleDeleteAsync()
+    {
+        if (!OnDelete.HasDelegate) return;
+
+        _isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnDelete.InvokeAsync(Note);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при вызове OnDelete для заметки {NoteId}.", Note.NoteId);
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+
+    // Форматирование дат
+    /// <summary>
+    /// Форматирует UTC-время заметки в читаемую строку
+    /// </summary>
+    private static string FormatDate(DateTime utcTime)
+    {
+        var local = utcTime.ToLocalTime();
+        var today = DateTime.Today;
+        var culture = new System.Globalization.CultureInfo("ru-RU");
+
+        if (local.Date == today)
+            return local.ToString("HH:mm", culture);
+
+        if (local.Date == today.AddDays(-1))
+            return $"вчера {local:HH:mm}";
+
+        if (local.Year == today.Year)
+            return local.ToString("d MMM, HH:mm", culture);
+
+        return local.ToString("d MMM yyyy", culture);
+    }
+}

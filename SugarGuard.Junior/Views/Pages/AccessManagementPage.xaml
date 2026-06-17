@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:SugarGuard.Junior.Views.Controls"
+             xmlns:ViewModels="clr-namespace:SugarGuard.Junior.ViewModels"
+             x:Class="SugarGuard.Junior.Views.Pages.AccessManagementPage"
+             Title="Доступ к моим данным"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource PaddingPage}"
+                             Spacing="{StaticResource Spacing20}">
+
+            <!-- Индикатор загрузки -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center" />
+
+            <!-- Входящие запросы -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing12}"
+                                 IsVisible="{Binding HasIncomingRequests}">
+                <Label Text="Входящие запросы"
+                       Style="{StaticResource SectionHeadingText}" />
+
+                <BindableLayout.ItemsSource>
+                    <Binding Path="IncomingRequests" />
+                </BindableLayout.ItemsSource>
+
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}"
+                                BackgroundColor="{DynamicResource SurfacePrimarySoft}"
+                                Stroke="{StaticResource Primary}"
+                                Padding="{StaticResource PaddingLg}">
+                            <VerticalStackLayout Spacing="{StaticResource Spacing12}">
+                                <Label Style="{StaticResource BodyText}">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="Пользователь запрашивает доступ как " />
+                                            <Span Text="{Binding TargetRole}"
+                                                  FontAttributes="Bold" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+
+                                <Label Text="{Binding CreatedAt, StringFormat='{0:dd.MM.yyyy HH:mm}'}"
+                                       Style="{StaticResource CaptionTextFaint}" />
+
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Spacing12}">
+                                    <Button Text="Подтвердить"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=ApproveIncomingRequestCommand}"
+                                            CommandParameter="{Binding InviteCodeId}"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Grid.Column="0" />
+                                    <Button Text="Отклонить"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=RejectIncomingRequestCommand}"
+                                            CommandParameter="{Binding InviteCodeId}"
+                                            Style="{StaticResource GhostButton}"
+                                            Grid.Column="1" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <!-- Родители -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing12}">
+                <Label Text="РОДИТЕЛИ"
+                       Style="{StaticResource SectionHeadingTextMuted}" />
+
+                <BindableLayout.ItemsSource>
+                    <Binding Path="ParentLinks" />
+                </BindableLayout.ItemsSource>
+
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource ListCard}" Padding="{StaticResource PaddingLg}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                                    <Label Text="{Binding ParentEmail, FallbackValue='Родитель'}"
+                                           Style="{StaticResource BodyText}" />
+                                    <Label Text="{Binding CreatedAt, StringFormat='Привязан {0:dd.MM.yyyy}'}"
+                                           Style="{StaticResource CaptionTextFaint}" />
+                                </VerticalStackLayout>
+                                <Button Text="Отвязать"
+                                        Style="{StaticResource GhostButton}"
+                                        TextColor="{StaticResource GlucoseDangerColor}"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=RemoveParentLinkCommand}"
+                                        CommandParameter="{Binding LinkId}"
+                                        Grid.Column="1" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+
+                <BindableLayout.EmptyView>
+                    <Label Text="Нет привязанных родителей"
+                           Style="{StaticResource BodyTextMuted}"
+                           HorizontalTextAlignment="Center" />
+                </BindableLayout.EmptyView>
+            </VerticalStackLayout>
+
+            <!-- Кнопка пригласить родителя -->
+            <Button Text="+ Пригласить родителя"
+                    Command="{Binding GenerateParentInviteCommand}"
+                    Style="{StaticResource SoftButton}"
+                    IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+
+            <!-- Врачи -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing12}">
+                <Label Text="ВРАЧ"
+                       Style="{StaticResource SectionHeadingTextMuted}" />
+
+                <BindableLayout.ItemsSource>
+                    <Binding Path="DoctorLinks" />
+                </BindableLayout.ItemsSource>
+
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource ListCard}" Padding="{StaticResource PaddingLg}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                                    <Label Text="{Binding DoctorEmail, FallbackValue='Врач'}"
+                                           Style="{StaticResource BodyText}" />
+                                    <Label Text="{Binding CreatedAt, StringFormat='Привязан {0:dd.MM.yyyy}'}"
+                                           Style="{StaticResource CaptionTextFaint}" />
+                                </VerticalStackLayout>
+                                <Button Text="Отвязать"
+                                        Style="{StaticResource GhostButton}"
+                                        TextColor="{StaticResource GlucoseDangerColor}"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=RemoveDoctorLinkCommand}"
+                                        CommandParameter="{Binding LinkId}"
+                                        Grid.Column="1" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+
+                <BindableLayout.EmptyView>
+                    <Label Text="Нет привязанных врачей"
+                           Style="{StaticResource BodyTextMuted}"
+                           HorizontalTextAlignment="Center" />
+                </BindableLayout.EmptyView>
+            </VerticalStackLayout>
+
+            <!-- Кнопка привязать врача -->
+            <Button Text="+ Привязать врача"
+                    Command="{Binding GenerateDoctorInviteCommand}"
+                    Style="{StaticResource SoftButton}"
+                    IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+
+            <!-- Ошибка -->
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource CaptionText}"
+                   TextColor="{StaticResource GlucoseDangerColor}"
+                   HorizontalTextAlignment="Center"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
+
+            <!-- Bottom Sheet для кода приглашения -->
+            <Border IsVisible="{Binding ShowInviteCode}"
+                    Style="{StaticResource Card}"
+                    BackgroundColor="{DynamicResource BottomSheetBackground}"
+                    Padding="{StaticResource PaddingXl}">
+                <VerticalStackLayout Spacing="{StaticResource Spacing20}" HorizontalOptions="Center">
+                    <Label Text="Код для родителя"
+                           Style="{StaticResource SectionHeadingText}"
+                           HorizontalTextAlignment="Center" />
+
+                    <Border Style="{StaticResource HeroCard}" Padding="{StaticResource PaddingXl}"
+                            HorizontalOptions="Center">
+                        <VerticalStackLayout Spacing="{StaticResource Spacing8}" HorizontalOptions="Center">
+                            <Label Text="{Binding InviteCode}"
+                                   Style="{StaticResource DisplayText}"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Действует 48 часов"
+                                   Style="{StaticResource CaptionTextFaint}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Button Text="Поделиться кодом"
+                            Command="{Binding CopyInviteCodeCommand}"
+                            Style="{StaticResource PrimaryButton}" />
+
+                    <Button Text="Закрыть"
+                            Command="{Binding CloseInviteCodeCommand}"
+                            Style="{StaticResource GhostButton}" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="SugarGuard.Junior.Views.Pages.DiabetesSettingsPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:SugarGuard.Junior.ViewModels"
+             x:DataType="viewmodels:DiabetesSettingsPageViewModel"
+             Title="Настройки диабета">
+
+    <ScrollView>
+        <StackLayout Padding="20" Spacing="15">
+            
+            <!-- Индикатор загрузки -->
+            <ActivityIndicator IsVisible="{Binding IsLoading}" 
+                             IsRunning="{Binding IsLoading}" 
+                             Color="{StaticResource Primary}" />
+
+            <!-- Описание -->
+            <Frame BackgroundColor="{StaticResource Secondary}" 
+                   Padding="15" 
+                   Margin="0,0,0,10">
+                <Label Text="Настройте параметры диабета для получения персонализированных рекомендаций от ИИ. Обязательно проконсультируйтесь с эндокринологом перед изменением этих значений."
+                       FontSize="14"
+                       TextColor="{StaticResource Gray900}" />
+            </Frame>
+
+            <!-- Целевой диапазон глюкозы -->
+            <Label Text="Целевой диапазон глюкозы" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,10,0,5" />
+
+            <Label Text="{Binding TargetRangeText}" 
+                   FontSize="14" 
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource Primary}" 
+                   HorizontalOptions="Center" 
+                   Margin="0,0,0,10" />
+
+            <!-- Минимальный целевой уровень -->
+            <StackLayout>
+                <Label Text="Минимальный уровень (ммоль/л) *" />
+                <Entry Text="{Binding TargetRangeMin}" 
+                       Placeholder="4.0"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="Обычно 4.0 ммоль/л для детей" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Максимальный целевой уровень -->
+            <StackLayout>
+                <Label Text="Максимальный уровень (ммоль/л) *" />
+                <Entry Text="{Binding TargetRangeMax}" 
+                       Placeholder="10.0"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="Обычно 10.0 ммоль/л для детей" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Параметры инсулина -->
+            <Label Text="Параметры инсулина" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,20,0,5" />
+
+            <!-- Чувствительность к инсулину -->
+            <StackLayout>
+                <Label Text="Чувствительность к инсулину (ммоль/л на 1 ед.) *" />
+                <Entry Text="{Binding InsulinSensitivity}" 
+                       Placeholder="1.5"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="На сколько ммоль/л снижает 1 единица инсулина" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Коэффициент углеводов-инсулина -->
+            <StackLayout>
+                <Label Text="Коэффициент углеводов-инсулина (г на 1 ед.) *" />
+                <Entry Text="{Binding CarbInsulinRatio}" 
+                       Placeholder="10.0"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="Сколько граммов углеводов покрывает 1 единица инсулина" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Длительность действия инсулинов -->
+            <Label Text="Длительность действия инсулинов" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,20,0,5" />
+
+            <!-- Длительный инсулин -->
+            <StackLayout>
+                <Label Text="Длительный инсулин (часов) *" />
+                <Entry Text="{Binding LongActingDuration}" 
+                       Placeholder="24"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="Обычно 24 часа (Лантус, Левемир)" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Быстрый инсулин -->
+            <StackLayout>
+                <Label Text="Быстрый инсулин (часов) *" />
+                <Entry Text="{Binding ShortActingDuration}" 
+                       Placeholder="4"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="Обычно 4 часа (Новорапид, Хумалог)" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Ошибки валидации -->
+            <Frame IsVisible="{Binding HasValidationErrors}" 
+                   BackgroundColor="{StaticResource Danger}" 
+                   Padding="10" 
+                   Margin="0,10">
+                <Label Text="{Binding ValidationErrors}" 
+                       TextColor="White" 
+                       FontSize="12" />
+            </Frame>
+
+            <!-- Кнопки -->
+            <StackLayout Spacing="10" Margin="0,20,0,0">
+                
+                <!-- Сброс к умолчаниям -->
+                <Button Text="Сбросить к умолчаниям" 
+                        Command="{Binding ResetToDefaultsCommand}"
+                        BackgroundColor="{StaticResource Gray300}"
+                        TextColor="{StaticResource Gray900}" />
+                
+                <!-- Основные кнопки -->
+                <StackLayout Orientation="Horizontal" 
+                            HorizontalOptions="FillAndExpand" 
+                            Spacing="10">
+                    
+                    <Button Text="Отмена" 
+                            Command="{Binding CancelCommand}"
+                            BackgroundColor="{StaticResource Gray300}"
+                            TextColor="{StaticResource Gray900}"
+                            HorizontalOptions="FillAndExpand" />
+                    
+                    <Button Text="Сохранить" 
+                            Command="{Binding SaveCommand}"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="White"
+                            HorizontalOptions="FillAndExpand" />
+                </StackLayout>
+            </StackLayout>
+
+            <!-- Предупреждение -->
+            <Frame BackgroundColor="{StaticResource Warning}" 
+                   Padding="15" 
+                   Margin="0,20,0,0">
+                <StackLayout>
+                    <Label Text="⚠️ ВАЖНО" 
+                           FontAttributes="Bold" 
+                           TextColor="{StaticResource Gray900}" />
+                    <Label Text="Эти настройки влияют на рекомендации ИИ. Изменяйте их только после консультации с эндокринологом. Неправильные значения могут привести к некорректным советам."
+                           FontSize="12"
+                           TextColor="{StaticResource Gray900}" />
+                </StackLayout>
+            </Frame>
+
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

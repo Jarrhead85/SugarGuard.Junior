@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Pages.RecommendationModal"
+             x:Name="ModalPage"
+             Title="Рекомендация"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#66000000"
+             Padding="16">
+
+    <Grid>
+        <!-- Контейнер центрирует модальное окно по экрану. -->
+        <Grid VerticalOptions="Center"
+              HorizontalOptions="Center"
+              MaximumWidthRequest="520">
+
+            <!-- Основная glass/premium-карточка. -->
+            <Border Stroke="{StaticResource BorderDefault}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 28"
+                    BackgroundColor="{StaticResource SurfaceCard}"
+                    Padding="0">
+
+                <Grid RowDefinitions="Auto,Auto,Auto">
+
+                    <!-- Верхняя зона -->
+                    <Grid Grid.Row="0"
+                          ColumnDefinitions="*,Auto"
+                          Padding="20,20,20,12">
+
+                        <VerticalStackLayout Grid.Column="0"
+                                             Spacing="8">
+
+                            <!-- Helper-метка источника. -->
+                            <Label Text="{Binding RecommendationSourceTitle}"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource TextSecondary}" />
+
+                            <!-- Главный заголовок модального окна -->
+                            <Label Text="Что сделать сейчас"
+                                   FontFamily="{StaticResource ClashDisplay}"
+                                   FontSize="28"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource TextPrimary}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <!-- Кнопка закрытия -->
+                        <Button Grid.Column="1"
+                                Text="✕"
+                                Command="{Binding CloseModalCommand}"
+                                Style="{StaticResource GhostButton}"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                TextColor="{StaticResource TextSecondary}"
+                                WidthRequest="44"
+                                HeightRequest="44"
+                                Padding="0"
+                                CornerRadius="22"
+                                HorizontalOptions="End"
+                                VerticalOptions="Start" />
+                    </Grid>
+
+                    <!-- Основной контент -->
+                    <VerticalStackLayout Grid.Row="1"
+                                         Padding="20,0,20,16"
+                                         Spacing="16">
+
+                        <!-- Срочность -->
+                        <Border StrokeThickness="0"
+                                StrokeShape="RoundRectangle 999"
+                                BackgroundColor="{Binding UrgencyColorHex}"
+                                Padding="10,5"
+                                HorizontalOptions="Start"
+                                Shadow="{x:Null}">
+                            <Label Text="{Binding RecommendationUrgency}"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                        </Border>
+
+                        <!-- Основной текст рекомендации -->
+                        <Label Text="{Binding RecommendationText}"
+                               FontFamily="{StaticResource Satoshi}"
+                               FontSize="16"
+                               TextColor="{StaticResource TextPrimary}"
+                               LineBreakMode="WordWrap" />
+
+                        <!-- Helper-tone для контекста источника. -->
+                        <Label Text="{Binding CacheLabel}"
+                               FontFamily="{StaticResource Satoshi}"
+                               FontSize="13"
+                               TextColor="{StaticResource TextSecondary}"
+                               LineBreakMode="WordWrap"
+                               IsVisible="{Binding CacheLabel, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                        <BoxView HeightRequest="1"
+                                 BackgroundColor="{StaticResource BorderDefault}" />
+
+                        <!-- Подзаголовок секции выбора перекуса -->
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Выберите перекус"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource TextPrimary}" />
+
+                            <Label Text="Подойдут варианты из рюкзака, которые помогут быстро выполнить рекомендацию."
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="13"
+                                   TextColor="{StaticResource TextSecondary}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <!-- Список доступных перекусов -->
+                        <CollectionView ItemsSource="{Binding AvailableSnacks}"
+                                        SelectionMode="None"
+                                        IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToBoolConverter}}">
+
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+                            </CollectionView.ItemsLayout>
+
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- Карточка-выбор -->
+                                    <Border Stroke="{StaticResource BorderDefault}"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 18"
+                                            BackgroundColor="{StaticResource SurfaceCard}"
+                                            Padding="0"
+                                            Shadow="{x:Null}">
+
+                                        <Button BackgroundColor="Transparent"
+                                                TextColor="{StaticResource TextPrimary}"
+                                                FontFamily="{StaticResource Satoshi}"
+                                                FontSize="15"
+                                                FontAttributes="Bold"
+                                                Padding="16,14"
+                                                CornerRadius="18"
+                                                BorderWidth="0"
+                                                Command="{Binding Source={x:Reference ModalPage}, Path=BindingContext.SelectSnackCommand}"
+                                                CommandParameter="{Binding BackpackItemId}">
+
+                                            <Button.Text>
+                                                <MultiBinding StringFormat="{}{0} · {1:F1} ХЕ">
+                                                    <Binding Path="SnackName" />
+                                                    <Binding Path="BreadUnits" />
+                                                </MultiBinding>
+                                            </Button.Text>
+                                        </Button>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+
+                        <!-- Пустое состояние рюкзака -->
+                        <Border Stroke="{StaticResource BorderDefault}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 20"
+                                BackgroundColor="{StaticResource SurfaceCard}"
+                                Padding="16"
+                                Shadow="{x:Null}"
+                                IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToInverseBoolConverter}}">
+
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Сейчас в рюкзаке нет перекусов"
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="15"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource TextPrimary}"
+                                       HorizontalTextAlignment="Center" />
+
+                                <Label Text="Попросите родителей добавить перекусы, чтобы здесь можно было быстро выбрать подходящий вариант."
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource TextSecondary}"
+                                       HorizontalTextAlignment="Center"
+                                       LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                    </VerticalStackLayout>
+
+                    <!-- Нижняя зона действий -->
+                    <VerticalStackLayout Grid.Row="2"
+                                         Padding="20,0,20,20"
+                                         Spacing="10">
+
+                        <!-- Primary CTA — закрыть модальное окно после ознакомления. -->
+                        <Button Text="Понятно"
+                                Command="{Binding CloseModalCommand}"
+                                HeightRequest="52" />
+
+                        <!-- Secondary CTA — пропуск рекомендации. -->
+                        <Button Text="Пропустить рекомендацию"
+                                Command="{Binding SkipRecommendationCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="52" />
+                    </VerticalStackLayout>
+
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

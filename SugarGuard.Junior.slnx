@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="SugarGuard.API/SugarGuard.API.csproj" />
+  <Project Path="SugarGuard.Application/SugarGuard.Application.csproj" />
+  <Project Path="SugarGuard.Bot/SugarGuard.Bot.csproj" />
+  <Project Path="SugarGuard.Shared/SugarGuard.Shared.csproj" />
+  <Project Path="SugarGuard.Domain/SugarGuard.Domain.csproj" />
+  <Project Path="SugarGuard.Infrastructure/SugarGuard.Infrastructure.csproj" />
+  <Project Path="SugarGuard.Junior/SugarGuard.Junior.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+  <Project Path="SugarGuard.Tests/SugarGuard.Tests.csproj" />
+  <Project Path="SugarGuard.Web/SugarGuard.Web.csproj" />
+</Solution>

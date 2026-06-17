@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<pages:SwipeablePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
+             xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
+             xmlns:converters="clr-namespace:SugarGuard.Junior.Converters"
+             x:Class="SugarGuard.Junior.Views.Pages.MainPage"
+             Title="Мой Сахар"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <!-- Ресурсы страницы -->
+    <pages:SwipeablePage.Resources>
+        <ResourceDictionary>
+
+            <!-- принимает строковый semantic key и возвращает соответствующий Color из App.Resources. -->
+            <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+
+        </ResourceDictionary>
+    </pages:SwipeablePage.Resources>
+
+    <!-- Корневой Grid -->
+    <Grid>
+
+        <ScrollView VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="{StaticResource Space16}"
+                                 Spacing="{StaticResource Space16}">
+
+                <!-- Баннер оффлайн/синхронизации -->
+                <components:SyncBanner
+                    IsVisible="{Binding ShowOfflineIndicator}"
+                    PendingCount="{Binding PendingSyncCount}"
+                    IsDismissible="True"
+                    SemanticProperties.Description="Офлайн-режим: данные будут синхронизированы при восстановлении соединения" />
+
+                <!-- Критический баннер -->
+                <Border Style="{StaticResource SyncFailedBanner}"
+                        IsVisible="{Binding IsCritical}"
+                        SemanticProperties.Description="Критический уровень сахара — требуется немедленная помощь">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="{StaticResource Space8}">
+
+                        <Label Grid.Column="0"
+                               Text="🚨"
+                               FontSize="16"
+                               VerticalOptions="Center"
+                               SemanticProperties.Description="" />
+
+                        <Label Grid.Column="1"
+                               Style="{StaticResource SyncFailedTitle}"
+                               Text="Критический уровень сахара!"
+                               VerticalOptions="Center" />
+
+                        <Button Grid.Column="2"
+                                Text="Помощь"
+                                Style="{StaticResource SoftButton}"
+                                TextColor="{DynamicResource Danger}"
+                                Padding="10,4"
+                                MinimumHeightRequest="44"
+                                MinimumWidthRequest="44"
+                                Command="{Binding NavigateToHelpCommand}"
+                                SemanticProperties.Description="Открыть экран экстренной помощи"
+                                AutomationProperties.Name="CriticalHelpButton" />
+                    </Grid>
+                </Border>
+
+                <!-- Шапка: имя ребёнка, дата, время, статус, кнопка помощи -->
+                <Border Style="{StaticResource DataCard}">
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto"
+                          ColumnSpacing="{StaticResource Space12}">
+
+                        <!-- Имя и дата слева -->
+                        <VerticalStackLayout Grid.Column="0"
+                                             Spacing="{StaticResource Space4}">
+                            <Label Text="{Binding ChildName}"
+                                   Style="{StaticResource PageTitleText}"
+                                   SemanticProperties.HeadingLevel="Level1" />
+                            <Label Text="{Binding CurrentDate}"
+                                   Style="{StaticResource CaptionText}" />
+                        </VerticalStackLayout>
+
+                        <!-- Время, статус и кнопка помощи справа -->
+                        <VerticalStackLayout Grid.Column="1"
+                                             HorizontalOptions="End"
+                                             Spacing="{StaticResource Space4}">
+
+                            <Label Text="{Binding CurrentTime}"
+                                   Style="{StaticResource BodyText}"
+                                   HorizontalOptions="End" />
+
+                            <components:StatusChip
+                                UiState="{Binding CurrentGlucoseUiState}"
+                                HorizontalOptions="End" />
+
+                            <!-- Кнопка экстренной помощи. -->
+                            <Button Text="🆘 Помощь"
+                                    Style="{StaticResource SoftButton}"
+                                    TextColor="{DynamicResource Danger}"
+                                    Padding="12,6"
+                                    MinimumHeightRequest="44"
+                                    MinimumWidthRequest="44"
+                                    Command="{Binding NavigateToHelpCommand}"
+                                    SemanticProperties.Description="Открыть экран экстренной помощи"
+                                    AutomationProperties.Name="EmergencyHelpButton" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <!-- hero-карточка: текущий уровень глюкозы -->
+                <components:GlucoseHeroCard
+                    x:Name="GlucoseHero"
+                    GlucoseValue="{Binding LastGlucoseValueDecimal}"
+                    UiState="{Binding CurrentGlucoseUiState}"
+                    TimeSinceMeasurement="{Binding LastMeasurementTime}"
+                    SemanticProperties.Description="{Binding GlucoseHeroAccessibilityText}" />
+
+                <!-- метрики -->
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="{StaticResource Space12}"
+                      IsVisible="False">
+
+                    <components:MetricCard
+                        Grid.Column="0"
+                        Label="Время в норме"
+                        Value="{Binding TimeInTargetRange, StringFormat='{0:P0}'}"
+                        Unit="%" />
+
+                    <components:MetricCard
+                        Grid.Column="1"
+                        Label="Статистика"
+                        Value="{Binding DailyStats}" />
+                </Grid>
+
+                <!-- Быстрые переходы: График и Расписание -->
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="{StaticResource Space12}"
+                      IsVisible="False">
+
+                    <Button Grid.Column="0"
+                            Text="📊 График"
+                            Style="{StaticResource SoftButton}"
+                            MinimumHeightRequest="44"
+                            Command="{Binding NavigateToChartCommand}"
+                            SemanticProperties.Description="Открыть детальный график сахара"
+                            AutomationProperties.Name="OpenChartButton" />
+
+                    <Button Grid.Column="1"
+                            Text="🗓 Расписание"
+                            Style="{StaticResource SoftButton}"
+                            MinimumHeightRequest="44"
+                            Command="{Binding NavigateToScheduleCommand}"
+                            SemanticProperties.Description="Открыть расписание измерений"
+                            AutomationProperties.Name="OpenScheduleButton" />
+                </Grid>
+
+                <!-- Ввод нового измерения -->
+                <Border Style="{StaticResource ActionCard}">
+                    <VerticalStackLayout Spacing="{StaticResource Space12}">
+
+                        <!-- Пикер состояния ребёнка -->
+                        <Label Text="Состояние ребёнка"
+                               Style="{StaticResource CaptionText}" />
+                        <Picker Title="Выберите состояние"
+                                ItemsSource="{Binding ChildStateDisplayNames}"
+                                SelectedIndex="{Binding SelectedChildStateIndex}"
+                                FontSize="14"
+                                AutomationProperties.Name="ChildStatePicker"
+                                SemanticProperties.Description="Выберите текущее состояние ребёнка" />
+
+                        <!-- Заголовок поля ввода -->
+                        <Label Text="Введите уровень (ммоль/л)"
+                               Style="{StaticResource SectionHeadingText}" />
+
+                        <!-- Шорткаты часто используемых значений -->
+                        <HorizontalStackLayout Spacing="{StaticResource Space8}"
+                                               HorizontalOptions="Center">
+
+                            <Button Text="4"
+                                    Command="{Binding SetGlucoseShortcutCommand}"
+                                    CommandParameter="4"
+                                    Style="{StaticResource SoftButton}"
+                                    FontSize="18"
+                                    Padding="16,12"
+                                    MinimumHeightRequest="44"
+                                    MinimumWidthRequest="44"
+                                    SemanticProperties.Description="Подставить значение 4 ммоль/л" />
+
+                            <Button Text="5"
+                                    Command="{Binding SetGlucoseShortcutCommand}"
+                                    CommandParameter="5"
+                                    Style="{StaticResource SoftButton}"
+                                    FontSize="18"
+                                    Padding="16,12"
+                                    MinimumHeightRequest="44"
+                                    MinimumWidthRequest="44"
+                                    SemanticProperties.Description="Подставить значение 5 ммоль/л" />
+
+                            <Button Text="7"
+                                    Command="{Binding SetGlucoseShortcutCommand}"
+                                    CommandParameter="7"
+                                    Style="{StaticResource SoftButton}"
+                                    FontSize="18"
+                                    Padding="16,12"
+                                    MinimumHeightRequest="44"
+                                    MinimumWidthRequest="44"
+                                    SemanticProperties.Description="Подставить значение 7 ммоль/л" />
+
+                            <Button Text="10"
+                                    Command="{Binding SetGlucoseShortcutCommand}"
+                                    CommandParameter="10"
+                                    Style="{StaticResource SoftButton}"
+                                    FontSize="18"
+                                    Padding="16,12"
+                                    MinimumHeightRequest="44"
+                                    MinimumWidthRequest="44"
+                                    SemanticProperties.Description="Подставить значение 10 ммоль/л" />
+                        </HorizontalStackLayout>
+
+                        <!-- Поле ввода числа -->
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource Space8}">
+
+                            <Border Grid.Column="0"
+                                    StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource BorderDefault}"
+                                    StrokeThickness="1"
+                                    Padding="12,0">
+                                <Entry x:Name="GlucoseInput"
+                                       Text="{Binding NewGlucoseValue}"
+                                       Placeholder="5.5"
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="24"
+                                       Keyboard="Numeric"
+                                       TextColor="{DynamicResource TextPrimary}"
+                                       PlaceholderColor="{DynamicResource TextFaint}"
+                                       AutomationProperties.Name="GlucoseValueEntry"
+                                       SemanticProperties.Description="Введите уровень глюкозы в ммоль/л" />
+                            </Border>
+
+                            <Label Grid.Column="1"
+                                   Text="ммоль/л"
+                                   Style="{StaticResource CaptionText}"
+                                   VerticalOptions="Center" />
+                        </Grid>
+
+                        <!-- Кнопка отправки измерения -->
+                        <Button Text="Готово! ✓"
+                                Command="{Binding SendMeasurementCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                IsEnabled="{Binding IsNotBusy}"
+                                MinimumHeightRequest="44"
+                                SemanticProperties.Description="Сохранить измерение и получить рекомендацию"
+                                AutomationProperties.Name="SubmitMeasurementButton" />
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Ркомендация ИИ Показывается только после получения рекомендации -->
+                <Border Style="{StaticResource Card}"
+                        IsVisible="{Binding ShowRecommendation}">
+                    <VerticalStackLayout Spacing="{StaticResource Space12}">
+
+                        <!-- Заголовок блока рекомендации -->
+                        <Grid ColumnDefinitions="Auto,*"
+                              ColumnSpacing="{StaticResource Space8}">
+                            <Label Grid.Column="0"
+                                   Text="🤖"
+                                   FontSize="20"
+                                   VerticalOptions="Center"
+                                   SemanticProperties.Description="" />
+                            <Label Grid.Column="1"
+                                   Text="Рекомендация от ИИ"
+                                   Style="{StaticResource SectionHeadingText}"
+                                   VerticalOptions="Center" />
+                        </Grid>
+
+                        <!-- Уровень срочности. -->
+                        <Label Text="{Binding RecommendationUrgency}"
+                               FontSize="12"
+                               TextColor="{Binding UrgencyKey, Converter={StaticResource StatusToColorConverter}}"
+                               FontAttributes="Bold"
+                               SemanticProperties.Description="{Binding RecommendationUrgencyAccessibilityText}" />
+
+                        <!-- Текст самой рекомендации -->
+                        <Label Text="{Binding RecommendationText}"
+                               Style="{StaticResource BodyText}"
+                               LineBreakMode="WordWrap" />
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Мини-график глюкозы -->
+                <Border Style="{StaticResource Card}"
+                        IsVisible="False">
+                    <VerticalStackLayout Spacing="{StaticResource Space12}">
+
+                        <!-- Заголовок и переход к детальному графику -->
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource Space8}">
+
+                            <Label Grid.Column="0"
+                                   Text="📊 Мои измерения (сегодня)"
+                                   Style="{StaticResource SectionHeadingText}"
+                                   VerticalOptions="Center" />
+
+                            <Button Grid.Column="1"
+                                    Text="Подробнее"
+                                    Style="{StaticResource SoftButton}"
+                                    FontSize="12"
+                                    Padding="10,4"
+                                    MinimumHeightRequest="44"
+                                    Command="{Binding NavigateToChartCommand}"
+                                    SemanticProperties.Description="Открыть полный график"
+                                    AutomationProperties.Name="OpenFullChartButton" />
+                        </Grid>
+
+                        <!-- GraphicsView для мини-графика. -->
+                        <GraphicsView x:Name="GlucoseGraphicsMini"
+                                      HeightRequest="140"
+                                      HorizontalOptions="Fill"
+                                      IsVisible="{Binding HasMeasurements}"
+                                      SemanticProperties.Description="Мини-график уровня глюкозы за сегодня" />
+
+                        <!-- Пустое состояние графика -->
+                        <VerticalStackLayout IsVisible="{Binding HasMeasurements,
+                                                Converter={StaticResource InvertedBoolConverter}}"
+                                             Spacing="{StaticResource Space8}"
+                                             HorizontalOptions="Center">
+
+                            <Label Text="📉"
+                                   FontSize="32"
+                                   HorizontalOptions="Center"
+                                   SemanticProperties.Description="" />
+
+                            <Label Text="Нет данных за сегодня"
+                                   Style="{StaticResource CaptionText}"
+                                   HorizontalOptions="Center" />
+
+                            <Label Text="Введи первое измерение, и здесь появится график."
+                                   Style="{StaticResource CaptionText}"
+                                   HorizontalTextAlignment="Center"
+                                   TextColor="{DynamicResource TextFaint}" />
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Быстрый доступ к рюкзаку -->
+                <Border Style="{StaticResource ActionCard}"
+                        IsVisible="False">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="{StaticResource Space8}">
+
+                        <!-- Заголовок и иконка -->
+                        <VerticalStackLayout Grid.Column="0"
+                                             Spacing="{StaticResource Space4}"
+                                             VerticalOptions="Center">
+                            <Label Text="🎒 Мой рюкзак"
+                                   Style="{StaticResource BodyText}"
+                                   TextColor="White"
+                                   FontAttributes="Bold" />
+                            <Label Text="{Binding TotalBreadUnits, StringFormat='Всего: {0:F1} ХЕ'}"
+                                   Style="{StaticResource CaptionText}"
+                                   TextColor="White" />
+                        </VerticalStackLayout>
+
+                        <!-- Кнопка перехода в рюкзак -->
+                        <Button Grid.Column="1"
+                                Text="Открыть"
+                                Style="{StaticResource SoftButton}"
+                                Padding="12,6"
+                                MinimumHeightRequest="44"
+                                MinimumWidthRequest="44"
+                                BackgroundColor="White"
+                                TextColor="{DynamicResource Primary}"
+                                Command="{Binding NavigateToBackpackCommand}"
+                                SemanticProperties.Description="Открыть страницу рюкзака с перекусами"
+                                AutomationProperties.Name="OpenBackpackButton" />
+                    </Grid>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Пустое состояние при отсутствии выбранного ребёнка -->
+        <components:EmptyStateView
+            IsVisible="{Binding ShowNoChildSelected}"
+            Icon="👦"
+            TitleText="Нет выбранного ребёнка"
+            Message="Перейдите в профиль и добавьте или выберите ребёнка."
+            HelperText="После этого здесь появится главный экран."
+            IsMascotVisible="True"
+            Mascot="•ᴗ•"
+            MascotText="Я помогу, когда всё будет настроено."
+            SemanticProperties.Description="Ребёнок не выбран. Перейдите в профиль для настройки." />
+
+    </Grid>
+
+</pages:SwipeablePage>

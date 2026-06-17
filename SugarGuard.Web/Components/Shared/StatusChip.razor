@@ -1,0 +1,50 @@
+﻿@* Чип статуса глюкозы *@
+
+@using SugarGuard.Domain.Enums
+
+<span class="status-chip status-chip--@VariantClass"
+      role="status"
+      aria-label="@AriaLabel">
+    <span class="status-chip__dot" aria-hidden="true"></span>
+    <span class="status-chip__label">@DisplayText</span>
+</span>
+
+@code {
+    // Параметры
+    [Parameter, EditorRequired]
+    public GlucoseUiState State { get; set; } // UI-состояние глюкозы, определяет цвет и текст чипа
+
+    [Parameter]
+    public string? Label { get; set; } // Переопределить текст метки
+
+    [Parameter]
+    public string? Class { get; set; } // Дополнительные CSS-классы для внешнего контейнера
+
+    // Вычисляемые свойства
+    /// <summary>
+    /// CSS-модификатор варианта чипа
+    /// </summary>
+    private string VariantClass => State switch
+    {
+        GlucoseUiState.Normal => "normal",
+        GlucoseUiState.Attention => "warning",
+        GlucoseUiState.Critical => "danger",
+        _ => "normal"
+    };
+
+    /// <summary>
+    /// Отображаемый текст метки
+    /// </summary>
+    private string DisplayText => Label ?? State switch
+    {
+        GlucoseUiState.Normal => "Норма",
+        GlucoseUiState.Attention => "Внимание",
+        GlucoseUiState.Critical => "Критично",
+        _ => "Норма"
+    };
+
+    /// <summary>
+    /// Текст для screen reader
+    /// </summary>
+    private string AriaLabel => $"Статус: {DisplayText}";
+}

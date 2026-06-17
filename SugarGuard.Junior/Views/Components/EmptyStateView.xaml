@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Components.EmptyStateView"
+             x:Name="this">
+
+    <!-- Empty-state компонент -->
+
+    <Grid Padding="24"
+          HorizontalOptions="Fill"
+          VerticalOptions="Center">
+
+        <Border x:Name="CardBorder"
+                HorizontalOptions="Center"
+                MaximumWidthRequest="360"
+                Padding="24,22"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 24">
+
+            <VerticalStackLayout Spacing="14"
+                                 HorizontalOptions="Center">
+
+                <!-- Иконка пустого состояния -->
+                <Border x:Name="IconContainer"
+                        WidthRequest="72"
+                        HeightRequest="72"
+                        Padding="0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 22"
+                        HorizontalOptions="Center">
+
+                    <Grid>
+                        <Label x:Name="IconLabel"
+                               FontSize="34"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <!-- Основной текстовый блок -->
+                <VerticalStackLayout Spacing="8"
+                                     HorizontalOptions="Center">
+
+                    <Label x:Name="TitleLabel"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap"
+                           MaximumWidthRequest="280"
+                           TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}" />
+
+                    <Label x:Name="MessageLabel"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="15"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap"
+                           MaximumWidthRequest="290"
+                           TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
+
+                    <Label x:Name="HelperLabel"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="13"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap"
+                           MaximumWidthRequest="300" />
+                </VerticalStackLayout>
+
+                <!-- Мягкий помощник / маскот -->
+                <Border x:Name="MascotBubble"
+                        IsVisible="False"
+                        HorizontalOptions="Center"
+                        Padding="12,10"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18">
+
+                    <HorizontalStackLayout Spacing="8"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center">
+
+                        <Label x:Name="MascotLabel"
+                               FontSize="18"
+                               VerticalOptions="Center" />
+
+                        <Label x:Name="MascotTextLabel"
+                               FontFamily="{StaticResource Satoshi}"
+                               FontSize="13"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentView>

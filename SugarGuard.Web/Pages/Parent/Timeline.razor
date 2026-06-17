@@ -1,0 +1,1087 @@
+﻿@page "/parent/timeline/{ChildId:guid}"
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@attribute [Authorize(Roles = "Parent")]
+@inject SugarGuardApiService ApiService
+@inject ICurrentUserService CurrentUserService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Лента событий — SugarGuard</PageTitle>
+
+<div class="sg-page">
+
+    <PageHeader Title="Лента событий"
+                Subtitle="Измерения, перекусы и критические события за выбранный период"
+                Breadcrumbs="@(new List<BreadcrumbItem> { new("Главная", $"/parent/dashboard/{ChildId}"), new("Лента событий", null) })" />
+
+    <!-- Фильтры -->
+    <section class="filters-bar glass" aria-label="Фильтры периода">
+        <div class="filters-inner">
+            <div class="filter-group">
+                <label class="filter-label" for="filter-from">С</label>
+                <input id="filter-from"
+                       type="date"
+                       class="sg-input"
+                       @bind="_fromDate"
+                       @bind:event="oninput"
+                       max="@_toDate.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-to">По</label>
+                <input id="filter-to"
+                       type="date"
+                       class="sg-input"
+                       @bind="_toDate"
+                       @bind:event="oninput"
+                       min="@_fromDate.ToString("yyyy-MM-dd")"
+                       max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-type">Тип события</label>
+                <select id="filter-type" class="sg-input" @bind="_filterType">
+                    <option value="">Все события</option>
+                    <option value="Measurement">Измерения</option>
+                    <option value="SnackConsumed">Перекусы</option>
+                    <option value="CriticalAlert">Критические алерты</option>
+                    <option value="DoctorNote">Заметки врача</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label" for="filter-limit">Записей</label>
+                <select id="filter-limit" class="sg-input" @bind="_limit">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+            <button class="sg-btn sg-btn-primary" @onclick="LoadTimelineAsync" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span>Загрузка…</span>
+                }
+                else
+                {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                    <span>Обновить</span>
+                }
+            </button>
+        </div>
+    </section>
+
+    <!-- Ошибка загрузки -->
+    @if (_errorMessage is not null)
+    {
+        <div class="sg-alert sg-alert-error" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <span>@_errorMessage</span>
+            <button class="sg-alert-close" @onclick="() => _errorMessage = null" aria-label="Закрыть">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    }
+
+    <!-- Основной контент -->
+    <main id="main-content">
+
+        @if (_isLoading && _events is null)
+        {
+            <!-- Скелетон при первоначальной загрузке -->
+            <div class="timeline" aria-busy="true" aria-label="Загрузка ленты событий">
+                @for (int i = 0; i < 6; i++)
+                {
+                    <div class="event-card event-card--skeleton">
+                        <div class="event-badge skeleton"></div>
+                        <div class="event-body">
+                            <div class="skeleton skeleton-heading"></div>
+                            <div class="skeleton skeleton-text"></div>
+                            <div class="skeleton skeleton-text" style="width: 55%"></div>
+                        </div>
+                        <div class="event-time-col">
+                            <div class="skeleton skeleton-text" style="width: 60px"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else if (_filteredEvents is null || _filteredEvents.Count == 0)
+        {
+            <!-- Пустое состояние -->
+            <div class="empty-state" role="status">
+                <svg class="empty-state-icon" width="48" height="48" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                    <rect x="9" y="3" width="6" height="4" rx="1" />
+                </svg>
+                <h2 class="empty-state-title">Событий не найдено</h2>
+                <p class="empty-state-text">
+                    За выбранный период нет данных. Попробуйте расширить диапазон дат
+                    или сменить фильтр типа событий.
+                </p>
+            </div>
+        }
+        else if (_filteredEvents is not null)
+        {
+            <!-- Статистика периода -->
+            <div class="period-stats glass" aria-label="Краткая статистика периода">
+                <div class="period-stat">
+                    <span class="period-stat-value">@_filteredEvents.Count</span>
+                    <span class="period-stat-label">Событий</span>
+                </div>
+                <div class="period-stat-divider" aria-hidden="true"></div>
+                <div class="period-stat">
+                    <span class="period-stat-value">@_measurementsCount</span>
+                    <span class="period-stat-label">Измерений</span>
+                </div>
+                <div class="period-stat-divider" aria-hidden="true"></div>
+                <div class="period-stat">
+                    <span class="period-stat-value text-danger">@_criticalCount</span>
+                    <span class="period-stat-label">Критических</span>
+                </div>
+                <div class="period-stat-divider" aria-hidden="true"></div>
+                <div class="period-stat">
+                    <span class="period-stat-value text-warning">@_snacksCount</span>
+                    <span class="period-stat-label">Перекусов</span>
+                </div>
+                @if (_avgGlucose.HasValue)
+                {
+                    <div class="period-stat-divider" aria-hidden="true"></div>
+                    <div class="period-stat">
+                        <span class="period-stat-value @GetGlucoseClass(_avgGlucose.Value)">
+                            @_avgGlucose.Value.ToString("F1")
+                        </span>
+                        <span class="period-stat-label">Средняя глюкоза, ммоль/л</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Лента событий -->
+            <ol class="timeline" aria-label="Лента событий">
+                @{
+                    // Группируем по дате для отображения разделителей
+                    var grouped = _filteredEvents
+                        .GroupBy(e => e.OccurredAt.ToLocalTime().Date)
+                        .OrderByDescending(g => g.Key);
+                }
+                @foreach (var group in grouped)
+                {
+                    <li class="timeline-date-separator" role="presentation">
+                        <span class="date-pill">@FormatGroupDate(group.Key)</span>
+                    </li>
+
+                    @foreach (var evt in group.OrderByDescending(e => e.OccurredAt))
+                    {
+                        <li class="event-card @GetEventCardClass(evt)"
+                            aria-label="@GetEventAriaLabel(evt)">
+
+                            <!-- Значок типа события -->
+                            <div class="event-badge @GetBadgeClass(evt)" aria-hidden="true">
+                                @GetEventIcon(evt)
+                            </div>
+
+                            <!-- Основное содержимое -->
+                            <div class="event-body">
+                                <strong class="event-title">@GetEventTitle(evt)</strong>
+                                <p class="event-description">@GetEventDescription(evt)</p>
+                                @if (evt.IsImportant)
+                                {
+                                    <span class="event-important-badge" role="status">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+                                             aria-hidden="true">
+                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                        </svg>
+                                        Важное
+                                    </span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(evt.Notes))
+                                {
+                                    <p class="event-notes">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                        </svg>
+                                        @evt.Notes
+                                    </p>
+                                }
+                            </div>
+
+                            <!-- Время и значение глюкозы -->
+                            <div class="event-time-col">
+                                @if (evt.GlucoseValue.HasValue)
+                                {
+                                    <span class="glucose-value @GetGlucoseClass(evt.GlucoseValue.Value)">
+                                        @evt.GlucoseValue.Value.ToString("F1")
+                                        <span class="glucose-unit">ммоль/л</span>
+                                    </span>
+                                }
+                                <time class="event-time"
+                                      datetime="@evt.OccurredAt.ToString("o")"
+                                      title="@evt.OccurredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                                    @evt.OccurredAt.ToLocalTime().ToString("HH:mm")
+                                </time>
+                                @if (!string.IsNullOrWhiteSpace(evt.DataSource))
+                                {
+                                    <span class="event-source">@GetSourceLabel(evt.DataSource)</span>
+                                }
+                            </div>
+                        </li>
+                    }
+                }
+            </ol>
+        }
+    </main>
+</div>
+
+<!-- Стили -->
+<style>
+    /* ── Переменные страницы ─────────────────────────────────────────── */
+    :root {
+        --color-bg:             #f6f7fb;
+        --color-surface:        rgba(255,255,255,0.78);
+        --color-surface-2:      rgba(255,255,255,0.92);
+        --color-surface-offset: #eef2fb;
+        --color-border:         rgba(24,32,58,0.10);
+        --color-divider:        rgba(24,32,58,0.08);
+        --color-text:           #18203a;
+        --color-text-muted:     #61708d;
+        --color-text-faint:     #95a0b8;
+        --color-primary:        #147a82;
+        --color-primary-soft:   rgba(20,122,130,0.12);
+        --color-success:        #3b9556;
+        --color-success-soft:   rgba(59,149,86,0.13);
+        --color-warning:        #d69416;
+        --color-warning-soft:   rgba(214,148,22,0.13);
+        --color-danger:         #d14d58;
+        --color-danger-soft:    rgba(209,77,88,0.13);
+        --shadow-sm:  0 8px 24px rgba(23,34,67,0.06);
+        --shadow-md:  0 18px 40px rgba(23,34,67,0.09);
+        --radius-sm:  0.75rem;
+        --radius-md:  1rem;
+        --radius-lg:  1.5rem;
+        --radius-full: 999px;
+        --font-body:  Satoshi, system-ui, sans-serif;
+        --text-xs:    clamp(0.75rem,  0.72rem + 0.2vw, 0.875rem);
+        --text-sm:    clamp(0.875rem, 0.84rem + 0.2vw, 1rem);
+        --text-base:  clamp(1rem,     0.96rem + 0.2vw, 1.1rem);
+        --text-lg:    clamp(1.125rem, 1rem    + 0.7vw, 1.45rem);
+        --text-xl:    clamp(1.5rem,   1.2rem  + 1vw,   2.1rem);
+    }
+
+    [data-theme="dark"] {
+        --color-bg:             #0d111b;
+        --color-surface:        rgba(18,24,36,0.72);
+        --color-surface-2:      rgba(18,24,36,0.9);
+        --color-surface-offset: #11182a;
+        --color-border:         rgba(202,219,255,0.09);
+        --color-divider:        rgba(202,219,255,0.08);
+        --color-text:           #edf3ff;
+        --color-text-muted:     #9aa9c4;
+        --color-text-faint:     #6f7b92;
+        --color-primary:        #58c4b7;
+        --color-primary-soft:   rgba(88,196,183,0.12);
+        --color-success:        #5dcf80;
+        --color-success-soft:   rgba(93,207,128,0.13);
+        --color-warning:        #f7b84a;
+        --color-warning-soft:   rgba(247,184,74,0.13);
+        --color-danger:         #ff7480;
+        --color-danger-soft:    rgba(255,116,128,0.13);
+        --shadow-sm:  0 12px 30px rgba(0,0,0,0.28);
+        --shadow-md:  0 18px 48px rgba(0,0,0,0.35);
+    }
+
+    /* ── Базовый сброс ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .sg-page {
+        font-family: var(--font-body);
+        color: var(--color-text);
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 var(--space-4, 1rem) 5rem;
+    }
+
+    /* ── Хлебные крошки ─────────────────────────────────────────────── */
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1.25rem 0 0.75rem;
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+    }
+
+    .breadcrumb-link {
+        color: var(--color-primary);
+        text-decoration: none;
+        transition: opacity 180ms ease;
+    }
+
+    .breadcrumb-link:hover { opacity: 0.75; }
+    .breadcrumb-sep { font-size: 1rem; }
+    .breadcrumb-current { color: var(--color-text-muted); }
+
+    /* ── Заголовок страницы ─────────────────────────────────────────── */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.5rem 0 1.25rem;
+    }
+
+    .page-title {
+        font-size: var(--text-xl);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+    }
+
+    .page-subtitle {
+        margin-top: 0.4rem;
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        max-width: 55ch;
+    }
+
+    /* ── Glassmorphism-карточка ─────────────────────────────────────── */
+    .glass {
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* ── Панель фильтров ─────────────────────────────────────────────── */
+    .filters-bar {
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .filters-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        flex: 1 1 140px;
+        min-width: 120px;
+    }
+
+    .filter-label {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        font-weight: 500;
+    }
+
+    .sg-input {
+        height: 40px;
+        padding: 0 0.875rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-2);
+        color: var(--color-text);
+        font-size: var(--text-sm);
+        font-family: var(--font-body);
+        transition: border-color 180ms ease, box-shadow 180ms ease;
+        outline: none;
+    }
+
+    .sg-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-soft);
+    }
+
+    /* ── Кнопки ─────────────────────────────────────────────────────── */
+    .sg-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: 44px;
+        padding: 0 1.25rem;
+        border-radius: var(--radius-full);
+        border: none;
+        cursor: pointer;
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        transition: transform 180ms cubic-bezier(.16,1,.3,1),
+                    box-shadow 180ms ease,
+                    opacity 180ms ease;
+        white-space: nowrap;
+    }
+
+    .sg-btn:hover:not(:disabled) { transform: translateY(-2px); }
+    .sg-btn:active:not(:disabled) { transform: translateY(0); }
+    .sg-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .sg-btn-primary {
+        background: linear-gradient(135deg, var(--color-primary), #0d5c8a);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(40,148,186,0.22);
+    }
+
+    /* ── Спиннер ─────────────────────────────────────────────────────── */
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Алерт ───────────────────────────────────────────────────────── */
+    .sg-alert {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        margin-bottom: 1rem;
+    }
+
+    .sg-alert-error {
+        background: var(--color-danger-soft);
+        border: 1px solid rgba(209,77,88,0.25);
+        color: var(--color-danger);
+    }
+
+    .sg-alert-close {
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: inherit;
+        opacity: 0.7;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 180ms ease;
+    }
+
+    .sg-alert-close:hover { opacity: 1; }
+
+    /* ── Статистика периода ─────────────────────────────────────────── */
+    .period-stats {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0;
+        border-radius: var(--radius-lg);
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .period-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.5rem 1.25rem;
+        flex: 1 1 80px;
+    }
+
+    .period-stat-value {
+        font-size: var(--text-lg);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+    }
+
+    .period-stat-label {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        text-align: center;
+    }
+
+    .period-stat-divider {
+        width: 1px;
+        height: 36px;
+        background: var(--color-divider);
+        flex-shrink: 0;
+    }
+
+    .text-danger { color: var(--color-danger); }
+    .text-warning { color: var(--color-warning); }
+    .text-success { color: var(--color-success); }
+    .text-primary { color: var(--color-primary); }
+    .text-muted   { color: var(--color-text-muted); }
+
+    /* ── Лента событий ───────────────────────────────────────────────── */
+    .timeline {
+        list-style: none;
+        display: grid;
+        gap: 0.875rem;
+    }
+
+    /* Разделитель по дате */
+    .timeline-date-separator {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .timeline-date-separator::before,
+    .timeline-date-separator::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--color-divider);
+    }
+
+    .date-pill {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-offset);
+        white-space: nowrap;
+        font-weight: 500;
+    }
+
+    /* Карточка события */
+    .event-card {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-lg);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+        transition: transform 180ms cubic-bezier(.16,1,.3,1),
+                    box-shadow 180ms ease;
+    }
+
+    .event-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Цветовые акценты по типу */
+    .event-card--critical {
+        border-color: rgba(209,77,88,0.28);
+        background: linear-gradient(
+            135deg,
+            var(--color-danger-soft),
+            var(--color-surface)
+        );
+    }
+
+    .event-card--warning {
+        border-color: rgba(214,148,22,0.25);
+    }
+
+    /* Значок */
+    .event-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        font-weight: 700;
+        font-size: var(--text-sm);
+    }
+
+    .event-badge--measurement {
+        background: var(--color-primary-soft);
+        color: var(--color-primary);
+    }
+
+    .event-badge--snack {
+        background: var(--color-warning-soft);
+        color: var(--color-warning);
+    }
+
+    .event-badge--critical {
+        background: var(--color-danger-soft);
+        color: var(--color-danger);
+    }
+
+    .event-badge--doctor {
+        background: var(--color-success-soft);
+        color: var(--color-success);
+    }
+
+    /* Тело события */
+    .event-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+
+    .event-title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--color-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .event-description {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        margin: 0;
+    }
+
+    .event-notes {
+        display: flex;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+        font-style: italic;
+        margin: 0;
+        max-width: 52ch;
+    }
+
+    .event-important-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: var(--text-xs);
+        padding: 3px 8px;
+        border-radius: var(--radius-full);
+        background: rgba(209,77,88,0.12);
+        color: var(--color-danger);
+        font-weight: 600;
+        width: fit-content;
+    }
+
+    /* Колонка времени и глюкозы */
+    .event-time-col {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .glucose-value {
+        font-size: var(--text-lg);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .glucose-unit {
+        font-size: var(--text-xs);
+        font-weight: 400;
+        color: var(--color-text-muted);
+    }
+
+    .event-time {
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+    }
+
+    .event-source {
+        font-size: var(--text-xs);
+        padding: 2px 8px;
+        border-radius: var(--radius-full);
+        background: var(--color-surface-offset);
+        color: var(--color-text-faint);
+        border: 1px solid var(--color-border);
+        white-space: nowrap;
+    }
+
+    /* ── Пустое состояние ───────────────────────────────────────────── */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--color-text-muted);
+    }
+
+    .empty-state-icon {
+        margin-bottom: 1rem;
+        color: var(--color-text-faint);
+    }
+
+    .empty-state-title {
+        font-size: var(--text-lg);
+        font-weight: 600;
+        color: var(--color-text);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state-text {
+        font-size: var(--text-sm);
+        max-width: 38ch;
+    }
+
+    /* ── Скелетон-лоудер ────────────────────────────────────────────── */
+    @@keyframes shimmer {
+        0%   { background-position: -200% 0; }
+        100% { background-position:  200% 0; }
+    }
+
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            var(--color-surface-offset) 25%,
+            rgba(200,210,230,0.35) 50%,
+            var(--color-surface-offset) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s ease-in-out infinite;
+        border-radius: var(--radius-sm);
+    }
+
+    .event-card--skeleton {
+        pointer-events: none;
+    }
+
+    .event-badge.skeleton {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        flex-shrink: 0;
+    }
+
+    .skeleton-heading {
+        height: 1.1rem;
+        width: 45%;
+        margin-bottom: 0.4rem;
+    }
+
+    .skeleton-text {
+        height: 0.875rem;
+        width: 80%;
+        margin-bottom: 0.3rem;
+    }
+
+    /* ── Адаптивность ───────────────────────────────────────────────── */
+    @@media (max-width: 640px) {
+        .event-card {
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto;
+        }
+
+        .event-time-col {
+            grid-column: 2;
+            grid-row: 2;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .glucose-value {
+            flex-direction: row;
+            align-items: baseline;
+            gap: 0.25rem;
+        }
+
+        .filters-inner { flex-direction: column; }
+
+        .filter-group { flex: 1 1 100%; min-width: unset; }
+
+        .period-stats { gap: 0.25rem; }
+        .period-stat-divider { display: none; }
+        .period-stat { flex: 1 1 40%; padding: 0.5rem; }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid ChildId { get; set; }
+
+    // Состояние
+    private bool _isLoading;
+    private string? _errorMessage;
+
+    private List<TimelineEventDto>? _events; // Полный список событий
+
+    // Параметры фильтрации 
+    private DateTime _fromDate = DateTime.Today.AddDays(-7);
+    private DateTime _toDate   = DateTime.Today;
+    private string   _filterType = string.Empty;
+    private int      _limit = 50;
+
+    // Производные вычисляемые свойства 
+    /// <summary>
+    /// События после применения клиентского фильтра по типу
+    /// </summary>
+    private List<TimelineEventDto>? _filteredEvents =>
+        _events is null
+            ? null
+            : string.IsNullOrEmpty(_filterType)
+                ? _events
+                : _events
+                    .Where(e => e.EventType.ToString() == _filterType)
+                    .ToList();
+
+    private int _measurementsCount =>
+        _filteredEvents?.Count(e => e.EventType == TimelineEventType.GlucoseMeasurement) ?? 0;
+
+    private int _criticalCount =>
+        _filteredEvents?.Count(e => e.EventType == TimelineEventType.Alert) ?? 0;
+
+    private int _snacksCount =>
+        _filteredEvents?.Count(e => e.EventType == TimelineEventType.Meal) ?? 0;
+
+    private decimal? _avgGlucose
+    {
+        get
+        {
+            var glucoseValues = _filteredEvents?
+                .Where(e => e.GlucoseValue.HasValue)
+                .Select(e => e.GlucoseValue!.Value)
+                .ToList();
+
+            return glucoseValues != null && glucoseValues.Count > 0
+                ? Math.Round(glucoseValues.Average(), 1)
+                : null;
+        }
+    }
+
+    // Жизненный цикл
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTimelineAsync();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnParametersSetAsync()
+    {
+        // Если ChildId изменился (переключение ребёнка), перезагружаем.
+        if (_events is not null && !_isLoading)
+        {
+            await LoadTimelineAsync();
+        }
+    }
+
+    // Загрузка данных
+    /// <summary>
+    /// Запрашивает временную ленту
+    /// </summary>
+    private async Task LoadTimelineAsync()
+    {
+        _isLoading    = true;
+        _errorMessage = null;
+
+        try
+        {
+            var from = _fromDate.ToUniversalTime();
+            var to   = _toDate.Date.AddDays(1).AddSeconds(-1).ToUniversalTime();
+
+            var events = await ApiService.GetTimelineAsync(
+                ChildId,
+                from,
+                to,
+                CancellationToken.None);
+
+            _events = events
+                .OrderByDescending(e => e.OccurredAt)
+                .Take(_limit)
+                .ToList();
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = $"Не удалось загрузить ленту событий: {ex.Message}";
+            _events ??= new List<TimelineEventDto>();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Произошла ошибка: {ex.Message}";
+            _events ??= new List<TimelineEventDto>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // Вспомогательные методы 
+    /// <summary>
+    /// Возвращает CSS-класс карточки в зависимости от типа и статуса события
+    /// </summary>
+    private static string GetEventCardClass(TimelineEventDto evt) =>
+        evt.EventType switch
+        {
+            TimelineEventType.Alert                     => "event-card--critical",
+            TimelineEventType.GlucoseMeasurement when evt.IsImportant  => "event-card--warning",
+            _                                                    => string.Empty,
+        };
+
+    /// <summary>
+    /// Возвращает CSS-класс значка события
+    /// </summary>
+    private static string GetBadgeClass(TimelineEventDto evt) =>
+        evt.EventType switch
+        {
+            TimelineEventType.GlucoseMeasurement   => "event-badge--measurement",
+            TimelineEventType.Meal => "event-badge--snack",
+            TimelineEventType.Alert => "event-badge--critical",
+            TimelineEventType.Note    => "event-badge--doctor",
+            _                               => "event-badge--measurement",
+        };
+
+    /// <summary>
+    /// Возвращает CSS-класс текста для значения глюкозы
+    /// </summary>
+    private static string GetGlucoseClass(decimal value)
+    {
+        if (value < 3.9m)
+            return "text-danger";
+
+        if (value >= 10.0m)
+            return "text-warning";
+
+        return "text-success";
+    }
+
+    /// <summary>
+    /// Возвращает SVG-иконку типа события для inline-рендера
+    /// </summary>
+    private static MarkupString GetEventIcon(TimelineEventDto evt) => evt.EventType switch
+    {
+        TimelineEventType.GlucoseMeasurement => new MarkupString("<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" aria-hidden=\"true\"><path d=\"M22 12h-4l-3 9L9 3l-3 9H2\" /></svg>"),
+        TimelineEventType.Meal => new MarkupString("<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" aria-hidden=\"true\"><path d=\"M18 8h1a4 4 0 0 1 0 8h-1\" /><path d=\"M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z\" /><path d=\"M6 1v3M10 1v3M14 1v3\" /></svg>"),
+        TimelineEventType.Alert => new MarkupString("<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" aria-hidden=\"true\"><path d=\"M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z\" /><path d=\"M12 9v4M12 17h.01\" /></svg>"),
+        TimelineEventType.Note => new MarkupString("<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" aria-hidden=\"true\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\" /></svg>"),
+        _ => new MarkupString("<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 8v4M12 16h.01\" /></svg>"),
+    };
+
+    /// <summary>
+    /// Возвращает заголовок события для отображения в ленте
+    /// </summary>
+    private static string GetEventTitle(TimelineEventDto evt) => evt.EventType switch
+    {
+        TimelineEventType.GlucoseMeasurement   => "Измерение глюкозы",
+        TimelineEventType.Meal => $"Перекус: {evt.SnackName ?? "без названия"}",
+        TimelineEventType.Alert => evt.GlucoseValue < 3.9m
+                                            ? "⚠ Критически низкая глюкоза"
+                                            : "⚠ Критически высокая глюкоза",
+        TimelineEventType.Note    => "Заметка врача",
+        _                               => "Событие",
+    };
+
+    /// <summary>
+    /// Возвращает описательный текст события
+    /// </summary>
+    private string GetEventDescription(TimelineEventDto evt) => evt.EventType switch
+    {
+        TimelineEventType.GlucoseMeasurement when evt.GlucoseValue.HasValue =>
+            $"Уровень глюкозы {evt.GlucoseValue.Value:F1} ммоль/л" +
+            (evt.GlucoseUiState is not null ? $" · {GetUiStateLabel(evt.GlucoseUiState)}" : string.Empty),
+
+        TimelineEventType.Meal when evt.BreadUnits.HasValue =>
+            $"{evt.BreadUnits.Value:F1} ХЕ" +
+            (!string.IsNullOrWhiteSpace(evt.SnackName) ? $" · {evt.SnackName}" : string.Empty),
+
+        TimelineEventType.Alert when evt.GlucoseValue.HasValue =>
+            $"Значение {evt.GlucoseValue.Value:F1} ммоль/л требует немедленного внимания",
+
+        TimelineEventType.Note =>
+            !string.IsNullOrWhiteSpace(evt.Notes)
+                ? evt.Notes.Length > 90 ? evt.Notes[..90] + "…" : evt.Notes
+                : "Врач оставил заметку",
+
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Возвращает читаемое название источника данных
+    /// </summary>
+    private static string GetSourceLabel(string? dataSource) => dataSource switch
+    {
+        "mobileapp"  => "Приложение",
+        "telegram"   => "Telegram",
+        "manual"     => "Вручную",
+        "sensor"     => "Сенсор",
+        _            => dataSource ?? string.Empty,
+    };
+
+    /// <summary>
+    /// Возвращает читаемое название UI-статуса глюкозы
+    /// </summary>
+    private static string GetUiStateLabel(string? uiState) => uiState switch
+    {
+        "Normal"  => "норма",
+        "Warning" => "внимание",
+        "Danger"  => "опасно",
+        _         => uiState ?? string.Empty,
+    };
+
+    /// <summary>
+    /// Возвращает aria-label для карточки события 
+    /// </summary>
+    private static string GetEventAriaLabel(TimelineEventDto evt)
+    {
+        var time = evt.OccurredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+        return $"{GetEventAriaType(evt.EventType)}, {time}" +
+               (evt.GlucoseValue.HasValue
+                   ? $", глюкоза {evt.GlucoseValue.Value:F1} ммоль/л"
+                   : string.Empty);
+    }
+
+    private static string GetEventAriaType(TimelineEventType type) => type switch
+    {
+        TimelineEventType.GlucoseMeasurement   => "Измерение глюкозы",
+        TimelineEventType.Meal => "Перекус",
+        TimelineEventType.Alert => "Критический алерт",
+        TimelineEventType.Note    => "Заметка врача",
+        _                               => "Событие",
+    };
+
+    /// <summary>
+    /// Форматирует дату группы для разделителей в ленте
+    /// </summary>
+    private static string FormatGroupDate(DateTime date)
+    {
+        var today    = DateTime.Today;
+        var yesterday = today.AddDays(-1);
+
+        if (date == today)    return "Сегодня";
+        if (date == yesterday) return "Вчера";
+
+        return date.ToString(date.Year == today.Year ? "d MMMM" : "d MMMM yyyy",
+                             new System.Globalization.CultureInfo("ru-RU"));
+    }
+}

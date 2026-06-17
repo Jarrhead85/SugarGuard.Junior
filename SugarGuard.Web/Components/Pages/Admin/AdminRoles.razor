@@ -1,0 +1,22 @@
+@page "/admin/roles"
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@layout Layout.AdminLayout
+
+<h1>Roles</h1>
+<div class="panel">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Permissions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Parent</td><td>child read/write, dashboard, export, faq read</td></tr>
+            <tr><td>Doctor</td><td>child read, dashboard, faq read</td></tr>
+            <tr><td>Admin</td><td>full users/roles/faq/export/sync + audit read</td></tr>
+            <tr><td>SupportAdmin</td><td>admin subset</td></tr>
+            <tr><td>ServiceAccount</td><td>bot integration read/write</td></tr>
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,308 @@
+﻿@page "/access-denied"
+@using SugarGuard.Web.Components.Layout
+@layout MainLayout
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Доступ запрещён — SugarGuard</PageTitle>
+
+<div class="access-denied-page">
+
+    <div class="access-denied-card">
+
+        <div class="access-denied-icon" aria-hidden="true">
+            <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 width="80" height="80" role="img" aria-label="Замок — доступ запрещён">
+                <circle cx="40" cy="40" r="40" fill="var(--color-surface-offset)" />
+                <path d="M27 36V28C27 20.82 32.82 15 40 15C47.18 15 53 20.82 53 28V36"
+                      stroke="var(--color-text-faint)"
+                      stroke-width="3.5"
+                      stroke-linecap="round" />
+                <rect x="22" y="36" width="36" height="28" rx="6"
+                      fill="var(--color-surface-2)"
+                      stroke="var(--color-border)"
+                      stroke-width="1.5" />
+                <circle cx="40" cy="49" r="4"
+                        fill="var(--color-text-faint)" />
+                <rect x="38.5" y="49" width="3" height="6" rx="1.5"
+                      fill="var(--color-text-faint)" />
+            </svg>
+        </div>
+
+        <div class="access-denied-content">
+            <h1 class="access-denied-title">Доступ запрещён</h1>
+            <p class="access-denied-description">
+                У вашей учётной записи нет прав для просмотра этого раздела.
+                Если вы считаете, что это ошибка — обратитесь к администратору.
+            </p>
+
+            <AuthorizeView>
+                <Authorized>
+                    <p class="access-denied-role-hint">
+                        Вы вошли как
+                        <strong>@_displayRole</strong>.
+                        Для этого раздела требуется другая роль.
+                    </p>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        <div class="access-denied-actions">
+
+            <button class="btn btn-primary" @onclick="GoBackAsync"
+                    aria-label="Вернуться на предыдущую страницу">
+                <svg width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round" aria-hidden="true">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Вернуться назад
+            </button>
+
+            <button class="btn btn-ghost" @onclick="GoHomeAsync"
+                    aria-label="Перейти на главную страницу">
+                На главную
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+    /// <summary>
+    /// Отображаемое название роли текущего пользователя
+    /// </summary>
+    private string _displayRole = string.Empty;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var rawRole = user.FindFirstValue(ClaimTypes.Role)
+                ?? user.FindFirstValue("role")
+                ?? string.Empty;
+
+            _displayRole = LocalizeRole(rawRole);
+        }
+    }
+
+    /// <summary>
+    /// Возвращает пользователя на предыдущую страницу
+    /// </summary>
+    private async Task GoBackAsync()
+    {
+        try
+        {
+            Navigation.NavigateTo("javascript:history.back()");
+        }
+        catch
+        {
+            await GoHomeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Перенаправляет аутентифицированного пользователя на дашборд
+    /// </summary>
+    private async Task GoHomeAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/dashboard", forceLoad: false);
+        }
+        else
+        {
+            Navigation.NavigateTo("/login", forceLoad: false);
+        }
+    }
+
+    /// <summary>
+    /// Локализует системное название роли в читаемое название
+    /// </summary>
+    private static string LocalizeRole(string role) => role switch
+    {
+        "Parent"         => "Родитель",
+        "Doctor"         => "Врач",
+        "DoctorPending"  => "Врач (ожидает подтверждения)",
+        "Admin"          => "Администратор",
+        "SupportAdmin"   => "Сотрудник поддержки",
+        "ServiceAccount" => "Сервисный аккаунт",
+        _                => role
+    };
+}
+
+<style>
+
+    .access-denied-page {
+        display:          flex;
+        align-items:      center;
+        justify-content:  center;
+        min-height:       100dvh;
+        padding:          var(--space-16);
+        background-color: var(--color-bg);
+    }
+
+    /* Карточка */
+    .access-denied-card {
+        display:        flex;
+        flex-direction: column;
+        align-items:    center;
+        text-align:     center;
+        max-width:      420px;
+        width:          100%;
+        padding:        var(--space-32) var(--space-24);
+        background:     var(--color-surface);
+        border:         1px solid var(--color-border);
+        border-radius:  var(--radius-xl);
+        box-shadow:     var(--shadow-card);
+        gap:            var(--space-20);
+    }
+
+    /* Иконка */
+    .access-denied-icon {
+        animation: sg-lock-pulse 3s ease-in-out infinite;
+    }
+
+    @@keyframes sg-lock-pulse {
+        0%, 100% { transform: scale(1);    opacity: 1;    }
+        50%       { transform: scale(1.04); opacity: 0.85; }
+    }
+
+    /* Контент */
+    .access-denied-content {
+        display:        flex;
+        flex-direction: column;
+        align-items:    center;
+        gap:            var(--space-8);
+    }
+
+    .access-denied-title {
+        font-family: var(--font-display);
+        font-size:   clamp(20px, 3vw, 24px);
+        font-weight: 700;
+        line-height: 1.2;
+        color:       var(--color-text);
+    }
+
+    .access-denied-description {
+        font-family: var(--font-body);
+        font-size:   15px;
+        line-height: 1.5;
+        color:       var(--color-text-muted);
+        max-width:   36ch;
+    }
+
+    .access-denied-role-hint {
+        font-family: var(--font-body);
+        font-size:   13px;
+        line-height: 1.4;
+        color:       var(--color-text-faint);
+        max-width:   40ch;
+        margin-top:  var(--space-4);
+    }
+
+    .access-denied-role-hint strong {
+        color:       var(--color-text-muted);
+        font-weight: 600;
+    }
+
+    /* Кнопки */
+    .access-denied-actions {
+        display:        flex;
+        flex-direction: column;
+        gap:            var(--space-8);
+        width:          100%;
+    }
+
+    .btn-primary {
+        display:         inline-flex;
+        align-items:     center;
+        justify-content: center;
+        gap:             var(--space-8);
+        width:           100%;
+        min-height:      44px;
+        padding:         0 var(--space-16);
+        background:      var(--color-primary);
+        color:           #ffffff;
+        font-family:     var(--font-body);
+        font-size:       14px;
+        font-weight:     600;
+        border-radius:   var(--radius-md);
+        border:          none;
+        cursor:          pointer;
+        transition:
+            background var(--transition),
+            transform   0.1s ease;
+    }
+
+    .btn-primary:hover  { background: var(--color-primary-hover); }
+    .btn-primary:active { background: var(--color-primary-active); transform: scale(0.98); }
+
+    .btn-primary:focus-visible {
+        outline:        2px solid var(--color-primary);
+        outline-offset: 3px;
+    }
+
+    .btn-ghost {
+        display:         inline-flex;
+        align-items:     center;
+        justify-content: center;
+        width:           100%;
+        min-height:      44px;
+        padding:         0 var(--space-16);
+        background:      transparent;
+        color:           var(--color-text-muted);
+        font-family:     var(--font-body);
+        font-size:       14px;
+        font-weight:     500;
+        border-radius:   var(--radius-md);
+        border:          1px solid var(--color-border);
+        cursor:          pointer;
+        transition:
+            background   var(--transition),
+            border-color var(--transition),
+            color        var(--transition);
+    }
+
+    .btn-ghost:hover {
+        background:   var(--color-surface-offset);
+        border-color: var(--color-primary);
+        color:        var(--color-text);
+    }
+
+    .btn-ghost:active    { background: var(--color-surface-2); }
+
+    .btn-ghost:focus-visible {
+        outline:        2px solid var(--color-primary);
+        outline-offset: 3px;
+    }
+
+    /* Мобильная адаптация */
+    @@media (max-width: 480px) {
+        .access-denied-card {
+            padding:       var(--space-24) var(--space-16);
+            border-radius: var(--radius-lg);
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .access-denied-icon {
+            animation: none;
+        }
+    }
+
+</style>

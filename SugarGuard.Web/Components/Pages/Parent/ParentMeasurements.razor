@@ -1,0 +1,11 @@
+@page "/parent/measurements"
+@attribute [Authorize(Roles = "Parent,Doctor,Admin,SupportAdmin")]
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/parent/dashboard?tab=measurements", replace: true);
+    }
+}

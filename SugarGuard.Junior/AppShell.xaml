@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="SugarGuard.Junior.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:SugarGuard.Junior.Views.Pages"
+    FlyoutBehavior="Disabled"
+    TabBarBackgroundColor="{DynamicResource TabBarBackgroundColor}"
+    TabBarForegroundColor="{DynamicResource TabBarSelectedColor}"
+    TabBarUnselectedColor="{DynamicResource TabBarUnselectedColor}"
+    TabBarTitleColor="{DynamicResource TabBarUnselectedColor}">
+
+    <!-- Страницы аутентификации и онбординга (скрыты из таб-бара) -->
+    <ShellContent
+        Route="loginpage"
+        Shell.TabBarIsVisible="False"
+        ContentTemplate="{DataTemplate local:LoginPage}" />
+    <ShellContent
+        Route="registerpage"
+        Shell.TabBarIsVisible="False"
+        ContentTemplate="{DataTemplate local:RegisterPage}" />
+    <ShellContent
+        Route="verifypage"
+        Shell.TabBarIsVisible="False"
+        ContentTemplate="{DataTemplate local:VerifyPage}" />
+    <ShellContent
+        Route="onboardingpage"
+        Shell.TabBarIsVisible="False"
+        ContentTemplate="{DataTemplate local:OnboardingPage}" />
+    <ShellContent
+        Route="accessmanagementpage"
+        Shell.TabBarIsVisible="False"
+        ContentTemplate="{DataTemplate local:AccessManagementPage}" />
+
+    <!-- Основные вкладки MVP child flow (приоритет: Главная, История, Рюкзак, Профиль) -->
+    <TabBar>
+        <ShellContent 
+            Title="Главная"
+            Route="mainpage"
+            ContentTemplate="{DataTemplate local:MainPage}" />
+
+        <ShellContent 
+            Title="История"
+            Route="historypage"
+            ContentTemplate="{DataTemplate local:HistoryPage}" />
+
+        <ShellContent 
+            Title="Рюкзак"
+            Route="backpackpage"
+            ContentTemplate="{DataTemplate local:BackpackPage}" />
+
+        <ShellContent 
+            Title="Профиль"
+            Route="profilepage"
+            ContentTemplate="{DataTemplate local:ProfilePage}" />
+    </TabBar>
+
+    <!-- Дополнительные страницы (График, Расписание) больше не являются табами и открываются программно
+         через Routing.RegisterRoute в AppShell.xaml.cs, что реализовано ранее. -->
+</Shell>

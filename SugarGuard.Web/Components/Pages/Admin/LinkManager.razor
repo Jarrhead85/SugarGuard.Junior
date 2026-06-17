@@ -1,0 +1,776 @@
+﻿@page "/admin/links"
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using System.Globalization
+
+@inject SugarGuardApiService Api
+@inject ILogger<LinkManager> Logger
+
+<PageTitle>Управление связями — SugarGuard Admin</PageTitle>
+
+<div class="link-manager-page">
+
+    <PageHeader Eyebrow="Администрирование"
+                Title="Управление связями"
+                Subtitle="Создание и удаление связей между родителями, врачами и детьми. Все действия записываются в журнал аудита." />
+
+    {{! Глобальный баннер ошибок/успеха }}
+    @if (_notification is not null)
+    {
+        <AlertBanner Type="@_notification.Type"
+                     Title="@_notification.Title"
+                     Message="@_notification.Message"
+                     OnClose="() => _notification = null" />
+    }
+
+    {{! Вкладки }}
+    <div class="tabs" role="tablist" aria-label="Тип связи">
+        <button class="tab @(_activeTab == Tab.ParentChild ? "tab--active" : string.Empty)"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == Tab.ParentChild)"
+                @onclick="() => SetTab(Tab.ParentChild)">
+            <span class="tab__icon">👨‍👧</span>
+            Родитель — Ребёнок
+        </button>
+        <button class="tab @(_activeTab == Tab.DoctorChild ? "tab--active" : string.Empty)"
+                type="button"
+                role="tab"
+                aria-selected="@(_activeTab == Tab.DoctorChild)"
+                @onclick="() => SetTab(Tab.DoctorChild)">
+            <span class="tab__icon">🩺</span>
+            Врач — Ребёнок
+        </button>
+    </div>
+
+    {{! ВКЛАДКА: Родитель — Ребёнок }}
+    @if (_activeTab == Tab.ParentChild)
+    {
+        <div class="tab-content">
+
+            {{! Форма создания связи Parent–Child }}
+            <section class="section-card">
+                <SectionHeader Title="Создать связь Parent → Child"
+                               Description="Привязать родителя (userId) к ребёнку (childId)." />
+
+                <div class="section-card__body">
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="form-field__label" for="pc-parent-id">
+                                userId родителя
+                            </label>
+                            <input id="pc-parent-id"
+                                   class="input-field @(_pcParentIdError ? "input-field--error" : string.Empty)"
+                                   type="text"
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   value="@_pcParentUserId"
+                                   @oninput="e => { _pcParentUserId = e.Value?.ToString() ?? string.Empty; _pcParentIdError = false; }" />
+                            @if (_pcParentIdError)
+                            {
+                                <span class="form-field__error">Введите корректный GUID родителя</span>
+                            }
+                        </div>
+
+                        <div class="form-field">
+                            <label class="form-field__label" for="pc-child-id">
+                                childId ребёнка
+                            </label>
+                            <input id="pc-child-id"
+                                   class="input-field @(_pcChildIdError ? "input-field--error" : string.Empty)"
+                                   type="text"
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   value="@_pcChildId"
+                                   @oninput="e => { _pcChildId = e.Value?.ToString() ?? string.Empty; _pcChildIdError = false; }" />
+                            @if (_pcChildIdError)
+                            {
+                                <span class="form-field__error">Введите корректный GUID ребёнка</span>
+                            }
+                        </div>
+
+                        <div class="form-field form-field--action">
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    @onclick="CreateParentChildLinkAsync"
+                                    disabled="@_isPcSaving">
+                                @(_isPcSaving ? "Сохранение…" : "Создать связь")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {{! Таблица существующих Parent–Child связей }}
+            <section class="section-card">
+                <SectionHeader Title="Существующие связи Parent → Child"
+                               Description="Показаны последние 200 записей. Для удаления нажмите кнопку в строке.">
+                    <TrailingContent>
+                        <button class="btn btn-ghost"
+                                type="button"
+                                @onclick="LoadParentChildLinksAsync"
+                                disabled="@_isPcLoading">
+                            Обновить
+                        </button>
+                    </TrailingContent>
+                </SectionHeader>
+
+                @if (_isPcLoading)
+                {
+                    <div class="table-loading">
+                        <LoadingSpinner Size="md" />
+                    </div>
+                }
+                else if (_pcLinks.Count == 0)
+                {
+                    <EmptyState Title="Связей нет"
+                                Description="Создайте первую связь через форму выше."
+                                ActionText="Обновить список"
+                                OnAction="LoadParentChildLinksAsync">
+                        <Icon>
+                            <span>🔗</span>
+                        </Icon>
+                    </EmptyState>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>userId родителя</th>
+                                    <th>childId ребёнка</th>
+                                    <th>Создана</th>
+                                    <th class="col-actions">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var pcIndex = 0;
+                                }
+                                @foreach (var pcLink in _pcLinks)
+                                {
+                                    pcIndex++;
+                                    <tr>
+                                        <td class="index-cell">@pcIndex</td>
+                                        <td>
+                                            <span class="uuid-cell" title="@pcLink.ParentUserId.ToString()">
+                                                @TruncateGuid(pcLink.ParentUserId)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="uuid-cell" title="@pcLink.ChildId.ToString()">
+                                                @TruncateGuid(pcLink.ChildId)
+                                            </span>
+                                        </td>
+                                        <td class="date-cell">@FormatDate(pcLink.CreatedAtUtc)</td>
+                                        <td class="col-actions">
+                                            <button class="btn btn-danger btn-sm"
+                                                    type="button"
+                                                    @onclick="@(() => ConfirmDeleteParentChild(pcLink))"
+                                                    disabled="@(_deletingPcKey == MakePcKey(pcLink))">
+                                                @(_deletingPcKey == MakePcKey(pcLink) ? "Удаление…" : "Удалить")
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+
+    {{! ВКЛАДКА: Врач — Ребёнок }}
+    @if (_activeTab == Tab.DoctorChild)
+    {
+        <div class="tab-content">
+
+            {{!-- Форма создания связи Doctor–Child --}}
+            <section class="section-card">
+                <SectionHeader Title="Создать связь Doctor → Child"
+                               Description="Привязать врача (userId) к ребёнку (childId)." />
+
+                <div class="section-card__body">
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="form-field__label" for="dc-doctor-id">
+                                userId врача
+                            </label>
+                            <input id="dc-doctor-id"
+                                   class="input-field @(_dcDoctorIdError ? "input-field--error" : string.Empty)"
+                                   type="text"
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   value="@_dcDoctorUserId"
+                                   @oninput="e => { _dcDoctorUserId = e.Value?.ToString() ?? string.Empty; _dcDoctorIdError = false; }" />
+                            @if (_dcDoctorIdError)
+                            {
+                                <span class="form-field__error">Введите корректный GUID врача</span>
+                            }
+                        </div>
+
+                        <div class="form-field">
+                            <label class="form-field__label" for="dc-child-id">
+                                childId ребёнка
+                            </label>
+                            <input id="dc-child-id"
+                                   class="input-field @(_dcChildIdError ? "input-field--error" : string.Empty)"
+                                   type="text"
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   value="@_dcChildId"
+                                   @oninput="e => { _dcChildId = e.Value?.ToString() ?? string.Empty; _dcChildIdError = false; }" />
+                            @if (_dcChildIdError)
+                            {
+                                <span class="form-field__error">Введите корректный GUID ребёнка</span>
+                            }
+                        </div>
+
+                        <div class="form-field form-field--action">
+                            <button class="btn btn-primary"
+                                    type="button"
+                                    @onclick="CreateDoctorChildLinkAsync"
+                                    disabled="@_isDcSaving">
+                                @(_isDcSaving ? "Сохранение…" : "Создать связь")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {{! Таблица существующих Doctor–Child связей }}
+            <section class="section-card">
+                <SectionHeader Title="Существующие связи Doctor → Child"
+                               Description="Показаны последние 200 записей.">
+                    <TrailingContent>
+                        <button class="btn btn-ghost"
+                                type="button"
+                                @onclick="LoadDoctorChildLinksAsync"
+                                disabled="@_isDcLoading">
+                            Обновить
+                        </button>
+                    </TrailingContent>
+                </SectionHeader>
+
+                @if (_isDcLoading)
+                {
+                    <div class="table-loading">
+                        <LoadingSpinner Size="md" />
+                    </div>
+                }
+                else if (_dcLinks.Count == 0)
+                {
+                    <EmptyState Title="Связей нет"
+                                Description="Создайте первую связь через форму выше."
+                                ActionText="Обновить список"
+                                OnAction="LoadDoctorChildLinksAsync">
+                        <Icon>
+                            <span>🩺</span>
+                        </Icon>
+                    </EmptyState>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>userId врача</th>
+                                    <th>childId ребёнка</th>
+                                    <th>Создана</th>
+                                    <th class="col-actions">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var dcIndex = 0;
+                                }
+                                @foreach (var dcLink in _dcLinks)
+                                {
+                                    dcIndex++;
+                                    <tr>
+                                        <td class="index-cell">@dcIndex</td>
+                                        <td>
+                                            <span class="uuid-cell" title="@dcLink.DoctorUserId.ToString()">
+                                                @TruncateGuid(dcLink.DoctorUserId)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="uuid-cell" title="@dcLink.ChildId.ToString()">
+                                                @TruncateGuid(dcLink.ChildId)
+                                            </span>
+                                        </td>
+                                        <td class="date-cell">@FormatDate(dcLink.CreatedAtUtc)</td>
+                                        <td class="col-actions">
+                                            <button class="btn btn-danger btn-sm"
+                                                    type="button"
+                                                    @onclick="@(() => ConfirmDeleteDoctorChild(dcLink))"
+                                                    disabled="@(_deletingDcKey == MakeDcKey(dcLink))">
+                                                @(_deletingDcKey == MakeDcKey(dcLink) ? "Удаление…" : "Удалить")
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+{{! Диалог подтверждения удаления }}
+@if (_isConfirmDialogOpen)
+{
+    <div class="dialog-backdrop" @onclick="CloseConfirmDialog">
+        <div class="dialog" @onclick:stopPropagation="true">
+            <div class="dialog__header">
+                <div>
+                    <p class="page-eyebrow">Подтверждение</p>
+                    <h3>Удалить связь?</h3>
+                </div>
+                <button class="icon-button"
+                        type="button"
+                        aria-label="Закрыть"
+                        @onclick="CloseConfirmDialog">
+                    ✕
+                </button>
+            </div>
+
+            <div class="dialog__body">
+                <p class="dialog__body-text">@_confirmDialogMessage</p>
+                <div class="confirm-guids">
+                    @foreach (var line in _confirmDialogDetails)
+                    {
+                        <div class="confirm-guid-row">
+                            <span class="confirm-guid-row__label">@line.Label</span>
+                            <code class="confirm-guid-row__value">@line.Value</code>
+                        </div>
+                    }
+                </div>
+                <p class="dialog__body-warning">
+                    ⚠️ Это действие нельзя отменить.
+                </p>
+            </div>
+
+            <div class="dialog__footer">
+                <button class="btn btn-ghost"
+                        type="button"
+                        @onclick="CloseConfirmDialog"
+                        disabled="@_isDeleting">
+                    Отмена
+                </button>
+                <button class="btn btn-danger"
+                        type="button"
+                        @onclick="ExecuteDeleteAsync"
+                        disabled="@_isDeleting">
+                    @(_isDeleting ? "Удаление…" : "Да, удалить")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Вкладки
+    private enum Tab { ParentChild, DoctorChild }
+
+    private Tab _activeTab = Tab.ParentChild;
+
+    // Parent–Child: состояние формы
+    private string _pcParentUserId = string.Empty;
+    private string _pcChildId = string.Empty;
+    private bool _pcParentIdError;
+    private bool _pcChildIdError;
+    private bool _isPcSaving;
+
+    // Parent–Child: список связей
+    private readonly List<AdminParentChildLinkDto> _pcLinks = [];
+    private bool _isPcLoading;
+    private string? _deletingPcKey;
+
+    // Doctor–Child: состояние формы
+    private string _dcDoctorUserId = string.Empty;
+    private string _dcChildId = string.Empty;
+    private bool _dcDoctorIdError;
+    private bool _dcChildIdError;
+    private bool _isDcSaving;
+
+    // Doctor–Child: список связей
+    private readonly List<AdminDoctorChildLinkDto> _dcLinks = [];
+    private bool _isDcLoading;
+    private string? _deletingDcKey;
+
+    // Диалог подтверждения удаления
+    private bool _isConfirmDialogOpen;
+    private bool _isDeleting;
+    private string _confirmDialogMessage = string.Empty;
+    private List<ConfirmGuidRow> _confirmDialogDetails = [];
+    private Func<Task>? _pendingDeleteAction;
+
+    // Уведомление (баннер вверху)
+    private NotificationItem? _notification;
+
+    // Жизненный цикл
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadParentChildLinksAsync();
+    }
+
+    // Переключение вкладки
+    /// <summary>
+    /// Переключает активную вкладку и загружает соответствующие данные
+    /// </summary>
+    private async Task SetTab(Tab tab)
+    {
+        if (_activeTab == tab)
+        {
+            return;
+        }
+
+        _activeTab = tab;
+
+        if (tab == Tab.ParentChild && _pcLinks.Count == 0)
+        {
+            await LoadParentChildLinksAsync();
+        }
+        else if (tab == Tab.DoctorChild && _dcLinks.Count == 0)
+        {
+            await LoadDoctorChildLinksAsync();
+        }
+    }
+
+    // Parent–Child: загрузка
+    /// <summary>
+    /// Загружает список связей Parent–Child из API
+    /// </summary>
+    private async Task LoadParentChildLinksAsync()
+    {
+        _isPcLoading = true;
+
+        try
+        {
+            var result = await Api.GetAdminParentChildLinksAsync(CancellationToken.None);
+            _pcLinks.Clear();
+
+            if (result is not null)
+            {
+                _pcLinks.AddRange(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке связей Parent–Child.");
+            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Parent–Child.");
+        }
+        finally
+        {
+            _isPcLoading = false;
+        }
+    }
+
+    // Doctor–Child: загрузка
+    /// <summary>
+    /// Загружает список связей Doctor–Child из API
+    /// </summary>
+    private async Task LoadDoctorChildLinksAsync()
+    {
+        _isDcLoading = true;
+
+        try
+        {
+            var result = await Api.GetAdminDoctorChildLinksAsync(CancellationToken.None);
+            _dcLinks.Clear();
+
+            if (result is not null)
+            {
+                _dcLinks.AddRange(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке связей Doctor–Child.");
+            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Doctor–Child.");
+        }
+        finally
+        {
+            _isDcLoading = false;
+        }
+    }
+
+    // Parent–Child: создание
+    /// <summary>
+    /// Создаёт связь Parent–Child через API
+    /// </summary>
+    private async Task CreateParentChildLinkAsync()
+    {
+        var isValid = true;
+
+        if (!Guid.TryParse(_pcParentUserId.Trim(), out var parentGuid))
+        {
+            _pcParentIdError = true;
+            isValid = false;
+        }
+
+        if (!Guid.TryParse(_pcChildId.Trim(), out var childGuid))
+        {
+            _pcChildIdError = true;
+            isValid = false;
+        }
+
+        if (!isValid)
+        {
+            return;
+        }
+
+        _isPcSaving = true;
+
+        try
+        {
+            await Api.CreateAdminParentChildLinkAsync(parentGuid, childGuid, CancellationToken.None);
+
+            _pcParentUserId = string.Empty;
+            _pcChildId = string.Empty;
+
+            ShowNotification("success", "Связь создана", $"Parent {TruncateGuid(parentGuid)} → Child {TruncateGuid(childGuid)}");
+
+            await LoadParentChildLinksAsync();
+        }
+        catch (HttpRequestException ex) when ((int?)ex.StatusCode == 409)
+        {
+            Logger.LogWarning("Попытка создать дублирующую связь Parent–Child.");
+            ShowNotification("warning", "Связь уже существует", "Эта пара Parent–Child уже привязана.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при создании связи Parent–Child.");
+            ShowNotification("error", "Ошибка создания", "Не удалось создать связь. Проверьте данные и повторите попытку.");
+        }
+        finally
+        {
+            _isPcSaving = false;
+        }
+    }
+
+    // Doctor–Child: создание
+    /// <summary>
+    /// Создаёт связь Doctor–Child через API
+    /// </summary>
+    private async Task CreateDoctorChildLinkAsync()
+    {
+        var isValid = true;
+
+        if (!Guid.TryParse(_dcDoctorUserId.Trim(), out var doctorGuid))
+        {
+            _dcDoctorIdError = true;
+            isValid = false;
+        }
+
+        if (!Guid.TryParse(_dcChildId.Trim(), out var childGuid))
+        {
+            _dcChildIdError = true;
+            isValid = false;
+        }
+
+        if (!isValid)
+        {
+            return;
+        }
+
+        _isDcSaving = true;
+
+        try
+        {
+            await Api.CreateAdminDoctorChildLinkAsync(doctorGuid, childGuid, CancellationToken.None);
+
+            _dcDoctorUserId = string.Empty;
+            _dcChildId = string.Empty;
+
+            ShowNotification("success", "Связь создана", $"Doctor {TruncateGuid(doctorGuid)} → Child {TruncateGuid(childGuid)}");
+
+            await LoadDoctorChildLinksAsync();
+        }
+        catch (HttpRequestException ex) when ((int?)ex.StatusCode == 409)
+        {
+            Logger.LogWarning("Попытка создать дублирующую связь Doctor–Child.");
+            ShowNotification("warning", "Связь уже существует", "Эта пара Doctor–Child уже привязана.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при создании связи Doctor–Child.");
+            ShowNotification("error", "Ошибка создания", "Не удалось создать связь. Проверьте данные и повторите попытку.");
+        }
+        finally
+        {
+            _isDcSaving = false;
+        }
+    }
+
+    // Parent–Child: удаление 
+    /// <summary>
+    /// Открывает диалог подтверждения удаления связи Parent–Child
+    /// </summary>
+    private void ConfirmDeleteParentChild(AdminParentChildLinkDto link)
+    {
+        _confirmDialogMessage = "Вы собираетесь удалить связь между родителем и ребёнком.";
+        _confirmDialogDetails =
+        [
+            new ConfirmGuidRow("userId родителя", link.ParentUserId.ToString()),
+            new ConfirmGuidRow("childId ребёнка", link.ChildId.ToString())
+        ];
+
+        _pendingDeleteAction = async () =>
+        {
+            _deletingPcKey = MakePcKey(link);
+
+            try
+            {
+                await Api.DeleteAdminParentChildLinkAsync(link.ParentUserId, link.ChildId, CancellationToken.None);
+
+                _pcLinks.Remove(link);
+                ShowNotification("success", "Связь удалена", $"Parent–Child: {TruncateGuid(link.ParentUserId)} / {TruncateGuid(link.ChildId)}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Ошибка при удалении связи Parent–Child.");
+                ShowNotification("error", "Ошибка удаления", "Не удалось удалить связь. Попробуйте ещё раз.");
+            }
+            finally
+            {
+                _deletingPcKey = null;
+            }
+        };
+
+        _isConfirmDialogOpen = true;
+    }
+
+    // Doctor–Child: удаление 
+    /// <summary>
+    /// Открывает диалог подтверждения удаления связи Doctor–Child
+    /// </summary>
+    private void ConfirmDeleteDoctorChild(AdminDoctorChildLinkDto link)
+    {
+        _confirmDialogMessage = "Вы собираетесь удалить связь между врачом и ребёнком.";
+        _confirmDialogDetails =
+        [
+            new ConfirmGuidRow("userId врача",    link.DoctorUserId.ToString()),
+            new ConfirmGuidRow("childId ребёнка", link.ChildId.ToString())
+        ];
+
+        _pendingDeleteAction = async () =>
+        {
+            _deletingDcKey = MakeDcKey(link);
+
+            try
+            {
+                await Api.DeleteAdminDoctorChildLinkAsync(link.DoctorUserId, link.ChildId, CancellationToken.None);
+
+                _dcLinks.Remove(link);
+                ShowNotification("success", "Связь удалена", $"Doctor–Child: {TruncateGuid(link.DoctorUserId)} / {TruncateGuid(link.ChildId)}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Ошибка при удалении связи Doctor–Child.");
+                ShowNotification("error", "Ошибка удаления", "Не удалось удалить связь. Попробуйте ещё раз.");
+            }
+            finally
+            {
+                _deletingDcKey = null;
+            }
+        };
+
+        _isConfirmDialogOpen = true;
+    }
+
+    // Диалог подтверждения
+    /// <summary>
+    /// Выполняет отложенное действие удаления
+    /// </summary>
+    private async Task ExecuteDeleteAsync()
+    {
+        if (_pendingDeleteAction is null)
+        {
+            return;
+        }
+
+        _isDeleting = true;
+
+        try
+        {
+            await _pendingDeleteAction();
+        }
+        finally
+        {
+            _isDeleting = false;
+            CloseConfirmDialog();
+        }
+    }
+
+    /// <summary>
+    /// Закрывает диалог подтверждения без удаления
+    /// </summary>
+    private void CloseConfirmDialog()
+    {
+        _isConfirmDialogOpen = false;
+        _pendingDeleteAction = null;
+        _confirmDialogMessage = string.Empty;
+        _confirmDialogDetails = [];
+        _isDeleting = false;
+    }
+
+    // Вспомогательные методы UI
+    /// <summary>
+    /// Показывает глобальный баннер уведомления
+    /// </summary>
+
+    private void ShowNotification(string type, string title, string message)
+    {
+        _notification = new NotificationItem(type, title, message);
+    }
+
+    /// <summary>
+    /// Обрезает GUID для отображения в таблице
+    /// </summary>
+    private static string TruncateGuid(Guid guid)
+    {
+        var str = guid.ToString();
+
+        return str.Length > 8
+            ? str[..8] + "…"
+            : str;
+    }
+
+    private static string FormatDate(DateTime? dt) =>
+        dt.HasValue
+            ? dt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture)
+            : "—";
+
+    /// <summary>
+    /// Строит ключ уникальности для Parent–Child строки
+    /// </summary>
+    private static string MakePcKey(AdminParentChildLinkDto link) =>
+        $"{link.ParentUserId}_{link.ChildId}";
+
+    /// <summary>
+    /// Строит ключ уникальности для Doctor–Child строки
+    /// </summary>
+    private static string MakeDcKey(AdminDoctorChildLinkDto link) =>
+        $"{link.DoctorUserId}_{link.ChildId}";
+
+
+
+    /// <summary>
+    /// Строка с деталями GUID для диалога подтверждения
+    /// </summary>
+    private sealed record ConfirmGuidRow(string Label, string Value);
+
+    /// <summary>
+    /// Модель уведомления-баннера
+    /// </summary>
+    private sealed record NotificationItem(string Type, string Title, string Message);
+}

@@ -1,0 +1,306 @@
+﻿@* кнопка переключения светлой/тёмной темы *@
+
+@inject IJSRuntime JS
+@inject ILogger<ThemeToggle> Logger
+
+<button class="sg-theme-toggle sg-theme-toggle--@Size"
+        type="button"
+        aria-label="@_ariaLabel"
+        title="@_ariaLabel"
+        @onclick="ToggleThemeAsync"
+        disabled="@_isInitializing">
+
+    <span class="sg-theme-toggle__track" aria-hidden="true">
+
+        @* Иконка солнца (светлая тема) *@
+        <span class="sg-theme-toggle__icon sg-theme-toggle__icon--light
+                     @(_isDark ? "" : "sg-theme-toggle__icon--active")"
+              aria-hidden="true">
+            <svg viewBox="0 0 20 20"
+                 fill="none"
+                 xmlns="http://www.w3.org/2000/svg"
+                 width="16" height="16">
+                <circle cx="10" cy="10" r="4"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        fill="none" />
+                <line x1="10" y1="2" x2="10" y2="4"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="10" y1="16" x2="10" y2="18"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="2" y1="10" x2="4" y2="10"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="16" y1="10" x2="18" y2="10"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="14.36" y1="14.36" x2="15.78" y2="15.78"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="4.22" y1="15.78" x2="5.64" y2="14.36"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <line x1="14.36" y1="5.64" x2="15.78" y2="4.22"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+        </span>
+
+        @* Иконка луны (тёмная тема) *@
+        <span class="sg-theme-toggle__icon sg-theme-toggle__icon--dark
+                     @(_isDark ? "sg-theme-toggle__icon--active" : "")"
+              aria-hidden="true">
+            <svg viewBox="0 0 20 20"
+                 fill="none"
+                 xmlns="http://www.w3.org/2000/svg"
+                 width="16" height="16">
+                <path d="M17 12.5A7 7 0 0 1 7.5 3a7 7 0 1 0 9.5 9.5Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      fill="none" />
+            </svg>
+        </span>
+
+    </span>
+
+    @* Текстовая подпись *@
+    @if (ShowLabel)
+    {
+        <span class="sg-theme-toggle__label">
+            @(_isDark ? "Тёмная" : "Светлая")
+        </span>
+    }
+
+</button>
+
+<style>
+    /* Кнопка-обёртка */
+    .sg-theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-8, 8px);
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--sg-text-muted, #7a7974);
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: var(--sg-radius-full, 9999px);
+        transition: color var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1)), background-color var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1));
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+        .sg-theme-toggle:hover:not(:disabled) {
+            color: var(--sg-text, #28251d);
+            background-color: var(--sg-surface-offset, #f3f0ec);
+        }
+
+        .sg-theme-toggle:focus-visible {
+            outline: 2px solid var(--sg-primary, #01696f);
+            outline-offset: 3px;
+        }
+
+        .sg-theme-toggle:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+
+        .sg-theme-toggle:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+    /* Размеры */
+    .sg-theme-toggle--sm {
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    .sg-theme-toggle--lg {
+        min-width: 52px;
+        min-height: 52px;
+    }
+
+    /* Трек с иконками */
+    .sg-theme-toggle__track {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+    }
+
+    .sg-theme-toggle--sm .sg-theme-toggle__track {
+        width: 24px;
+        height: 24px;
+    }
+
+    .sg-theme-toggle--lg .sg-theme-toggle__track {
+        width: 40px;
+        height: 40px;
+    }
+
+    /* Иконка */
+    .sg-theme-toggle__icon {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        inset: 0;
+        /* Скрытая иконка */
+        opacity: 0;
+        transform: scale(0.6) rotate(-30deg);
+        transition: opacity var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1)), transform var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1));
+        pointer-events: none;
+    }
+
+    /* Активная иконка — видима */
+    .sg-theme-toggle__icon--active {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+
+    /* Масштаб иконок под размеры */
+    .sg-theme-toggle--sm .sg-theme-toggle__icon svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .sg-theme-toggle--lg .sg-theme-toggle__icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Текстовая подпись */
+    .sg-theme-toggle__label {
+        font-family: var(--font-body, Satoshi, sans-serif);
+        font-size: var(--sg-font-label, clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem));
+        font-weight: 500;
+        color: var(--sg-text-muted, #7a7974);
+        white-space: nowrap;
+        transition: color var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1));
+    }
+
+    .sg-theme-toggle:hover:not(:disabled) .sg-theme-toggle__label {
+        color: var(--sg-text, #28251d);
+    }
+
+    /* prefers-reduced-motion */
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-theme-toggle, .sg-theme-toggle__icon, .sg-theme-toggle__label
+
+    {
+        transition: none;
+    }
+
+    .sg-theme-toggle:active:not(:disabled) {
+        transform: none;
+    }
+
+    }
+</style>
+
+@code {
+    // Параметры 
+    [Parameter]
+    public string Size { get; set; } = "md"; // Размер кнопки
+
+    [Parameter]
+    public bool ShowLabel { get; set; } // Показывать текстовую подпись 
+
+    [Parameter]
+    public EventCallback<string> OnThemeChanged { get; set; } // Callback после переключения темы
+
+    // Состояние    
+    private bool _isDark; // Текущая тема
+   
+    private bool _isInitializing = true; // Флаг инициализации — кнопка заблокирована
+   
+    private string _ariaLabel => _isDark // ARIA-метка кнопки
+        ? "Переключить на светлую тему"
+        : "Переключить на тёмную тему";
+
+    // Жизненный цикл 
+    /// <inheritdoc/>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // Считываем текущую тему
+        var theme = await GetCurrentThemeAsync();
+        _isDark = theme == "dark";
+        _isInitializing = false;
+
+        // Перерисовываем компонент с актуальным состоянием иконки
+        StateHasChanged();
+    }
+
+    // Обработчики
+    /// <summary>
+    /// Переключает тему
+    /// </summary>
+    private async Task ToggleThemeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("sugarGuardTheme.toggle",
+                TimeSpan.FromSeconds(3));
+
+            _isDark = !_isDark;
+
+            if (OnThemeChanged.HasDelegate)
+            {
+                await OnThemeChanged.InvokeAsync(_isDark ? "dark" : "light");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+
+        }
+        catch (JSDisconnectedException)
+        {
+
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "ThemeToggle: ошибка JS при переключении темы.");
+        }
+        catch (TaskCanceledException)
+        {
+
+        }
+    }
+
+    /// <summary>
+    /// Считывает текущую тему
+    /// </summary>
+    private async Task<string> GetCurrentThemeAsync()
+    {
+        try
+        {
+            return await JS.InvokeAsync<string>("sugarGuardTheme.getTheme",
+                TimeSpan.FromSeconds(3)) ?? "light";
+        }
+        catch (InvalidOperationException)
+        {
+            return "light";
+        }
+        catch (JSDisconnectedException)
+        {
+            return "light";
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "ThemeToggle: ошибка JS при считывании темы.");
+            return "light";
+        }
+        catch (TaskCanceledException)
+        {
+            return "light";
+        }
+    }
+}

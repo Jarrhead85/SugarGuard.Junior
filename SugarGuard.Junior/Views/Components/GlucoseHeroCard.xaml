@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
+             xmlns:domain="clr-namespace:SugarGuard.Domain.Enums;assembly=SugarGuard.Domain"
+             x:Class="SugarGuard.Junior.Views.Components.GlucoseHeroCard"
+             x:Name="this">
+
+    <!-- Главный hero-компонент -->
+
+    <Border Style="{StaticResource HeroCard}"
+            MinimumHeightRequest="280"
+            HorizontalOptions="Fill"
+            VerticalOptions="Start">
+
+        <VerticalStackLayout Spacing="16">
+
+            <!-- Верхняя строка: заголовок и время последнего измерения -->
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
+
+                <Label Grid.Column="0"
+                       Text="Текущий сахар"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}"
+                       VerticalOptions="Center" />
+
+                <Label Grid.Column="1"
+                       Text="{Binding Source={x:Reference this}, Path=ResolvedTimeText}"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
+                       VerticalOptions="Center"
+                       HorizontalTextAlignment="End" />
+            </Grid>
+
+            <!-- Главный value-блок -->
+            <VerticalStackLayout Spacing="8"
+                                 HorizontalOptions="Center">
+
+                <HorizontalStackLayout Spacing="8"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center">
+
+                    <!-- Главное число: цвет меняется по состоянию сахара -->
+                    <Label Text="{Binding Source={x:Reference this}, Path=GlucoseValue, StringFormat='{}{0:F1}'}"
+                           FontFamily="{StaticResource ClashDisplay}"
+                           FontSize="64"
+                           LineBreakMode="NoWrap"
+                           HorizontalTextAlignment="Center"
+                           TextColor="{Binding Source={x:Reference this}, Path=UiState, Converter={StaticResource GlucoseUiStateToColorConverter}}"
+                           VerticalOptions="Center" />
+
+                    <Label Text="ммоль/л"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="16"
+                           TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
+                           VerticalOptions="End"
+                           Margin="0,0,0,10" />
+                </HorizontalStackLayout>
+
+                <!-- Отдельный компонент статуса -->
+                <components:StatusChip UiState="{Binding Source={x:Reference this}, Path=UiState}"
+                                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Мягкая helper-подсказка -->
+            <Border StrokeShape="RoundRectangle 18"
+                    StrokeThickness="1"
+                    Padding="14,12"
+                    HorizontalOptions="Fill"
+                    BackgroundColor="{AppThemeBinding Light=#14FFFFFF, Dark=#141A2433}"
+                    Stroke="{AppThemeBinding Light=#1816213E, Dark=#18EDF4FF}">
+
+                <Border.Triggers>
+                    <!-- Состояние: внимание -->
+                    <DataTrigger TargetType="Border"
+                                 Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                                 Value="{x:Static domain:GlucoseUiState.Attention}">
+                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#1AE3A32B, Dark=#22F4BC56}" />
+                        <Setter Property="Stroke" Value="{AppThemeBinding Light=#33E3A32B, Dark=#40F4BC56}" />
+                    </DataTrigger>
+
+                    <!-- Состояние: критично -->
+                    <DataTrigger TargetType="Border"
+                                 Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                                 Value="{x:Static domain:GlucoseUiState.Critical}">
+                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#1ADB5967, Dark=#22FF7A8B}" />
+                        <Setter Property="Stroke" Value="{AppThemeBinding Light=#33DB5967, Dark=#40FF7A8B}" />
+                    </DataTrigger>
+                </Border.Triggers>
+
+                <HorizontalStackLayout Spacing="10">
+
+                    <!-- Небольшой цветовой маркер состояния -->
+                    <Label Text="•"
+                           FontSize="18"
+                           VerticalOptions="Start"
+                           TextColor="{Binding Source={x:Reference this}, Path=UiState, Converter={StaticResource GlucoseUiStateToColorConverter}}" />
+
+                    <Label Text="{Binding Source={x:Reference this}, Path=ResolvedHelperText}"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="14"
+                           LineBreakMode="WordWrap"
+                           TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

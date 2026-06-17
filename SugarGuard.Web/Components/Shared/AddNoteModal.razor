@@ -1,0 +1,439 @@
+﻿@* Модалка создания / редактирования заметки врача *@
+
+@using System.ComponentModel.DataAnnotations
+@using SugarGuard.Web.Services
+@using DoctorNoteVm = SugarGuard.Web.ViewModels.DoctorNoteVm
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@inject SugarGuardApiService ApiService
+
+@* BACKDROP *@
+@if (IsVisible)
+{
+    <div class="modal-backdrop"
+         @onclick="HandleBackdropClick"
+         role="presentation"
+         aria-hidden="true">
+    </div>
+
+    <div class="modal"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="add-note-modal-title"
+         aria-describedby="add-note-modal-desc"
+         tabindex="-1"
+         @onkeydown="HandleGlobalKeyDown"
+         @ref="_modalRef">
+
+        @* ШАПКА *@
+        <div class="modal__header">
+            <div class="modal__header-left">
+                @* Иконка режима *@
+                <span class="modal__mode-icon modal__mode-icon--@(IsEditMode ? "edit" : "create")"
+                      aria-hidden="true">
+                    @if (IsEditMode)
+                    {
+                        @* Карандаш *@
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    }
+                    else
+                    {
+                        @* Плюс *@
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                    }
+                </span>
+
+                <div>
+                    <h2 class="modal__title" id="add-note-modal-title">
+                        @(IsEditMode ? "Редактировать заметку" : "Добавить заметку")
+                    </h2>
+                    @if (MeasurementId.HasValue)
+                    {
+                        <p class="modal__subtitle" id="add-note-modal-desc">
+                            Привязка к измерению
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <button class="modal__close btn-icon btn-icon--ghost"
+                    type="button"
+                    @onclick="HandleClose"
+                    aria-label="Закрыть модальное окно"
+                    title="Закрыть (Esc)">
+                <svg width="20" height="20" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+
+        @* ФОРМА *@
+        <EditForm EditContext="_editContext" FormName="add-note-modal"
+                  OnValidSubmit="HandleValidSubmitAsync"
+                  id="add-note-form"
+                  novalidate>
+            <DataAnnotationsValidator />
+
+            <div class="modal__body">
+
+                @* Текст заметки *@
+                <div class="form-field @(HasFieldError(nameof(NoteFormModel.NoteText)) ? "form-field--error" : "")">
+                    <label class="form-field__label" for="note-text">
+                        Текст заметки
+                        <span class="form-field__required" aria-hidden="true">*</span>
+                    </label>
+
+                    <textarea id="note-text"
+                              class="form-field__textarea"
+                              @bind="_model.NoteText"
+                              @bind:event="oninput"
+                              rows="5"
+                              maxlength="4000"
+                              placeholder="Введите клиническую заметку (до 4000 символов)…"
+                              aria-required="true"
+                              aria-describedby="note-text-hint note-text-count note-text-error"
+                              @ref="_textareaRef" />
+
+                    <div class="form-field__footer">
+                        <span class="form-field__hint" id="note-text-hint">
+                            Минимум 2 символа
+                        </span>
+                        <span class="form-field__char-count @(CharCountCssClass)"
+                              id="note-text-count"
+                              aria-live="polite"
+                              aria-atomic="true">
+                            @(_model.NoteText?.Length ?? 0) / 4000
+                        </span>
+                    </div>
+
+                    <ValidationMessage For="@(() => _model.NoteText)"
+                                       id="note-text-error"
+                                       class="form-field__error-msg" />
+                </div>
+
+                @* Флаг «Важное» *@
+                <div class="form-field form-field--inline">
+                    <label class="toggle-label" for="note-important">
+                        <InputCheckbox id="note-important"
+                                       @bind-Value="_model.IsImportant"
+                                       class="toggle-label__checkbox" />
+                        <span class="toggle-label__track" aria-hidden="true">
+                            <span class="toggle-label__thumb"></span>
+                        </span>
+                        <span class="toggle-label__text">
+                            Отметить как важное
+                        </span>
+                    </label>
+                    <p class="form-field__hint form-field__hint--inline">
+                        Важные заметки выводятся первыми и выделяются в списке
+                    </p>
+                </div>
+
+                @* Привязанное измерение (только для просмотра) *@
+                @if (MeasurementId.HasValue)
+                {
+                    <div class="form-field">
+                        <p class="form-field__label">Измерение</p>
+                        <div class="linked-measurement">
+                            <svg width="16" height="16" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round"
+                                 aria-hidden="true">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                            </svg>
+                            <span>ID: <code>@MeasurementId.Value.ToString("D")</code></span>
+                        </div>
+                    </div>
+                }
+
+                @* Сообщение об ошибке сервера *@
+                @if (!string.IsNullOrWhiteSpace(_serverError))
+                {
+                    <div class="alert alert--error" role="alert" aria-live="assertive">
+                        <svg width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <span>@_serverError</span>
+                    </div>
+                }
+
+            </div>
+
+            @* ПОДВАЛ *@
+            <div class="modal__footer">
+                <button type="button"
+                        class="btn btn--ghost"
+                        @onclick="HandleClose"
+                        disabled="@_isSaving">
+                    Отмена
+                </button>
+
+                <button type="submit"
+                        class="btn btn--primary @(_isSaving ? "btn--loading" : "")"
+                        form="add-note-form"
+                        disabled="@(_isSaving || !IsFormDirty)">
+
+                    @if (_isSaving)
+                    {
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span>@(IsEditMode ? "Сохранение…" : "Добавление…")</span>
+                    }
+                    else
+                    {
+                        <svg width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            @if (IsEditMode)
+                            {
+                                <polyline points="20 6 9 17 4 12" />
+                            }
+                            else
+                            {
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            }
+                        </svg>
+                        <span>@(IsEditMode ? "Сохранить" : "Добавить заметку")</span>
+                    }
+                </button>
+            </div>
+
+        </EditForm>
+    </div>
+}
+
+@code {
+    // ПАРАМЕТРЫ   
+    [Parameter, EditorRequired]
+    public bool IsVisible { get; set; } // true — модалка отображается
+
+    [Parameter, EditorRequired]
+    public Guid ChildId { get; set; } // ID ребёнка, к которому привязывается заметка
+
+    [Parameter, EditorRequired]
+    public EventCallback<DoctorNoteVm> OnSaved { get; set; } // Callback после успешного сохранения
+
+    [Parameter, EditorRequired]
+    public EventCallback OnClosed { get; set; } // Callback при закрытии без сохранения
+
+    [Parameter]
+    public Guid? MeasurementId { get; set; } // Если задан — заметка будет привязана к конкретному измерению
+
+    [Parameter]
+    public DoctorNoteVm? NoteToEdit { get; set; } // Если задан — модалка открывается в режиме редактирования
+
+    // ПРИВАТНОЕ СОСТОЯНИЕ
+    private NoteFormModel _model = new();
+    private EditContext _editContext = default!;
+    private ValidationMessageStore _messageStore = default!;
+
+    private bool _isSaving;
+    private string? _serverError;
+
+    private ElementReference _modalRef;
+    private ElementReference _textareaRef;
+
+    private string _originalNoteText = string.Empty;
+    private bool _originalIsImportant;
+
+    // ВЫЧИСЛЯЕМЫЕ СВОЙСТВА   
+    private bool IsEditMode => NoteToEdit is not null; // true — открыт режим редактирования существующей заметки
+
+    /// <summary>
+    /// true — форма изменена относительно исходных значений
+    /// </summary>
+    private bool IsFormDirty
+        => _model.NoteText != _originalNoteText
+           || _model.IsImportant != _originalIsImportant;
+
+    /// <summary>
+    /// CSS-класс счётчика символов
+    /// </summary>
+    private string CharCountCssClass
+        => (_model.NoteText?.Length ?? 0) >= 3800 ? "form-field__char-count--warn" : string.Empty;
+
+    // ЖИЗНЕННЫЙ ЦИКЛ
+    protected override void OnInitialized()
+    {
+        ResetForm();
+    }
+
+    protected override void OnParametersSet()
+    {
+        ResetForm();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsVisible)
+        {
+            try
+            {
+                await _textareaRef.FocusAsync();
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    /// <summary>
+    /// Отправка формы
+    /// </summary>
+    private async Task HandleValidSubmitAsync()
+    {
+        if (_isSaving) return;
+
+        _isSaving = true;
+        _serverError = null;
+        StateHasChanged();
+
+        try
+        {
+            DoctorNoteVm saved;
+
+            if (IsEditMode)
+            {
+                // Редактирование
+                saved = await ApiService.UpdateDoctorNoteAsync(
+                    NoteToEdit!.NoteId,
+                    new UpdateDoctorNoteVmRequest
+                    {
+                        NoteText = _model.NoteText!.Trim(),
+                        IsImportant = _model.IsImportant,
+                    });
+            }
+            else
+            {
+                // Создание
+                saved = await ApiService.CreateDoctorNoteAsync(
+                    new CreateDoctorNoteVmRequest
+                    {
+                        ChildId = ChildId,
+                        MeasurementId = MeasurementId,
+                        NoteText = _model.NoteText!.Trim(),
+                        IsImportant = _model.IsImportant,
+                    });
+            }
+
+            await OnSaved.InvokeAsync(saved);
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            _serverError = ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    /// <summary>
+    /// Закрытие модалки без сохранения
+    /// </summary>
+    private async Task HandleClose()
+    {
+        if (_isSaving) return;
+        ResetForm();
+        await OnClosed.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Клик по backdrop закрывает модалку только если форма не изменена
+    /// </summary>
+    private async Task HandleBackdropClick()
+    {
+        if (_isSaving) return;
+
+        if (IsFormDirty)
+        {
+            _serverError = "Есть несохранённые изменения. Нажмите «Отмена» для выхода или сохраните заметку.";
+            StateHasChanged();
+            return;
+        }
+
+        await HandleClose();
+    }
+
+    /// <summary>
+    /// Закрытие по Escape, Tab-trap внутри модалки
+    /// </summary>
+    private async Task HandleGlobalKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            await HandleBackdropClick();
+    }
+
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    /// <summary>
+    /// Инициализирует / сбрасывает форму
+    /// </summary>
+    private void ResetForm()
+    {
+        _model = new NoteFormModel
+        {
+            NoteText = NoteToEdit?.NoteText ?? string.Empty,
+            IsImportant = NoteToEdit?.IsImportant ?? false,
+        };
+
+        _originalNoteText = _model.NoteText;
+        _originalIsImportant = _model.IsImportant;
+
+        _serverError = null;
+        _isSaving = false;
+
+        _editContext = new EditContext(_model);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    /// <summary>
+    /// Возвращает true, если у поля есть ошибка валидации
+    /// </summary>
+    private bool HasFieldError(string fieldName)
+    {
+        var fi = _editContext.Field(fieldName);
+        return _editContext.GetValidationMessages(fi).Any();
+    }
+
+    // ВЛОЖЕННАЯ МОДЕЛЬ ФОРМЫ
+    /// <summary>
+    /// Модель данных формы добавления/редактирования заметки
+    /// </summary>
+    private sealed class NoteFormModel
+    {
+        /// <summary>
+        /// Текст заметки
+        /// </summary>
+        [Required(ErrorMessage = "Текст заметки обязателен.")]
+        [MinLength(2, ErrorMessage = "Заметка должна содержать не менее 2 символов.")]
+        [MaxLength(4000, ErrorMessage = "Заметка не может превышать 4000 символов.")]
+        public string? NoteText { get; set; }
+
+        /// <summary>
+        /// Флаг «важное»
+        /// </summary>
+        public bool IsImportant { get; set; }
+    }
+}

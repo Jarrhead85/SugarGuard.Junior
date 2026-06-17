@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<pages:SwipeablePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
+                     xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
+                     x:Class="SugarGuard.Junior.Views.Pages.ChartPage"
+                     Title="График"
+                     BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <pages:SwipeablePage.Resources>
+        <ResourceDictionary>
+
+            <!--
+                Все цвета берём из DynamicResource (Theme.Light/Dark.xaml),
+                а не из AppThemeBinding с хардкодом — чтобы тема переключалась
+                программно через App.xaml.cs SwitchTheme() без перезапуска.
+            -->
+
+            <!-- Базовый стиль мягкой glass-панели. -->
+            <Style x:Key="GlassPanelStyle" TargetType="Border">
+                <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
+                <Setter Property="Stroke" Value="{DynamicResource SurfaceCardStroke}" />
+                <Setter Property="Shadow">
+                    <Setter.Value>
+                        <Shadow Brush="{DynamicResource ShadowBrush}"
+                                Offset="0,12"
+                                Radius="28"
+                                Opacity="0.08" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Стиль активной filter-chip кнопки периода. -->
+            <Style x:Key="PeriodFilterButtonStyle" TargetType="Button">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="Padding" Value="14,8" />
+                <Setter Property="HeightRequest" Value="44" />
+                <Setter Property="MinimumWidthRequest" Value="84" />
+                <Setter Property="TextColor" Value="{DynamicResource TextOnPrimary}" />
+                <Setter Property="Shadow">
+                    <Setter.Value>
+                        <Shadow Brush="{DynamicResource ShadowBrush}"
+                                Offset="0,8"
+                                Radius="18"
+                                Opacity="0.05" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Стиль компактных надписей-eyebrow над секциями. -->
+            <Style x:Key="SectionEyebrowStyle" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{DynamicResource TextMuted}" />
+                <Setter Property="CharacterSpacing" Value="0.2" />
+            </Style>
+
+            <!-- Стиль второстепенного текста. -->
+            <Style x:Key="SecondaryTextStyle" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{DynamicResource TextMuted}" />
+            </Style>
+
+            <!-- Стиль подписей метрик. -->
+            <Style x:Key="MetricCaptionStyle" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="TextColor" Value="{DynamicResource TextFaint}" />
+            </Style>
+
+            <!-- Стиль значений метрик. -->
+            <Style x:Key="MetricValueStyle" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+            </Style>
+
+        </ResourceDictionary>
+    </pages:SwipeablePage.Resources>
+
+    <Grid>
+
+        <ScrollView VerticalOptions="FillAndExpand"
+                    VerticalScrollBarVisibility="Never">
+
+            <VerticalStackLayout Padding="20,24,20,24"
+                                 Spacing="14"
+                                 x:Name="ChartContent">
+
+                <!-- ─────────────────────────────────────────────────────
+                     Заголовок экрана
+                     ───────────────────────────────────────────────────── -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Динамика сахара"
+                           FontFamily="{StaticResource ClashDisplay}"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+
+                    <Label Text="Спокойный обзор измерений за день, неделю или месяц."
+                           Style="{StaticResource SecondaryTextStyle}" />
+                </VerticalStackLayout>
+
+                <!-- ─────────────────────────────────────────────────────
+                     Фильтр периода
+                     ───────────────────────────────────────────────────── -->
+                <Border Style="{StaticResource GlassPanelStyle}"
+                        Padding="12">
+                    <HorizontalStackLayout HorizontalOptions="Center"
+                                           Spacing="8">
+
+                        <!--
+                            BackgroundColor управляется через BoolToColorConverter,
+                            который использует два токена из текущей темы.
+                            HeightRequest=44 — минимальный touch target (44×44 pt).
+                        -->
+                        <Button Text="Сегодня"
+                                Style="{StaticResource PeriodFilterButtonStyle}"
+                                Command="{Binding SelectPeriodCommand}"
+                                CommandParameter="today"
+                                BackgroundColor="{Binding IsTodaySelected,
+                                    Converter={StaticResource BoolToColorConverter}}" />
+
+                        <Button Text="Неделя"
+                                Style="{StaticResource PeriodFilterButtonStyle}"
+                                Command="{Binding SelectPeriodCommand}"
+                                CommandParameter="week"
+                                BackgroundColor="{Binding IsWeekSelected,
+                                    Converter={StaticResource BoolToColorConverter}}" />
+
+                        <Button Text="Месяц"
+                                Style="{StaticResource PeriodFilterButtonStyle}"
+                                Command="{Binding SelectPeriodCommand}"
+                                CommandParameter="month"
+                                BackgroundColor="{Binding IsMonthSelected,
+                                    Converter={StaticResource BoolToColorConverter}}" />
+
+                    </HorizontalStackLayout>
+                </Border>
+
+                <!-- ─────────────────────────────────────────────────────
+                     Главный графический блок
+                     ───────────────────────────────────────────────────── -->
+                <Border Style="{StaticResource GlassPanelStyle}"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="14">
+
+                        <!-- Заголовок блока + плашка целевого диапазона -->
+                        <Grid ColumnDefinitions="*,Auto"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="12"
+                              RowSpacing="6">
+
+                            <Label Grid.Row="0"
+                                   Grid.Column="0"
+                                   Text="График глюкозы"
+                                   FontFamily="{StaticResource ClashDisplay}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimary}" />
+
+                            <!-- Плашка целевого диапазона -->
+                            <Border Grid.Row="0"
+                                    Grid.Column="1"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource GlucoseNormalBadgeBg}"
+                                    Padding="10,6"
+                                    StrokeShape="RoundRectangle 14">
+                                <Label Text="Цель: 4.0–10.0"
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource GlucoseNormalColor}" />
+                            </Border>
+
+                            <Label Grid.Row="1"
+                                   Grid.Column="0"
+                                   Grid.ColumnSpan="2"
+                                   Text="Плавная линия, мягкая подложка и цветовые точки помогают быстро заметить отклонения."
+                                   Style="{StaticResource SecondaryTextStyle}" />
+                        </Grid>
+
+                        <!-- Область графика с легендой -->
+                        <Border StrokeThickness="0"
+                                BackgroundColor="{DynamicResource ChartBackground}"
+                                StrokeShape="RoundRectangle 20"
+                                Padding="10">
+
+                            <Grid RowDefinitions="Auto,*"
+                                  RowSpacing="10">
+
+                                <!-- Мини-легенда -->
+                                <HorizontalStackLayout Grid.Row="0"
+                                                       Spacing="10"
+                                                       VerticalOptions="Center"
+                                                       HorizontalOptions="Start">
+
+                                    <HorizontalStackLayout Spacing="6"
+                                                           VerticalOptions="Center">
+                                        <BoxView WidthRequest="10"
+                                                 HeightRequest="10"
+                                                 CornerRadius="5"
+                                                 Color="{DynamicResource GlucoseNormalColor}" />
+                                        <Label Text="Норма"
+                                               Style="{StaticResource SecondaryTextStyle}" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="6"
+                                                           VerticalOptions="Center">
+                                        <BoxView WidthRequest="10"
+                                                 HeightRequest="10"
+                                                 CornerRadius="5"
+                                                 Color="{DynamicResource GlucoseWarningColor}" />
+                                        <Label Text="Внимание"
+                                               Style="{StaticResource SecondaryTextStyle}" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="6"
+                                                           VerticalOptions="Center">
+                                        <BoxView WidthRequest="10"
+                                                 HeightRequest="10"
+                                                 CornerRadius="5"
+                                                 Color="{DynamicResource GlucoseDangerColor}" />
+                                        <Label Text="Риск"
+                                               Style="{StaticResource SecondaryTextStyle}" />
+                                    </HorizontalStackLayout>
+
+                                </HorizontalStackLayout>
+
+                                <!-- График / EmptyState -->
+                                <Grid Grid.Row="1">
+
+                                    <GraphicsView x:Name="GlucoseGraphicsView"
+                                                  HeightRequest="250"
+                                                  IsVisible="{Binding ShowEmptyState,
+                                                      Converter={StaticResource InvertedBoolConverter}}"
+                                                  HorizontalOptions="Fill"
+                                                  VerticalOptions="Fill" />
+
+                                    <components:EmptyStateView
+                                        Icon="📊"
+                                        Message="Недостаточно данных для построения графика"
+                                        IsVisible="{Binding ShowEmptyState}"
+                                        HeightRequest="250"
+                                        HorizontalOptions="Fill"
+                                        VerticalOptions="Fill" />
+
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ─────────────────────────────────────────────────────
+                     Блок аналитики
+                     ───────────────────────────────────────────────────── -->
+                <Border Style="{StaticResource GlassPanelStyle}">
+                    <VerticalStackLayout Spacing="14">
+
+                        <Label Text="Ключевая аналитика"
+                               FontFamily="{StaticResource ClashDisplay}"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimary}" />
+
+                        <!-- Time in Range -->
+                        <VerticalStackLayout Spacing="8">
+
+                            <Label Text="{Binding TimeInRangeText}"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimary}" />
+
+                            <!--
+                                Полоса TIR: трек + заливка через Grid с HorizontalOptions="Start".
+                                TimeInRangeWidth — double из ViewModel (0..ширина экрана минус паддинги).
+                            -->
+                            <Grid HeightRequest="8"
+                                  HorizontalOptions="Fill">
+
+                                <!-- Трек -->
+                                <Border StrokeThickness="0"
+                                        BackgroundColor="{DynamicResource ProgressTrackBackground}"
+                                        StrokeShape="RoundRectangle 999"
+                                        HorizontalOptions="Fill"
+                                        VerticalOptions="Fill" />
+
+                                <!-- Заливка -->
+                                <Border StrokeThickness="0"
+                                        BackgroundColor="{DynamicResource GlucoseNormalColor}"
+                                        StrokeShape="RoundRectangle 999"
+                                        HorizontalOptions="Start"
+                                        VerticalOptions="Fill"
+                                        WidthRequest="{Binding TimeInRangeWidth}" />
+
+                            </Grid>
+
+                            <Label Text="Чем выше показатель времени в диапазоне, тем спокойнее и предсказуемее динамика."
+                                   Style="{StaticResource SecondaryTextStyle}" />
+
+                        </VerticalStackLayout>
+
+                        <!-- Разделитель -->
+                        <BoxView HeightRequest="1"
+                                 Color="{DynamicResource DividerColor}" />
+
+                        <!-- Сетка основных метрик -->
+                        <Grid ColumnDefinitions="*,*"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="12"
+                              RowSpacing="12">
+
+                            <Border Grid.Row="0" Grid.Column="0"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource SurfaceSubtle}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Среднее"
+                                           Style="{StaticResource MetricCaptionStyle}" />
+                                    <Label Text="{Binding AverageGlucose, StringFormat='{0:F1} ммоль/л'}"
+                                           Style="{StaticResource MetricValueStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border Grid.Row="0" Grid.Column="1"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource SurfaceSubtle}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Min / Max"
+                                           Style="{StaticResource MetricCaptionStyle}" />
+                                    <Label Text="{Binding MinMaxGlucose}"
+                                           Style="{StaticResource MetricValueStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="0"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource SurfaceSubtle}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Измерений"
+                                           Style="{StaticResource MetricCaptionStyle}" />
+                                    <Label Text="{Binding MeasurementCount, StringFormat='{0} шт'}"
+                                           Style="{StaticResource MetricValueStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="1"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource SurfaceSubtle}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Вариабельность"
+                                           Style="{StaticResource MetricCaptionStyle}" />
+                                    <Label Text="{Binding StandardDeviation, StringFormat='{0:F2}'}"
+                                           Style="{StaticResource MetricValueStyle}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                        </Grid>
+
+                        <!-- Разделитель -->
+                        <BoxView HeightRequest="1"
+                                 Color="{DynamicResource DividerColor}" />
+
+                        <!-- Эпизоды отклонений -->
+                        <Grid ColumnDefinitions="*,*"
+                              ColumnSpacing="12">
+
+                            <!-- Гипо -->
+                            <Border Grid.Column="0"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource GlucoseDangerBadgeBg}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Гипо эпизоды"
+                                           FontFamily="{StaticResource Satoshi}"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource GlucoseDangerColor}" />
+                                    <Label Text="{Binding HypoEpisodes, StringFormat='{0}'}"
+                                           FontFamily="{StaticResource ClashDisplay}"
+                                           FontSize="24"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource GlucoseDangerColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <!-- Гипер -->
+                            <Border Grid.Column="1"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{DynamicResource GlucoseWarningBadgeBg}"
+                                    StrokeShape="RoundRectangle 18"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Гипер эпизоды"
+                                           FontFamily="{StaticResource Satoshi}"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource GlucoseWarningColor}" />
+                                    <Label Text="{Binding HyperEpisodes, StringFormat='{0}'}"
+                                           FontFamily="{StaticResource ClashDisplay}"
+                                           FontSize="24"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource GlucoseWarningColor}" />
+                                </VerticalStackLayout>
+                            </Border>
+
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ─────────────────────────────────────────────────────
+                     Экспорт отчёта
+                     ───────────────────────────────────────────────────── -->
+                <Border Style="{StaticResource GlassPanelStyle}">
+                    <VerticalStackLayout Spacing="14">
+
+                        <Label Text="Экспорт отчёта"
+                               FontFamily="{StaticResource ClashDisplay}"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimary}" />
+
+                        <Label Text="Подготовь краткий или подробный отчёт для себя, родителей или врача."
+                               Style="{StaticResource SecondaryTextStyle}" />
+
+                        <HorizontalStackLayout Spacing="10"
+                                               HorizontalOptions="Center">
+
+                            <Button Text="Краткий отчёт"
+                                    Command="{Binding ExportToPdfCommand}"
+                                    CommandParameter="false"
+                                    FontFamily="{StaticResource Satoshi}"
+                                    FontSize="13"
+                                    FontAttributes="Bold"
+                                    TextColor="{DynamicResource TextOnPrimary}"
+                                    BackgroundColor="{DynamicResource ButtonSecondaryBackground}"
+                                    Padding="18,10"
+                                    CornerRadius="16"
+                                    HeightRequest="44" />
+
+                            <Button Text="Подробный отчёт"
+                                    Command="{Binding ExportToPdfCommand}"
+                                    CommandParameter="true"
+                                    FontFamily="{StaticResource Satoshi}"
+                                    FontSize="13"
+                                    FontAttributes="Bold"
+                                    TextColor="{DynamicResource TextOnPrimary}"
+                                    BackgroundColor="{DynamicResource ButtonPrimaryBackground}"
+                                    Padding="18,10"
+                                    CornerRadius="16"
+                                    HeightRequest="44" />
+
+                        </HorizontalStackLayout>
+
+                        <Label Text="Отчёт удобно отправить эндокринологу или сохранить для сравнения динамики."
+                               HorizontalOptions="Center"
+                               HorizontalTextAlignment="Center"
+                               Style="{StaticResource SecondaryTextStyle}" />
+
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- ─────────────────────────────────────────────────────
+             Оверлей загрузки
+             ───────────────────────────────────────────────────── -->
+        <Border IsVisible="{Binding IsLoading}"
+                StrokeThickness="0"
+                BackgroundColor="{DynamicResource OverlayBackground}"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill">
+
+            <VerticalStackLayout HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="12">
+
+                <Border StrokeThickness="0"
+                        BackgroundColor="{DynamicResource SurfaceCard}"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="20,18">
+
+                    <VerticalStackLayout Spacing="10"
+                                         HorizontalOptions="Center">
+
+                        <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                           Color="{DynamicResource GlucoseNormalColor}" />
+
+                        <Label Text="Загрузка графика..."
+                               FontFamily="{StaticResource Satoshi}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource TextPrimary}"
+                               HorizontalOptions="Center" />
+
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </Border>
+
+    </Grid>
+</pages:SwipeablePage>

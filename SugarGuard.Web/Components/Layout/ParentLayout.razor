@@ -1,0 +1,410 @@
+@* Корневой layout для родительского портала *@
+
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+
+@inject IJSRuntime JS
+@inject JwtAuthStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+@* первый фокусируемый элемент на странице *@
+<a href="#main-content" class="skip-link">Перейти к содержимому</a>
+
+<div class="shell @(_sidebarOpen ? "shell--sidebar-open" : "")">
+
+    @* Боковая панель навигации *@
+    <aside class="sidebar" aria-label="Боковая навигация">
+
+        @* Логотип и название портала *@
+        <div class="sidebar-brand">
+            @* SVG-логотип *@
+            <svg class="sidebar-brand__logo"
+                 width="32" height="32"
+                 viewBox="0 0 32 32"
+                 fill="none"
+                 aria-hidden="true">
+                <path d="M16 4C16 4 8 12.5 8 18.5C8 22.642 11.582 26 16 26C20.418 26 24 22.642 24 18.5C24 12.5 16 4 16 4Z"
+                      fill="var(--sg-primary)" opacity="0.9" />
+                <path d="M10 19 L13 16 L15.5 21 L18 14 L20.5 19 L23 19"
+                      stroke="white" stroke-width="1.5"
+                      stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <div class="sidebar-brand__text">
+                <span class="sidebar-brand__title">SugarGuard</span>
+                <span class="sidebar-brand__subtitle">Кабинет родителя</span>
+            </div>
+        </div>
+
+        @* Основное меню навигации *@
+        <nav class="menu" role="navigation" aria-label="Основное меню">
+
+            @* Дашборд / Обзор *@
+            <NavLink href="/parent/dashboard"
+                     class="menu-link"
+                     ActiveClass="menu-link--active"
+                     Match="NavLinkMatch.All">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                <span>Обзор</span>
+            </NavLink>
+
+            @* История измерений *@
+            <NavLink href="/parent/dashboard?tab=measurements"
+                     class="menu-link"
+                     ActiveClass="menu-link--active">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                <span>Измерения</span>
+            </NavLink>
+
+            @* Экспорт отчётов *@
+            <NavLink href="/parent/dashboard?tab=measurements"
+                     class="menu-link"
+                     ActiveClass="menu-link--active">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Экспорт</span>
+            </NavLink>
+
+            @* Рюкзак перекусов *@
+            <NavLink href="/parent/dashboard?tab=backpack"
+                     class="menu-link"
+                     ActiveClass="menu-link--active">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <path d="M16 6l-4-4-4 4" />
+                    <path d="M4 6h16v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                    <path d="M8 6v4a4 4 0 0 0 8 0V6" />
+                </svg>
+                <span>Рюкзак</span>
+            </NavLink>
+
+            @* Питание и нормы ХЕ *@
+            <NavLink href="/parent/dashboard?tab=doctor"
+                     class="menu-link"
+                     ActiveClass="menu-link--active">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <path d="M3 2l1.5 15h15L21 2" />
+                    <path d="M3 9h18" />
+                    <path d="M12 2v7" />
+                </svg>
+                <span>Питание</span>
+            </NavLink>
+
+            @* Настройки профиля ребёнка *@
+            <NavLink href="/parent/dashboard?tab=settings"
+                     class="menu-link"
+                     ActiveClass="menu-link--active">
+                <svg class="menu-link__icon" width="18" height="18"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span>Настройки</span>
+            </NavLink>
+
+            @* Раздел администратора *@
+            <AuthorizeView Roles="Admin,SupportAdmin">
+                <Authorized>
+                    <div class="menu-divider" role="separator" aria-hidden="true"></div>
+                    <NavLink href="/admin/users"
+                             class="menu-link menu-link--admin"
+                             ActiveClass="menu-link--active">
+                        <svg class="menu-link__icon" width="18" height="18"
+                             viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round"
+                             aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span>Администрирование</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
+        </nav>
+
+        @* Нижняя часть sidebar *@
+        <div class="sidebar-footer">
+            <span class="sidebar-footer__version">SugarGuard Web v1.0</span>
+        </div>
+
+    </aside>
+
+    @* Основная колонка *@
+    <div class="main-column">
+
+        <header class="topbar">
+
+            @* Кнопка-гамбургер для мобильных устройств *@
+            <button class="topbar__hamburger"
+                    @onclick="ToggleSidebar"
+                    aria-label="@(_sidebarOpen ? "Закрыть меню" : "Открыть меню")"
+                    aria-expanded="@_sidebarOpen.ToString().ToLower()"
+                    aria-controls="sidebar">
+                @if (_sidebarOpen)
+                {
+                    @* Иконка закрытия *@
+                    <svg width="20" height="20" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                }
+                else
+                {
+                    @* Иконка гамбургера (три полоски) *@
+                    <svg width="20" height="20" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         aria-hidden="true">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                }
+            </button>
+
+            @* Заголовок портала в topbar *@
+            <div class="brand-wrap">
+                <div class="brand">Кабинет наблюдения</div>
+                <div class="brand-subtitle">Глюкоза, события и рекомендации</div>
+            </div>
+
+            @* Панель действий в правой части topbar *@
+            <div class="topbar__actions">
+
+                @* Кнопка переключения темы *@
+                <button id="theme-toggle-btn"
+                        class="topbar__icon-btn"
+                        data-theme-toggle
+                        aria-label="@(_isDark ? "Переключить на светлую тему" : "Переключить на тёмную тему")"
+                        aria-pressed="@_isDark.ToString().ToLower()"
+                        title="Сменить тему оформления">
+                    @if (_isDark)
+                    {
+                        @* Иконка солнца *@
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                    }
+                    else
+                    {
+                        @* Иконка луны *@
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                    }
+                </button>
+
+                @* Кнопка выхода из системы *@
+                <button class="topbar__icon-btn topbar__icon-btn--logout"
+                        @onclick="SignOutAsync"
+                        aria-label="Выйти из кабинета родителя"
+                        title="Выйти">
+                    <svg width="20" height="20" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    <span class="topbar__icon-btn__label">Выйти</span>
+                </button>
+
+            </div>
+        </header>
+
+        @* Оверлей для мобильных устройств *@
+        @if (_sidebarOpen)
+        {
+            <div class="sidebar-overlay"
+                 @onclick="ToggleSidebar"
+                 aria-hidden="true">
+            </div>
+        }
+
+        @* Основная область контента *@
+        <main class="content" id="main-content" role="main">
+            @Body
+        </main>
+
+    </div>
+</div>
+
+@code {
+
+    // Состояние компонента 
+    private bool _isDark = false; // Флаг текущей темы: true = тёмная, false = светлая
+
+    private bool _sidebarOpen = false; // Флаг видимости sidebar на мобильных устройствах
+
+    private DotNetObjectReference<ParentLayout>? _dotNetRef; // DotNetObjectReference для передачи в JS Interop
+
+    // Жизненный цикл компонента
+    /// <summary>
+    /// вызывается после первого рендера на клиенте
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            // получаем текущее состояние темы из theme.js
+            var state = await JS.InvokeAsync<ThemeState>("SugarGuardTheme.getState");
+            _isDark = state.IsDark;
+
+            // обновляем Blazor-компонент, чтобы иконка совпала с реальной темой
+            StateHasChanged();
+
+            // передаём id кнопки в theme.js для инициализации обработчика click
+            await JS.InvokeVoidAsync("SugarGuardTheme.initToggleButton", "theme-toggle-btn");
+
+            // регистрируем .NET колбэк для получения уведомлений о смене темы
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync(
+                "SugarGuardTheme.subscribe",
+                "ParentLayout",    // уникальный id этого компонента
+                _dotNetRef,        // ссылка для вызова метода ниже
+                nameof(OnThemeChangedFromJs) // имя [JSInvokable] метода
+            );
+        }
+        catch (JSException ex)
+        {
+            // theme.js не загружен или имеет ошибку — работаем с дефолтной светлой темой
+            Console.Error.WriteLine($"[ParentLayout] Ошибка JS Interop при инициализации темы: {ex.Message}");
+        }
+    }
+
+    // JS Interop колбэк 
+    /// <summary>
+    /// Вызывается из theme.js при смене темы 
+    /// </summary>
+    [JSInvokable]
+    public void OnThemeChangedFromJs(string theme)
+    {
+        var newIsDark = theme == "dark";
+
+        if (_isDark == newIsDark)
+        {
+            return;
+        }
+
+        _isDark = newIsDark;
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Обработчики UI 
+    /// <summary>
+    /// Выход из системы
+    /// </summary>
+    private async Task SignOutAsync()
+    {
+        await AuthStateProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", forceLoad: true);
+    }
+
+    /// <summary>
+    /// Переключает видимость sidebar на мобильных устройствах
+    /// </summary>
+    private void ToggleSidebar()
+    {
+        _sidebarOpen = !_sidebarOpen;
+    }
+
+    // Dispose
+    /// <summary>
+    /// Освобождаем ресурсы при уничтожении компонента
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SugarGuardTheme.unsubscribe", "ParentLayout");
+        }
+        catch (JSException)
+        {
+            // JS-контекст недоступен при выгрузке страницы
+        }
+        catch (TaskCanceledException)
+        {
+            // Blazor отменил задачу при навигации
+        }
+        finally
+        {
+            _dotNetRef?.Dispose();
+        }
+    }
+
+    // Вспомогательные типы 
+    /// <summary>
+    /// DTO для десериализации ответа SugarGuardTheme.getState() из JavaScript
+    /// </summary>
+    private sealed class ThemeState
+    {
+        public string Theme { get; set; } = "light";
+
+        public bool IsDark { get; set; }
+
+        public string? Preference { get; set; }
+
+        public string SystemTheme { get; set; } = "light";
+
+        public bool IsFollowingSystem { get; set; }
+    }
+}

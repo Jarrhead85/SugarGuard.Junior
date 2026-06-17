@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Base scalar tokens -->
+    <x:Int32 x:Key="RadiusSmValue">14</x:Int32>
+    <x:Int32 x:Key="RadiusMdValue">18</x:Int32>
+    <x:Int32 x:Key="RadiusLgValue">24</x:Int32>
+    <x:Int32 x:Key="RadiusXlValue">32</x:Int32>
+
+    <!-- 2. Base CornerRadius tokens -->
+    <CornerRadius x:Key="RadiusSm">14</CornerRadius>
+    <CornerRadius x:Key="RadiusMd">18</CornerRadius>
+    <CornerRadius x:Key="RadiusLg">24</CornerRadius>
+    <CornerRadius x:Key="RadiusXl">32</CornerRadius>
+
+    <!-- 3. Semantic aliases for components -->
+    <!-- Buttons -->
+    <x:Int32 x:Key="ButtonRadiusValue">18</x:Int32>
+    <CornerRadius x:Key="ButtonRadius">18</CornerRadius>
+
+    <!-- Cards -->
+    <x:Int32 x:Key="CardRadiusValue">18</x:Int32>
+    <CornerRadius x:Key="CardRadius">18</CornerRadius>
+
+    <!-- Large / hero cards -->
+    <x:Int32 x:Key="HeroCardRadiusValue">24</x:Int32>
+    <CornerRadius x:Key="HeroCardRadius">24</CornerRadius>
+
+    <!-- Chips / pills -->
+    <x:Int32 x:Key="ChipRadiusValue">32</x:Int32>
+    <CornerRadius x:Key="ChipRadius">32</CornerRadius>
+
+    <!-- Dialogs / modal blocks -->
+    <x:Int32 x:Key="ModalRadiusValue">24</x:Int32>
+    <CornerRadius x:Key="ModalRadius">24</CornerRadius>
+
+    <!-- Sheets / large overlays -->
+    <x:Int32 x:Key="SheetRadiusValue">32</x:Int32>
+    <CornerRadius x:Key="SheetRadius">32</CornerRadius>
+
+</ResourceDictionary>

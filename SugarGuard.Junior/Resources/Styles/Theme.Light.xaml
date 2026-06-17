@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  SugarGuard — Theme.Light.xaml                              ║
+    ║  Светлая тема. Все DynamicResource-токены приложения.       ║
+    ║                                                             ║
+    ║  Переключается программно через App.xaml.cs SwitchTheme().  ║
+    ║  НЕ используй AppThemeBinding в этом файле — это нарушает   ║
+    ║  логику переключения.                                       ║
+    ║                                                             ║
+    ║  Группы токенов:                                            ║
+    ║    1. Фоны и поверхности                                    ║
+    ║    2. Типографика                                           ║
+    ║    3. Границы, разделители, тени                            ║
+    ║    4. Акцентные и брендовые цвета                           ║
+    ║    5. Семантика глюкозы                                     ║
+    ║    6. Кнопки                                                ║
+    ║    7. График и аналитика                                    ║
+    ║    8. Оверлеи и модальные окна                              ║
+    ║    9. Статус синхронизации                                  ║
+    ║   10. Навигация и Tab Bar                                   ║
+    ╚══════════════════════════════════════════════════════════════╝
+    -->
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         1. ФОНЫ И ПОВЕРХНОСТИ
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Фон страниц -->
+    <Color x:Key="BackgroundPage">#F4F7FB</Color>
+    <!-- Чуть темнее фон для вложенных секций -->
+    <Color x:Key="BackgroundSubtle">#E9EFF9</Color>
+
+    <!-- Основная glass-карточка: белый ~84% непрозрачности -->
+    <Color x:Key="SurfaceCard">#D6FFFFFF</Color>
+    <!-- Более непрозрачная поверхность (модалки, боттомшиты): ~95% -->
+    <Color x:Key="SurfaceElevated">#F2FFFFFF</Color>
+    <!-- Полностью белая поверхность (инпуты, вложенные блоки) -->
+    <Color x:Key="SurfaceSolid">#FFFFFF</Color>
+    <!-- Очень лёгкий оттенок для вложенных карточек внутри glass-панели -->
+    <Color x:Key="SurfaceSubtle">#99FFFFFF</Color>
+    <!-- Фон поля ввода -->
+    <Color x:Key="SurfaceInput">#F2FFFFFF</Color>
+    <!-- Фон выделенного/активного элемента списка -->
+    <Color x:Key="SurfaceSelected">#1F1B8E8B</Color>
+    <!-- Фон области графика -->
+    <Color x:Key="ChartBackground">#F7FBFF</Color>
+    <!-- Трек прогресс-бара (TIR, загрузка) -->
+    <Color x:Key="ProgressTrackBackground">#E9EFF9</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         2. ТИПОГРАФИКА
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Основной текст — заголовки, значения -->
+    <Color x:Key="TextPrimary">#16213E</Color>
+    <!-- Вторичный текст — подписи, описания -->
+    <Color x:Key="TextSecondary">#667694</Color>
+    <!-- Приглушённый текст — eyebrow, метки -->
+    <Color x:Key="TextMuted">#667694</Color>
+    <!-- Очень тихий текст — placeholder, caption -->
+    <Color x:Key="TextFaint">#96A2B8</Color>
+    <!-- Текст на тёмном/цветном фоне (кнопки, бейджи) -->
+    <Color x:Key="TextOnPrimary">#FFFFFF</Color>
+    <!-- Текст плейсхолдеров в полях ввода -->
+    <Color x:Key="TextPlaceholder">#96A2B8</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         3. ГРАНИЦЫ, РАЗДЕЛИТЕЛИ, ТЕНИ
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Граница glass-карточки — очень тонкая, тёмная -->
+    <Color x:Key="SurfaceCardStroke">#1A16213E</Color>
+    <!-- Граница полей ввода -->
+    <Color x:Key="InputBorderColor">#2616213E</Color>
+    <!-- Граница активного поля ввода (focus) -->
+    <Color x:Key="InputBorderFocused">#1B8E8B</Color>
+    <!-- Граница ошибки в поле ввода -->
+    <Color x:Key="InputBorderError">#DB5967</Color>
+    <!-- Разделительная линия (BoxView/Border) -->
+    <Color x:Key="DividerColor">#1416213E</Color>
+    <!-- Цвет кисти тени (Shadow.Brush) -->
+    <Color x:Key="ShadowBrush">#16213E</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         4. АКЦЕНТНЫЕ И БРЕНДОВЫЕ ЦВЕТА
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Первичный бренд-цвет: бирюза -->
+    <Color x:Key="BrandPrimary">#1B8E8B</Color>
+    <!-- Светлый вариант бирюзы (иконки, вторичные акценты) -->
+    <Color x:Key="BrandSecondary">#56D0BF</Color>
+    <!-- Синий (экспорт, ссылки) -->
+    <Color x:Key="BrandBlue">#2678D9</Color>
+    <!-- Фон бейджа с брендовым акцентом -->
+    <Color x:Key="BrandAccentBadgeBg">#1F1B8E8B</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         5. СЕМАНТИКА ГЛЮКОЗЫ
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Норма — зелёный -->
+    <Color x:Key="GlucoseNormalColor">#37A563</Color>
+    <!-- Внимание — жёлто-оранжевый -->
+    <Color x:Key="GlucoseWarningColor">#E3A32B</Color>
+    <!-- Риск / опасность — красный -->
+    <Color x:Key="GlucoseDangerColor">#DB5967</Color>
+
+    <!-- Фоны семантических бейджей (12% прозрачность) -->
+    <Color x:Key="GlucoseNormalBadgeBg">#1F37A563</Color>
+    <Color x:Key="GlucoseWarningBadgeBg">#1FE3A32B</Color>
+    <Color x:Key="GlucoseDangerBadgeBg">#1FDB5967</Color>
+
+    <!-- Тёмные варианты текста внутри цветных бейджей (для контраста на светлом фоне) -->
+    <Color x:Key="GlucoseNormalTextDark">#216E43</Color>
+    <Color x:Key="GlucoseWarningTextDark">#8B5C00</Color>
+    <Color x:Key="GlucoseDangerTextDark">#A43846</Color>
+
+    <!-- Цвета точек/линий на графике (совпадают с GlucoseXxxColor, дублируем для явности) -->
+    <Color x:Key="ChartLineNormal">#37A563</Color>
+    <Color x:Key="ChartLineWarning">#E3A32B</Color>
+    <Color x:Key="ChartLineDanger">#DB5967</Color>
+
+    <!-- Цвета в ChartPageViewModel / GlucoseChartDrawable (SKColor парсит hex без #) -->
+    <!-- Используются как DynamicResource в code-behind через GetColorFromResource() -->
+    <Color x:Key="GlucoseHeroNormal">#37A563</Color>
+    <Color x:Key="GlucoseHeroWarning">#E3A32B</Color>
+    <Color x:Key="GlucoseHeroDanger">#DB5967</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         6. КНОПКИ
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Primary-кнопка: бирюза (основное действие) -->
+    <Color x:Key="ButtonPrimaryBackground">#1B8E8B</Color>
+    <Color x:Key="ButtonPrimaryText">#FFFFFF</Color>
+
+    <!-- Secondary-кнопка: синий (дополнительное действие) -->
+    <Color x:Key="ButtonSecondaryBackground">#2678D9</Color>
+    <Color x:Key="ButtonSecondaryText">#FFFFFF</Color>
+
+    <!-- Ghost/outlined-кнопка -->
+    <Color x:Key="ButtonGhostBackground">#00000000</Color>
+    <Color x:Key="ButtonGhostText">#1B8E8B</Color>
+    <Color x:Key="ButtonGhostBorder">#1B8E8B</Color>
+
+    <!-- Деструктивная кнопка (удаление) -->
+    <Color x:Key="ButtonDestructiveBackground">#DB5967</Color>
+    <Color x:Key="ButtonDestructiveText">#FFFFFF</Color>
+
+    <!-- Неактивный filter-chip -->
+    <Color x:Key="ChipInactiveBackground">#E9EFF9</Color>
+    <Color x:Key="ChipInactiveText">#667694</Color>
+    <!-- Активный filter-chip -->
+    <Color x:Key="ChipActiveBackground">#1B8E8B</Color>
+    <Color x:Key="ChipActiveText">#FFFFFF</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         7. ГРАФИК И АНАЛИТИКА (ChartPage, MainPage hero)
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Фон области графика (внутри Border) — уже объявлен выше как ChartBackground -->
+
+    <!-- Фон hero-карточки с текущим значением глюкозы -->
+    <Color x:Key="HeroCardBackground">#F2FFFFFF</Color>
+    <!-- Фон строки в таблице истории -->
+    <Color x:Key="HistoryRowBackground">#F2FFFFFF</Color>
+    <!-- Фон альтернативной строки -->
+    <Color x:Key="HistoryRowAlternateBackground">#E9EFF9</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         8. ОВЕРЛЕИ И МОДАЛЬНЫЕ ОКНА
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Полупрозрачный фон оверлея загрузки / блокирующего экрана -->
+    <Color x:Key="OverlayBackground">#CCF4F7FB</Color>
+    <!-- Фон скрим-подложки под Bottom Sheet / модалкой -->
+    <Color x:Key="ScrimBackground">#4016213E</Color>
+    <!-- Фон самого Bottom Sheet / модального окна -->
+    <Color x:Key="BottomSheetBackground">#F2FFFFFF</Color>
+    <!-- Ручка (handle) Bottom Sheet -->
+    <Color x:Key="BottomSheetHandle">#2616213E</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         9. СТАТУС СИНХРОНИЗАЦИИ
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Синхронизировано -->
+    <Color x:Key="SyncStatusSynced">#37A563</Color>
+    <!-- Ожидает синхронизации -->
+    <Color x:Key="SyncStatusPending">#2678D9</Color>
+    <!-- Ошибка синхронизации -->
+    <Color x:Key="SyncStatusError">#DB5967</Color>
+    <!-- Фоны бейджей синхронизации -->
+    <Color x:Key="SyncStatusSyncedBg">#1F37A563</Color>
+    <Color x:Key="SyncStatusPendingBg">#1F2678D9</Color>
+    <Color x:Key="SyncStatusErrorBg">#1FDB5967</Color>
+
+
+    <!-- ══════════════════════════════════════════════════════════
+         10. НАВИГАЦИЯ И TAB BAR
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- Фон таб-бара -->
+    <Color x:Key="TabBarBackground">#D6FFFFFF</Color>
+    <!-- Граница таб-бара -->
+    <Color x:Key="TabBarBorder">#1A16213E</Color>
+    <!-- Иконка/текст активного таба -->
+    <Color x:Key="TabBarActiveColor">#1B8E8B</Color>
+    <!-- Иконка/текст неактивного таба -->
+    <Color x:Key="TabBarInactiveColor">#96A2B8</Color>
+    <!-- Фон пузырька активного таба -->
+    <Color x:Key="TabBarActivePillBackground">#1F1B8E8B</Color>
+
+    <!-- ══════════════════════════════════════════════════════════
+        P1.6/P1.4 — АЛИАСЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+        ══════════════════════════════════════════════════════════ -->
+    <Color x:Key="Primary">#1B8E8B</Color>
+    <Color x:Key="PrimaryStrong">#156E6B</Color>
+    <Color x:Key="InteractivePrimary">#1B8E8B</Color>
+    <Color x:Key="Danger">#DB5967</Color>
+    <Color x:Key="DangerSoft">#1FDB5967</Color>
+    <Color x:Key="Warning">#E3A32B</Color>
+    <Color x:Key="WarningSoft">#1FE3A32B</Color>
+    <Color x:Key="Success">#37A563</Color>
+    <Color x:Key="SuccessSoft">#1F37A563</Color>
+    <Color x:Key="SurfacePrimarySoft">#1F1B8E8B</Color>
+    <Color x:Key="SurfaceOffset">#E9EFF9</Color>
+    <Color x:Key="SurfaceCardStrong">#FFFFFF</Color>
+    <Color x:Key="BorderDefault">#1A16213E</Color>
+    <Color x:Key="TextFaintColor">#96A2B8</Color>
+    <Color x:Key="White">#FFFFFF</Color>
+    <Color x:Key="Secondary">#56D0BF</Color>
+    <Color x:Key="Gray300">#D8E1EE</Color>
+    <Color x:Key="Gray600">#96A2B8</Color>
+    <Color x:Key="Gray900">#667694</Color>
+    <Color x:Key="Gray950">#16213E</Color>
+    <Color x:Key="TabBarBackgroundColor">#D6FFFFFF</Color>
+    <Color x:Key="TabBarSelectedColor">#1B8E8B</Color>
+    <Color x:Key="TabBarUnselectedColor">#96A2B8</Color>
+
+</ResourceDictionary>

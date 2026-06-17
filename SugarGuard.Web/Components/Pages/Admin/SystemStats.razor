@@ -1,0 +1,457 @@
+﻿@page "/admin/system"
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+@using System.Globalization
+@using System.Timers
+
+@inject SugarGuardApiService Api
+@inject ILogger<SystemStats> Logger
+
+<PageTitle>Состояние системы — SugarGuard Admin</PageTitle>
+
+<div class="system-stats-page">
+
+    <PageHeader Eyebrow="Администрирование"
+                Title="Состояние системы"
+                Subtitle="Мониторинг ключевых метрик. Данные обновляются автоматически каждые 30 секунд.">
+        <TrailingContent>
+            <span class="last-updated-label">
+                @(_lastUpdated.HasValue
+                                ? $"Обновлено: {_lastUpdated.Value.ToLocalTime():HH:mm:ss}"
+                                : "Ожидание данных…")
+            </span>
+            <button class="btn btn--secondary"
+                    type="button"
+                    @onclick="RefreshAllAsync"
+                    disabled="@_isLoading">
+                Обновить сейчас
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @* Глобальная ошибка *@
+    @if (_statsError is not null)
+    {
+        <StateBanner Kind="StateBanner.BannerKind.Error"
+                     Title="Не удалось загрузить статистику"
+                     Message="@_statsError"
+                     OnClose="() => _statsError = null" />
+    }
+
+    @* Полоска здоровья API *@
+    <div class="health-strip @GetHealthStripCss()" role="status" aria-live="polite">
+        <div class="health-strip__dot" aria-hidden="true"></div>
+        <span class="health-strip__label">@GetHealthLabel()</span>
+        @if (_health is not null)
+        {
+            <span class="health-strip__detail">
+                БД: <strong>@(_health.Database ? "OK" : "Недоступна")</strong>
+                &nbsp;·&nbsp;
+                Сервер: <strong class="tabular-nums">@FormatServerTime(_health.ServerUtc)</strong>
+            </span>
+        }
+    </div>
+
+    @* KPI-сетка *@
+    @if (_isLoading && _stats is null)
+    {
+        <div class="kpi-grid" aria-busy="true" aria-label="Загрузка метрик">
+            @for (var i = 0; i < 8; i++)
+            {
+                <div class="kpi-card kpi-card--skeleton">
+                    <div class="skeleton skeleton--label"></div>
+                    <div class="skeleton skeleton--value"></div>
+                    <div class="skeleton skeleton--hint"></div>
+                </div>
+            }
+        </div>
+    }
+    else if (_stats is not null)
+    {
+        <div class="kpi-grid" aria-label="Системные метрики">
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Пользователей</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.TotalUsers)</strong>
+                <span class="kpi-card__hint">зарегистрировано</span>
+            </div>
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Детей</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.TotalChildren)</strong>
+                <span class="kpi-card__hint">профилей детей</span>
+            </div>
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Измерений</span>
+                <strong class="kpi-card__value">@FormatLong(_stats.TotalMeasurements)</strong>
+                <span class="kpi-card__hint">всего в базе</span>
+            </div>
+
+            <div class="kpi-card @(_stats.HangfireActiveJobs > 0 ? "kpi-card--warning" : string.Empty)"
+                 role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Hangfire Jobs</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.HangfireActiveJobs)</strong>
+                <span class="kpi-card__hint">активных задач</span>
+            </div>
+
+            <div class="kpi-card @(_stats.PendingSyncItems > 0 ? "kpi-card--warning" : string.Empty)"
+                 role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Ожидают синхр.</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.PendingSyncItems)</strong>
+                <span class="kpi-card__hint">элементов sync</span>
+            </div>
+
+            <div class="kpi-card @(_stats.UnresolvedConflicts > 0 ? "kpi-card--danger" : string.Empty)"
+                 role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Конфликты</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.UnresolvedConflicts)</strong>
+                <span class="kpi-card__hint">не разрешено</span>
+            </div>
+
+            <div class="kpi-card @(_stats.PendingExportJobs > 0 ? "kpi-card--warning" : string.Empty)"
+                 role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Экспорт в очереди</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.PendingExportJobs)</strong>
+                <span class="kpi-card__hint">ожидают обработки</span>
+            </div>
+
+            <div class="kpi-card kpi-card--success" role="article">
+                <span class="kpi-card__icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </span>
+                <span class="kpi-card__label">Экспорт сегодня</span>
+                <strong class="kpi-card__value">@FormatInt(_stats.CompletedExportJobsToday)</strong>
+                <span class="kpi-card__hint">завершено за сутки</span>
+            </div>
+
+        </div>
+    }
+
+    @* Детали health-check *@
+    <div class="section-card">
+        <SectionHeader Title="Health Check">
+            <TrailingContent>
+                <span class="caption">GET /api/admin/systemhealth</span>
+            </TrailingContent>
+        </SectionHeader>
+
+        @if (_healthError is not null)
+        {
+            <StateBanner Kind="StateBanner.BannerKind.Warning"
+                         Title="Health-endpoint недоступен"
+                         Message="@_healthError"
+                         OnClose="() => _healthError = null" />
+        }
+        else if (_health is null && _isLoading)
+        {
+            <div class="health-skeleton">
+                <div class="skeleton skeleton--health-row"></div>
+                <div class="skeleton skeleton--health-row"></div>
+            </div>
+        }
+        else if (_health is not null)
+        {
+            <div class="health-checks">
+                <div class="health-row">
+                    <span class="health-row__name">API</span>
+                    <span class="health-row__badge @(_health.Status == "Healthy" ? "badge--success" : "badge--danger")">
+                        @_health.Status
+                    </span>
+                </div>
+
+                <div class="health-row">
+                    <span class="health-row__name">База данных</span>
+                    <span class="health-row__badge @(_health.Database ? "badge--success" : "badge--danger")">
+                        @(_health.Database ? "Доступна" : "Недоступна")
+                    </span>
+                </div>
+
+                <div class="health-row">
+                    <span class="health-row__name">Время сервера (UTC)</span>
+                    <span class="health-row__value tabular-nums">@FormatServerTime(_health.ServerUtc)</span>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* Строка автообновления *@
+    <div class="refresh-info" role="status" aria-live="polite">
+        <svg class="refresh-info__icon" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span>
+            Автообновление каждые <strong>30 секунд</strong>.
+            Следующее через: <strong class="tabular-nums">@_nextRefreshInSeconds с</strong>
+        </span>
+    </div>
+
+</div>
+
+@code {
+    // Состояние    
+    private AdminSystemStatsVm? _stats; // Системные метрики
+
+    private AdminHealthVm? _health; // Результат health-check
+
+    private bool _isLoading = true; // Флаг загрузки
+
+    private string? _statsError; // Сообщение ошибки загрузки метрик
+
+    private string? _healthError; // Сообщение ошибки health-endpoint
+
+    private DateTime? _lastUpdated; // Время последнего успешного обновления
+
+    // Таймеры    
+    private Timer? _refreshTimer; // Таймер автообновления данных
+
+    private Timer? _countdownTimer; // Таймер обратного отсчёта до следующего обновления
+
+    private int _nextRefreshInSeconds = 30; // Секунд до следующего автообновления
+
+    private const int RefreshIntervalMs = 30_000;
+    private const int CountdownIntervalMs = 1_000;
+
+    // Жизненный цикл 
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAllAsync();
+        StartTimers();
+    }
+
+    /// <inheritdoc />
+    public void Dispose() => StopTimers();
+
+    // Таймеры 
+
+    /// <summary>
+    /// Запускает таймер автообновления и таймер обратного отсчёта
+    /// </summary>
+    private void StartTimers()
+    {
+        _refreshTimer = new Timer(RefreshIntervalMs) { AutoReset = true, Enabled = true };
+        _refreshTimer.Elapsed += OnRefreshTimerElapsed;
+
+        _countdownTimer = new Timer(CountdownIntervalMs) { AutoReset = true, Enabled = true };
+        _countdownTimer.Elapsed += OnCountdownElapsed;
+    }
+
+    /// <summary>
+    /// Останавливает и освобождает оба таймера
+    /// </summary>
+    private void StopTimers()
+    {
+        if (_refreshTimer is not null)
+        {
+            _refreshTimer.Elapsed -= OnRefreshTimerElapsed;
+            _refreshTimer.Dispose();
+            _refreshTimer = null;
+        }
+
+        if (_countdownTimer is not null)
+        {
+            _countdownTimer.Elapsed -= OnCountdownElapsed;
+            _countdownTimer.Dispose();
+            _countdownTimer = null;
+        }
+    }
+
+    /// <summary>
+    /// Срабатывает каждые 30 секунд — запрашивает новые данные
+    /// </summary>
+    private async void OnRefreshTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        await InvokeAsync(async () =>
+        {
+            _nextRefreshInSeconds = 30;
+            await RefreshAllAsync();
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>
+    /// Срабатывает каждую секунду — уменьшает счётчик до следующего обновления
+    /// </summary>
+    private void OnCountdownElapsed(object? sender, ElapsedEventArgs e)
+    {
+        InvokeAsync(() =>
+        {
+            if (_nextRefreshInSeconds > 0)
+                _nextRefreshInSeconds--;
+
+            StateHasChanged();
+        });
+    }
+
+    // Загрузка данных 
+    /// <summary>
+    /// Параллельно загружает статистику системы и health-check
+    /// </summary>
+    private async Task RefreshAllAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+        await Task.WhenAll(
+            LoadSystemStatsAsync(cts.Token),
+            LoadHealthAsync(cts.Token));
+
+        _isLoading = false;
+        _lastUpdated = DateTime.UtcNow;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Загружает статистику системы
+    /// </summary>
+    private async Task LoadSystemStatsAsync(CancellationToken cancellationToken)
+    {
+        _statsError = null;
+        try
+        {
+            _stats = await Api.GetAdminSystemStatsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _statsError = "Превышено время ожидания ответа от сервера.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке статистики системы.");
+            _statsError = "Не удалось загрузить статистику. Проверьте соединение с API.";
+        }
+    }
+
+    /// <summary>
+    /// Загружает health-check
+    /// </summary>
+    private async Task LoadHealthAsync(CancellationToken cancellationToken)
+    {
+        _healthError = null;
+        try
+        {
+            _health = await Api.GetAdminHealthAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _healthError = "Health-endpoint не ответил за отведённое время.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке health-check.");
+            _healthError = "Health-endpoint вернул ошибку или недоступен.";
+        }
+    }
+
+    // Вспомогательные методы UI 
+    /// <summary>
+    /// CSS-модификатор полоски здоровья
+    /// </summary>
+    private string GetHealthStripCss()
+    {
+        if (_health is null)
+            return "health-strip--unknown";
+
+        return _health.Status == "Healthy" && _health.Database
+            ? "health-strip--healthy"
+            : "health-strip--unhealthy";
+    }
+
+    /// <summary>
+    /// Текстовый статус API для полоски здоровья
+    /// </summary>
+    private string GetHealthLabel()
+    {
+        if (_health is null)
+            return "Статус неизвестен";
+
+        return _health.Status == "Healthy" && _health.Database
+            ? "Система работает нормально"
+            : "Обнаружены проблемы";
+    }
+
+    private static string FormatInt(int value) =>
+        value.ToString("N0", CultureInfo.CurrentCulture);
+
+    private static string FormatLong(long value) =>
+        value.ToString("N0", CultureInfo.CurrentCulture);
+
+    private static string FormatServerTime(DateTime? dt) =>
+        dt.HasValue
+            ? dt.Value.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture)
+            : "—";
+}

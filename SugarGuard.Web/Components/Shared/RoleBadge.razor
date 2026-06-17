@@ -1,0 +1,146 @@
+﻿@using System.Globalization
+
+<span class="@BuildCssClass()"
+      title="@GetTooltip()"
+      aria-label="@GetTooltip()">
+
+    @if (ShowIcon)
+    {
+        <span class="role-badge__icon" aria-hidden="true">
+            @GetIcon()
+        </span>
+    }
+
+    <span class="role-badge__text">
+        @GetDisplayText()
+    </span>
+
+</span>
+
+@code {
+    [Parameter]
+    public string? Role { get; set; }
+
+    [Parameter]
+    public bool ShowIcon { get; set; } = true; // Показывать иконку перед текстом роли
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    // CSS
+    /// <summary>
+    /// Формирует итоговую строку CSS-классов компонента
+    /// </summary>
+    private string BuildCssClass()
+    {
+        var baseClass = "role-badge";
+        var modifierClass = GetRoleModifier();
+
+        if (string.IsNullOrWhiteSpace(Class))
+        {
+            return $"{baseClass} {modifierClass}";
+        }
+
+        return $"{baseClass} {modifierClass} {Class.Trim()}";
+    }
+
+    /// <summary>
+    /// Возвращает BEM-модификатор по нормализованной роли
+    /// </summary>
+    private string GetRoleModifier()
+    {
+        return NormalizeRole(Role) switch
+        {
+            KnownRoles.Parent => "role-badge--parent",
+            KnownRoles.Doctor => "role-badge--doctor",
+            KnownRoles.Admin => "role-badge--admin",
+            KnownRoles.SupportAdmin => "role-badge--support",
+            _ => "role-badge--unknown"
+        };
+    }
+
+    // Текст и иконка
+    /// <summary>
+    /// Возвращает человекочитаемое название роли
+    /// </summary>
+    private string GetDisplayText()
+    {
+        return NormalizeRole(Role) switch
+        {
+            KnownRoles.Parent => "Parent",
+            KnownRoles.Doctor => "Doctor",
+            KnownRoles.Admin => "Admin",
+            KnownRoles.SupportAdmin => "SupportAdmin",
+            _ => "Unknown"
+        };
+    }
+
+    /// <summary>
+    /// Возвращает эмодзи-иконку для роли.
+    /// </summary>
+    private string GetIcon()
+    {
+        return NormalizeRole(Role) switch
+        {
+            KnownRoles.Parent => "👨‍👩‍👧",
+            KnownRoles.Doctor => "🩺",
+            KnownRoles.Admin => "🛡️",
+            KnownRoles.SupportAdmin => "⚙️",
+            _ => "•"
+        };
+    }
+
+    /// <summary>
+    /// Возвращает текст tooltip и aria-label
+    /// </summary>
+    private string GetTooltip()
+    {
+        return NormalizeRole(Role) switch
+        {
+            KnownRoles.Parent => "Роль: Родитель",
+            KnownRoles.Doctor => "Роль: Врач",
+            KnownRoles.Admin => "Роль: Администратор",
+            KnownRoles.SupportAdmin => "Роль: Служебный администратор",
+            _ => "Роль не определена"
+        };
+    }
+
+    // Нормализация
+    /// <summary>
+    /// Нормализует строку роли к одному из известных значений
+    /// </summary>
+
+    private static string NormalizeRole(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return KnownRoles.Unknown;
+        }
+
+        var trimmed = role.Trim();
+
+        if (trimmed.Equals(KnownRoles.Parent, StringComparison.OrdinalIgnoreCase)) return KnownRoles.Parent;
+        if (trimmed.Equals(KnownRoles.Doctor, StringComparison.OrdinalIgnoreCase)) return KnownRoles.Doctor;
+        if (trimmed.Equals(KnownRoles.Admin, StringComparison.OrdinalIgnoreCase)) return KnownRoles.Admin;
+        if (trimmed.Equals(KnownRoles.SupportAdmin, StringComparison.OrdinalIgnoreCase)) return KnownRoles.SupportAdmin;
+
+        return KnownRoles.Unknown;
+    }
+
+    // Константы ролей
+    /// <summary>
+    /// Известные роли системы 
+    /// </summary>
+    private static class KnownRoles
+    {
+        public const string Parent = "Parent";
+
+        public const string Doctor = "Doctor";
+
+        public const string Admin = "Admin";
+
+        public const string SupportAdmin = "SupportAdmin";
+
+        public const string Unknown = "Unknown";
+    }
+}

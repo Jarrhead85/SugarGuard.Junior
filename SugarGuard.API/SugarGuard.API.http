@@ -1,0 +1,6 @@
+@SugarGuard.API_HostAddress = http://localhost:5236
+
+GET {{SugarGuard.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

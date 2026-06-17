@@ -1,0 +1,938 @@
+﻿@page "/doctor/patients/{ChildId:guid}/notes/new"
+@page "/doctor/patients/{ChildId:guid}/notes/{NoteId:guid}/edit"
+@attribute [Authorize(Roles = Roles.Doctor)]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Shared.Constants
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@inject SugarGuardApiService ApiService
+@inject NavigationManager NavigationManager
+
+<PageTitle>@PageTitle — SugarGuard</PageTitle>
+
+@* Breadcrumb *@
+<nav class="sg-breadcrumb" aria-label="Навигация">
+    <a href="/doctor/patients">Пациенты</a>
+    <span class="sg-breadcrumb__sep" aria-hidden="true">/</span>
+    <a href="@($"/doctor/patients/{ChildId:D}")">@(_patientName ?? "Пациент")</a>
+    <span class="sg-breadcrumb__sep" aria-hidden="true">/</span>
+    <span>@PageTitle</span>
+</nav>
+
+@* Скелетон при загрузке существующей заметки *@
+@if (_isLoading)
+{
+    <div class="sg-editor-skeleton" aria-busy="true" aria-label="Загрузка заметки…">
+        <div class="sg-skeleton sg-skeleton--title" aria-hidden="true"></div>
+        <div class="sg-skeleton sg-skeleton--subtitle" aria-hidden="true"></div>
+        <div class="sg-skeleton sg-skeleton--textarea" aria-hidden="true"></div>
+        <div class="sg-skeleton sg-skeleton--checkbox" aria-hidden="true"></div>
+        <div class="sg-skeleton sg-skeleton--actions" aria-hidden="true"></div>
+    </div>
+}
+else
+{
+    @* Заголовок страницы *@
+    <div class="sg-page-header">
+        <div class="sg-page-header__copy">
+            <h1 class="sg-page-title">@PageTitle</h1>
+            @if (_patientName is not null)
+            {
+                <p class="sg-page-subtitle">
+                    Пациент: <strong>@_patientName</strong>
+                </p>
+            }
+        </div>
+    </div>
+
+    @* Алерт об ошибке загрузки *@
+    @if (_loadError is not null)
+    {
+        <div class="sg-alert sg-alert--danger" role="alert">
+            <svg class="sg-alert__icon" viewBox="0 0 20 20" fill="none"
+                 stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <circle cx="10" cy="10" r="8" />
+                <line x1="10" y1="6" x2="10" y2="10" />
+                <circle cx="10" cy="13.5" r="0.8" fill="currentColor" stroke="none" />
+            </svg>
+            @_loadError
+        </div>
+    }
+
+    @* Форма редактора заметки *@
+    <div class="sg-editor-card sg-card">
+
+        @* Контекст привязки к измерению (только при редактировании) *@
+        @if (_existingNote?.MeasurementId is not null)
+        {
+            <div class="sg-editor-context" role="note" aria-label="Контекст заметки">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                     stroke-width="1.8" aria-hidden="true">
+                    <circle cx="10" cy="10" r="8" />
+                    <line x1="10" y1="9" x2="10" y2="14" />
+                    <circle cx="10" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+                </svg>
+                <span>Заметка привязана к конкретному измерению</span>
+            </div>
+        }
+
+        @* Поле текста заметки *@
+        <div class="sg-field">
+            <label class="sg-label" for="note-textarea">
+                Текст заметки
+                <span class="sg-label__required" aria-label="обязательное поле">*</span>
+            </label>
+            <textarea id="note-textarea"
+                      class="sg-textarea @(_textError is not null ? "sg-textarea--error" : "")"
+                      rows="8"
+                      placeholder="Опишите наблюдение, рекомендацию по питанию, изменение схемы инсулинотерапии или другие клинические заметки…"
+                      @bind="_noteText"
+                      @bind:event="oninput"
+                      maxlength="@MaxNoteLength"
+                      aria-required="true"
+                      aria-describedby="@(_textError is not null ? "note-textarea-error" : "note-textarea-hint")"
+                      aria-invalid="@(_textError is not null ? "true" : null)"
+                      disabled="@_isSaving"></textarea>
+
+            @if (_textError is not null)
+            {
+                <p id="note-textarea-error" class="sg-field-error" role="alert">
+                    @_textError
+                </p>
+            }
+            else
+            {
+                <p id="note-textarea-hint" class="sg-field-hint">
+                    До @MaxNoteLength символов. Максимально подробно описывайте клиническую картину.
+                </p>
+            }
+
+            <div class="sg-char-counter" aria-live="polite" aria-atomic="true">
+                <span class="@(_noteText.Length > MaxNoteLength * 0.9 ? "sg-char-counter__text--warn" : "")">
+                    @_noteText.Length
+                </span>
+                <span class="sg-char-counter__sep">/</span>
+                <span>@MaxNoteLength</span>
+            </div>
+        </div>
+
+        @* Флаг «Важная заметка» *@
+        <div class="sg-field sg-field--inline">
+            <label class="sg-checkbox-label" for="note-important">
+                <input id="note-important"
+                       type="checkbox"
+                       class="sg-checkbox"
+                       @bind="_noteIsImportant"
+                       disabled="@_isSaving"
+                       aria-label="Отметить как важную заметку" />
+                <span class="sg-checkbox__indicator" aria-hidden="true">
+                    @if (_noteIsImportant)
+                    {
+                        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                             stroke-width="2.2" aria-hidden="true">
+                            <polyline points="2 7 5.5 10.5 12 3.5" />
+                        </svg>
+                    }
+                </span>
+                <span class="sg-checkbox__body">
+                    <span class="sg-checkbox__title">Важная заметка</span>
+                    <span class="sg-checkbox__desc">
+                        Будет выделена в списке и отображена первой при фильтрации
+                    </span>
+                </span>
+            </label>
+        </div>
+
+        @* Ошибка сохранения *@
+        @if (_saveError is not null)
+        {
+            <div class="sg-alert sg-alert--danger" role="alert">
+                <svg class="sg-alert__icon" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <circle cx="10" cy="10" r="8" />
+                    <line x1="10" y1="6" x2="10" y2="10" />
+                    <circle cx="10" cy="13.5" r="0.8" fill="currentColor" stroke="none" />
+                </svg>
+                @_saveError
+            </div>
+        }
+
+        @* Панель действий *@
+        <div class="sg-editor-actions">
+            <button class="sg-btn sg-btn--ghost"
+                    type="button"
+                    @onclick="NavigateBack"
+                    disabled="@_isSaving">
+                Отмена
+            </button>
+
+            <button class="sg-btn sg-btn--primary"
+                    type="button"
+                    @onclick="SaveAsync"
+                    disabled="@(_isSaving || string.IsNullOrWhiteSpace(_noteText))"
+                    aria-busy="@_isSaving">
+                @if (_isSaving)
+                {
+                    <span class="sg-spinner sg-spinner--sm" aria-hidden="true"></span>
+                    <span>Сохраняю…</span>
+                }
+                else
+                {
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                         stroke-width="1.8" aria-hidden="true">
+                        <path d="M4 14l3 3 9-9" />
+                    </svg>
+                    <span>@(_isEditMode ? "Сохранить изменения" : "Создать заметку")</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @* Подсказка для режима редактирования *@
+    @if (_isEditMode && _existingNote is not null)
+    {
+        <div class="sg-editor-meta" aria-label="Метаданные заметки">
+            <dl class="sg-meta-list">
+                <div class="sg-meta-item">
+                    <dt class="sg-meta-item__key">Создана</dt>
+                    <dd class="sg-meta-item__val">
+                        <time datetime="@_existingNote.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")">
+                            @FormatDateTime(_existingNote.CreatedAt)
+                        </time>
+                    </dd>
+                </div>
+                @if (_existingNote.UpdatedAt.HasValue)
+                {
+                    <div class="sg-meta-item">
+                        <dt class="sg-meta-item__key">Изменена</dt>
+                        <dd class="sg-meta-item__val">
+                            <time datetime="@_existingNote.UpdatedAt.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")">
+                                @FormatDateTime(_existingNote.UpdatedAt.Value)
+                            </time>
+                        </dd>
+                    </div>
+                }
+                <div class="sg-meta-item">
+                    <dt class="sg-meta-item__key">Врач</dt>
+                    <dd class="sg-meta-item__val">@_existingNote.DoctorName</dd>
+                </div>
+            </dl>
+        </div>
+    }
+}
+
+<style>
+    /* Breadcrumb */
+    .sg-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        margin-bottom: var(--space-6);
+        flex-wrap: wrap;
+    }
+
+        .sg-breadcrumb a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+            .sg-breadcrumb a:hover {
+                text-decoration: underline;
+            }
+
+    .sg-breadcrumb__sep {
+        color: var(--color-text-faint);
+    }
+
+    /* Page header */
+    .sg-page-header {
+        margin-bottom: var(--space-6);
+    }
+
+    .sg-page-title {
+        font-family: var(--font-display);
+        font-size: var(--text-xl);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: var(--color-text);
+        margin: 0 0 var(--space-1);
+    }
+
+    .sg-page-subtitle {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        margin: 0;
+    }
+
+    /* Editor card */
+    .sg-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-8);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .sg-editor-card {
+        max-width: 720px;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-6);
+        margin-bottom: var(--space-6);
+    }
+
+    /* Контекст (привязка к измерению) */
+    .sg-editor-context {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+        border: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        color: var(--color-primary);
+    }
+
+        .sg-editor-context svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+    /* Form fields */
+    .sg-field {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .sg-field--inline {
+        gap: 0;
+    }
+
+    .sg-label {
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text);
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+
+    .sg-label__required {
+        color: var(--color-danger);
+        font-size: var(--text-base);
+        line-height: 1;
+    }
+
+    .sg-textarea {
+        width: 100%;
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-2);
+        color: var(--color-text);
+        font-size: var(--text-base);
+        font-family: var(--font-body);
+        line-height: 1.65;
+        resize: vertical;
+        min-height: 200px;
+        transition: border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+    }
+
+        .sg-textarea:focus-visible {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 20%, transparent);
+        }
+
+        .sg-textarea:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: var(--color-surface-offset);
+        }
+
+    .sg-textarea--error {
+        border-color: var(--color-danger);
+    }
+
+        .sg-textarea--error:focus-visible {
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-danger) 20%, transparent);
+        }
+
+    .sg-field-error {
+        font-size: var(--text-xs);
+        color: var(--color-danger);
+        margin: 0;
+    }
+
+    .sg-field-hint {
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+        margin: 0;
+    }
+
+    /* Char counter  */
+    .sg-char-counter {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 2px;
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sg-char-counter__text--warn {
+        color: var(--color-warning);
+        font-weight: 600;
+    }
+
+    .sg-char-counter__sep {
+        margin: 0 1px;
+    }
+
+    /* Checkbox (custom) */
+    .sg-checkbox-label {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        cursor: pointer;
+        padding: var(--space-4);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-offset);
+        transition: background var(--transition-interactive), border-color var(--transition-interactive);
+        user-select: none;
+    }
+
+        .sg-checkbox-label:hover {
+            background: color-mix(in oklab, var(--color-primary) 5%, var(--color-surface-offset));
+            border-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
+        }
+
+    .sg-checkbox {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .sg-checkbox__indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: var(--radius-sm);
+        border: 2px solid var(--color-border);
+        background: var(--color-surface-2);
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        transition: background var(--transition-interactive), border-color var(--transition-interactive);
+        margin-top: 2px;
+    }
+
+        .sg-checkbox__indicator svg {
+            width: 14px;
+            height: 14px;
+            color: #fff;
+        }
+
+    .sg-checkbox:checked + .sg-checkbox__indicator {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .sg-checkbox:focus-visible + .sg-checkbox__indicator {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+
+    .sg-checkbox:disabled + .sg-checkbox__indicator {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .sg-checkbox__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-width: 0;
+    }
+
+    .sg-checkbox__title {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .sg-checkbox__desc {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        line-height: 1.5;
+    }
+
+    /* Alert */
+    .sg-alert {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4) var(--space-5);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+    }
+
+    .sg-alert--danger {
+        background: color-mix(in oklab, var(--color-danger) 10%, transparent);
+        border: 1px solid color-mix(in oklab, var(--color-danger) 25%, transparent);
+        color: var(--color-danger);
+    }
+
+    .sg-alert__icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+    }
+
+    /* Actions bar */
+    .sg-editor-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--space-3);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--color-divider);
+        flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .sg-btn {
+        min-height: 44px;
+        padding: 0 var(--space-6);
+        border-radius: var(--radius-full);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        font-family: var(--font-body);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        cursor: pointer;
+        border: none;
+        transition: transform var(--transition-interactive), background var(--transition-interactive), box-shadow var(--transition-interactive), opacity var(--transition-interactive);
+        white-space: nowrap;
+    }
+
+        .sg-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .sg-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .sg-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sg-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+    .sg-btn--primary {
+        background: var(--color-primary);
+        color: #fff;
+        box-shadow: 0 4px 12px color-mix(in oklab, var(--color-primary) 30%, transparent);
+    }
+
+        .sg-btn--primary:hover:not(:disabled) {
+            background: var(--color-primary-hover);
+        }
+
+    .sg-btn--ghost {
+        background: transparent;
+        color: var(--color-text-muted);
+        border: 1px solid var(--color-border);
+    }
+
+        .sg-btn--ghost:hover:not(:disabled) {
+            background: var(--color-surface-offset);
+            color: var(--color-text);
+        }
+
+    /* Meta info (created / updated) */
+    .sg-editor-meta {
+        max-width: 720px;
+        background: var(--color-surface-offset);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-4) var(--space-5);
+    }
+
+    .sg-meta-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-4) var(--space-8);
+        margin: 0;
+    }
+
+    .sg-meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .sg-meta-item__key {
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .sg-meta-item__val {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Spinner */
+    .sg-spinner {
+        display: inline-block;
+        border-radius: 50%;
+        border: 2px solid color-mix(in oklab, currentColor 25%, transparent);
+        border-top-color: currentColor;
+        animation: sg-spin 0.7s linear infinite;
+    }
+
+    .sg-spinner--sm {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Skeleton */
+    .sg-editor-skeleton {
+        max-width: 720px;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .sg-skeleton {
+        background: linear-gradient( 90deg, var(--color-surface-offset) 25%, var(--color-surface-dynamic) 50%, var(--color-surface-offset) 75% );
+        background-size: 200% 100%;
+        animation: sg-shimmer 1.5s ease-in-out infinite;
+        border-radius: var(--radius-md);
+    }
+
+    .sg-skeleton--title {
+        height: 32px;
+        width: 55%;
+    }
+
+    .sg-skeleton--subtitle {
+        height: 18px;
+        width: 38%;
+    }
+
+    .sg-skeleton--textarea {
+        height: 200px;
+        border-radius: var(--radius-lg);
+    }
+
+    .sg-skeleton--checkbox {
+        height: 72px;
+        border-radius: var(--radius-lg);
+    }
+
+    .sg-skeleton--actions {
+        height: 48px;
+        width: 260px;
+        align-self: flex-end;
+        border-radius: var(--radius-full);
+    }
+
+    /* Анимации */
+    @@keyframes sg-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes sg-shimmer {
+        0% {
+            background-position: -200% 0;
+        }
+
+        100% {
+            background-position: 200% 0;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-skeleton, .sg-spinner {
+            animation: none;
+        }
+    }
+
+    /* Responsive */
+    @@media (max-width: 600px) {
+        .sg-card {
+            padding: var(--space-5);
+        }
+
+        .sg-editor-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .sg-btn {
+            justify-content: center;
+        }
+    }
+</style>
+
+@code {
+    //Параметры маршрута
+    [Parameter]
+    public Guid ChildId { get; set; }
+
+    [Parameter]
+    public Guid? NoteId { get; set; }
+
+    private const int MaxNoteLength = 2000; //Максимальная длина заметки
+
+    // Состояние загрузки 
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    // Данные пациента и заметки 
+    private string? _patientName = null;
+    private DoctorNoteVm? _existingNote = null;
+
+    // Поля формы 
+    private string _noteText = string.Empty;
+    private bool _noteIsImportant = false;
+
+    // Состояние отправки
+    private bool _isSaving = false;
+    private string? _textError = null;
+    private string? _saveError = null;
+
+    // Вычисляемые свойства 
+    private bool IsEditMode => NoteId.HasValue && NoteId.Value != Guid.Empty;
+
+    private bool _isEditMode => IsEditMode;
+
+    private string PageTitle => IsEditMode ? "Редактировать заметку" : "Новая заметка"; // Заголовок страницы в зависимости от режима
+
+    // Lifecycle 
+    /// <inheritdoc />
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        _existingNote = null;
+        _noteText = string.Empty;
+        _noteIsImportant = false;
+
+        await LoadContextAsync();
+    }
+
+    // Загрузка данных 
+    /// <summary>
+    /// Загружает имя пациента из списка пациентов
+    /// </summary>
+    private async Task LoadContextAsync(CancellationToken cancellationToken = default)
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Получаем имя пациента через список пациентов
+            var patientsTask = ApiService.GetDoctorPatientsAsync(cancellationToken: cancellationToken);
+
+            if (IsEditMode)
+            {
+                var notesTask = ApiService.GetDoctorNotesAsync(
+                    ChildId,
+                    page: 1,
+                    pageSize: 50,
+                    onlyImportant: false,
+                    cancellationToken);
+
+                await Task.WhenAll(patientsTask, notesTask);
+
+                var patients = await patientsTask;
+                var paged = await notesTask;
+
+                var patient = patients.FirstOrDefault(p => p.ChildId == ChildId);
+                _patientName = FormatPatientName(patient);
+
+                _existingNote = paged.Items.FirstOrDefault(n => n.NoteId == NoteId!.Value);
+
+                if (_existingNote is null)
+                {
+                    _existingNote = await FindNoteOnRemainingPagesAsync(
+                        paged.TotalCount, paged.PageSize, cancellationToken);
+                }
+
+                if (_existingNote is null)
+                {
+                    _loadError = "Заметка не найдена или была удалена.";
+                    return;
+                }
+
+                _noteText = _existingNote.NoteText;
+                _noteIsImportant = _existingNote.IsImportant;
+            }
+            else
+            {
+                var patients = await patientsTask;
+                var patient = patients.FirstOrDefault(p => p.ChildId == ChildId);
+                _patientName = FormatPatientName(patient);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            _loadError = "Не удалось загрузить данные. Проверьте соединение и попробуйте снова.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Поиск заметки на страницах 2..N, если не нашли на первой.
+    /// Останавливается, как только заметка найдена.
+    /// </summary>
+    private async Task<DoctorNoteVm?> FindNoteOnRemainingPagesAsync(
+        int totalCount,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        for (var page = 2; page <= totalPages; page++)
+        {
+            var paged = await ApiService.GetDoctorNotesAsync(
+                ChildId,
+                page,
+                pageSize,
+                onlyImportant: false,
+                cancellationToken);
+
+            var found = paged.Items.FirstOrDefault(n => n.NoteId == NoteId!.Value);
+
+            if (found is not null)
+                return found;
+        }
+
+        return null;
+    }
+
+    // Сохранение
+
+    /// <summary>
+    /// Валидирует форму и сохраняет заметку через API
+    /// </summary>
+    private async Task SaveAsync()
+    {
+        _textError = null;
+        _saveError = null;
+
+        var trimmed = _noteText.Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            _textError = "Текст заметки не может быть пустым.";
+            return;
+        }
+
+        if (trimmed.Length > MaxNoteLength)
+        {
+            _textError = $"Текст не должен превышать {MaxNoteLength} символов.";
+            return;
+        }
+
+        _isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            if (IsEditMode && _existingNote is not null)
+            {
+                var updateRequest = new UpdateDoctorNoteVmRequest
+                {
+                    NoteText = trimmed,
+                    IsImportant = _noteIsImportant
+                };
+
+                await ApiService.UpdateDoctorNoteAsync(_existingNote.NoteId, updateRequest);
+            }
+            else
+            {
+                var createRequest = new CreateDoctorNoteVmRequest
+                {
+                    ChildId = ChildId,
+                    NoteText = trimmed,
+                    IsImportant = _noteIsImportant
+                };
+
+                await ApiService.CreateDoctorNoteAsync(createRequest);
+            }
+
+            NavigateBack();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            _saveError = ex.Message.Length < 200
+                ? ex.Message
+                : "Не удалось сохранить заметку. Попробуйте снова.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    // Навигация
+    /// <summary>
+    /// Возвращает на страницу детального просмотра пациента
+    /// </summary>
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo($"/doctor/patients/{ChildId:D}");
+    }
+
+    // Утилиты 
+    /// <summary>
+    /// Форматирует имя пациента
+    /// </summary>
+    private static string? FormatPatientName(DoctorPatientSummaryVm? patient)
+    {
+        if (patient is null)
+            return null;
+
+        var fullName = $"{patient.FirstName} {patient.LastName}".Trim();
+        return string.IsNullOrEmpty(fullName) ? null : fullName;
+    }
+
+    /// <summary>
+    /// Форматирует UTC-дату в локальное время с русской локалью
+    /// </summary>
+    private static string FormatDateTime(DateTime utc)
+    {
+        return utc
+            .ToLocalTime()
+            .ToString("d MMM yyyy, HH:mm", new System.Globalization.CultureInfo("ru-RU"));
+    }
+}

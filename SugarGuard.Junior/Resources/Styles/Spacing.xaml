@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Scalar spacing tokens (dp) — используйте {DynamicResource} для поддержки Child Mode -->
+    <!--
+        Spacing16, Spacing20, Spacing24, PaddingPage изменяются ThemeService.ApplyScale()
+        во время выполнения. Все ссылки на них в стилях и страницах должны быть
+        через {DynamicResource Key}, а не {StaticResource Key}.
+    -->
+
+    <x:Double x:Key="Spacing0">0</x:Double>
+    <x:Double x:Key="Spacing4">4</x:Double>
+    <x:Double x:Key="Spacing8">8</x:Double>
+    <x:Double x:Key="Spacing12">12</x:Double>
+    <x:Double x:Key="Spacing16">16</x:Double>
+    <x:Double x:Key="Spacing20">20</x:Double>
+    <x:Double x:Key="Spacing24">24</x:Double>
+    <x:Double x:Key="Spacing32">32</x:Double>
+    <x:Double x:Key="Spacing40">40</x:Double>
+    <x:Double x:Key="Spacing48">48</x:Double>
+    <x:Double x:Key="Spacing64">64</x:Double>
+
+    <!-- 3. Legacy aliases for backward compatibility -->
+
+    <x:Double x:Key="Space0">0</x:Double>
+    <x:Double x:Key="Space4">4</x:Double>
+    <x:Double x:Key="Space8">8</x:Double>
+    <x:Double x:Key="Space12">12</x:Double>
+    <x:Double x:Key="Space16">16</x:Double>
+    <x:Double x:Key="Space20">20</x:Double>
+    <x:Double x:Key="Space24">24</x:Double>
+    <x:Double x:Key="Space32">32</x:Double>
+    <x:Double x:Key="Space40">40</x:Double>
+    <x:Double x:Key="Space48">48</x:Double>
+    <x:Double x:Key="Space64">64</x:Double>
+
+    <!-- 3. Generic Thickness tokens  -->
+    <!-- Универсальные равномерные inset-ресурсы -->
+    <Thickness x:Key="Thickness0">0</Thickness>
+    <Thickness x:Key="Thickness4">4</Thickness>
+    <Thickness x:Key="Thickness8">8</Thickness>
+    <Thickness x:Key="Thickness12">12</Thickness>
+    <Thickness x:Key="Thickness16">16</Thickness>
+    <Thickness x:Key="Thickness20">20</Thickness>
+    <Thickness x:Key="Thickness24">24</Thickness>
+    <Thickness x:Key="Thickness32">32</Thickness>
+    <Thickness x:Key="Thickness40">40</Thickness>
+    <Thickness x:Key="Thickness48">48</Thickness>
+    <Thickness x:Key="Thickness64">64</Thickness>
+
+    <!-- 4. Common padding tokens -->
+    <!-- Общие паддинги компонентов -->
+    <Thickness x:Key="PaddingXs">4</Thickness>
+    <Thickness x:Key="PaddingSm">8</Thickness>
+    <Thickness x:Key="PaddingMd">12</Thickness>
+    <Thickness x:Key="PaddingLg">16</Thickness>
+    <Thickness x:Key="PaddingXl">20</Thickness>
+    <Thickness x:Key="Padding2Xl">24</Thickness>
+    <Thickness x:Key="Padding3Xl">32</Thickness>
+    <Thickness x:Key="Padding4Xl">40</Thickness>
+    <Thickness x:Key="Padding5Xl">48</Thickness>
+    <Thickness x:Key="Padding6Xl">64</Thickness>
+
+    <!-- Горизонтальные / вертикальные presets -->
+    <Thickness x:Key="PaddingHorizontalSm">8,0</Thickness>
+    <Thickness x:Key="PaddingHorizontalMd">12,0</Thickness>
+    <Thickness x:Key="PaddingHorizontalLg">16,0</Thickness>
+    <Thickness x:Key="PaddingHorizontalXl">20,0</Thickness>
+    <Thickness x:Key="PaddingHorizontal2Xl">24,0</Thickness>
+    <Thickness x:Key="PaddingHorizontal3Xl">32,0</Thickness>
+
+    <Thickness x:Key="PaddingVerticalSm">0,8</Thickness>
+    <Thickness x:Key="PaddingVerticalMd">0,12</Thickness>
+    <Thickness x:Key="PaddingVerticalLg">0,16</Thickness>
+    <Thickness x:Key="PaddingVerticalXl">0,20</Thickness>
+    <Thickness x:Key="PaddingVertical2Xl">0,24</Thickness>
+    <Thickness x:Key="PaddingVertical3Xl">0,32</Thickness>
+
+    <!-- Часто используемые UI-комбинации -->
+    <Thickness x:Key="PaddingButton">16,12</Thickness>
+    <Thickness x:Key="PaddingButtonCompact">12,8</Thickness>
+    <Thickness x:Key="PaddingButtonSmall">8,4</Thickness>
+
+    <Thickness x:Key="PaddingCard">16</Thickness>
+    <Thickness x:Key="PaddingCardCompact">12</Thickness>
+    <Thickness x:Key="PaddingCardLarge">20</Thickness>
+
+    <Thickness x:Key="PaddingInput">12,0</Thickness>
+    <Thickness x:Key="PaddingChip">12,4</Thickness>
+    <Thickness x:Key="PaddingBadge">8,4</Thickness>
+
+    <!-- Паддинги страниц / контейнеров -->
+    <Thickness x:Key="PaddingPage">20</Thickness>
+    <Thickness x:Key="PaddingPageCompact">16</Thickness>
+    <Thickness x:Key="PaddingPageWide">24</Thickness>
+
+    <!-- Соответствует уже встречающемуся экранному паттерну 32,64,32,32 -->
+    <Thickness x:Key="PaddingPageHero">32,64,32,32</Thickness>
+
+    <!-- Часто встречающийся модальный / диалоговый контейнер -->
+    <Thickness x:Key="PaddingModal">16</Thickness>
+    <Thickness x:Key="PaddingModalOuter">16</Thickness>
+
+    <!-- 5. Common margin tokens -->
+
+    <Thickness x:Key="MarginNone">0</Thickness>
+
+    <Thickness x:Key="MarginTop4">0,4,0,0</Thickness>
+    <Thickness x:Key="MarginTop8">0,8,0,0</Thickness>
+    <Thickness x:Key="MarginTop12">0,12,0,0</Thickness>
+    <Thickness x:Key="MarginTop16">0,16,0,0</Thickness>
+    <Thickness x:Key="MarginTop20">0,20,0,0</Thickness>
+    <Thickness x:Key="MarginTop24">0,24,0,0</Thickness>
+    <Thickness x:Key="MarginTop32">0,32,0,0</Thickness>
+    <Thickness x:Key="MarginTop40">0,40,0,0</Thickness>
+    <Thickness x:Key="MarginTop48">0,48,0,0</Thickness>
+    <Thickness x:Key="MarginTop64">0,64,0,0</Thickness>
+
+    <Thickness x:Key="MarginBottom4">0,0,0,4</Thickness>
+    <Thickness x:Key="MarginBottom8">0,0,0,8</Thickness>
+    <Thickness x:Key="MarginBottom12">0,0,0,12</Thickness>
+    <Thickness x:Key="MarginBottom16">0,0,0,16</Thickness>
+    <Thickness x:Key="MarginBottom20">0,0,0,20</Thickness>
+    <Thickness x:Key="MarginBottom24">0,0,0,24</Thickness>
+    <Thickness x:Key="MarginBottom32">0,0,0,32</Thickness>
+    <Thickness x:Key="MarginBottom40">0,0,0,40</Thickness>
+    <Thickness x:Key="MarginBottom48">0,0,0,48</Thickness>
+    <Thickness x:Key="MarginBottom64">0,0,0,64</Thickness>
+
+    <Thickness x:Key="MarginHorizontal8">8,0</Thickness>
+    <Thickness x:Key="MarginHorizontal12">12,0</Thickness>
+    <Thickness x:Key="MarginHorizontal16">16,0</Thickness>
+    <Thickness x:Key="MarginHorizontal20">20,0</Thickness>
+    <Thickness x:Key="MarginHorizontal24">24,0</Thickness>
+    <Thickness x:Key="MarginHorizontal32">32,0</Thickness>
+
+    <Thickness x:Key="MarginVertical8">0,8</Thickness>
+    <Thickness x:Key="MarginVertical12">0,12</Thickness>
+    <Thickness x:Key="MarginVertical16">0,16</Thickness>
+    <Thickness x:Key="MarginVertical20">0,20</Thickness>
+    <Thickness x:Key="MarginVertical24">0,24</Thickness>
+    <Thickness x:Key="MarginVertical32">0,32</Thickness>
+
+    <!-- Часто используемые реальные комбинации -->
+    <Thickness x:Key="MarginSection">0,20,0,0</Thickness>
+    <Thickness x:Key="MarginSectionLarge">0,32,0,0</Thickness>
+    <Thickness x:Key="MarginCardStack">0,0,0,16</Thickness>
+    <Thickness x:Key="MarginButtonTop">0,20,0,0</Thickness>
+    <Thickness x:Key="MarginListItem">0,8,0,0</Thickness>
+    <Thickness x:Key="MarginFieldGroup">0,0,0,20</Thickness>
+
+    <!-- 6. Semantic spacing aliases -->
+
+    <x:Double x:Key="SpacingMicro">4</x:Double>
+    <x:Double x:Key="SpacingTight">8</x:Double>
+    <x:Double x:Key="SpacingCompact">12</x:Double>
+    <x:Double x:Key="SpacingDefault">16</x:Double>
+    <x:Double x:Key="SpacingSection">20</x:Double>
+    <x:Double x:Key="SpacingLarge">24</x:Double>
+    <x:Double x:Key="SpacingXLarge">32</x:Double>
+    <x:Double x:Key="Spacing2XLarge">40</x:Double>
+    <x:Double x:Key="Spacing3XLarge">48</x:Double>
+    <x:Double x:Key="SpacingHero">64</x:Double>
+
+    <Thickness x:Key="PaddingContentDefault">20</Thickness>
+    <Thickness x:Key="PaddingContentLarge">24</Thickness>
+    <Thickness x:Key="PaddingContentHero">32,64,32,32</Thickness>
+
+    <Thickness x:Key="MarginContentDefault">0,20,0,0</Thickness>
+    <Thickness x:Key="MarginContentLarge">0,32,0,0</Thickness>
+
+</ResourceDictionary>

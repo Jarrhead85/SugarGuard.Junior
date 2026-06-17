@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Базовый контейнер чипа -->
+    <Style x:Key="ChipContainerBase" TargetType="Border">
+        <!-- Компактная pill-форма -->
+        <Setter Property="StrokeShape" Value="RoundRectangle 999" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Shadow" Value="{x:Null}" />
+
+        <!-- Нейтральная базовая стеклянная поверхность -->
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F2FFFFFF" Dark="#CC17202F" />
+            </Setter.Value>
+        </Setter>
+
+        <!-- Мягкая полупрозрачная рамка -->
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1816213E" Dark="#18EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 2. Базовый текст чипа -->
+    <Style x:Key="ChipTextBase" TargetType="Label">
+        <!-- Компактная UI-типографика -->
+        <Setter Property="FontFamily" Value="Satoshi" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+
+        <!-- Единые отступы для всех чипов -->
+        <Setter Property="Padding" Value="12,6" />
+
+        <!-- Поведение текста -->
+        <Setter Property="LineBreakMode" Value="NoWrap" />
+        <Setter Property="MaxLines" Value="1" />
+        <Setter Property="HorizontalOptions" Value="Start" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+
+        <!-- Нейтральный текст по умолчанию -->
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F2121" Dark="#FFFFFF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 3. Нейтральные чипы -->
+    <Style x:Key="TagChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F2F5F7FB" Dark="#CC1A2433" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1616213E" Dark="#17EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="TagChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#626C71" Dark="#A7A9A9" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 4. Фильтры -->
+    <Style x:Key="FilterChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F7FFFFFF" Dark="#B81A1A1A" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1C16213E" Dark="#1CEDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FilterChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F2121" Dark="#FFFFFF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FilterChipActiveContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F1B8E8B" Dark="#2B56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#331B8E8B" Dark="#4056D0BF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="FilterChipActiveText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1B8E8B" Dark="#FFFFFF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 5. Статусы сахара -->
+    <Style x:Key="GlucoseNormalChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F37A563" Dark="#2462D889" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#3337A563" Dark="#3A62D889" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlucoseNormalChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#216E43" Dark="#DFFFEA" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlucoseWarningChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1FE3A32B" Dark="#24F4BC56" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#33E3A32B" Dark="#40F4BC56" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlucoseWarningChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#8B5C00" Dark="#FFF2D1" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlucoseDangerChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1FDB5967" Dark="#26FF7A8B" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#33DB5967" Dark="#40FF7A8B" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlucoseDangerChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#A43846" Dark="#FFE5E8" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 6. Sync-status -->
+    <Style x:Key="SyncPendingChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F2678D9" Dark="#242678D9" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#332678D9" Dark="#402678D9" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncPendingChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1D5DAA" Dark="#DCEBFF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncSuccessChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F37A563" Dark="#2462D889" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#3337A563" Dark="#3A62D889" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncSuccessChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#216E43" Dark="#DFFFEA" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncFailedChipContainer" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1FDB5967" Dark="#26FF7A8B" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#33DB5967" Dark="#40FF7A8B" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncFailedChipText" TargetType="Label" BasedOn="{StaticResource ChipTextBase}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#A43846" Dark="#FFE5E8" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 7. Legacy-совместимость -->
+    <Style x:Key="StatusChipBase" TargetType="Label" BasedOn="{StaticResource ChipTextBase}" />
+
+    <Style x:Key="StatusChip" TargetType="Label" BasedOn="{StaticResource GlucoseNormalChipText}" />
+    <Style x:Key="StatusChipWarning" TargetType="Label" BasedOn="{StaticResource GlucoseWarningChipText}" />
+    <Style x:Key="StatusChipDanger" TargetType="Label" BasedOn="{StaticResource GlucoseDangerChipText}" />
+
+    <Style x:Key="ChipBorder" TargetType="Border" BasedOn="{StaticResource ChipContainerBase}" />
+
+</ResourceDictionary>

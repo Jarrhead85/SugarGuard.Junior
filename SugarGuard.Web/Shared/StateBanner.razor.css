@@ -1,0 +1,279 @@
+﻿/* Корневой контейнер */
+.sg-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-12);
+    padding: var(--space-16) var(--space-20);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: var(--font-body, 'Satoshi', system-ui, sans-serif);
+    animation: sgBannerIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes sgBannerIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Иконка */
+.sg-banner__icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Спиннер — loading state */
+.sg-banner__spinner {
+    animation: sgSpin 1s linear infinite;
+}
+
+@keyframes sgSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Контентная колонка */
+.sg-banner__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* Заголовок */
+.sg-banner__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: inherit;
+}
+
+/* Дополнительный текст */
+.sg-banner__message {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.55;
+    color: inherit;
+    opacity: 0.80;
+    max-width: 72ch;
+}
+
+/* Кнопка действия */
+.sg-banner__action {
+    align-self: flex-start;
+    margin-top: var(--space-8);
+    min-height: 32px;
+    padding: 6px var(--space-16);
+    border-radius: var(--radius-full); 
+    border: 1px solid currentColor;
+    background: transparent;
+    font-family: var(--font-body, 'Satoshi', system-ui, sans-serif);
+    font-size: 13px;
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+    transition: background var(--transition, 180ms cubic-bezier(0.16, 1, 0.3, 1)), opacity var(--transition, 180ms cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+    .sg-banner__action:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .sg-banner__action:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 3px;
+        border-radius: var(--radius-full);
+    }
+
+    .sg-banner__action:active {
+        opacity: 0.75;
+        transform: scale(0.97);
+    }
+
+/* Кнопка закрытия */
+.sg-banner__dismiss {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: inherit;
+    opacity: 0.55;
+    cursor: pointer;
+    margin: -6px -6px 0 0;
+    padding: 4px;
+    transition: opacity var(--transition, 180ms cubic-bezier(0.16, 1, 0.3, 1)), background var(--transition, 180ms cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+    .sg-banner__dismiss:hover {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.07);
+    }
+
+    .sg-banner__dismiss:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+        opacity: 1;
+    }
+
+    .sg-banner__dismiss:active {
+        opacity: 0.45;
+    }
+
+/* МОДИФИКАТОРЫ СОСТОЯНИЙ */
+
+/* loading — Primary (#1B8E8B light) */
+.sg-banner--loading {
+    background: rgba(27, 142, 139, 0.10);
+    border-color: rgba(27, 142, 139, 0.18);
+    color: var(--color-primary, #1B8E8B);
+}
+
+/* success — GlucoseNormal (#37A563 light) */
+.sg-banner--success {
+    background: rgba(55, 165, 99, 0.10);
+    border-color: rgba(55, 165, 99, 0.20);
+    color: var(--color-glucose-normal, #37A563);
+}
+
+/* warning — GlucoseWarning (#E3A32B light) */
+.sg-banner--warning {
+    background: rgba(227, 163, 43, 0.10);
+    border-color: rgba(227, 163, 43, 0.20);
+    color: var(--color-glucose-warning, #E3A32B);
+}
+
+/* error — GlucoseDanger (#DB5967 light) */
+.sg-banner--error {
+    background: rgba(219, 89, 103, 0.10);
+    border-color: rgba(219, 89, 103, 0.20);
+    color: var(--color-glucose-danger, #DB5967);
+}
+
+/* empty — TextFaint */
+.sg-banner--empty {
+    background: var(--color-surface-offset, #E9EFF9);
+    border-color: var(--color-border, rgba(22, 33, 62, 0.10));
+    color: var(--color-text-faint, #96A2B8);
+}
+
+/* sync — PrimaryAlt (#2678D9 light) */
+.sg-banner--sync {
+    background: rgba(38, 120, 217, 0.09);
+    border-color: rgba(38, 120, 217, 0.18);
+    color: var(--color-primary-alt, #2678D9);
+}
+
+/* offline — TextSecondary */
+.sg-banner--offline {
+    background: rgba(102, 118, 148, 0.10);
+    border-color: rgba(102, 118, 148, 0.18);
+    color: var(--color-text-muted, #667694);
+}
+
+/* info — нейтральный fallback */
+.sg-banner--info {
+    background: var(--color-surface-offset, #E9EFF9);
+    border-color: var(--color-border, rgba(22, 33, 62, 0.10));
+    color: var(--color-text, #16213E);
+}
+
+/* Тёмная тема */
+
+[data-theme="dark"] .sg-banner--loading {
+    background: rgba(86, 208, 191, 0.10);
+    border-color: rgba(86, 208, 191, 0.18);
+    color: var(--color-primary, #56D0BF);
+}
+
+[data-theme="dark"] .sg-banner--success {
+    background: rgba(98, 216, 137, 0.10);
+    border-color: rgba(98, 216, 137, 0.18);
+    color: var(--color-glucose-normal, #62D889);
+}
+
+[data-theme="dark"] .sg-banner--warning {
+    background: rgba(244, 188, 86, 0.10);
+    border-color: rgba(244, 188, 86, 0.18);
+    color: var(--color-glucose-warning, #F4BC56);
+}
+
+[data-theme="dark"] .sg-banner--error {
+    background: rgba(255, 122, 139, 0.10);
+    border-color: rgba(255, 122, 139, 0.18);
+    color: var(--color-glucose-danger, #FF7A8B);
+}
+
+[data-theme="dark"] .sg-banner--empty {
+    background: var(--color-surface-offset, #10192A);
+    border-color: var(--color-border, rgba(237, 244, 255, 0.09));
+    color: var(--color-text-faint, #6F7D99);
+}
+
+[data-theme="dark"] .sg-banner--sync {
+    background: rgba(109, 174, 255, 0.10);
+    border-color: rgba(109, 174, 255, 0.18);
+    color: var(--color-primary-alt, #6DAEFF);
+}
+
+[data-theme="dark"] .sg-banner--offline {
+    background: rgba(158, 174, 208, 0.09);
+    border-color: rgba(158, 174, 208, 0.16);
+    color: var(--color-text-muted, #9EAED0);
+}
+
+[data-theme="dark"] .sg-banner--info {
+    background: var(--color-surface-offset, #10192A);
+    border-color: var(--color-border, rgba(237, 244, 255, 0.09));
+    color: var(--color-text, #EDF4FF);
+}
+
+[data-theme="dark"] .sg-banner__dismiss:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Адаптив  */
+@media (max-width: 480px) {
+    .sg-banner {
+        padding: var(--space-12) var(--space-16);
+        gap: var(--space-8);
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .sg-banner {
+        animation: none;
+    }
+
+    .sg-banner__spinner {
+        animation: none;
+    }
+
+    .sg-banner__action,
+    .sg-banner__dismiss {
+        transition: none;
+    }
+}

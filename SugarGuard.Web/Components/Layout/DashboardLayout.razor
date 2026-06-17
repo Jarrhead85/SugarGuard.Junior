@@ -1,0 +1,834 @@
+﻿@namespace SugarGuard.Web.Components.Layout
+@inherits LayoutComponentBase
+@implements IDisposable
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using SugarGuard.Web.Components.Shared
+@using SugarGuard.Web.Services
+
+@inject JwtAuthStateProvider JwtAuth
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<a href="#main-content" class="skip-link sr-only">
+    Перейти к содержимому
+</a>
+
+<CascadingValue Value="_activeChildId" Name="ActiveChildId">
+    <CascadingValue Value="_onChildChanged" Name="OnChildChanged">
+
+        <div class="dashboard-shell @(_sidebarOpen ? "sidebar-open" : string.Empty)"
+             data-theme="@_theme">
+
+            <header class="topnav" role="banner">
+
+                <button class="topnav__hamburger"
+                        type="button"
+                        @onclick="ToggleSidebar"
+                        aria-label="@(_sidebarOpen ? "Закрыть меню" : "Открыть меню")"
+                        aria-expanded="@_sidebarOpen.ToString().ToLower()"
+                        aria-controls="dashboard-sidebar">
+                    @if (_sidebarOpen)
+                    {
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <line x1="3" y1="12" x2="21" y2="12" />
+                            <line x1="3" y1="18" x2="21" y2="18" />
+                        </svg>
+                    }
+                </button>
+
+                @* Логотип *@
+                <a class="topnav__logo" href="/dashboard" aria-label="SugarGuard — на главную">
+                    <svg class="topnav__logo-icon" width="28" height="28" viewBox="0 0 28 28"
+                         fill="none" aria-hidden="true">
+                        <circle cx="14" cy="14" r="12" stroke="var(--color-primary)" stroke-width="2" />
+                        <path d="M9 14 C9 10.5 12 8 14 8 C16 8 19 10.5 19 14 C19 18 14 21 14 21 C14 21 9 18 9 14Z"
+                              fill="var(--color-primary)" opacity="0.15" />
+                        <path d="M10 14.5 C10.5 12 12 10 14 10 C16 10 17.5 12 18 14.5"
+                              stroke="var(--color-primary)" stroke-width="1.8"
+                              stroke-linecap="round" fill="none" />
+                        <circle cx="14" cy="14" r="2.5" fill="var(--color-primary)" />
+                    </svg>
+                    <span class="topnav__logo-text">SugarGuard</span>
+                </a>
+
+                @* Правая часть TopNav *@
+                <div class="topnav__right">
+
+                    <ThemeToggle OnThemeChanged="OnThemeChangedHandler" />
+
+                    <AuthorizeView>
+                        <Authorized>
+                            <div class="topnav__user">
+                                <div class="topnav__user-avatar" aria-hidden="true">
+                                    @GetUserInitials(context.User.Identity?.Name)
+                                </div>
+                                <span class="topnav__user-name">
+                                    @TrimUserName(context.User.Identity?.Name)
+                                </span>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
+
+                </div>
+
+            </header>
+
+            @* ОСНОВНОЙ КОНТЕЙНЕР *@
+            <div class="dashboard-body">
+
+                @* Backdrop (мобайл) *@
+                @if (_sidebarOpen)
+                {
+                    <div class="sidebar-backdrop"
+                         @onclick="CloseSidebar"
+                         aria-hidden="true">
+                    </div>
+                }
+
+                @* SIDEBAR *@
+                <nav id="dashboard-sidebar"
+                     class="sidebar"
+                     role="navigation"
+                     aria-label="Основная навигация">
+
+                    @* Выбор ребёнка *@
+                    <AuthorizeView Roles="Parent">
+                        <Authorized>
+                            <div class="sidebar__section">
+                                <ChildSelector SelectedChildId="_activeChildId"
+                                               OnChildSelected="OnChildChangedAsync" />
+                            </div>
+                            <div class="sidebar__divider" aria-hidden="true"></div>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    @* Навигация Parent *@
+                    <AuthorizeView Roles="Parent">
+                        <Authorized>
+                            <ul class="sidebar__nav-list" role="list">
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard"
+                                             Match="NavLinkMatch.All"
+                                             aria-label="Главная">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                            <polyline points="9 22 9 12 15 12 15 22" />
+                                        </svg>
+                                        <span>Главная</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/history"
+                                             aria-label="История измерений">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                                        </svg>
+                                        <span>История</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/backpack"
+                                             aria-label="Рюкзак с перекусами">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                                            <line x1="3" y1="6" x2="21" y2="6" />
+                                            <path d="M16 10a4 4 0 0 1-8 0" />
+                                        </svg>
+                                        <span>Рюкзак</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/child-profile"
+                                             aria-label="Профиль ребёнка">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                            <circle cx="12" cy="7" r="4" />
+                                        </svg>
+                                        <span>Профиль ребёнка</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/invite"
+                                             aria-label="Коды приглашений">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                        </svg>
+                                        <span>Приглашения</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/export"
+                                             aria-label="Экспорт данных">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" y1="15" x2="12" y2="3" />
+                                        </svg>
+                                        <span>Экспорт</span>
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    @* Навигация Doctor *@
+                    <AuthorizeView Roles="Doctor">
+                        <Authorized>
+                            <ul class="sidebar__nav-list" role="list">
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/doctor"
+                                             Match="NavLinkMatch.All"
+                                             aria-label="Дашборд врача">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                            <polyline points="9 22 9 12 15 12 15 22" />
+                                        </svg>
+                                        <span>Обзор</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/doctor/patients"
+                                             aria-label="Список пациентов">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                        </svg>
+                                        <span>Пациенты</span>
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink class="sidebar__nav-link"
+                                             href="/dashboard/doctor/cohort"
+                                             aria-label="Статистика когорты">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <line x1="18" y1="20" x2="18" y2="10" />
+                                            <line x1="12" y1="20" x2="12" y2="4" />
+                                            <line x1="6" y1="20" x2="6" y2="14" />
+                                            <line x1="2" y1="20" x2="22" y2="20" />
+                                        </svg>
+                                        <span>Статистика</span>
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    @* Навигация Admin / SupportAdmin *@
+                    <AdminNavMenu />
+
+                    @* Общие ссылки для всех ролей *@
+                    <div class="sidebar__divider" aria-hidden="true"></div>
+                    <ul class="sidebar__nav-list" role="list">
+                        <li>
+                            <NavLink class="sidebar__nav-link"
+                                     href="/dashboard/faq"
+                                     aria-label="Часто задаваемые вопросы">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                                <span>FAQ</span>
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink class="sidebar__nav-link"
+                                     href="/dashboard/settings"
+                                     aria-label="Настройки">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2"
+                                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                </svg>
+                                <span>Настройки</span>
+                            </NavLink>
+                        </li>
+                    </ul>
+
+                    <div class="sidebar__spacer" aria-hidden="true"></div>
+
+                    @* Кнопка выхода *@
+                    <div class="sidebar__footer">
+                        <button class="sidebar__logout-btn"
+                                type="button"
+                                @onclick="LogoutAsync"
+                                aria-label="Выйти из аккаунта">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            <span>Выйти</span>
+                        </button>
+                    </div>
+
+                </nav>
+
+                @* ОСНОВНОЙ КОНТЕНТ *@
+                <main class="dashboard-main"
+                      id="main-content"
+                      role="main"
+                      aria-label="Основное содержимое">
+
+                    @Body
+
+                </main>
+
+            </div>
+            @* /dashboard-body *@
+
+        </div>
+        @* /dashboard-shell *@
+
+        @* Диалог истечения сессии *@
+        <SessionExpiredDialog @ref="_sessionExpiredDialog" />
+
+    </CascadingValue>
+</CascadingValue>
+
+<style>
+    /* ОБОЛОЧКА ДАШБОРДА */
+    .dashboard-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        background: var(--color-bg);
+        color: var(--color-text);
+        font-family: var(--font-body);
+    }
+
+    /* TOP NAV */
+    .topnav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        height: 60px;
+        padding: 0 var(--space-20);
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+    }
+
+    /* Гамбургер — скрыт на десктопе */
+    .topnav__hamburger {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        color: var(--color-text-muted);
+        background: none;
+        border: none;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background var(--transition), color var(--transition);
+    }
+
+        .topnav__hamburger:hover {
+            background: var(--color-surface-offset);
+            color: var(--color-text);
+        }
+
+        .topnav__hamburger:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+    /* Логотип */
+    .topnav__logo {
+        display: flex;
+        align-items: center;
+        gap: var(--space-8);
+        text-decoration: none;
+        color: var(--color-text);
+        flex-shrink: 0;
+    }
+
+    .topnav__logo-text {
+        font-family: var(--font-display);
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--color-text);
+        white-space: nowrap;
+    }
+
+    /* Правая часть topnav */
+    .topnav__right {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        margin-left: auto;
+    }
+
+    /* Аватар пользователя */
+    .topnav__user {
+        display: flex;
+        align-items: center;
+        gap: var(--space-8);
+    }
+
+    .topnav__user-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-full);
+        background: color-mix(in oklab, var(--color-primary) 15%, var(--color-surface-offset));
+        color: var(--color-primary);
+        font-size: 12px;
+        font-weight: 700;
+        font-family: var(--font-body);
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+
+    .topnav__user-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text-muted);
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* ТЕЛО */
+    .dashboard-body {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        position: relative;
+    }
+
+    /* Backdrop для мобайла */
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 149;
+        background: rgba(22, 33, 62, 0.4);
+        cursor: pointer;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+        width: 220px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--color-surface);
+        border-right: 1px solid var(--color-border);
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: var(--space-16) var(--space-8);
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 9999px;
+        }
+
+    .sidebar__section {
+        padding: 0 var(--space-4);
+    }
+
+    .sidebar__divider {
+        height: 1px;
+        background: var(--color-divider);
+        margin: var(--space-8) var(--space-4);
+    }
+
+    .sidebar__nav-list {
+        list-style: none;
+        margin: 0;
+        padding: var(--space-4) 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .sidebar__nav-link {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        padding: var(--space-8) var(--space-12);
+        border-radius: var(--radius-md);
+        font-family: var(--font-body);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-text-muted);
+        text-decoration: none;
+        transition: background var(--transition), color var(--transition);
+        min-height: 40px;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+        .sidebar__nav-link:hover {
+            background: var(--color-surface-offset);
+            color: var(--color-text);
+        }
+
+        .sidebar__nav-link:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+        .sidebar__nav-link:active {
+            transform: scale(0.985);
+            transition: transform 80ms;
+        }
+
+        /* Активная ссылка */
+        .sidebar__nav-link.active {
+            background: color-mix(in oklab, var(--color-primary) 10%, var(--color-surface));
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+            .sidebar__nav-link.active:hover {
+                background: color-mix(in oklab, var(--color-primary) 14%, var(--color-surface));
+            }
+
+        .sidebar__nav-link svg {
+            flex-shrink: 0;
+            opacity: 0.75;
+            transition: opacity var(--transition);
+        }
+
+        .sidebar__nav-link.active svg,
+        .sidebar__nav-link:hover svg {
+            opacity: 1;
+        }
+
+    .sidebar__spacer {
+        flex: 1;
+        min-height: var(--space-16);
+    }
+
+    .sidebar__footer {
+        padding: var(--space-8) var(--space-4) var(--space-4);
+        border-top: 1px solid var(--color-divider);
+    }
+
+    .sidebar__logout-btn {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        width: 100%;
+        padding: var(--space-8) var(--space-12);
+        border-radius: var(--radius-md);
+        font-family: var(--font-body);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-text-faint);
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        min-height: 40px;
+        transition: background var(--transition), color var(--transition);
+    }
+
+        .sidebar__logout-btn:hover {
+            background: color-mix(in oklab, var(--color-error) 8%, var(--color-surface));
+            color: var(--color-error);
+        }
+
+        .sidebar__logout-btn:focus-visible {
+            outline: 2px solid var(--color-error);
+            outline-offset: 2px;
+        }
+
+    /* ОСНОВНОЙ КОНТЕНТ */
+    .dashboard-main {
+        flex: 1;
+        min-width: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: var(--space-24);
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+
+        .dashboard-main::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dashboard-main::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .dashboard-main::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 9999px;
+        }
+
+    /* Skip-link */
+    .skip-link {
+        position: absolute;
+        top: -100%;
+        left: var(--space-16);
+        background: var(--color-primary);
+        color: #ffffff;
+        padding: var(--space-8) var(--space-16);
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 9999;
+        transition: top 0.1s;
+    }
+
+        .skip-link:focus {
+            top: var(--space-8);
+        }
+
+    /* АДАПТИВНОСТЬ */
+    @@media (max-width: 768px) {
+        .topnav__hamburger {
+            display: flex;
+        }
+
+        .topnav__user-name {
+            display: none;
+        }
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            bottom: 0;
+            z-index: 150;
+            width: 280px;
+            transform: translateX(-100%);
+            transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .sidebar-backdrop {
+            display: block;
+        }
+
+        .sidebar-open .sidebar {
+            transform: translateX(0);
+        }
+
+        .dashboard-main {
+            padding: var(--space-16);
+        }
+    }
+
+    /* REDUCED MOTION */
+    @@media (prefers-reduced-motion: reduce) {
+        .sidebar {
+            transition: none;
+        }
+
+        .sidebar__nav-link,
+        .sidebar__logout-btn,
+        .topnav__hamburger {
+            transition: none;
+        }
+
+            .sidebar__nav-link:active {
+                transform: none;
+            }
+    }
+</style>
+
+@code {
+    // Состояние   
+    private Guid? _activeChildId; // Идентификатор активного ребёнка
+   
+    private bool _sidebarOpen; // Флаг открытого sidebar на мобайле
+   
+    private string _theme = "light"; // Текущая тема
+       
+    private SessionExpiredDialog? _sessionExpiredDialog; // Ссылка на диалог истечения сессии
+   
+    private bool _disposed; // Флаг: компонент уже уничтожен
+
+    private EventCallback<Guid> _onChildChanged;
+
+    // Жизненный цикл
+    /// <inheritdoc/>
+    protected override async Task OnInitializedAsync()
+    {
+        _onChildChanged = EventCallback.Factory.Create<Guid>(this, OnChildChangedAsync);
+
+        JwtAuth.OnSessionExpired += HandleSessionExpiredAsync;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!(authState.User.Identity?.IsAuthenticated ?? false))
+        {
+            Navigation.NavigateTo("/login", forceLoad: false);
+        }
+    }
+
+    // Обработчики событий 
+    private void ToggleSidebar() => _sidebarOpen = !_sidebarOpen; // Переключает состояние sidebar на мобайле
+
+    private void CloseSidebar() => _sidebarOpen = false; // Закрывает sidebar при клике на backdrop или после навигации
+
+    /// <summary>
+    /// Устанавливает активного ребёнка и закрывает sidebar на мобайле
+    /// </summary>
+    private async Task OnChildChangedAsync(Guid childId)
+    {
+        _activeChildId = childId;
+        _sidebarOpen = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Синхронизирует текущую тему с ThemeToggle
+    /// </summary>
+    private void OnThemeChangedHandler(string newTheme)
+    {
+        _theme = newTheme;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Обрабатывает событие
+    /// </summary>
+    private async void HandleSessionExpiredAsync()
+    {
+        if (_disposed)
+            return;
+
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                if (_disposed)
+                    return;
+
+                if (_sessionExpiredDialog is not null)
+                {
+                    await _sessionExpiredDialog.ShowAsync();
+                }
+
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Выполняет выход
+    /// </summary>
+    private async Task LogoutAsync()
+    {
+        await JwtAuth.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Формирует инициалы из email или имени
+    /// </summary>
+    private static string GetUserInitials(string? identity)
+    {
+        if (string.IsNullOrWhiteSpace(identity))
+            return "?";
+
+        var atIndex = identity.IndexOf('@');
+        if (atIndex > 0)
+            return char.ToUpperInvariant(identity[0]).ToString();
+
+        var parts = identity.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}"
+            : char.ToUpperInvariant(parts[0][0]).ToString();
+    }
+
+    /// <summary>
+    /// Обрезает отображаемое имя пользователя до 20 символов
+    /// </summary>
+    private static string TrimUserName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return string.Empty;
+
+        return name.Length > 20
+            ? string.Concat(name.AsSpan(0, 18), "…")
+            : name;
+    }
+
+    // IDisposable
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _disposed = true;
+        JwtAuth.OnSessionExpired -= HandleSessionExpiredAsync;
+    }
+}

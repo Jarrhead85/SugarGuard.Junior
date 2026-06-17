@@ -1,0 +1,549 @@
+﻿@* баннер состояния / уведомления. *@
+
+@if (_isVisible)
+{
+    <div class="sg-alert-banner sg-alert-banner--@Type @(IsDismissible ? "sg-alert-banner--dismissible" : "")"
+         role="@_ariaRole"
+         aria-live="@_ariaLive"
+         aria-atomic="true"
+         aria-label="@_ariaLabel">
+
+        @* Иконка типа *@
+        <span class="sg-alert-banner__icon" aria-hidden="true">
+            @if (Icon is not null)
+            {
+                @Icon
+            }
+            else
+            {
+                @_defaultIcon
+            }
+        </span>
+
+        @* Контент *@
+        <div class="sg-alert-banner__body">
+            @if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <p class="sg-alert-banner__title">@Title</p>
+            }
+
+            @if (ChildContent is not null)
+            {
+                <div class="sg-alert-banner__content">
+                    @ChildContent
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <p class="sg-alert-banner__message">@Message</p>
+            }
+        </div>
+
+        @* Кнопка действия *@
+        @if (!string.IsNullOrWhiteSpace(ActionText) && OnAction.HasDelegate)
+        {
+            <button class="sg-alert-banner__action"
+                    type="button"
+                    @onclick="OnAction">
+                @ActionText
+            </button>
+        }
+
+        @* Кнопка закрытия *@
+        @if (IsDismissible)
+        {
+            <button class="sg-alert-banner__dismiss"
+                    type="button"
+                    aria-label="Закрыть уведомление"
+                    @onclick="DismissAsync">
+                <svg viewBox="0 0 20 20"
+                     fill="none"
+                     xmlns="http://www.w3.org/2000/svg"
+                     aria-hidden="true"
+                     width="16" height="16">
+                    <line x1="5" y1="5" x2="15" y2="15"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round" />
+                    <line x1="15" y1="5" x2="5" y2="15"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round" />
+                </svg>
+            </button>
+        }
+
+    </div>
+}
+
+<style>
+    /* Базовый баннер */
+    .sg-alert-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-12, 12px);
+        padding: var(--space-12, 12px) var(--space-16, 16px);
+        border-radius: var(--sg-radius-md, 18px);
+        border: 1px solid transparent;
+        font-family: var(--font-body, Satoshi, sans-serif);
+        font-size: var(--sg-font-body, clamp(0.875rem, 0.8rem + 0.35vw, 1rem));
+        line-height: 1.5;
+        /* Плавное появление */
+        animation: sg-alert-appear 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        width: 100%;
+    }
+
+    @@keyframes sg-alert-appear {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    /* Dismiss — баннер с кнопкой закрытия */
+    .sg-alert-banner--dismissible {
+        padding-right: var(--space-48, 48px);
+        position: relative;
+    }
+
+    /* Цветовые варианты */
+    /* Error — GlucoseDanger */
+    .sg-alert-banner--error {
+        background-color: var(--sg-color-danger-bg, #e0ced7);
+        color: var(--sg-color-danger-text, #561740);
+        border-color: color-mix(in oklab, var(--sg-color-danger, #a12c7b) 25%, transparent);
+    }
+
+    /* Warning — GlucoseWarning */
+    .sg-alert-banner--warning {
+        background-color: var(--sg-color-warning-bg, #e9e0c6);
+        color: var(--sg-color-warning-text, #4a3500);
+        border-color: color-mix(in oklab, var(--sg-color-warning, #d19900) 25%, transparent);
+    }
+
+    /* Success — GlucoseNormal / Safe */
+    .sg-alert-banner--success {
+        background-color: var(--sg-color-safe-bg, #d4dfcc);
+        color: var(--sg-color-safe-text, #1e3f0a);
+        border-color: color-mix(in oklab, var(--sg-color-safe, #437a22) 25%, transparent);
+    }
+
+    /* Info — Primary teal */
+    .sg-alert-banner--info {
+        background-color: color-mix(in oklab, var(--sg-primary, #01696f) 10%, transparent);
+        color: var(--sg-primary, #01696f);
+        border-color: color-mix(in oklab, var(--sg-primary, #01696f) 25%, transparent);
+    }
+
+    /* Иконка */
+    .sg-alert-banner__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        margin-top: 1px; /* выравнивание по первой строке текста */
+    }
+
+        .sg-alert-banner__icon svg {
+            width: 20px;
+            height: 20px;
+            display: block;
+            flex-shrink: 0;
+        }
+
+    /* Тело баннера  */
+    .sg-alert-banner__body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4, 4px);
+    }
+
+    /* Заголовок */
+    .sg-alert-banner__title {
+        margin: 0;
+        font-weight: 600;
+        font-size: var(--sg-font-body, clamp(0.875rem, 0.8rem + 0.35vw, 1rem));
+        line-height: 1.3;
+        color: inherit;
+    }
+
+    /* Текстовое сообщение */
+    .sg-alert-banner__message {
+        margin: 0;
+        font-size: var(--sg-font-body, clamp(0.875rem, 0.8rem + 0.35vw, 1rem));
+        color: inherit;
+        opacity: 0.9;
+        max-width: 72ch;
+        text-wrap: pretty;
+    }
+
+    /* Произвольный контент */
+    .sg-alert-banner__content {
+        font-size: var(--sg-font-body, clamp(0.875rem, 0.8rem + 0.35vw, 1rem));
+        color: inherit;
+        opacity: 0.9;
+    }
+
+    /* Кнопка действия */
+    .sg-alert-banner__action {
+        flex-shrink: 0;
+        align-self: center;
+        background: color-mix(in oklab, currentColor 12%, transparent);
+        color: inherit;
+        border: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+        border-radius: var(--sg-radius-full, 9999px);
+        padding: var(--space-4, 4px) var(--space-12, 12px);
+        font-family: var(--font-body, Satoshi, sans-serif);
+        font-size: var(--sg-font-label, clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem));
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        min-height: 32px;
+        transition: background var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1)), border-color var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1));
+    }
+
+        .sg-alert-banner__action:hover {
+            background: color-mix(in oklab, currentColor 20%, transparent);
+        }
+
+        .sg-alert-banner__action:active {
+            transform: scale(0.97);
+        }
+
+    /* Кнопка закрытия */
+    .sg-alert-banner__dismiss {
+        position: absolute;
+        top: 50%;
+        right: var(--space-12, 12px);
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: var(--sg-radius-full, 9999px);
+        background: transparent;
+        color: inherit;
+        opacity: 0.6;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        transition: background var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1)), opacity var(--sg-transition, 180ms cubic-bezier(0.16,1,0.3,1));
+        flex-shrink: 0;
+    }
+
+        /* Расширяем tap target без увеличения размера кнопки */
+        .sg-alert-banner__dismiss::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+        }
+
+        .sg-alert-banner__dismiss:hover {
+            background: color-mix(in oklab, currentColor 12%, transparent);
+            opacity: 1;
+        }
+
+        .sg-alert-banner__dismiss:focus-visible {
+            outline: 2px solid currentColor;
+            outline-offset: 2px;
+            opacity: 1;
+        }
+
+        .sg-alert-banner__dismiss:active {
+            transform: translateY(-50%) scale(0.92);
+        }
+
+    /* Анимация исчезновения при dismiss */
+    @@keyframes sg-alert-dismiss {
+        to
+
+    {
+        opacity: 0;
+        transform: translateY(-4px);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin: 0;
+    }
+
+    }
+
+    .sg-alert-banner--dismissing {
+        animation: sg-alert-dismiss 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    /* prefers-reduced-motion */
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-alert-banner
+
+    {
+        animation: none;
+    }
+
+    .sg-alert-banner--dismissing {
+        animation: none;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Type { get; set; } = "info"; // Тип баннера
+
+    [Parameter]
+    public string? Title { get; set; } // Заголовок баннера
+
+    [Parameter]
+    public string? Message { get; set; } // Основной текст сообщения
+
+    [Parameter]
+    public RenderFragment? Icon { get; set; } // Кастомная SVG-иконка
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; } // Произвольный контент 
+
+    [Parameter]
+    public bool IsDismissible { get; set; } // Показывать кнопку закрытия
+
+    [Parameter]
+    public EventCallback OnDismissed { get; set; } // Callback при закрытии баннера пользователем
+
+    [Parameter]
+    public string? ActionText { get; set; } // Текст кнопки-действия
+
+    [Parameter]
+    public EventCallback OnAction { get; set; } // Callback при нажатии кнопки-действия
+
+    // Вычисляемые значения   
+    private bool _isVisible = true; // Видимость баннера
+
+    private string _ariaRole = "status"; // ARIA role
+
+    private string _ariaLive = "polite"; // aria-live: assertive для ошибок, polite для остальных
+
+    private string _ariaLabel = string.Empty; // ARIA-метка для скринридеров
+
+    private RenderFragment _defaultIcon = default!; // Дефолтная иконка, вычисленная по типу баннера
+
+    /// <inheritdoc/>
+    protected override void OnParametersSet()
+    {
+        // Выбираем ARIA-атрибуты по типу
+        (_ariaRole, _ariaLive, _ariaLabel) = Type switch
+        {
+            "error" => ("alert", "assertive", "Ошибка"),
+            "warning" => ("alert", "assertive", "Предупреждение"),
+            "success" => ("status", "polite", "Успешно"),
+            _ => ("status", "polite", "Информация")
+        };
+
+        // Строим дефолтную иконку по типу
+        _defaultIcon = Type switch
+        {
+            "error" => BuildErrorIcon(),
+            "warning" => BuildWarningIcon(),
+            "success" => BuildSuccessIcon(),
+            _ => BuildInfoIcon()
+        };
+    }
+
+    // Обработчики 
+    /// <summary>
+    /// Закрывает баннер с анимацией исчезновения
+    /// </summary>
+    private async Task DismissAsync()
+    {
+        _isVisible = false;
+        StateHasChanged();
+
+        if (OnDismissed.HasDelegate)
+        {
+            await OnDismissed.InvokeAsync();
+        }
+    }
+
+    // Фабрики иконок
+    /// <summary>
+    /// Иконка ошибки
+    /// </summary>
+    private static RenderFragment BuildErrorIcon() =>
+        builder =>
+        {
+            builder.OpenElement(0, "svg");
+            builder.AddAttribute(1, "viewBox", "0 0 20 20");
+            builder.AddAttribute(2, "fill", "none");
+            builder.AddAttribute(3, "xmlns", "http://www.w3.org/2000/svg");
+            builder.AddAttribute(4, "aria-hidden", "true");
+
+            // Круг
+            builder.OpenElement(5, "circle");
+            builder.AddAttribute(6, "cx", "10");
+            builder.AddAttribute(7, "cy", "10");
+            builder.AddAttribute(8, "r", "8");
+            builder.AddAttribute(9, "stroke", "currentColor");
+            builder.AddAttribute(10, "stroke-width", "1.8");
+            builder.AddAttribute(11, "fill", "none");
+            builder.CloseElement();
+
+            // X — линия 1
+            builder.OpenElement(12, "line");
+            builder.AddAttribute(13, "x1", "7");
+            builder.AddAttribute(14, "y1", "7");
+            builder.AddAttribute(15, "x2", "13");
+            builder.AddAttribute(16, "y2", "13");
+            builder.AddAttribute(17, "stroke", "currentColor");
+            builder.AddAttribute(18, "stroke-width", "1.8");
+            builder.AddAttribute(19, "stroke-linecap", "round");
+            builder.CloseElement();
+
+            // X — линия 2
+            builder.OpenElement(20, "line");
+            builder.AddAttribute(21, "x1", "13");
+            builder.AddAttribute(22, "y1", "7");
+            builder.AddAttribute(23, "x2", "7");
+            builder.AddAttribute(24, "y2", "13");
+            builder.AddAttribute(25, "stroke", "currentColor");
+            builder.AddAttribute(26, "stroke-width", "1.8");
+            builder.AddAttribute(27, "stroke-linecap", "round");
+            builder.CloseElement();
+
+            builder.CloseElement();
+        };
+
+    /// <summary>
+    /// Иконка предупреждения — треугольник с восклицательным знаком
+    /// </summary>
+    private static RenderFragment BuildWarningIcon() =>
+        builder =>
+        {
+            builder.OpenElement(0, "svg");
+            builder.AddAttribute(1, "viewBox", "0 0 20 20");
+            builder.AddAttribute(2, "fill", "none");
+            builder.AddAttribute(3, "xmlns", "http://www.w3.org/2000/svg");
+            builder.AddAttribute(4, "aria-hidden", "true");
+
+            // Треугольник
+            builder.OpenElement(5, "path");
+            builder.AddAttribute(6, "d", "M10 2L18 17H2L10 2Z");
+            builder.AddAttribute(7, "stroke", "currentColor");
+            builder.AddAttribute(8, "stroke-width", "1.8");
+            builder.AddAttribute(9, "stroke-linejoin", "round");
+            builder.AddAttribute(10, "fill", "none");
+            builder.CloseElement();
+
+            // Вертикальная черта
+            builder.OpenElement(11, "line");
+            builder.AddAttribute(12, "x1", "10");
+            builder.AddAttribute(13, "y1", "8");
+            builder.AddAttribute(14, "x2", "10");
+            builder.AddAttribute(15, "y2", "12");
+            builder.AddAttribute(16, "stroke", "currentColor");
+            builder.AddAttribute(17, "stroke-width", "1.8");
+            builder.AddAttribute(18, "stroke-linecap", "round");
+            builder.CloseElement();
+
+            // Точка
+            builder.OpenElement(19, "circle");
+            builder.AddAttribute(20, "cx", "10");
+            builder.AddAttribute(21, "cy", "14.5");
+            builder.AddAttribute(22, "r", "0.9");
+            builder.AddAttribute(23, "fill", "currentColor");
+            builder.CloseElement();
+
+            builder.CloseElement();
+        };
+
+    /// <summary>
+    /// Иконка успеха — круг с галочкой
+    /// </summary>
+    private static RenderFragment BuildSuccessIcon() =>
+        builder =>
+        {
+            builder.OpenElement(0, "svg");
+            builder.AddAttribute(1, "viewBox", "0 0 20 20");
+            builder.AddAttribute(2, "fill", "none");
+            builder.AddAttribute(3, "xmlns", "http://www.w3.org/2000/svg");
+            builder.AddAttribute(4, "aria-hidden", "true");
+
+            // Круг
+            builder.OpenElement(5, "circle");
+            builder.AddAttribute(6, "cx", "10");
+            builder.AddAttribute(7, "cy", "10");
+            builder.AddAttribute(8, "r", "8");
+            builder.AddAttribute(9, "stroke", "currentColor");
+            builder.AddAttribute(10, "stroke-width", "1.8");
+            builder.AddAttribute(11, "fill", "none");
+            builder.CloseElement();
+
+            // Галочка
+            builder.OpenElement(12, "path");
+            builder.AddAttribute(13, "d", "M6.5 10.5L9 13L13.5 8");
+            builder.AddAttribute(14, "stroke", "currentColor");
+            builder.AddAttribute(15, "stroke-width", "1.8");
+            builder.AddAttribute(16, "stroke-linecap", "round");
+            builder.AddAttribute(17, "stroke-linejoin", "round");
+            builder.CloseElement();
+
+            builder.CloseElement(); 
+        };
+
+    /// <summary>
+    /// Иконка информации — круг с буквой i
+    /// </summary>
+    private static RenderFragment BuildInfoIcon() =>
+        builder =>
+        {
+            builder.OpenElement(0, "svg");
+            builder.AddAttribute(1, "viewBox", "0 0 20 20");
+            builder.AddAttribute(2, "fill", "none");
+            builder.AddAttribute(3, "xmlns", "http://www.w3.org/2000/svg");
+            builder.AddAttribute(4, "aria-hidden", "true");
+
+            // Круг
+            builder.OpenElement(5, "circle");
+            builder.AddAttribute(6, "cx", "10");
+            builder.AddAttribute(7, "cy", "10");
+            builder.AddAttribute(8, "r", "8");
+            builder.AddAttribute(9, "stroke", "currentColor");
+            builder.AddAttribute(10, "stroke-width", "1.8");
+            builder.AddAttribute(11, "fill", "none");
+            builder.CloseElement();
+
+            // Точка над i
+            builder.OpenElement(12, "circle");
+            builder.AddAttribute(13, "cx", "10");
+            builder.AddAttribute(14, "cy", "6.5");
+            builder.AddAttribute(15, "r", "0.9");
+            builder.AddAttribute(16, "fill", "currentColor");
+            builder.CloseElement();
+
+            // Вертикальная черта i
+            builder.OpenElement(17, "line");
+            builder.AddAttribute(18, "x1", "10");
+            builder.AddAttribute(19, "y1", "9");
+            builder.AddAttribute(20, "x2", "10");
+            builder.AddAttribute(21, "y2", "14");
+            builder.AddAttribute(22, "stroke", "currentColor");
+            builder.AddAttribute(23, "stroke-width", "1.8");
+            builder.AddAttribute(24, "stroke-linecap", "round");
+            builder.CloseElement();
+
+            builder.CloseElement(); 
+        };
+}

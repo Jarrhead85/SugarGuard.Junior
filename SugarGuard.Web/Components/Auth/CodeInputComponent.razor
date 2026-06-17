@@ -1,0 +1,525 @@
+﻿@* Компонент ввода 6-значного кода верификации *@
+
+@using Microsoft.AspNetCore.Components.Web
+@using SugarGuard.Shared.Constants
+@inject IJSRuntime JS
+
+<div class="code-input-root" aria-label="Поле ввода кода подтверждения">
+
+    @* Скрытый input для перехвата вставки *@
+    <input type="text"
+           inputmode="text"
+           autocomplete="one-time-code"
+           class="code-input-hidden-paste"
+           tabindex="-1"
+           aria-hidden="true"
+           @onpaste="OnPasteAsync"
+           id="@_pasteInputId"/>
+
+    <div class="code-input-cells" role="group" aria-label="8 символов кода">
+        @for (int i = 0; i < TotalDigits; i++)
+        {
+            var index = i; 
+            <input type="text"
+                   inputmode="text"
+                   maxlength="1"
+                   pattern="[A-Za-z2-9]"
+                   class="code-input-cell @GetCellClass(index)"
+                   id="@GetCellId(index)"
+                   value="@(_digits[index] == '\0' ? "" : _digits[index].ToString())"
+                   @onkeydown="e => OnKeyDownAsync(e, index)"
+                   @oninput="e => OnInputAsync(e, index)"
+                   @onfocus="e => OnFocusAsync(e, index)"
+                   disabled="@(Disabled || _isBusy)"
+                   aria-label="Символ @(index + 1) из @TotalDigits"
+                   autocomplete="off"
+                   spellcheck="false"/>
+        }
+    </div>
+
+    @if (_hasError && !string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="code-input-error" role="alert" aria-live="polite">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <circle cx="7" cy="7" r="6.25" stroke="currentColor" stroke-width="1.25"/>
+                <path d="M7 3.5v4M7 9.5v.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+            </svg>
+            <span>@ErrorMessage</span>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    // Константы
+    private const int TotalDigits = ConnectionCodeFormat.Length;
+
+    // Параметры компонента
+    [Parameter]
+    public EventCallback<string> OnCodeCompleted { get; set; } // Вызывается при вводе полного 8-значного кода
+
+    [Parameter]
+    public EventCallback<string> OnCodeChanged { get; set; } // Вызывается при каждом изменении кода
+
+    [Parameter]
+    public bool Disabled { get; set; } // Блокирует поля ввода
+
+    [Parameter]
+    public string? ErrorMessage { get; set; } // Сообщение об ошибке
+
+    [Parameter]
+    public bool HasError { get; set; } // Отображать ли ошибку
+
+    // Внутреннее состояние
+    // Массив 8 символов
+    private readonly char[] _digits = new char[TotalDigits];
+
+    private bool _hasError;
+    private bool _isBusy;
+    private int  _focusedIndex = 0;
+    private readonly string _instanceId  = Guid.NewGuid().ToString("N")[..8];
+    private string _pasteInputId => $"paste-hidden-{_instanceId}";
+
+    // Жизненный цикл
+    protected override void OnParametersSet()
+    {
+        _hasError = HasError;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Фокус на первую ячейку при монтировании
+            await FocusCellAsync(0);
+        }
+    }
+
+    // Обработчики событий
+    // Обрабатывает ввод одного символа в ячейку
+    private async Task OnInputAsync(ChangeEventArgs e, int index)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+
+        var digit = raw
+            .Select(char.ToUpperInvariant)
+            .LastOrDefault(IsAllowedCodeChar);
+
+        if (digit == default)
+        {
+            // Неподдерживаемый символ — очищаем ячейку, но не двигаем фокус
+            _digits[index] = '\0';
+            _hasError      = false;
+            await NotifyChangedAsync();
+            StateHasChanged();
+            return;
+        }
+
+        _digits[index] = digit;
+        _hasError       = false;
+
+        await NotifyChangedAsync();
+
+        // Переходим на следующую ячейку
+        if (index < TotalDigits - 1)
+        {
+            await FocusCellAsync(index + 1);
+        }
+        else
+        {
+            // Все ячейки заполнены — уведомляем родителя
+            var code = BuildCode();
+            if (code.Length == TotalDigits)
+                await NotifyCompletedAsync(code);
+        }
+
+        StateHasChanged();
+    }
+
+    // Обрабатывает нажатия клавиш
+    private async Task OnKeyDownAsync(KeyboardEventArgs e, int index)
+    {
+        switch (e.Key)
+        {
+            case "Backspace":
+                if (_digits[index] != '\0')
+                {
+                    // Очищаем текущую ячейку
+                    _digits[index] = '\0';
+                    _hasError      = false;
+                    await NotifyChangedAsync();
+                    StateHasChanged();
+                }
+                else if (index > 0)
+                {
+                    // Переходим на предыдущую и очищаем её
+                    _digits[index - 1] = '\0';
+                    _hasError          = false;
+                    await FocusCellAsync(index - 1);
+                    await NotifyChangedAsync();
+                    StateHasChanged();
+                }
+                break;
+
+            case "ArrowLeft":
+                if (index > 0)
+                    await FocusCellAsync(index - 1);
+                break;
+
+            case "ArrowRight":
+                if (index < TotalDigits - 1)
+                    await FocusCellAsync(index + 1);
+                break;
+
+            case "Enter":
+                var code = BuildCode();
+                if (code.Length == TotalDigits)
+                    await NotifyCompletedAsync(code);
+                break;
+
+            case "Delete":
+                _digits[index] = '\0';
+                _hasError      = false;
+                await NotifyChangedAsync();
+                StateHasChanged();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// При фокусе выделяет содержимое ячейки для удобного перезаписывания
+    /// </summary>
+    private async Task OnFocusAsync(FocusEventArgs _, int index)
+    {
+        _focusedIndex = index;
+        await JS.InvokeVoidAsync("sugarGuardCodeInput.selectCell", GetCellId(index));
+    }
+
+    /// <summary>
+    /// Обрабатывает вставку из буфера обмена
+    /// </summary>
+    private async Task OnPasteAsync(ClipboardEventArgs e)
+    {
+        var pasted = await JS.InvokeAsync<string?>("sugarGuardCodeInput.getClipboardText");
+
+        if (string.IsNullOrWhiteSpace(pasted))
+            return;
+
+        await ApplyPastedCodeAsync(pasted);
+    }
+
+    // Публичные методы
+    /// <summary>
+    /// Сбрасывает все ячейки в пустое состояние и возвращает фокус на первую
+    /// </summary>
+    public async Task ClearAsync()
+    {
+        for (int i = 0; i < TotalDigits; i++)
+            _digits[i] = '\0';
+
+        _hasError = false;
+        StateHasChanged();
+        await FocusCellAsync(0);
+    }
+
+    /// <summary>
+    /// Помечает все ячейки как ошибочные
+    /// </summary>
+    public void SetError()
+    {
+        _hasError = true;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Устанавливает состояние загрузки
+    /// </summary>
+    public void SetBusy(bool busy)
+    {
+        _isBusy = busy;
+        StateHasChanged();
+    }
+
+    // Вспомогательные методы 
+    /// <summary>
+    /// Заполняет ячейки из строки
+    /// </summary>
+    private async Task ApplyPastedCodeAsync(string text)
+    {
+        var digits = text
+            .Select(char.ToUpperInvariant)
+            .Where(IsAllowedCodeChar)
+            .Take(TotalDigits)
+            .ToArray();
+
+        if (digits.Length == 0)
+            return;
+
+        for (int i = 0; i < TotalDigits; i++)
+            _digits[i] = i < digits.Length ? digits[i] : '\0';
+
+        _hasError = false;
+        StateHasChanged();
+
+        await NotifyChangedAsync();
+
+        var code = BuildCode();
+        if (code.Length == TotalDigits)
+        {
+            await FocusCellAsync(TotalDigits - 1);
+            await NotifyCompletedAsync(code);
+        }
+        else
+        {
+            var firstEmpty = Array.IndexOf(_digits, '\0');
+            if (firstEmpty >= 0)
+                await FocusCellAsync(firstEmpty);
+        }
+    }
+
+    /// <summary>
+    /// Строит строку кода из заполненных ячеек
+    /// </summary>
+    private string BuildCode()
+        => new string(_digits.Where(c => c != '\0').ToArray());
+
+    private static bool IsAllowedCodeChar(char value) =>
+        InviteCodeLimits.Alphabet.Contains(value);
+
+    /// <summary>
+    /// CSS-класс ячейки в зависимости от состояния
+    /// </summary>
+    private string GetCellClass(int index)
+    {
+        var parts = new List<string>(3);
+
+        if (_digits[index] != '\0')
+            parts.Add("filled");
+
+        if (_hasError)
+            parts.Add("error");
+        else if (index == _focusedIndex)
+            parts.Add("active");
+
+        return string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// Возвращает идентификатор ячейки
+    /// </summary>
+    private string GetCellId(int index)
+        => $"code-cell-{_instanceId}-{index}";
+
+    /// <summary>
+    /// Программно переводит фокус на ячейку по индексу
+    /// </summary>
+    private async Task FocusCellAsync(int index)
+    {
+        _focusedIndex = index;
+        try
+        {
+            await JS.InvokeVoidAsync("sugarGuardCodeInput.focusCell", GetCellId(index));
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private async Task NotifyChangedAsync()
+    {
+        if (OnCodeChanged.HasDelegate)
+            await OnCodeChanged.InvokeAsync(BuildCode());
+    }
+
+    private async Task NotifyCompletedAsync(string code)
+    {
+        if (OnCodeCompleted.HasDelegate)
+            await OnCodeCompleted.InvokeAsync(code);
+    }
+}
+
+@* JS-интероп *@
+
+<script suppress-error="BL9992">
+    window.sugarGuardCodeInput = {
+
+        focusCell: function (cellId) {
+            const el = document.getElementById(cellId);
+            if (el) {
+                el.focus({ preventScroll: false });
+            }
+        },
+
+        selectCell: function (cellId) {
+            const el = document.getElementById(cellId);
+            if (el && el.value) {
+                el.select();
+            }
+        },
+
+        getClipboardText: async function () {
+            try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    return await navigator.clipboard.readText();
+                }
+                return null;
+            } catch {
+                return null;
+            }
+        }
+    };
+</script>
+
+@*  Стили *@
+
+<style>
+    /* Корневой контейнер */
+    .code-input-root {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.625rem;
+        width: 100%;
+    }
+
+    /* Скрытый input для перехвата вставки */
+    .code-input-hidden-paste {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* Обёртка ячеек */
+    .code-input-cells {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    /* Одна ячейка */
+    .code-input-cell {
+        width: 48px;
+        height: 58px;
+        text-align: center;
+        font-size: 1.625rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        letter-spacing: 0;
+        color: var(--color-text, #28251d);
+        background: var(--color-surface-2, #fbfbf9);
+        border: 1.5px solid var(--color-border, #d4d1ca);
+        border-radius: var(--radius-md, 0.5rem);
+        caret-color: var(--color-primary, #01696f);
+        outline: none;
+        transition:
+            border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+            box-shadow   150ms cubic-bezier(0.16, 1, 0.3, 1),
+            background   150ms ease;
+
+        -moz-appearance: textfield;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* iOS / Android — стандартный cursor, без зума */
+    .code-input-cell:focus {
+        font-size: 1.625rem;
+    }
+
+    /* Состояния */
+
+    /* Заполненная ячейка */
+    .code-input-cell.filled {
+        background: var(--color-primary-highlight, #cedcd8);
+        border-color: var(--color-primary, #01696f);
+        color: var(--color-primary-active, #0f3638);
+    }
+
+    /* Активная */
+    .code-input-cell.active,
+    .code-input-cell:focus {
+        border-color: var(--color-primary, #01696f);
+        box-shadow: 0 0 0 3px oklch(from var(--color-primary, #01696f) l c h / 0.18);
+        background: var(--color-surface-2, #fbfbf9);
+    }
+
+    /* Заполненная и активная одновременно */
+    .code-input-cell.filled.active,
+    .code-input-cell.filled:focus {
+        background: var(--color-primary-highlight, #cedcd8);
+    }
+
+    /* Ошибка */
+    .code-input-cell.error {
+        border-color: var(--color-error, #a12c7b);
+        background: var(--color-error-highlight, #e0ced7);
+        color: var(--color-error-active, #561740);
+        animation: code-shake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    .code-input-cell.error:focus {
+        box-shadow: 0 0 0 3px oklch(from var(--color-error, #a12c7b) l c h / 0.18);
+    }
+
+    /* Отключённое состояние */
+    .code-input-cell:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        background: var(--color-surface-offset, #f3f0ec);
+    }
+
+    /* Сообщение об ошибке */
+    .code-input-error {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.8125rem;
+        color: var(--color-error, #a12c7b);
+        line-height: 1.4;
+        padding: 0 0.25rem;
+    }
+
+    /* Анимации */
+
+    @@keyframes code-shake {
+        0%, 100% { transform: translateX(0); }
+        15%       { transform: translateX(-5px); }
+        30%       { transform: translateX(5px); }
+        45%       { transform: translateX(-4px); }
+        60%       { transform: translateX(4px); }
+        75%       { transform: translateX(-2px); }
+        90%       { transform: translateX(2px); }
+    }
+
+    /* Адаптив: уменьшение ячеек на маленьких экранах */
+    @@media (max-width: 400px) {
+        .code-input-cell {
+            width: 42px;
+            height: 52px;
+            font-size: 1.375rem;
+        }
+
+        .code-input-cells {
+            gap: 0.375rem;
+        }
+    }
+
+    /* Reduced motion */
+    @@  media (prefers-reduced-motion: reduce) {
+        .code-input-cell,
+        .code-input-cell.error {
+            animation: none;
+            transition: none;
+        }
+    }
+</style>

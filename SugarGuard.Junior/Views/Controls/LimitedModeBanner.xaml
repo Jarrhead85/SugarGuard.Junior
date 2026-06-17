@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Controls.LimitedModeBanner"
+             x:Name="banner"
+             IsVisible="{Binding Source={x:Reference banner}, Path=IsVisible}">
+
+    <Border BackgroundColor="{DynamicResource GlucoseWarningBadgeBg}"
+            Stroke="{DynamicResource GlucoseWarningColor}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 12"
+            Padding="{StaticResource PaddingLg}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="{StaticResource Spacing12}">
+            <!-- Иконка -->
+            <Label Text="📧" FontSize="20" VerticalTextAlignment="Center" Grid.Column="0" />
+
+            <!-- Текст -->
+            <Label VerticalTextAlignment="Center" Grid.Column="1">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span Text="Подтвердите email для доступа ко всем функциям"
+                              FontFamily="{StaticResource Satoshi}"
+                              FontSize="14" />
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+            <!-- Стрелка -->
+            <Label Text="→" FontSize="18"
+                   TextColor="{StaticResource GlucoseWarningColor}"
+                   VerticalTextAlignment="Center"
+                   Grid.Column="2">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBannerTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+    </Border>
+
+</ContentView>

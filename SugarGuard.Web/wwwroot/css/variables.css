@@ -1,0 +1,403 @@
+﻿/* ==========================================================================
+   SugarGuard Web — variables.css
+   Единственный источник истины для всех CSS-токенов приложения.
+
+   ПРАВИЛА:
+   - Все имена переменных используют полную нотацию: --color-*, --spacing-*
+   - Этот файл загружается ПЕРВЫМ в App.razor / _Host.cshtml
+   - Никакие токены не дублируются в других файлах — только ссылки сюда
+   - Комментарии описывают назначение, не значения
+
+   Порядок загрузки:
+   1. variables.css  ← этот файл
+   2. sg-tokens.css  — compat-алиасы для старых компонентов (--space-* → --spacing-*)
+   3. app.css        — base reset + глобальные компоненты
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   § 0. Шрифты — @font-face / @import
+   ClashDisplay загружается через Fontshare CDN.
+   Satoshi — через Fontshare CDN.
+   Оба подключаются до :root, чтобы браузер мог начать загрузку немедленно.
+   -------------------------------------------------------------------------- */
+
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@300,400,500,600,700&display=swap');
+
+/* --------------------------------------------------------------------------
+   § 1. Light Mode (по умолчанию)
+   Активируется на :root и явно на [data-theme="light"]
+   -------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+    /* ——— Цветовая схема ——— */
+    color-scheme: light;
+    /* ——— Фоны и поверхности ——— */
+    /** Фон страницы */
+    --color-bg: #F4F7FB;
+    /** Карточки — стекло-морфизм 85% */
+    --color-surface: rgba(255, 255, 255, 0.85);
+    /** Поднятые поверхности (модалки, bottom sheet) — 95% */
+    --color-surface-2: rgba(255, 255, 255, 0.95);
+    /** Смещённый фон (hover, stripe, вложенные блоки) */
+    --color-surface-offset: #E9EFF9;
+    /** Граница компонентов — едва заметная */
+    --color-border: rgba(22, 33, 62, 0.10);
+    /** Разделители (hr, table border) — тоньше border */
+    --color-divider: rgba(22, 33, 62, 0.08);
+    /* ——— Текст ——— */
+    /** Основной текст */
+    --color-text: #16213E;
+    /** Вспомогательный текст, подписи */
+    --color-text-muted: #667694;
+    /** Едва заметный текст (placeholder, timestamp) */
+    --color-text-faint: #96A2B8;
+    /** Текст на тёмных фонах (кнопки, badge) */
+    --color-text-inverse: #FFFFFF;
+    /* ——— Основной акцент ——— */
+    /** Primary — CTA, активные элементы, иконки */
+    --color-primary: #1B8E8B;
+    /** Primary hover / pressed */
+    --color-primary-hover: #156e6c;
+    /** Primary active (pressed) */
+    --color-primary-active: #0f5150;
+    /** PrimaryStrong — hover highlight светлый */
+    --color-primary-strong: #56D0BF;
+    /** PrimaryAlt — вторичный акцент (графики, теги) */
+    --color-primary-alt: #2678D9;
+    /** Мягкий фон акцента (chip, selection highlight) */
+    --color-primary-soft: rgba(27, 142, 139, 0.10);
+    /* ——— Глюкоза — семантические цвета ——— */
+    /* Источник истины: SugarGuard.Shared.GlucoseLevels */
+    /** Норма (4.0–10.0 ммоль/л) */
+    --color-glucose-normal: #37A563;
+    /** Внимание (3.0–3.9 и 10.1–13.9 ммоль/л) */
+    --color-glucose-warning: #E3A32B;
+    /** Опасность (< 3.0 и ≥ 14.0 ммоль/л) */
+    --color-glucose-danger: #DB5967;
+    /* ——— Статус (State Banner) ——— */
+    /** Полоса синхронизации / ожидание */
+    --color-state-sync: var(--color-primary-alt);
+    /** Оффлайн */
+    --color-state-offline: var(--color-text-muted);
+    /* ——— Тени ——— */
+    /** Базовая тень карточки */
+    --shadow-sm: 0 8px 24px rgba(22, 33, 62, 0.07);
+    /** Средняя тень (hover-состояние карточки) */
+    --shadow-md: 0 12px 28px rgba(22, 33, 62, 0.10);
+    /** Hero-тень (большие карточки, диалоги) */
+    --shadow-lg: 0 24px 48px rgba(22, 33, 62, 0.11);
+    /** Тень overlay (bottom sheet, модалки) */
+    --shadow-overlay: 0 32px 90px rgba(22, 33, 62, 0.16);
+    /* ——— Алиасы теней для обратной совместимости ——— */
+    --shadow-card: var(--shadow-sm);
+    --shadow-hero: var(--shadow-lg);
+}
+
+/* --------------------------------------------------------------------------
+   § 2. Dark Mode
+   Активируется data-theme="dark" (JS-переключатель в theme.js)
+   и системным prefers-color-scheme: dark (медиа-запрос ниже)
+   -------------------------------------------------------------------------- */
+
+[data-theme="dark"] {
+    /* ——— Цветовая схема ——— */
+    color-scheme: dark;
+    /* ——— Фоны и поверхности ——— */
+
+    --color-bg: #0B1018;
+    --color-surface: rgba(17, 24, 37, 0.80);
+    --color-surface-2: rgba(17, 24, 37, 0.90);
+    --color-surface-offset: #10192A;
+    --color-border: rgba(237, 244, 255, 0.09);
+    --color-divider: rgba(237, 244, 255, 0.08);
+    /* ——— Текст ——— */
+
+    --color-text: #EDF4FF;
+    --color-text-muted: #9EAED0;
+    --color-text-faint: #6F7D99;
+    --color-text-inverse: #0B1018;
+    /* ——— Основной акцент ——— */
+
+    --color-primary: #56D0BF;
+    --color-primary-hover: #3db8a8;
+    --color-primary-active: #2a9e90;
+    --color-primary-strong: #56D0BF;
+    --color-primary-alt: #6DAEFF;
+    --color-primary-soft: rgba(86, 208, 191, 0.12);
+    /* ——— Глюкоза ——— */
+
+    --color-glucose-normal: #62D889;
+    --color-glucose-warning: #F4BC56;
+    --color-glucose-danger: #FF7A8B;
+    /* ——— Тени (в dark mode более тёмные) ——— */
+
+    --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.28);
+    --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.34);
+    --shadow-lg: 0 24px 58px rgba(0, 0, 0, 0.34);
+    --shadow-overlay: 0 36px 100px rgba(0, 0, 0, 0.48);
+    --shadow-card: var(--shadow-sm);
+    --shadow-hero: var(--shadow-lg);
+}
+
+/* --------------------------------------------------------------------------
+   § 3. Системный dark mode — запасной вариант
+   Срабатывает, если пользователь ещё не нажал переключатель темы.
+   Дублирует [data-theme="dark"] — без исключений.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        color-scheme: dark;
+        --color-bg: #0B1018;
+        --color-surface: rgba(17, 24, 37, 0.80);
+        --color-surface-2: rgba(17, 24, 37, 0.90);
+        --color-surface-offset: #10192A;
+        --color-border: rgba(237, 244, 255, 0.09);
+        --color-divider: rgba(237, 244, 255, 0.08);
+        --color-text: #EDF4FF;
+        --color-text-muted: #9EAED0;
+        --color-text-faint: #6F7D99;
+        --color-text-inverse: #0B1018;
+        --color-primary: #56D0BF;
+        --color-primary-hover: #3db8a8;
+        --color-primary-active: #2a9e90;
+        --color-primary-strong: #56D0BF;
+        --color-primary-alt: #6DAEFF;
+        --color-primary-soft: rgba(86, 208, 191, 0.12);
+        --color-glucose-normal: #62D889;
+        --color-glucose-warning: #F4BC56;
+        --color-glucose-danger: #FF7A8B;
+        --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.28);
+        --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.34);
+        --shadow-lg: 0 24px 58px rgba(0, 0, 0, 0.34);
+        --shadow-overlay: 0 36px 100px rgba(0, 0, 0, 0.48);
+        --shadow-card: var(--shadow-sm);
+        --shadow-hero: var(--shadow-lg);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   § 4. Токены, не зависящие от темы
+   Одинаковы и в light, и в dark — вынесены в :root один раз.
+   -------------------------------------------------------------------------- */
+
+:root {
+    /* ——— Типографика ——— */
+    /** Display-шрифт: заголовки, KPI-значения (≥ 24px) */
+    --font-display: 'ClashDisplay', 'Satoshi', sans-serif;
+    /** Body-шрифт: весь текст ниже 24px */
+    --font-body: 'Satoshi', system-ui, sans-serif;
+    /* ——— Размеры шрифтов — fluid scale ——— */
+    /* Минимальный размер на экране: 12px (floor) */
+    /** 12px — chips, badges, метки, caption */
+    --font-size-xs: clamp(0.75rem, 0.70rem + 0.20vw, 0.8125rem);
+    /** 13px — вторичный текст, caption-medium */
+    --font-size-sm: clamp(0.8125rem, 0.78rem + 0.20vw, 0.875rem);
+    /** 15px — основной body текст (стандарт SugarGuard) */
+    --font-size-base: clamp(0.9375rem, 0.90rem + 0.20vw, 1rem);
+    /** 18px — подзаголовки, жирные акценты */
+    --font-size-lg: clamp(1.125rem, 1.0rem + 0.50vw, 1.25rem);
+    /** 24px — заголовки страниц (минимум для display-шрифта) */
+    --font-size-xl: clamp(1.25rem, 1.0rem + 1.00vw, 1.5rem);
+    /** 28–40px — KPI-значения medium / large */
+    --font-size-2xl: clamp(1.75rem, 1.2rem + 2.00vw, 2.5rem);
+    /** 40–56px — KPI-значения extra large (hero) */
+    --font-size-3xl: clamp(2.5rem, 1.5rem + 3.50vw, 3.5rem);
+    /* ——— Spacing — система 4px ——— */
+    /* Токены именуются по значению в пикселях */
+
+    --spacing-0: 0px;
+    --spacing-4: 4px;
+    --spacing-8: 8px;
+    --spacing-12: 12px;
+    --spacing-16: 16px;
+    --spacing-20: 20px;
+    --spacing-24: 24px;
+    --spacing-32: 32px;
+    --spacing-40: 40px;
+    --spacing-48: 48px;
+    --spacing-64: 64px;
+    /* Алиасы для удобства в компонентах */
+    --spacing-1: 4px; /* spacing-4  */
+    --spacing-2: 8px; /* spacing-8  */
+    --spacing-3: 12px; /* spacing-12 */
+    --spacing-4: 16px; /* spacing-16 — ВНИМАНИЕ: конфликт с --spacing-4 выше!
+                           Используй явные имена --spacing-16 в новом коде.
+                           Этот алиас — только для совместимости с app.css §6 */
+    --spacing-5: 20px; /* spacing-20 */
+    --spacing-6: 24px; /* spacing-24 */
+    --spacing-8: 32px; /* spacing-32 */
+    /* ——— Border Radius ——— */
+    /* Источник: UIKit §4 */
+    /** Мелкие элементы: инпуты, кнопки маленькие */
+    --radius-sm: 14px;
+    /** Карточки средние, поля ввода */
+    --radius-md: 18px;
+    /** Карточки стандартные (BaseCard) */
+    --radius-lg: 24px;
+    /** Hero-карточки, bottom sheet, диалоги */
+    --radius-xl: 32px;
+    /** Pill-форма: chips, бейджи, кнопки-пилюли */
+    --radius-full: 9999px;
+    /* ——— Переходы / анимации ——— */
+    /** Стандартный интерактивный переход */
+    --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    /** Быстрый переход (нажатие кнопки, scale) */
+    --transition-fast: 120ms linear;
+    /** Медленный переход (slide, bottom sheet) */
+    --transition-slow: 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    /** Крест-фейд (смена страниц) */
+    --transition-cross-fade: 300ms linear;
+    /* Обратный compat-алиас для старого кода */
+    --transition: var(--transition-interactive);
+    /* ——— Максимальная ширина контента ——— */
+
+    --content-narrow: 640px;
+    --content-default: 960px;
+    --content-wide: 1200px;
+    --content-full: 100%;
+    /* ——— Z-index стэк ——— */
+
+    --z-base: 1;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-toast: 500;
+    --z-tooltip: 600;
+    --z-blazor-err: 9999;
+    /* ——— Отступ страницы (padding-page) ——— */
+    --padding-page: clamp(var(--spacing-16), 3vw, var(--spacing-24));
+    /* ——— Высота топ-навигации ——— */
+    --nav-height: 60px;
+    /* ——— Ширина боковой панели (sidebar) ——— */
+    --sidebar-width: 220px;
+}
+
+/* --------------------------------------------------------------------------
+   § 5. Токены карточек (Card Variants)
+   Источник: UIKit §5
+   -------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+    /* Базовая карточка */
+    --card-bg: var(--color-surface);
+    --card-border: var(--color-border);
+    --card-shadow: var(--shadow-sm);
+    --card-radius: var(--radius-lg);
+    /* Hero-карточка — градиентная заливка */
+    --card-hero-bg: linear-gradient( 135deg, rgba(244, 255, 255, 0.95) 0%, rgba(27, 142, 139, 0.13) 55%, rgba(38, 120, 217, 0.10) 100% );
+    --card-hero-border: rgba(27, 142, 139, 0.15);
+    --card-hero-shadow: var(--shadow-lg);
+    /* Карточка данных */
+    --card-data-bg: var(--color-surface);
+    --card-data-shadow: 0 8px 20px rgba(22, 33, 62, 0.05);
+    /* Карточка действий */
+    --card-action-bg: var(--color-surface);
+    /* Карточка списка */
+    --card-list-bg: var(--color-surface);
+    --card-list-padding: var(--spacing-16);
+    /* Граница инпутов */
+    --input-border-color: rgba(22, 33, 62, 0.22);
+    --input-border-focused: var(--color-primary);
+    --input-border-error: var(--color-glucose-danger);
+    /* Bottom Sheet фон */
+    --bottom-sheet-bg: rgba(242, 255, 255, 0.95);
+    /* Tab Bar */
+    --tab-bar-bg: rgba(214, 255, 255, 0.85);
+    --tab-bar-border: rgba(22, 33, 62, 0.10);
+    --tab-active-pill: rgba(27, 142, 139, 0.12);
+}
+
+[data-theme="dark"] {
+    /* Базовая карточка */
+    --card-bg: var(--color-surface);
+    --card-border: var(--color-border);
+    --card-shadow: var(--shadow-sm);
+    --card-radius: var(--radius-lg);
+    /* Hero-карточка в dark */
+    --card-hero-bg: linear-gradient( 135deg, rgba(17, 24, 37, 0.95) 0%, rgba(86, 208, 191, 0.08) 55%, rgba(109, 174, 255, 0.07) 100% );
+    --card-hero-border: rgba(86, 208, 191, 0.12);
+    --card-hero-shadow: var(--shadow-lg);
+    /* Карточка данных */
+    --card-data-bg: var(--color-surface);
+    --card-data-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    /* Карточка действий */
+    --card-action-bg: var(--color-surface);
+    /* Карточка списка */
+    --card-list-bg: var(--color-surface);
+    --card-list-padding: var(--spacing-16);
+    /* Граница инпутов */
+    --input-border-color: rgba(237, 244, 255, 0.18);
+    --input-border-focused: var(--color-primary);
+    --input-border-error: var(--color-glucose-danger);
+    /* Bottom Sheet фон */
+    --bottom-sheet-bg: rgba(17, 24, 37, 0.90);
+    /* Tab Bar */
+    --tab-bar-bg: rgba(17, 24, 37, 0.80);
+    --tab-bar-border: rgba(237, 244, 255, 0.09);
+    --tab-active-pill: rgba(86, 208, 191, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --card-hero-bg: linear-gradient( 135deg, rgba(17, 24, 37, 0.95) 0%, rgba(86, 208, 191, 0.08) 55%, rgba(109, 174, 255, 0.07) 100% );
+        --card-hero-border: rgba(86, 208, 191, 0.12);
+        --card-hero-shadow: var(--shadow-lg);
+        --card-data-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        --input-border-color: rgba(237, 244, 255, 0.18);
+        --bottom-sheet-bg: rgba(17, 24, 37, 0.90);
+        --tab-bar-bg: rgba(17, 24, 37, 0.80);
+        --tab-bar-border: rgba(237, 244, 255, 0.09);
+        --tab-active-pill: rgba(86, 208, 191, 0.14);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   § 6. StatusChip — семантические цвета
+   Источник: UIKit §9
+   -------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+    /* Normal */
+    --chip-normal-bg: rgba(55, 165, 99, 0.12);
+    --chip-normal-border: rgba(55, 165, 99, 0.20);
+    --chip-normal-text: #216E43;
+    /* Warning */
+    --chip-warning-bg: rgba(227, 163, 43, 0.12);
+    --chip-warning-border: rgba(227, 163, 43, 0.20);
+    --chip-warning-text: #8B5C00;
+    /* Danger */
+    --chip-danger-bg: rgba(219, 89, 103, 0.12);
+    --chip-danger-border: rgba(219, 89, 103, 0.20);
+    --chip-danger-text: #A43846;
+}
+
+[data-theme="dark"] {
+    --chip-normal-bg: rgba(98, 216, 137, 0.12);
+    --chip-normal-border: rgba(98, 216, 137, 0.22);
+    --chip-normal-text: #DFFFFE;
+    --chip-warning-bg: rgba(244, 188, 86, 0.12);
+    --chip-warning-border: rgba(244, 188, 86, 0.22);
+    --chip-warning-text: #FFF2D1;
+    --chip-danger-bg: rgba(255, 122, 139, 0.12);
+    --chip-danger-border: rgba(255, 122, 139, 0.22);
+    --chip-danger-text: #FFE5E8;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        --chip-normal-bg: rgba(98, 216, 137, 0.12);
+        --chip-normal-border: rgba(98, 216, 137, 0.22);
+        --chip-normal-text: #DFFFFE;
+        --chip-warning-bg: rgba(244, 188, 86, 0.12);
+        --chip-warning-border: rgba(244, 188, 86, 0.22);
+        --chip-warning-text: #FFF2D1;
+        --chip-danger-bg: rgba(255, 122, 139, 0.12);
+        --chip-danger-border: rgba(255, 122, 139, 0.22);
+        --chip-danger-text: #FFE5E8;
+    }
+}

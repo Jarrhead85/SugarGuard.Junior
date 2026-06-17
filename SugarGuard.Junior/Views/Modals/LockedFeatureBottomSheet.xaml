@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Modals.LockedFeatureBottomSheet"
+             x:Name="bottomSheet">
+
+    <!-- Затемнение -->
+    <Grid>
+        <BoxView Color="#4016213E"
+                 IsVisible="{Binding Source={x:Reference bottomSheet}, Path=IsVisible}">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnScrimTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- Bottom Sheet -->
+        <Border VerticalOptions="End"
+                BackgroundColor="{DynamicResource BottomSheetBackground}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 32,32,0,0"
+                Padding="{StaticResource PaddingXl}">
+            <VerticalStackLayout Spacing="{StaticResource Spacing20}" HorizontalOptions="Center">
+
+                <!-- Handle -->
+                <BoxView WidthRequest="32" HeightRequest="4"
+                         CornerRadius="2"
+                         BackgroundColor="{DynamicResource BottomSheetHandle}"
+                         HorizontalOptions="Center"
+                         Margin="0,8,0,4" />
+
+                <!-- Иконка замка -->
+                <Label Text="🔒"
+                       FontSize="40"
+                       HorizontalTextAlignment="Center" />
+
+                <!-- Заголовок -->
+                <Label x:Name="titleLabel"
+                       Text="Функция недоступна"
+                       Style="{StaticResource SectionHeadingText}"
+                       HorizontalTextAlignment="Center" />
+
+                <!-- Описание -->
+                <Label x:Name="descriptionLabel"
+                       Style="{StaticResource BodyTextMuted}"
+                       HorizontalTextAlignment="Center" />
+
+                <!-- Кнопка -->
+                <Button Text="Подтвердить сейчас"
+                        Clicked="OnVerifyClicked"
+                        Style="{StaticResource PrimaryButton}" />
+
+                <Button Text="Закрыть"
+                        Clicked="OnCloseClicked"
+                        Style="{StaticResource GhostButton}" />
+
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentView>

@@ -1,0 +1,1197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ============================================================
+  SugarGuard.Web — файл локализации (русский язык)
+  Путь: SugarGuard.Web/Resources/Strings.ru.resx
+  
+  Использование в Razor-компонентах:
+    @inject IStringLocalizer<Strings> Loc
+    <h1>@Loc["Dashboard_Title"]</h1>
+
+  Подключение в Program.cs:
+    builder.Services.AddLocalization(options =>
+        options.ResourcesPath = "Resources");
+    app.UseRequestLocalization("ru-RU");
+
+  Соглашение об именовании ключей:
+    {СтраницаИлиКонтекст}_{ОписаниеСтроки}
+    Например: Dashboard_Title, Backpack_EmptyMessage
+
+  ВАЖНО: не удаляйте теги schema, resheader и assembly —
+  они требуются средой выполнения .NET для корректной работы
+  механизма ресурсов.
+  ============================================================
+-->
+<root>
+  <!-- 
+    Схема и служебные заголовки (обязательны для .NET ResX)
+  -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+              xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace"/>
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0"/>
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string"/>
+              <xsd:attribute name="type" type="xsd:string"/>
+              <xsd:attribute name="mimetype" type="xsd:string"/>
+              <xsd:attribute ref="xml:space"/>
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string"/>
+              <xsd:attribute name="name" type="xsd:string"/>
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2"/>
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string"/>
+              <xsd:attribute name="type" type="xsd:string"/>
+              <xsd:attribute name="mimetype" type="xsd:string"/>
+              <xsd:attribute ref="xml:space"/>
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1"/>
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string"/>
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ============================================================ -->
+  <!-- ОБЩИЕ СТРОКИ — используются на нескольких страницах          -->
+  <!-- ============================================================ -->
+
+  <data name="App_Name" xml:space="preserve">
+    <value>SugarGuard</value>
+    <comment>Название приложения</comment>
+  </data>
+
+  <data name="App_Tagline" xml:space="preserve">
+    <value>Контроль диабета под надёжной защитой</value>
+    <comment>Короткий слоган под логотипом</comment>
+  </data>
+
+  <!-- Кнопки общего назначения -->
+  <data name="Btn_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+
+  <data name="Btn_Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+
+  <data name="Btn_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+
+  <data name="Btn_Edit" xml:space="preserve">
+    <value>Редактировать</value>
+  </data>
+
+  <data name="Btn_Add" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+
+  <data name="Btn_Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+
+  <data name="Btn_Export" xml:space="preserve">
+    <value>Экспорт</value>
+  </data>
+
+  <data name="Btn_Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+
+  <data name="Btn_Confirm" xml:space="preserve">
+    <value>Подтвердить</value>
+  </data>
+
+  <data name="Btn_Back" xml:space="preserve">
+    <value>Назад</value>
+  </data>
+
+  <data name="Btn_Continue" xml:space="preserve">
+    <value>Продолжить</value>
+  </data>
+
+  <data name="Btn_Retry" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+
+  <!-- Общие метки данных -->
+  <data name="Label_Date" xml:space="preserve">
+    <value>Дата</value>
+  </data>
+
+  <data name="Label_Time" xml:space="preserve">
+    <value>Время</value>
+  </data>
+
+  <data name="Label_DateTime" xml:space="preserve">
+    <value>Дата и время</value>
+  </data>
+
+  <data name="Label_Notes" xml:space="preserve">
+    <value>Заметки</value>
+  </data>
+
+  <data name="Label_Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+
+  <data name="Label_Actions" xml:space="preserve">
+    <value>Действия</value>
+  </data>
+
+  <data name="Label_Loading" xml:space="preserve">
+    <value>Загрузка…</value>
+  </data>
+
+  <data name="Label_NoData" xml:space="preserve">
+    <value>Нет данных</value>
+  </data>
+
+  <data name="Label_Units_Mmol" xml:space="preserve">
+    <value>ммоль/л</value>
+    <comment>Единица измерения глюкозы</comment>
+  </data>
+
+  <data name="Label_Units_BreadUnits" xml:space="preserve">
+    <value>ХЕ</value>
+    <comment>Сокращение «хлебные единицы»</comment>
+  </data>
+
+  <data name="Label_Units_BreadUnitsFull" xml:space="preserve">
+    <value>хлебные единицы</value>
+  </data>
+
+  <!-- Уведомления об успехе / ошибке -->
+  <data name="Toast_SavedSuccess" xml:space="preserve">
+    <value>Изменения сохранены</value>
+  </data>
+
+  <data name="Toast_DeletedSuccess" xml:space="preserve">
+    <value>Запись удалена</value>
+  </data>
+
+  <data name="Toast_Error_Generic" xml:space="preserve">
+    <value>Что-то пошло не так. Попробуйте ещё раз.</value>
+  </data>
+
+  <data name="Toast_Offline" xml:space="preserve">
+    <value>Нет подключения к интернету</value>
+  </data>
+
+  <data name="Toast_Synced" xml:space="preserve">
+    <value>Данные синхронизированы</value>
+  </data>
+
+  <!-- Подтверждение удаления — общий диалог -->
+  <data name="Dialog_DeleteConfirm_Title" xml:space="preserve">
+    <value>Удалить запись?</value>
+  </data>
+
+  <data name="Dialog_DeleteConfirm_Message" xml:space="preserve">
+    <value>Это действие необратимо. Вы уверены?</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- НАВИГАЦИЯ — меню, ссылки, заголовки страниц                  -->
+  <!-- ============================================================ -->
+
+  <data name="Nav_Dashboard" xml:space="preserve">
+    <value>Главная</value>
+  </data>
+
+  <data name="Nav_Nutrition" xml:space="preserve">
+    <value>Питание</value>
+  </data>
+
+  <data name="Nav_Statistics" xml:space="preserve">
+    <value>Статистика</value>
+  </data>
+
+  <data name="Nav_History" xml:space="preserve">
+    <value>История</value>
+  </data>
+
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+
+  <data name="Nav_Export" xml:space="preserve">
+    <value>Экспорт</value>
+  </data>
+
+  <data name="Nav_FAQ" xml:space="preserve">
+    <value>Вопросы и ответы</value>
+  </data>
+
+  <data name="Nav_Admin" xml:space="preserve">
+    <value>Администрирование</value>
+  </data>
+
+  <data name="Nav_DoctorPanel" xml:space="preserve">
+    <value>Кабинет врача</value>
+  </data>
+
+  <data name="Nav_Logout" xml:space="preserve">
+    <value>Выйти</value>
+  </data>
+
+  <data name="Nav_Profile" xml:space="preserve">
+    <value>Профиль</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- АВТОРИЗАЦИЯ — страницы входа, ошибок доступа                 -->
+  <!-- ============================================================ -->
+
+  <data name="Auth_Login_Title" xml:space="preserve">
+    <value>Вход в SugarGuard</value>
+  </data>
+
+  <data name="Auth_Login_Subtitle" xml:space="preserve">
+    <value>Введите данные для входа в личный кабинет</value>
+  </data>
+
+  <data name="Auth_Email_Label" xml:space="preserve">
+    <value>Электронная почта</value>
+  </data>
+
+  <data name="Auth_Email_Placeholder" xml:space="preserve">
+    <value>example@mail.ru</value>
+  </data>
+
+  <data name="Auth_Password_Label" xml:space="preserve">
+    <value>Пароль</value>
+  </data>
+
+  <data name="Auth_Password_Placeholder" xml:space="preserve">
+    <value>Введите пароль</value>
+  </data>
+
+  <data name="Auth_Btn_Login" xml:space="preserve">
+    <value>Войти</value>
+  </data>
+
+  <data name="Auth_Error_InvalidCredentials" xml:space="preserve">
+    <value>Неверный адрес почты или пароль</value>
+  </data>
+
+  <data name="Auth_Error_ServerUnavailable" xml:space="preserve">
+    <value>Сервер недоступен. Проверьте подключение к интернету.</value>
+  </data>
+
+  <data name="Auth_Error_Unauthorized" xml:space="preserve">
+    <value>Недостаточно прав для просмотра этой страницы</value>
+  </data>
+
+  <data name="Auth_Error_SessionExpired" xml:space="preserve">
+    <value>Сессия истекла. Пожалуйста, войдите снова.</value>
+  </data>
+
+  <data name="Auth_LogoutConfirm_Title" xml:space="preserve">
+    <value>Выйти из аккаунта?</value>
+  </data>
+
+  <data name="Auth_LogoutConfirm_Message" xml:space="preserve">
+    <value>Вы будете перенаправлены на страницу входа.</value>
+  </data>
+
+  <!-- Роли пользователей — отображаемые названия -->
+  <data name="Role_Parent" xml:space="preserve">
+    <value>Родитель</value>
+    <comment>Отображаемое название роли вместо строки "parent"</comment>
+  </data>
+
+  <data name="Role_Doctor" xml:space="preserve">
+    <value>Врач</value>
+    <comment>Отображаемое название роли вместо строки "doctor"</comment>
+  </data>
+
+  <data name="Role_Admin" xml:space="preserve">
+    <value>Администратор</value>
+    <comment>Отображаемое название роли вместо строки "admin"</comment>
+  </data>
+
+  <data name="Role_SupportAdmin" xml:space="preserve">
+    <value>Тех. поддержка</value>
+    <comment>Отображаемое название роли вместо строки "supportadmin"</comment>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- DASHBOARD — главная страница родителя                        -->
+  <!-- ============================================================ -->
+
+  <data name="Dashboard_Title" xml:space="preserve">
+    <value>Обзор состояния</value>
+  </data>
+
+  <data name="Dashboard_LastMeasurement_Label" xml:space="preserve">
+    <value>Последнее измерение</value>
+  </data>
+
+  <data name="Dashboard_LastMeasurement_TimeAgo" xml:space="preserve">
+    <value>{0} назад</value>
+    <comment>Например: «5 минут назад». {0} — строка времени</comment>
+  </data>
+
+  <data name="Dashboard_NoMeasurements_Title" xml:space="preserve">
+    <value>Измерений пока нет</value>
+  </data>
+
+  <data name="Dashboard_NoMeasurements_Message" xml:space="preserve">
+    <value>Попросите ребёнка внести первое измерение в приложении</value>
+  </data>
+
+  <data name="Dashboard_NoChild_Title" xml:space="preserve">
+    <value>Ребёнок не привязан</value>
+  </data>
+
+  <data name="Dashboard_NoChild_Message" xml:space="preserve">
+    <value>Для начала работы привяжите аккаунт ребёнка через код подключения</value>
+  </data>
+
+  <!-- KPI-карточки -->
+  <data name="KPI_TimeInRange_Label" xml:space="preserve">
+    <value>Время в диапазоне</value>
+  </data>
+
+  <data name="KPI_TimeInRange_Hint" xml:space="preserve">
+    <value>Процент времени, когда сахар был в норме</value>
+  </data>
+
+  <data name="KPI_Average_Label" xml:space="preserve">
+    <value>Средний сахар</value>
+  </data>
+
+  <data name="KPI_Average_Period" xml:space="preserve">
+    <value>за 7 дней</value>
+  </data>
+
+  <data name="KPI_HypoEpisodes_Label" xml:space="preserve">
+    <value>Гипо-эпизоды</value>
+  </data>
+
+  <data name="KPI_HyperEpisodes_Label" xml:space="preserve">
+    <value>Гипер-эпизоды</value>
+  </data>
+
+  <data name="KPI_CriticalEpisodes_Label" xml:space="preserve">
+    <value>Критических состояний</value>
+  </data>
+
+  <data name="KPI_MeasurementCount_Label" xml:space="preserve">
+    <value>Измерений</value>
+  </data>
+
+  <data name="KPI_StdDev_Label" xml:space="preserve">
+    <value>Разброс значений</value>
+    <comment>Стандартное отклонение (stddev)</comment>
+  </data>
+
+  <!-- Статусы глюкозы -->
+  <data name="Glucose_Status_Normal" xml:space="preserve">
+    <value>Норма</value>
+  </data>
+
+  <data name="Glucose_Status_Low" xml:space="preserve">
+    <value>Низкий</value>
+  </data>
+
+  <data name="Glucose_Status_High" xml:space="preserve">
+    <value>Высокий</value>
+  </data>
+
+  <data name="Glucose_Status_CriticallyLow" xml:space="preserve">
+    <value>Критически низкий</value>
+  </data>
+
+  <data name="Glucose_Status_CriticallyHigh" xml:space="preserve">
+    <value>Критически высокий</value>
+  </data>
+
+  <data name="Glucose_Status_Attention" xml:space="preserve">
+    <value>Требует внимания</value>
+  </data>
+
+  <!-- График на дашборде -->
+  <data name="Chart_Title_Today" xml:space="preserve">
+    <value>Сегодня</value>
+  </data>
+
+  <data name="Chart_Title_Week" xml:space="preserve">
+    <value>7 дней</value>
+  </data>
+
+  <data name="Chart_Title_Month" xml:space="preserve">
+    <value>30 дней</value>
+  </data>
+
+  <data name="Chart_OpenFull_Btn" xml:space="preserve">
+    <value>Подробнее</value>
+  </data>
+
+  <data name="Chart_NormZone_Label" xml:space="preserve">
+    <value>Целевой диапазон</value>
+  </data>
+
+  <data name="Chart_Empty_Message" xml:space="preserve">
+    <value>Недостаточно данных для отображения графика</value>
+  </data>
+
+  <!-- Лента событий -->
+  <data name="EventTimeline_Title" xml:space="preserve">
+    <value>Последние события</value>
+  </data>
+
+  <data name="EventTimeline_Empty_Title" xml:space="preserve">
+    <value>Событий пока нет</value>
+  </data>
+
+  <data name="EventTimeline_Empty_Message" xml:space="preserve">
+    <value>Здесь будут отображаться измерения, перекусы и важные уведомления</value>
+  </data>
+
+  <data name="Event_Type_Measurement" xml:space="preserve">
+    <value>Измерение</value>
+  </data>
+
+  <data name="Event_Type_SnackAdded" xml:space="preserve">
+    <value>Перекус добавлен</value>
+  </data>
+
+  <data name="Event_Type_SnackConsumed" xml:space="preserve">
+    <value>Перекус съеден</value>
+  </data>
+
+  <data name="Event_Type_Alert" xml:space="preserve">
+    <value>Тревога</value>
+  </data>
+
+  <data name="Event_Type_Sync" xml:space="preserve">
+    <value>Синхронизация</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- ПИТАНИЕ — страница рюкзака/перекусов                         -->
+  <!-- ============================================================ -->
+
+  <data name="Nutrition_Title" xml:space="preserve">
+    <value>Питание и рюкзак</value>
+  </data>
+
+  <data name="Nutrition_Subtitle" xml:space="preserve">
+    <value>Перекусы, доступные ребёнку сегодня</value>
+  </data>
+
+  <data name="Backpack_Total_Label" xml:space="preserve">
+    <value>Итого в рюкзаке</value>
+  </data>
+
+  <data name="Backpack_Consumed_Label" xml:space="preserve">
+    <value>Съедено сегодня</value>
+  </data>
+
+  <data name="Backpack_Remaining_Label" xml:space="preserve">
+    <value>Осталось</value>
+  </data>
+
+  <data name="Backpack_AddSnack_Btn" xml:space="preserve">
+    <value>Добавить перекус</value>
+  </data>
+
+  <data name="Backpack_SnackName_Label" xml:space="preserve">
+    <value>Название перекуса</value>
+  </data>
+
+  <data name="Backpack_SnackName_Placeholder" xml:space="preserve">
+    <value>Например: яблоко</value>
+  </data>
+
+  <data name="Backpack_BreadUnits_Label" xml:space="preserve">
+    <value>Хлебные единицы (ХЕ)</value>
+  </data>
+
+  <data name="Backpack_BreadUnits_Placeholder" xml:space="preserve">
+    <value>0.0</value>
+  </data>
+
+  <data name="Backpack_Empty_Title" xml:space="preserve">
+    <value>Рюкзак пуст</value>
+  </data>
+
+  <data name="Backpack_Empty_Message" xml:space="preserve">
+    <value>Добавьте перекусы, которые ребёнок может взять с собой</value>
+  </data>
+
+  <data name="Backpack_DeleteSnack_Confirm_Title" xml:space="preserve">
+    <value>Удалить перекус?</value>
+  </data>
+
+  <data name="Backpack_DeleteSnack_Confirm_Message" xml:space="preserve">
+    <value>Перекус «{0}» будет удалён из рюкзака</value>
+    <comment>{0} — название перекуса</comment>
+  </data>
+
+  <!-- Фильтрация по ХЕ (chips) -->
+  <data name="Backpack_Filter_All" xml:space="preserve">
+    <value>Все</value>
+  </data>
+
+  <data name="Backpack_Filter_Low" xml:space="preserve">
+    <value>До 1 ХЕ</value>
+  </data>
+
+  <data name="Backpack_Filter_Medium" xml:space="preserve">
+    <value>1–2 ХЕ</value>
+  </data>
+
+  <data name="Backpack_Filter_High" xml:space="preserve">
+    <value>От 2 ХЕ</value>
+  </data>
+
+  <!-- Валидация формы перекуса -->
+  <data name="Backpack_Validation_NameRequired" xml:space="preserve">
+    <value>Введите название перекуса</value>
+  </data>
+
+  <data name="Backpack_Validation_BreadUnitsRange" xml:space="preserve">
+    <value>Хлебные единицы должны быть от 0 до 20</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- СТАТИСТИКА — страница графиков и аналитики                   -->
+  <!-- ============================================================ -->
+
+  <data name="Statistics_Title" xml:space="preserve">
+    <value>Статистика и аналитика</value>
+  </data>
+
+  <data name="Statistics_Period_Today" xml:space="preserve">
+    <value>Сегодня</value>
+  </data>
+
+  <data name="Statistics_Period_Week" xml:space="preserve">
+    <value>7 дней</value>
+  </data>
+
+  <data name="Statistics_Period_Month" xml:space="preserve">
+    <value>30 дней</value>
+  </data>
+
+  <data name="Statistics_Min_Label" xml:space="preserve">
+    <value>Минимум</value>
+  </data>
+
+  <data name="Statistics_Max_Label" xml:space="preserve">
+    <value>Максимум</value>
+  </data>
+
+  <data name="Statistics_Average_Label" xml:space="preserve">
+    <value>Среднее</value>
+  </data>
+
+  <data name="Statistics_StdDev_Label" xml:space="preserve">
+    <value>Стандартное отклонение</value>
+  </data>
+
+  <data name="Statistics_TimeInRange_Label" xml:space="preserve">
+    <value>Время в целевом диапазоне</value>
+  </data>
+
+  <data name="Statistics_Hypo_Label" xml:space="preserve">
+    <value>Гипогликемия</value>
+  </data>
+
+  <data name="Statistics_Hyper_Label" xml:space="preserve">
+    <value>Гипергликемия</value>
+  </data>
+
+  <data name="Statistics_Critical_Label" xml:space="preserve">
+    <value>Критические значения</value>
+  </data>
+
+  <data name="Statistics_TotalMeasurements_Label" xml:space="preserve">
+    <value>Всего измерений</value>
+  </data>
+
+  <data name="Statistics_Empty_Title" xml:space="preserve">
+    <value>Нет данных за выбранный период</value>
+  </data>
+
+  <data name="Statistics_Empty_Message" xml:space="preserve">
+    <value>Данные появятся после того, как ребёнок внесёт измерения</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- ИСТОРИЯ ИЗМЕРЕНИЙ                                            -->
+  <!-- ============================================================ -->
+
+  <data name="History_Title" xml:space="preserve">
+    <value>История измерений</value>
+  </data>
+
+  <data name="History_Filter_All" xml:space="preserve">
+    <value>Все</value>
+  </data>
+
+  <data name="History_Filter_Normal" xml:space="preserve">
+    <value>Норма</value>
+  </data>
+
+  <data name="History_Filter_Hypo" xml:space="preserve">
+    <value>Гипо</value>
+  </data>
+
+  <data name="History_Filter_Hyper" xml:space="preserve">
+    <value>Гипер</value>
+  </data>
+
+  <data name="History_Filter_Critical" xml:space="preserve">
+    <value>Критические</value>
+  </data>
+
+  <data name="History_Column_Glucose" xml:space="preserve">
+    <value>Сахар</value>
+  </data>
+
+  <data name="History_Column_Time" xml:space="preserve">
+    <value>Время</value>
+  </data>
+
+  <data name="History_Column_Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+
+  <data name="History_Column_State" xml:space="preserve">
+    <value>Состояние ребёнка</value>
+  </data>
+
+  <data name="History_Column_Notes" xml:space="preserve">
+    <value>Заметки</value>
+  </data>
+
+  <data name="History_Column_Source" xml:space="preserve">
+    <value>Источник</value>
+  </data>
+
+  <data name="History_Empty_Title" xml:space="preserve">
+    <value>История пуста</value>
+  </data>
+
+  <data name="History_Empty_Message" xml:space="preserve">
+    <value>Измерения, которые ребёнок вносит в приложении, будут отображаться здесь</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- НАСТРОЙКИ РОДИТЕЛЯ                                           -->
+  <!-- ============================================================ -->
+
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+
+  <!-- Секция уведомлений -->
+  <data name="Settings_Section_Notifications" xml:space="preserve">
+    <value>Уведомления</value>
+  </data>
+
+  <data name="Settings_Telegram_Label" xml:space="preserve">
+    <value>Уведомления в Telegram</value>
+  </data>
+
+  <data name="Settings_Telegram_Description" xml:space="preserve">
+    <value>Получайте алерты о состоянии ребёнка прямо в Telegram</value>
+  </data>
+
+  <data name="Settings_Telegram_Connected" xml:space="preserve">
+    <value>Подключён</value>
+  </data>
+
+  <data name="Settings_Telegram_NotConnected" xml:space="preserve">
+    <value>Не подключён</value>
+  </data>
+
+  <data name="Settings_Telegram_Btn_Connect" xml:space="preserve">
+    <value>Подключить Telegram</value>
+  </data>
+
+  <data name="Settings_Telegram_Btn_Disconnect" xml:space="preserve">
+    <value>Отключить</value>
+  </data>
+
+  <data name="Settings_Telegram_ConnectHint" xml:space="preserve">
+    <value>Перейдите в бот и отправьте команду /connect {0}</value>
+    <comment>{0} — код подключения</comment>
+  </data>
+
+  <!-- Пороги уведомлений -->
+  <data name="Settings_Thresholds_Section" xml:space="preserve">
+    <value>Пороги тревог</value>
+  </data>
+
+  <data name="Settings_Threshold_HypoAlert" xml:space="preserve">
+    <value>Порог гипогликемии (ммоль/л)</value>
+  </data>
+
+  <data name="Settings_Threshold_HyperAlert" xml:space="preserve">
+    <value>Порог гипергликемии (ммоль/л)</value>
+  </data>
+
+  <data name="Settings_Threshold_CriticalLow" xml:space="preserve">
+    <value>Критически низкий (ммоль/л)</value>
+  </data>
+
+  <data name="Settings_Threshold_CriticalHigh" xml:space="preserve">
+    <value>Критически высокий (ммоль/л)</value>
+  </data>
+
+  <!-- Секция параметров диабета -->
+  <data name="Settings_Section_Diabetes" xml:space="preserve">
+    <value>Параметры лечения</value>
+  </data>
+
+  <data name="Settings_TargetRange_Label" xml:space="preserve">
+    <value>Целевой диапазон сахара</value>
+  </data>
+
+  <data name="Settings_TargetRange_Min" xml:space="preserve">
+    <value>от</value>
+  </data>
+
+  <data name="Settings_TargetRange_Max" xml:space="preserve">
+    <value>до</value>
+  </data>
+
+  <data name="Settings_TargetRange_Hint" xml:space="preserve">
+    <value>Уточните диапазон у вашего врача</value>
+  </data>
+
+  <data name="Settings_InsulinScheme_Label" xml:space="preserve">
+    <value>Схема инсулинотерапии</value>
+  </data>
+
+  <data name="Settings_InsulinSensitivity_Label" xml:space="preserve">
+    <value>Чувствительность к инсулину</value>
+  </data>
+
+  <data name="Settings_CarbRatio_Label" xml:space="preserve">
+    <value>Углеводный коэффициент</value>
+  </data>
+
+  <!-- Секция профиля -->
+  <data name="Settings_Section_Profile" xml:space="preserve">
+    <value>Профиль ребёнка</value>
+  </data>
+
+  <data name="Settings_Child_FirstName" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+
+  <data name="Settings_Child_LastName" xml:space="preserve">
+    <value>Фамилия</value>
+  </data>
+
+  <data name="Settings_Child_DateOfBirth" xml:space="preserve">
+    <value>Дата рождения</value>
+  </data>
+
+  <data name="Settings_Child_DiabetesType" xml:space="preserve">
+    <value>Тип диабета</value>
+  </data>
+
+  <data name="Settings_Child_DiabetesType_1" xml:space="preserve">
+    <value>1-й тип</value>
+  </data>
+
+  <data name="Settings_Child_DiabetesType_2" xml:space="preserve">
+    <value>2-й тип</value>
+  </data>
+
+  <data name="Settings_Child_Weight" xml:space="preserve">
+    <value>Вес (кг)</value>
+  </data>
+
+  <data name="Settings_Child_Height" xml:space="preserve">
+    <value>Рост (см)</value>
+  </data>
+
+  <data name="Settings_Child_TimeZone" xml:space="preserve">
+    <value>Часовой пояс</value>
+  </data>
+
+  <!-- Баннеры состояния настроек -->
+  <data name="Settings_Banner_Saving" xml:space="preserve">
+    <value>Сохранение…</value>
+  </data>
+
+  <data name="Settings_Banner_Saved" xml:space="preserve">
+    <value>Настройки сохранены</value>
+  </data>
+
+  <data name="Settings_Banner_Error" xml:space="preserve">
+    <value>Не удалось сохранить настройки. Попробуйте ещё раз.</value>
+  </data>
+
+  <!-- Секция темы оформления -->
+  <data name="Settings_Section_Appearance" xml:space="preserve">
+    <value>Оформление</value>
+  </data>
+
+  <data name="Settings_Theme_Label" xml:space="preserve">
+    <value>Тема</value>
+  </data>
+
+  <data name="Settings_Theme_Light" xml:space="preserve">
+    <value>Светлая</value>
+  </data>
+
+  <data name="Settings_Theme_Dark" xml:space="preserve">
+    <value>Тёмная</value>
+  </data>
+
+  <data name="Settings_Theme_System" xml:space="preserve">
+    <value>Как в системе</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- ЭКСПОРТ                                                      -->
+  <!-- ============================================================ -->
+
+  <data name="Export_Title" xml:space="preserve">
+    <value>Экспорт данных</value>
+  </data>
+
+  <data name="Export_Description" xml:space="preserve">
+    <value>Сформируйте отчёт для врача или архив данных за выбранный период</value>
+  </data>
+
+  <data name="Export_Period_Label" xml:space="preserve">
+    <value>Период</value>
+  </data>
+
+  <data name="Export_Format_Label" xml:space="preserve">
+    <value>Формат</value>
+  </data>
+
+  <data name="Export_Format_PDF" xml:space="preserve">
+    <value>PDF (для врача)</value>
+  </data>
+
+  <data name="Export_Format_PDF_Detailed" xml:space="preserve">
+    <value>PDF подробный</value>
+  </data>
+
+  <data name="Export_Btn_Generate" xml:space="preserve">
+    <value>Сформировать отчёт</value>
+  </data>
+
+  <data name="Export_Status_Pending" xml:space="preserve">
+    <value>Формируется…</value>
+  </data>
+
+  <data name="Export_Status_Ready" xml:space="preserve">
+    <value>Готов к скачиванию</value>
+  </data>
+
+  <data name="Export_Status_Error" xml:space="preserve">
+    <value>Ошибка при формировании</value>
+  </data>
+
+  <data name="Export_Btn_Download" xml:space="preserve">
+    <value>Скачать</value>
+  </data>
+
+  <data name="Export_History_Title" xml:space="preserve">
+    <value>Ранее сформированные отчёты</value>
+  </data>
+
+  <data name="Export_History_Empty" xml:space="preserve">
+    <value>Отчётов пока нет</value>
+  </data>
+
+  <data name="Export_Column_CreatedAt" xml:space="preserve">
+    <value>Дата создания</value>
+  </data>
+
+  <data name="Export_Column_Period" xml:space="preserve">
+    <value>Период</value>
+  </data>
+
+  <data name="Export_Column_Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- FAQ                                                          -->
+  <!-- ============================================================ -->
+
+  <data name="FAQ_Title" xml:space="preserve">
+    <value>Вопросы и ответы</value>
+  </data>
+
+  <data name="FAQ_Search_Placeholder" xml:space="preserve">
+    <value>Найти вопрос…</value>
+  </data>
+
+  <data name="FAQ_Empty_Title" xml:space="preserve">
+    <value>Ничего не найдено</value>
+  </data>
+
+  <data name="FAQ_Empty_Message" xml:space="preserve">
+    <value>Попробуйте изменить поисковый запрос</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- СИНХРОНИЗАЦИЯ — баннеры и статусы                            -->
+  <!-- ============================================================ -->
+
+  <data name="Sync_Status_Pending" xml:space="preserve">
+    <value>Ожидает синхронизации</value>
+  </data>
+
+  <data name="Sync_Status_InProgress" xml:space="preserve">
+    <value>Синхронизация…</value>
+  </data>
+
+  <data name="Sync_Status_Success" xml:space="preserve">
+    <value>Синхронизировано</value>
+  </data>
+
+  <data name="Sync_Status_Failed" xml:space="preserve">
+    <value>Ошибка синхронизации</value>
+  </data>
+
+  <data name="Sync_Status_Offline" xml:space="preserve">
+    <value>Нет соединения — данные сохранены локально</value>
+  </data>
+
+  <data name="Sync_Conflict_Title" xml:space="preserve">
+    <value>Конфликт синхронизации</value>
+  </data>
+
+  <data name="Sync_Conflict_Message" xml:space="preserve">
+    <value>Обнаружены конфликтующие данные. Проверьте журнал конфликтов.</value>
+  </data>
+
+  <data name="Sync_Conflict_Count" xml:space="preserve">
+    <value>Конфликтов: {0}</value>
+    <comment>{0} — количество неразрешённых конфликтов</comment>
+  </data>
+
+  <data name="Sync_Btn_Resolve" xml:space="preserve">
+    <value>Разрешить конфликты</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- АДМИНИСТРИРОВАНИЕ                                            -->
+  <!-- ============================================================ -->
+
+  <data name="Admin_Title" xml:space="preserve">
+    <value>Администрирование</value>
+  </data>
+
+  <data name="Admin_Section_Stats" xml:space="preserve">
+    <value>Статистика системы</value>
+  </data>
+
+  <data name="Admin_Stats_TotalUsers" xml:space="preserve">
+    <value>Всего пользователей</value>
+  </data>
+
+  <data name="Admin_Stats_TotalChildren" xml:space="preserve">
+    <value>Всего детей</value>
+  </data>
+
+  <data name="Admin_Stats_TotalMeasurements" xml:space="preserve">
+    <value>Всего измерений</value>
+  </data>
+
+  <data name="Admin_Stats_PendingSync" xml:space="preserve">
+    <value>Ожидает синхронизации</value>
+  </data>
+
+  <data name="Admin_Stats_UnresolvedConflicts" xml:space="preserve">
+    <value>Неразрешённых конфликтов</value>
+  </data>
+
+  <data name="Admin_Stats_ActiveJobs" xml:space="preserve">
+    <value>Активных фоновых задач</value>
+  </data>
+
+  <data name="Admin_Stats_PendingExports" xml:space="preserve">
+    <value>Экспортов в очереди</value>
+  </data>
+
+  <data name="Admin_Section_Users" xml:space="preserve">
+    <value>Пользователи</value>
+  </data>
+
+  <data name="Admin_Users_Column_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+
+  <data name="Admin_Users_Column_Role" xml:space="preserve">
+    <value>Роль</value>
+  </data>
+
+  <data name="Admin_Users_Column_Created" xml:space="preserve">
+    <value>Зарегистрирован</value>
+  </data>
+
+  <data name="Admin_Users_Column_Telegram" xml:space="preserve">
+    <value>Telegram</value>
+  </data>
+
+  <data name="Admin_Section_SyncLog" xml:space="preserve">
+    <value>Журнал синхронизации</value>
+  </data>
+
+  <data name="Admin_SyncLog_Column_ChildId" xml:space="preserve">
+    <value>ID ребёнка</value>
+  </data>
+
+  <data name="Admin_SyncLog_Column_IsConflict" xml:space="preserve">
+    <value>Конфликт</value>
+  </data>
+
+  <data name="Admin_SyncLog_Column_SyncedAt" xml:space="preserve">
+    <value>Время синхронизации</value>
+  </data>
+
+  <data name="Admin_Btn_ChangeRole" xml:space="preserve">
+    <value>Изменить роль</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- СОСТОЯНИЯ ИНТЕРФЕЙСА — пустые экраны, ошибки, оффлайн        -->
+  <!-- ============================================================ -->
+
+  <!-- Общий пустой экран -->
+  <data name="EmptyStateView_Default_Title" xml:space="preserve">
+    <value>Здесь пока ничего нет</value>
+  </data>
+
+  <data name="EmptyStateView_Default_Message" xml:space="preserve">
+    <value>Данные появятся после первых действий в приложении</value>
+  </data>
+
+  <!-- Ошибка загрузки -->
+  <data name="ErrorState_Title" xml:space="preserve">
+    <value>Не удалось загрузить данные</value>
+  </data>
+
+  <data name="ErrorState_Message" xml:space="preserve">
+    <value>Проверьте подключение к интернету и попробуйте снова</value>
+  </data>
+
+  <!-- Оффлайн-баннер -->
+  <data name="OfflineBanner_Message" xml:space="preserve">
+    <value>Нет подключения к интернету. Показаны кешированные данные.</value>
+  </data>
+
+  <!-- Баннер успешного сохранения -->
+  <data name="SuccessBanner_Saved" xml:space="preserve">
+    <value>Изменения успешно сохранены</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- ВАЛИДАЦИЯ ФОРМ — общие сообщения                             -->
+  <!-- ============================================================ -->
+
+  <data name="Validation_Required" xml:space="preserve">
+    <value>Это поле обязательно для заполнения</value>
+  </data>
+
+  <data name="Validation_Email_Invalid" xml:space="preserve">
+    <value>Введите корректный адрес электронной почты</value>
+  </data>
+
+  <data name="Validation_MinLength" xml:space="preserve">
+    <value>Минимальная длина — {0} символов</value>
+    <comment>{0} — минимальное количество символов</comment>
+  </data>
+
+  <data name="Validation_MaxLength" xml:space="preserve">
+    <value>Максимальная длина — {0} символов</value>
+    <comment>{0} — максимальное количество символов</comment>
+  </data>
+
+  <data name="Validation_NumberRange" xml:space="preserve">
+    <value>Значение должно быть от {0} до {1}</value>
+    <comment>{0} — минимум, {1} — максимум</comment>
+  </data>
+
+  <data name="Validation_PositiveNumber" xml:space="preserve">
+    <value>Введите положительное число</value>
+  </data>
+
+  <!-- ============================================================ -->
+  <!-- ДОСТУПНОСТЬ — тексты для screen reader (aria-label)          -->
+  <!-- ============================================================ -->
+
+  <data name="Aria_ThemeToggle_ToLight" xml:space="preserve">
+    <value>Переключить на светлую тему</value>
+  </data>
+
+  <data name="Aria_ThemeToggle_ToDark" xml:space="preserve">
+    <value>Переключить на тёмную тему</value>
+  </data>
+
+  <data name="Aria_CloseModal" xml:space="preserve">
+    <value>Закрыть окно</value>
+  </data>
+
+  <data name="Aria_DeleteItem" xml:space="preserve">
+    <value>Удалить запись</value>
+  </data>
+
+  <data name="Aria_EditItem" xml:space="preserve">
+    <value>Редактировать запись</value>
+  </data>
+
+  <data name="Aria_GlucoseValue" xml:space="preserve">
+    <value>Уровень сахара: {0} ммоль/л, статус: {1}</value>
+    <comment>{0} — значение, {1} — статус (Норма / Высокий / и т.д.)</comment>
+  </data>
+
+  <data name="Aria_SyncStatus" xml:space="preserve">
+    <value>Статус синхронизации: {0}</value>
+    <comment>{0} — текст статуса</comment>
+  </data>
+
+</root>

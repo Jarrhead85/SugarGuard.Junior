@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<pages:SwipeablePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
+                     xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
+                     xmlns:converters="clr-namespace:SugarGuard.Junior.Converters"
+                     x:Class="SugarGuard.Junior.Views.Pages.BackpackPage"
+                     x:Name="BackpackPageRoot"
+                     Title="Мой рюкзак"
+                     BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <pages:SwipeablePage.Resources>
+        <ResourceDictionary>
+            <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+
+            <Style x:Key="CardFrameStyle" TargetType="Frame">
+                <Setter Property="CornerRadius" Value="24" />
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="HasShadow" Value="True" />
+                <Setter Property="BorderColor" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
+            </Style>
+
+            <Style x:Key="SectionTitleStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="18" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+            </Style>
+
+            <Style x:Key="MutedTextStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{DynamicResource TextMuted}" />
+            </Style>
+
+            <Style x:Key="ChipFrameStyle" TargetType="Frame">
+                <Setter Property="CornerRadius" Value="999" />
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="BorderColor" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceOffset}" />
+            </Style>
+
+            <Style x:Key="ChipLabelStyle" TargetType="Label">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{DynamicResource TextMuted}" />
+            </Style>
+
+            <Style x:Key="MetricCardStyle" TargetType="Frame">
+                <Setter Property="CornerRadius" Value="18" />
+                <Setter Property="Padding" Value="14" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="BorderColor" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceOffset}" />
+            </Style>
+
+            <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+                <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="Padding" Value="16,12" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
+                <Setter Property="MinimumHeightRequest" Value="44" />
+            </Style>
+
+            <Style x:Key="DangerGhostButtonStyle" TargetType="Button">
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="12,10" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="MinimumHeightRequest" Value="44" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource DangerSoft}" />
+                <Setter Property="TextColor" Value="{DynamicResource Danger}" />
+            </Style>
+        </ResourceDictionary>
+    </pages:SwipeablePage.Resources>
+
+    <CollectionView ItemsSource="{Binding BackpackItems}"
+                    SelectionMode="None"
+                    VerticalScrollBarVisibility="Never">
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="16,12,16,24"
+                                 Spacing="16">
+
+                <Frame CornerRadius="28"
+                       Padding="18"
+                       BorderColor="{DynamicResource PrimaryStrong}"
+                       HasShadow="True"
+                       BackgroundColor="{DynamicResource Primary}">
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0"
+                                                 Spacing="4">
+                                <Label Text="🎒 Рюкзак перекусов"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       SemanticProperties.HeadingLevel="Level1" />
+                                <Label Text="Всё, что должно быть под рукой в течение дня"
+                                       FontSize="13"
+                                       TextColor="White"
+                                       Opacity="0.88" />
+                            </VerticalStackLayout>
+
+                            <Frame Grid.Column="1"
+                                   IsVisible="{Binding IsBackpackEmpty}"
+                                   CornerRadius="999"
+                                   Padding="10,6"
+                                   HasShadow="False"
+                                   BorderColor="#3D6B6A"
+                                   BackgroundColor="#2A4B4A"
+                                   VerticalOptions="Start">
+                                <Label Text="Нужно наполнить"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       SemanticProperties.Description="Рюкзак пуст, нужно добавить перекусы" />
+                            </Frame>
+
+                            <Frame Grid.Column="1"
+                                   IsVisible="{Binding IsBackpackEmpty, Converter={StaticResource InvertedBoolConverter}}"
+                                   CornerRadius="999"
+                                   Padding="10,6"
+                                   HasShadow="False"
+                                   BorderColor="#90F0E2"
+                                   BackgroundColor="#2C6B67"
+                                   VerticalOptions="Start">
+                                <Label Text="Есть запас"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       SemanticProperties.Description="В рюкзаке есть перекусы" />
+                            </Frame>
+                        </Grid>
+
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Общий запас"
+                                   FontSize="13"
+                                   TextColor="White"
+                                   Opacity="0.88" />
+                            <Label Text="{Binding TotalBreadUnitsText}"
+                                   FontSize="34"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   SemanticProperties.Description="{Binding TotalBreadUnitsText, StringFormat='Общий запас: {0}'}" />
+                        </VerticalStackLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center">
+                            <Frame Style="{StaticResource ChipFrameStyle}"
+                                   Margin="0,0,8,8"
+                                   BorderColor="#7AD8CF"
+                                   BackgroundColor="#2B6A67">
+                                <Label Text="{Binding SnackCount, StringFormat='Позиций: {0}'}"
+                                       Style="{StaticResource ChipLabelStyle}"
+                                       TextColor="White" />
+                            </Frame>
+
+                            <Frame Style="{StaticResource ChipFrameStyle}"
+                                   Margin="0,0,8,8"
+                                   BorderColor="#7AD8CF"
+                                   BackgroundColor="#2B6A67">
+                                <Label Text="{Binding ConsumedToday, StringFormat='Съедено: {0:F1} ХЕ'}"
+                                       Style="{StaticResource ChipLabelStyle}"
+                                       TextColor="White" />
+                            </Frame>
+
+                            <Frame Style="{StaticResource ChipFrameStyle}"
+                                   Margin="0,0,8,8"
+                                   BorderColor="#7AD8CF"
+                                   BackgroundColor="#2B6A67">
+                                <Label Text="{Binding RemainingBreadUnits, StringFormat='Осталось: {0:F1} ХЕ'}"
+                                       Style="{StaticResource ChipLabelStyle}"
+                                       TextColor="White" />
+                            </Frame>
+                        </FlexLayout>
+
+                        <Button Text="Добавить перекус"
+                                Style="{StaticResource PrimaryActionButtonStyle}"
+                                BackgroundColor="White"
+                                TextColor="{DynamicResource Primary}"
+                                Command="{Binding AddSnackCommand}"
+                                SemanticProperties.Hint="Открыть диалог добавления нового перекуса в рюкзак" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Border Style="{StaticResource CardFrameStyle}"
+                        IsVisible="{Binding HasError}">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="12"
+                          VerticalOptions="Center">
+                        <Label Grid.Column="0"
+                               Text="⚠️"
+                               FontSize="24"
+                               VerticalOptions="Center" />
+
+                        <VerticalStackLayout Grid.Column="1"
+                                             Spacing="2">
+                            <Label Text="{Binding ErrorTitle}"
+                                   Style="{StaticResource SectionTitleStyle}" />
+                            <Label Text="{Binding ErrorMessage}"
+                                   Style="{StaticResource MutedTextStyle}" />
+                        </VerticalStackLayout>
+
+                        <Button Grid.Column="2"
+                                Text="Повторить"
+                                Style="{StaticResource DangerGhostButtonStyle}"
+                                Command="{Binding RetryLoadCommand}" />
+                    </Grid>
+                </Border>
+
+                <Frame Style="{StaticResource CardFrameStyle}"
+                       IsVisible="{Binding ShowStatisticsCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Сводка по рюкзаку"
+                               Style="{StaticResource SectionTitleStyle}"
+                               SemanticProperties.HeadingLevel="Level2" />
+
+                        <Grid ColumnDefinitions="*,*"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="12"
+                              RowSpacing="12">
+                            <Frame Grid.Row="0"
+                                   Grid.Column="0"
+                                   Style="{StaticResource MetricCardStyle}">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Позиций в рюкзаке"
+                                           Style="{StaticResource MutedTextStyle}" />
+                                    <Label Text="{Binding SnackCount, StringFormat='{}{0} шт'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimary}" />
+                                </VerticalStackLayout>
+                            </Frame>
+
+                            <Frame Grid.Row="0"
+                                   Grid.Column="1"
+                                   Style="{StaticResource MetricCardStyle}">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Съедено за день"
+                                           Style="{StaticResource MutedTextStyle}" />
+                                    <Label Text="{Binding ConsumedToday, StringFormat='{}{0:F1} ХЕ'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimary}" />
+                                </VerticalStackLayout>
+                            </Frame>
+
+                            <Frame Grid.Row="1"
+                                   Grid.Column="0"
+                                   Style="{StaticResource MetricCardStyle}">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Осталось в рюкзаке"
+                                           Style="{StaticResource MutedTextStyle}" />
+                                    <Label Text="{Binding RemainingBreadUnits, StringFormat='{}{0:F1} ХЕ'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource Primary}" />
+                                </VerticalStackLayout>
+                            </Frame>
+
+                            <Frame Grid.Row="1"
+                                   Grid.Column="1"
+                                   Style="{StaticResource MetricCardStyle}">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Общий объём за день"
+                                           Style="{StaticResource MutedTextStyle}" />
+                                    <Label Text="{Binding TotalPerDay, StringFormat='{}{0:F1} ХЕ'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource TextPrimary}" />
+                                </VerticalStackLayout>
+                            </Frame>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Содержимое"
+                           Style="{StaticResource SectionTitleStyle}"
+                           SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="Список перекусов с быстрыми действиями по каждой позиции"
+                           Style="{StaticResource MutedTextStyle}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.EmptyView>
+            <Grid Padding="16,0,16,24"
+                  IsVisible="{Binding ShowEmptyState}">
+                <components:EmptyStateView
+                    Icon="{Binding EmptyStateIcon}"
+                    TitleText="{Binding EmptyStateTitle}"
+                    Message="{Binding EmptyStateMessage}"
+                    HelperText="{Binding QuickActionsHintText}"
+                    HelperTone="Info"
+                    IsMascotVisible="False" />
+            </Grid>
+        </CollectionView.EmptyView>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate>
+                <Frame CornerRadius="20"
+                       Padding="14"
+                       HasShadow="False"
+                       BorderColor="{DynamicResource BorderDefault}"
+                       BackgroundColor="{DynamicResource SurfaceOffset}">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          RowDefinitions="Auto,Auto"
+                          ColumnSpacing="12"
+                          RowSpacing="10">
+                        <Frame Grid.Row="0"
+                               Grid.RowSpan="2"
+                               Grid.Column="0"
+                               WidthRequest="48"
+                               HeightRequest="48"
+                               Padding="0"
+                               CornerRadius="16"
+                               HasShadow="False"
+                               BorderColor="{DynamicResource BorderDefault}"
+                               BackgroundColor="{DynamicResource SurfaceCard}"
+                               VerticalOptions="Start"
+                               HorizontalOptions="Start">
+                            <Label Text="{Binding SnackIcon}"
+                                   FontSize="24"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalTextAlignment="Center"
+                                   SemanticProperties.Description="{Binding SnackName, StringFormat='Иконка перекуса {0}'}" />
+                        </Frame>
+
+                        <VerticalStackLayout Grid.Row="0"
+                                             Grid.Column="1"
+                                             Spacing="6">
+                            <Label Text="{Binding SnackName}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimary}"
+                                   LineBreakMode="TailTruncation"
+                                   SemanticProperties.HeadingLevel="Level3" />
+
+                            <FlexLayout Direction="Row"
+                                        Wrap="Wrap"
+                                        JustifyContent="Start"
+                                        AlignItems="Center">
+                                <Frame Style="{StaticResource ChipFrameStyle}"
+                                       Margin="0,0,8,8"
+                                       BackgroundColor="{DynamicResource SuccessSoft}"
+                                       BorderColor="{DynamicResource Success}">
+                                    <Label Text="{Binding BreadUnits, StringFormat='{}{0:F1} ХЕ'}"
+                                           Style="{StaticResource ChipLabelStyle}"
+                                           TextColor="{DynamicResource Primary}" />
+                                </Frame>
+
+                            </FlexLayout>
+                        </VerticalStackLayout>
+
+                        <Button Grid.Row="0"
+                                Grid.RowSpan="2"
+                                Grid.Column="2"
+                                Text="×"
+                                Style="{StaticResource DangerGhostButtonStyle}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"
+                                CommandParameter="{Binding BackpackItemId}"
+                                WidthRequest="44"
+                                HeightRequest="44"
+                                Padding="0"
+                                FontSize="20"
+                                VerticalOptions="Center"
+                                SemanticProperties.Hint="Удалить этот перекус из рюкзака" />
+                    </Grid>
+                </Frame>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+</pages:SwipeablePage>

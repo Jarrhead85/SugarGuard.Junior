@@ -1,0 +1,53 @@
+@page "/admin/export-logs"
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@layout Layout.AdminLayout
+@inject SugarGuardApiService Api
+
+<h1>Export Logs</h1>
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="error-message">@_errorMessage</div>
+}
+<div class="panel">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Status</th>
+                <th>Format</th>
+                <th>Created</th>
+                <th>Completed</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var job in _jobs)
+        {
+            <tr>
+                <td>@job.ExportJobId.ToString()[..8]</td>
+                <td><span class="chip">@job.Status</span></td>
+                <td>@job.Format</td>
+                <td>@job.CreatedAt.ToLocalTime()</td>
+                <td>@(job.CompletedAt?.ToLocalTime().ToString("g") ?? "-")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private IReadOnlyList<ExportJobVm> _jobs = [];
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _jobs = await Api.GetExportJobsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _jobs = [];
+        }
+    }
+}

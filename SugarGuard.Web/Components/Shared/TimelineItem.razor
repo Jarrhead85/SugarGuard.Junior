@@ -1,0 +1,169 @@
+﻿@* Отображает одно событие таймлайна: замер глюкозы, перекус или критический алерт. *@
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+<div class="timeline-item timeline-item--@GetTypeClass() @(Event.IsImportant ? "timeline-item--important" : "")">
+
+    @* Левая колонка: иконка события *@
+    <div class="timeline-item__icon-col">
+        <div class="timeline-item__icon timeline-item__icon--@GetTypeClass()" aria-hidden="true">
+            @if (Event.EventType == TimelineEventType.GlucoseMeasurement)
+            {
+                @* Иконка капли крови *@
+                <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+                    <path d="M10 3C10 3 4 9.5 4 13a6 6 0 0 0 12 0c0-3.5-6-10-6-10Z"
+                          stroke="currentColor" stroke-width="1.5"
+                          stroke-linejoin="round" fill="currentColor" fill-opacity="0.15" />
+                </svg>
+            }
+            else if (Event.EventType == TimelineEventType.Meal)
+            {
+                @* Иконка еды *@
+                <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+                    <path d="M7 3v4a3 3 0 0 0 6 0V3" stroke="currentColor"
+                          stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M10 10v7M8 17h4" stroke="currentColor"
+                          stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            }
+            else if (Event.EventType == TimelineEventType.Alert)
+            {
+                @* Иконка предупреждения *@
+                <svg viewBox="0 0 20 20" fill="none" width="18" height="18">
+                    <path d="M10 3L2 16h16L10 3Z" stroke="currentColor"
+                          stroke-width="1.5" stroke-linejoin="round"
+                          fill="currentColor" fill-opacity="0.15" />
+                    <path d="M10 9v3M10 14.5v.5" stroke="currentColor"
+                          stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+            }
+        </div>
+        @* Вертикальная линия-связь *@
+        <div class="timeline-item__connector"></div>
+    </div>
+
+    @* Правая колонка: содержимое события *@
+    <div class="timeline-item__content">
+
+        @* Заголовок и время *@
+        <div class="timeline-item__header">
+            <span class="timeline-item__title">@GetTitle()</span>
+            <time class="timeline-item__time"
+                  datetime="@Event.OccurredAt.ToString("o")"
+                  title="@Event.OccurredAt.ToString("dd.MM.yyyy HH:mm:ss")">
+                @FormatTime(Event.OccurredAt)
+            </time>
+        </div>
+
+        @* Основное содержимое зависит от типа события *@
+        @if (Event.EventType == TimelineEventType.GlucoseMeasurement && Event.GlucoseValue.HasValue)
+        {
+            <div class="timeline-item__body">
+                <span class="timeline-item__glucose timeline-item__glucose--@(Event.GlucoseUiState?.ToLowerInvariant() ?? "normal")"
+                      aria-label="Уровень глюкозы @Event.GlucoseValue.Value.ToString("F1") ммоль/л">
+                    @Event.GlucoseValue.Value.ToString("F1")
+                    <span class="timeline-item__unit">ммоль/л</span>
+                </span>
+                @if (!string.IsNullOrWhiteSpace(Event.DataSource))
+                {
+                    <span class="timeline-item__badge">@FormatDataSource(Event.DataSource)</span>
+                }
+            </div>
+        }
+        else if (Event.EventType == TimelineEventType.Meal)
+        {
+            <div class="timeline-item__body">
+                @if (!string.IsNullOrWhiteSpace(Event.SnackName))
+                {
+                    <span class="timeline-item__snack-name">@Event.SnackName</span>
+                }
+                @if (Event.BreadUnits.HasValue)
+                {
+                    <span class="timeline-item__badge timeline-item__badge--neutral">
+                        @Event.BreadUnits.Value.ToString("F1") ХЕ
+                    </span>
+                }
+            </div>
+        }
+        else if (Event.EventType == TimelineEventType.Alert && Event.GlucoseValue.HasValue)
+        {
+            <div class="timeline-item__body">
+                <span class="timeline-item__glucose timeline-item__glucose--critical"
+                      aria-label="Критический уровень глюкозы @Event.GlucoseValue.Value.ToString("F1") ммоль/л">
+                    @Event.GlucoseValue.Value.ToString("F1")
+                    <span class="timeline-item__unit">ммоль/л</span>
+                </span>
+                <span class="timeline-item__badge timeline-item__badge--alert">Критический уровень</span>
+            </div>
+        }
+
+        @* Заметки (если есть) *@
+        @if (!string.IsNullOrWhiteSpace(Event.Notes))
+        {
+            <p class="timeline-item__notes">@Event.Notes</p>
+        }
+
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public TimelineEventDto Event { get; set; } = default!; // событие таймлайна для отображения
+
+    [Parameter]
+    public bool RelativeTime { get; set; } = true; // Показывать ли относительное время вместо абсолютного
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Возвращает CSS-класс-модификатор по типу события
+    /// </summary>
+    private string GetTypeClass() => Event.EventType switch
+    {
+        TimelineEventType.GlucoseMeasurement => "measurement",
+        TimelineEventType.Meal => "snack",
+        TimelineEventType.Alert => "alert",
+        _ => "unknown"
+    };
+
+    /// <summary>
+    /// Возвращает заголовок события
+    /// </summary>
+    private string GetTitle() => Event.EventType switch
+    {
+        TimelineEventType.GlucoseMeasurement => "Замер глюкозы",
+        TimelineEventType.Meal => "Перекус",
+        TimelineEventType.Alert => "⚠ Критический уровень",
+        _ => "Событие"
+    };
+
+    /// <summary>
+    /// Форматирует время относительное или абсолютное
+    /// </summary>
+    private string FormatTime(DateTime utcTime)
+    {
+        if (!RelativeTime)
+            return utcTime.ToLocalTime().ToString("HH:mm");
+
+        var diff = DateTime.UtcNow - utcTime;
+
+        if (diff.TotalMinutes < 1)
+            return "только что";
+        if (diff.TotalMinutes < 60)
+            return $"{(int)diff.TotalMinutes} мин назад";
+        if (diff.TotalHours < 24)
+            return $"{(int)diff.TotalHours} ч назад";
+
+        return utcTime.ToLocalTime().ToString("dd.MM HH:mm");
+    }
+
+    /// <summary>
+    /// Форматирует название источника данных для отображения
+    /// </summary>
+    private static string FormatDataSource(string? source) => source?.ToLowerInvariant() switch
+    {
+        "mobileapp" or "mobile" => "📱 приложение",
+        "manual" => "✏️ вручную",
+        "sensor" => "📡 сенсор",
+        "telegram" => "✈️ Telegram",
+        _ => source ?? string.Empty
+    };
+}

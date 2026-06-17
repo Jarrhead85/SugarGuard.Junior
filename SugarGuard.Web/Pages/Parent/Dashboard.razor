@@ -1,0 +1,1730 @@
+﻿@page "/parent/dashboard"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Parent")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using SugarGuard.Shared.Enums
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.Components.Shared
+@using System.Text.Json
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
+@inject ITokenStore TokenStore
+@inject ILogger<Dashboard> Logger
+@inject SugarGuardApiService Api
+
+@* Dashboard родителя *@
+
+@* Информер о ребёнке (вверху, всегда виден) *@
+<div class="child-banner">
+    @if (_hasChild)
+    {
+        <div class="child-banner-avatar" aria-hidden="true">🧒</div>
+        <div class="child-banner-info">
+            <span class="child-banner-name">@_childProfile.Name</span>
+            <span class="child-banner-sub">@_childProfile.Age лет · @_childProfile.DiabetesType</span>
+        </div>
+        <div class="child-banner-glucose @_currentGlucoseClass" aria-label="Текущий уровень глюкозы">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            <span class="child-banner-glucose-val">@_currentGlucose.ToString("F1")</span>
+            <span class="child-banner-glucose-unit">ммоль/л</span>
+        </div>
+    }
+    else
+    {
+        <div class="child-banner-avatar" aria-hidden="true">+</div>
+        <div class="child-banner-info">
+            <span class="child-banner-name">Ребёнок ещё не привязан</span>
+            <span class="child-banner-sub">Создайте код в мобильном приложении ребёнка и привяжите его здесь</span>
+        </div>
+        <button class="btn btn--primary btn--sm" @onclick='() => ShowNotice("Привязка ребёнка будет доступна после генерации кода в мобильном приложении.")'>
+            Привязать ребёнка
+        </button>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_noticeMessage))
+{
+    <div class="state-banner state-banner--info" role="status">
+        <span>@_noticeMessage</span>
+        <button class="btn btn--ghost btn--sm" style="margin-left:auto" @onclick="ClearNotice">Закрыть</button>
+    </div>
+}
+
+@* Вкладки *@
+<nav class="tabs" role="tablist" aria-label="Разделы дашборда">
+    <button class="tab @TabClass("overview")" role="tab"
+            aria-selected="@(_activeTab == "overview")"
+            aria-controls="pane-overview"
+            @onclick='() => SwitchTab("overview")'>Обзор</button>
+
+    <button class="tab @TabClass("measurements")" role="tab"
+            aria-selected="@(_activeTab == "measurements")"
+            aria-controls="pane-measurements"
+            @onclick='() => SwitchTab("measurements")'>
+        Измерения
+        @if (_newMeasurementsCount > 0)
+        {
+            <span class="tab-badge ok" aria-label="@_newMeasurementsCount новых">@_newMeasurementsCount</span>
+        }
+    </button>
+
+    <button class="tab @TabClass("alerts")" role="tab"
+            aria-selected="@(_activeTab == "alerts")"
+            aria-controls="pane-alerts"
+            @onclick='() => SwitchTab("alerts")'>
+        Уведомления
+        @if (_criticalAlertsCount > 0)
+        {
+            <span class="tab-badge danger" aria-label="@_criticalAlertsCount критических">@_criticalAlertsCount</span>
+        }
+    </button>
+
+    <button class="tab @TabClass("backpack")" role="tab"
+            aria-selected="@(_activeTab == "backpack")"
+            aria-controls="pane-backpack"
+            @onclick='() => SwitchTab("backpack")'>
+        Рюкзак
+        @if (_lowStockCount > 0)
+        {
+            <span class="tab-badge warn" aria-label="@_lowStockCount позиций мало">@_lowStockCount</span>
+        }
+    </button>
+
+    <button class="tab @TabClass("doctor")" role="tab"
+            aria-selected="@(_activeTab == "doctor")"
+            aria-controls="pane-doctor"
+            @onclick='() => SwitchTab("doctor")'>Врач</button>
+
+    <button class="tab @TabClass("profile")" role="tab"
+            aria-selected="@(_activeTab == "profile")"
+            aria-controls="pane-profile"
+            @onclick='() => SwitchTab("profile")'>Профиль</button>
+
+    <button class="tab @TabClass("settings")" role="tab"
+            aria-selected="@(_activeTab == "settings")"
+            aria-controls="pane-settings"
+            @onclick='() => SwitchTab("settings")'>Настройки</button>
+</nav>
+
+@* ОБЗОР *@
+<div class="tab-pane @PaneClass("overview")" id="pane-overview" role="tabpanel">
+
+    @* KPI-карточки *@
+    <div class="kpi-grid">
+        <StatCard Label="Глюкоза сейчас"
+                  Value="@_currentGlucose.ToString("F1")"
+                  Unit="ммоль/л"
+                  Subtitle="цель: 4.0–10.0"
+                  Delta="+0.4"
+                  Variant="glucose" />
+    </div>
+
+    @* График + Последние события *@
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">График глюкозы</div>
+                    <div class="card-sub">Данные мониторинга</div>
+                </div>
+                <div class="btn-group" role="group" aria-label="Диапазон графика">
+                    <button class="btn btn--ghost btn--sm @(_chartRange == 6 ? "btn--soft" : "")"
+                            @onclick='() => SetChartRange(6)'>6ч</button>
+                    <button class="btn btn--ghost btn--sm @(_chartRange == 12 ? "btn--soft" : "")"
+                            @onclick='() => SetChartRange(12)'>12ч</button>
+                    <button class="btn btn--ghost btn--sm @(_chartRange == 24 ? "btn--soft" : "")"
+                            @onclick='() => SetChartRange(24)'>24ч</button>
+                </div>
+            </div>
+            <div class="chart-wrap" id="glucoseChartWrap">
+                <canvas id="glucoseChart"
+                        aria-label="График уровня глюкозы за @_chartRange часов"></canvas>
+            </div>
+            <div class="chart-legend" aria-hidden="true">
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:var(--color-glucose-normal)"></span>
+                    4.0–10.0
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:var(--color-glucose-warning)"></span>
+                    Выше нормы
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:var(--color-glucose-danger)"></span>
+                    Критично
+                </span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Недавние события</div>
+                    <div class="card-sub">Последние уведомления</div>
+                </div>
+                @if (_criticalAlertsCount > 0)
+                {
+                    <span class="badge badge--danger" aria-label="@_criticalAlertsCount критических">
+                        @_criticalAlertsCount
+                    </span>
+                }
+            </div>
+            @if (_recentAlerts.Count == 0)
+            {
+                <div class="empty-state" role="status">
+                    <div class="empty-state__icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                    </div>
+                    <p class="empty-state__text">Всё в порядке — событий нет</p>
+                </div>
+            }
+            else
+            {
+                <div class="alert-list" role="list">
+                    @foreach (var alert in _recentAlerts.Take(5))
+                    {
+                        <div class="alert-item" role="listitem">
+                            <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
+                            <div class="alert-body">
+                                <div class="alert-title">@alert.Title</div>
+                                <div class="alert-desc">@alert.Description</div>
+                            </div>
+                            <time class="alert-time">@alert.Time</time>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* Статистика TIR *@
+    <div class="grid-3">
+        <div class="card card--sm card-tir-ok">
+            <div class="tir-value" style="color:var(--color-glucose-normal)">
+                @_tirNormal<span class="tir-unit">%</span>
+            </div>
+            <div class="tir-label">Время в диапазоне</div>
+            <div class="tir-sub">4.0–10.0 ммоль/л</div>
+        </div>
+        <div class="card card--sm card-tir-warn">
+            <div class="tir-value" style="color:var(--color-glucose-warning)">
+                @_tirHigh<span class="tir-unit">%</span>
+            </div>
+            <div class="tir-label">Выше нормы</div>
+            <div class="tir-sub">&gt;10.0 ммоль/л</div>
+        </div>
+        <div class="card card--sm card-tir-danger">
+            <div class="tir-value" style="color:var(--color-glucose-danger)">
+                @_tirLow<span class="tir-unit">%</span>
+            </div>
+            <div class="tir-label">Ниже нормы</div>
+            <div class="tir-sub">&lt;4.0 ммоль/л</div>
+        </div>
+    </div>
+
+    @* Быстрая статистика + Инсулин сегодня *@
+    <div class="grid-3">
+        <div class="card card--sm">
+            <div class="card-title" style="font-size:var(--font-size-sm);margin-bottom:var(--spacing-3)">
+                Статистика за 7 дней
+            </div>
+            <div class="stats-list">
+                <div class="stats-row">
+                    <span class="stats-label">Средняя глюкоза</span>
+                    <strong>@_avgGlucose ммоль/л</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">TIR</span>
+                    <strong style="color:var(--color-glucose-normal)">@_tirNormal%</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Гипо (%)</span>
+                    <strong style="color:var(--color-glucose-danger)">@_tirLow%</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Гипер (%)</span>
+                    <strong style="color:var(--color-glucose-warning)">@_tirHigh%</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Измерений</span>
+                    <strong>@_totalMeas</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card--sm">
+            <div class="card-title" style="font-size:var(--font-size-sm);margin-bottom:var(--spacing-3)">
+                Инсулин сегодня
+            </div>
+            <div class="ins-list" role="list">
+                @foreach (var ins in _insulinLog.Take(4))
+                {
+                    <div class="ins-row" role="listitem">
+                        <span class="ins-dot @ins.Type"
+                              aria-label="@(ins.Type == "bolus" ? "Болюс" : "Базальный")"
+                              title="@(ins.Type == "bolus" ? "Болюс" : "Базальный")"></span>
+                        <div class="ins-info">
+                            <span class="ins-name">@ins.Name</span>
+                            <span class="ins-time">@ins.Time</span>
+                        </div>
+                        <strong class="ins-dose">@ins.Dose</strong>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card card--sm">
+            <div class="card-title" style="font-size:var(--font-size-sm);margin-bottom:var(--spacing-3)">
+                Параметры цели
+            </div>
+            <div class="stats-list">
+                <div class="stats-row">
+                    <span class="stats-label">Целевой диапазон</span>
+                    <strong>4.0–10.0</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">HbA1c (оценка)</span>
+                    <strong>@_childProfile.HbA1c%</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Гипо порог</span>
+                    <strong style="color:var(--color-glucose-danger)">&lt;3.9</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Гипер порог</span>
+                    <strong style="color:var(--color-glucose-warning)">&gt;13.9</strong>
+                </div>
+            </div>
+            <button class="btn btn--soft btn--sm" style="margin-top:var(--spacing-3);width:100%"
+                    @onclick='() => ShowNotice("Целевые параметры будут редактироваться после привязки ребёнка. Сейчас показаны безопасные базовые значения.")'>
+                Изменить цели
+            </button>
+        </div>
+    </div>
+</div>
+
+@* ИЗМЕРЕНИЯ *@
+<div class="tab-pane @PaneClass("measurements")" id="pane-measurements" role="tabpanel">
+
+    @* Фильтры *@
+    <div class="card" style="margin-bottom:0">
+        <div class="filter-row">
+            <div class="input-wrap" style="flex:1;min-width:160px">
+                <label class="form-label" for="measDate">Дата</label>
+                <input id="measDate" class="form-input" type="date"
+                       @bind="_measFilterDate"
+                       max="@DateTime.Today.ToString("yyyy-MM-dd")"
+                       aria-label="Выбрать дату" />
+            </div>
+            <div class="input-wrap" style="flex:1;min-width:140px">
+                <label class="form-label" for="measStatus">Статус</label>
+                <select id="measStatus" class="form-select" @bind="_measStatusFilter"
+                        aria-label="Фильтр по статусу">
+                    <option value="">Все статусы</option>
+                    <option value="normal">В норме</option>
+                    <option value="warn">Выше нормы</option>
+                    <option value="danger">Критично</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:var(--spacing-2);align-items:flex-end;padding-top:var(--spacing-5)">
+                <button class="btn btn--primary btn--sm"
+                        @onclick="ApplyMeasFilter"
+                        aria-label="Применить фильтры">Применить</button>
+                <button class="btn btn--ghost btn--sm"
+                        @onclick="ResetMeasFilter"
+                        aria-label="Сбросить фильтры">Сегодня</button>
+                <button class="btn btn--ghost btn--sm"
+                        @onclick="ExportCsvAsync"
+                        aria-label="Экспорт в CSV">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @* Таблица *@
+    <div class="card" style="padding:0;overflow:hidden">
+        <table class="data-table" aria-label="История измерений глюкозы">
+            <thead>
+                <tr>
+                    <th scope="col">Время</th>
+                    <th scope="col">Глюкоза</th>
+                    <th scope="col">Тренд</th>
+                    <th scope="col">Заметка</th>
+                    <th scope="col">Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_filteredMeasurements.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" style="text-align:center;padding:var(--spacing-8);color:var(--color-text-muted)">
+                            Нет измерений за выбранный период
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var m in _filteredMeasurements)
+                    {
+                        <tr>
+                            <td class="tabular-nums" style="white-space:nowrap">@m.Time</td>
+                            <td>
+                                <span class="glucose-chip @m.StatusClass"
+                                      aria-label="@m.Value ммоль/л, статус: @m.Status">
+                                    <span class="pulse-dot @m.StatusClass" aria-hidden="true"></span>
+                                    @m.Value
+                                </span>
+                            </td>
+                            <td class="trend-cell" aria-label="Тренд: @m.Trend">@m.TrendIcon</td>
+                            <td style="color:var(--color-text-muted);font-size:var(--font-size-xs)">@m.Note</td>
+                            <td><span class="status-label @m.StatusClass">@m.Status</span></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Пагинация *@
+    <div class="pagination-row" role="navigation" aria-label="Пагинация">
+        <span class="pagination-info">
+            Показано @_filteredMeasurements.Count из @_totalMeas записей
+        </span>
+        <div class="btn-group">
+            <button class="btn btn--ghost btn--sm"
+                    disabled="@(_measPage <= 1)"
+                    @onclick="PrevMeasPage"
+                    aria-label="Предыдущая страница">← Назад</button>
+            <span class="pagination-page" aria-current="page">@_measPage</span>
+            <button class="btn btn--ghost btn--sm"
+                    @onclick="NextMeasPage"
+                    aria-label="Следующая страница">Вперёд →</button>
+        </div>
+    </div>
+</div>
+
+@* УВЕДОМЛЕНИЯ *@
+<div class="tab-pane @PaneClass("alerts")" id="pane-alerts" role="tabpanel">
+
+    <div class="filter-chips" role="group" aria-label="Фильтры уведомлений">
+        <button class="chip @(_alertFilter == "" ? "chip-active" : "")"
+                @onclick='() => SetAlertFilter("")'>
+            Все <span class="chip-count">@_allAlerts.Count</span>
+        </button>
+        <button class="chip @(_alertFilter == "danger" ? "chip-active chip-danger" : "")"
+                @onclick='() => SetAlertFilter("danger")'>
+            Критические <span class="chip-count">@_allAlerts.Count(a => a.Type == "danger")</span>
+        </button>
+        <button class="chip @(_alertFilter == "warn" ? "chip-active chip-warn" : "")"
+                @onclick='() => SetAlertFilter("warn")'>
+            Предупреждения <span class="chip-count">@_allAlerts.Count(a => a.Type == "warn")</span>
+        </button>
+        <button class="chip @(_alertFilter == "info" ? "chip-active" : "")"
+                @onclick='() => SetAlertFilter("info")'>
+            Инфо <span class="chip-count">@_allAlerts.Count(a => a.Type == "info")</span>
+        </button>
+        <button class="chip @(_alertFilter == "ok" ? "chip-active chip-ok" : "")"
+                @onclick='() => SetAlertFilter("ok")'>
+            Решено <span class="chip-count">@_allAlerts.Count(a => a.Type == "ok")</span>
+        </button>
+        @if (_allAlerts.Any(a => a.IsUnread))
+        {
+            <button class="btn btn--ghost btn--sm" style="margin-left:auto"
+                    @onclick="MarkAllAlertsRead">Прочитать все</button>
+        }
+    </div>
+
+    <div class="alert-list" role="list">
+        @if (!_filteredAlerts.Any())
+        {
+            <div class="empty-state" role="status">
+                <div class="empty-state__icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                </div>
+                <h4 class="empty-state__title">Нет событий</h4>
+                <p class="empty-state__text">По выбранному фильтру событий не найдено</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var alert in _filteredAlerts)
+            {
+                 <div class="alert-item @(alert.IsUnread ? "alert-item--unread" : "")"
+                     role="listitem">
+                    <span class="alert-item__indicator alert-item__indicator--@alert.Type"
+                          aria-hidden="true"></span>
+                    <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
+                    <div class="alert-body">
+                        <div class="alert-title">@alert.Title</div>
+                        <div class="alert-desc">@alert.Description</div>
+                    </div>
+                    <div class="alert-meta">
+                        <time class="alert-time">@alert.Time</time>
+                        <button class="btn btn--icon alert-dismiss"
+                                @onclick="() => DismissAlert(alert)"
+                                aria-label="Скрыть уведомление «@alert.Title»"
+                                title="Скрыть">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@* РЮКЗАК *@
+<div class="tab-pane @PaneClass("backpack")" id="pane-backpack" role="tabpanel">
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Расходники и препараты</div>
+                <div class="card-sub">Актуальный остаток</div>
+            </div>
+            <button class="btn btn--primary btn--sm"
+                    @onclick="OpenAddBackpackItem">+ Добавить позицию</button>
+        </div>
+
+        @if (_isBackpackEditorOpen)
+        {
+            <div class="inline-editor" role="region" aria-label="Редактор позиции рюкзака">
+                <div class="editor-grid">
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpTemplate">Готовый шаблон</label>
+                        <select id="bpTemplate" class="form-select"
+                                value="@_backpackForm.TemplateKey"
+                                @onchange="OnBackpackTemplateChanged">
+                            @foreach (var template in BackpackTemplates)
+                            {
+                                <option value="@template.Key">@template.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpName">Название</label>
+                        <input id="bpName" class="form-input" @bind="_backpackForm.Name" />
+                    </div>
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpCategory">Категория</label>
+                        <select id="bpCategory" class="form-select" @bind="_backpackForm.Category">
+                            <option>Перекус</option>
+                            <option>Измерения</option>
+                            <option>Инсулин</option>
+                            <option>Экстренно</option>
+                            <option>Другое</option>
+                        </select>
+                    </div>
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpQuantity">Количество</label>
+                        <input id="bpQuantity" class="form-input" type="number" min="0" max="999"
+                               @bind="_backpackForm.Quantity" />
+                    </div>
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpUnit">Единица</label>
+                        <input id="bpUnit" class="form-input" @bind="_backpackForm.Unit" />
+                    </div>
+                    <div class="input-wrap">
+                        <label class="form-label" for="bpCarbs">ХЕ</label>
+                        <input id="bpCarbs" class="form-input" type="number" min="0" max="99" step="0.1"
+                               @bind="_backpackForm.BreadUnits" />
+                    </div>
+                    <div class="input-wrap editor-span">
+                        <label class="form-label" for="bpDescription">Описание</label>
+                        <input id="bpDescription" class="form-input" @bind="_backpackForm.Description" />
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_backpackFormError))
+                {
+                    <div class="form-error">@_backpackFormError</div>
+                }
+                <div class="editor-actions">
+                    <button class="btn btn--primary btn--sm" @onclick="SaveBackpackItemAsync">
+                        @(_editingBackpackItemId is null ? "Добавить" : "Сохранить")
+                    </button>
+                    <button class="btn btn--ghost btn--sm" @onclick="CancelBackpackEdit">Отмена</button>
+                </div>
+            </div>
+        }
+
+        <div class="backpack-grid" role="list">
+            @if (_backpackItems.Count == 0)
+            {
+                <div class="empty-state" role="status">
+                    <h4 class="empty-state__title">Рюкзак пока пуст</h4>
+                    <p class="empty-state__text">Добавьте перекусы, полоски, глюкометр, инсулин или экстренные позиции.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var item in _backpackItems)
+                {
+                    <div class="bp-item @(item.StatusClass == "empty" ? "bp-item--empty" : "")"
+                         role="listitem">
+                        <div class="bp-icon" aria-hidden="true">@item.Icon</div>
+                        <div class="bp-info">
+                            <div class="bp-name">@item.Name</div>
+                            <div class="bp-sub">@item.Description</div>
+                            <div class="bp-meta">@item.Category@if (item.BreadUnits > 0) { <span> · @item.BreadUnits.ToString("0.#") ХЕ</span> }</div>
+                        </div>
+                        <div class="bp-qty" aria-label="Количество: @item.Quantity @item.Unit">
+                            <span>@item.Quantity</span>
+                            <small>@item.Unit</small>
+                        </div>
+                        <span class="bp-status @item.StatusClass" role="status">@item.Status</span>
+                        <div class="bp-actions">
+                            <button class="btn btn--ghost btn--sm" @onclick="() => EditBackpackItem(item)">Изменить</button>
+                            <button class="btn btn--ghost btn--sm" @onclick="() => RemoveBackpackItemAsync(item.Id)">Удалить</button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @if (_lowStockCount > 0)
+    {
+        <div class="state-banner state-banner--warn" role="alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>@_lowStockCount @(GetPositionWord(_lowStockCount)) требуют пополнения</span>
+        </div>
+    }
+</div>
+
+@* ВРАЧ *@
+<div class="tab-pane @PaneClass("doctor")" id="pane-doctor" role="tabpanel">
+
+    <div class="grid-2">
+        @* Записки врача *@
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Записки врача</div>
+                    <div class="card-sub">Рекомендации и назначения</div>
+                </div>
+                <button class="btn btn--primary btn--sm"
+                        @onclick='() => ShowNotice("Запрос врачу пока в разработке. Сейчас можно вести наблюдение, измерения и рюкзак ребёнка.")'>+ Запрос</button>
+            </div>
+            <div class="note-list" role="list">
+                @foreach (var note in _doctorNotes)
+                {
+                    <div class="note" role="listitem">
+                        <div class="note-head">
+                            <span class="note-doctor">@note.Doctor</span>
+                            <time class="note-date">@note.Date</time>
+                        </div>
+                        <p class="note-text">@note.Text</p>
+                        <div class="note-tags" aria-label="Теги записки">
+                            @foreach (var tag in note.Tags)
+                            {
+                                <span class="note-tag">@tag</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Ближайший приём *@
+        <div>
+            <div class="card" style="margin-bottom:var(--spacing-4)">
+                <div class="card-title" style="margin-bottom:var(--spacing-3)">Ближайший приём</div>
+                <div class="appointment-card">
+                    <div class="appointment-date">
+                        <span class="appointment-day">15</span>
+                        <span class="appointment-month">июн</span>
+                    </div>
+                    <div class="appointment-info">
+                        <div class="appointment-doctor">Иванова М.С.</div>
+                        <div class="appointment-type"
+                             style="color:var(--color-text-muted);font-size:var(--font-size-xs)">
+                            Эндокринолог · 10:00
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:var(--spacing-2)">
+                        <button class="btn btn--soft btn--sm"
+                                @onclick='() => ShowNotice("Перенос приёма пока в разработке.")'>Перенести</button>
+                        <button class="btn btn--ghost btn--sm"
+                                @onclick='() => ShowNotice("Отмена приёма пока в разработке.")'>Отменить</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" style="margin-bottom:var(--spacing-3)">Мой врач</div>
+                <div style="display:flex;align-items:center;gap:var(--spacing-3);margin-bottom:var(--spacing-4)">
+                    <div class="doctor-avatar" aria-hidden="true">ИМ</div>
+                    <div>
+                        <div style="font-weight:600;font-size:var(--font-size-sm)">
+                            @_childProfile.Endocrinologist
+                        </div>
+                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted)">
+                            Эндокринолог, ГБУЗ №12
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:var(--spacing-2);flex-wrap:wrap">
+                    <button class="btn btn--primary btn--sm"
+                            @onclick='() => ShowNotice("Чат с врачом пока в разработке.")'>Написать</button>
+                    <button class="btn btn--ghost btn--sm"
+                            @onclick='() => ShowNotice("История обращений пока в разработке.")'>История обращений</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ПРОФИЛЬ РЕБЁНКА *@
+<div class="tab-pane @PaneClass("profile")" id="pane-profile" role="tabpanel">
+
+    <div class="profile-hero" aria-label="Профиль ребёнка">
+        <div class="avatar-lg" aria-hidden="true">🧒</div>
+        <div class="profile-info">
+            <h2 class="profile-name">@_childProfile.Name</h2>
+            <p class="profile-sub">
+                @_childProfile.Age лет · @_childProfile.DiabetesType · Диагноз: @_childProfile.DiagnosisDate
+            </p>
+            <div class="profile-chips">
+                <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
+                <span class="pchip">📞 @_childProfile.Contact</span>
+                <span class="pchip">📧 @_childProfile.Email</span>
+            </div>
+        </div>
+        <button class="btn btn--ghost btn--sm" style="align-self:flex-start"
+                @onclick='() => ShowNotice("Редактирование профиля ребёнка появится после привязки мобильного приложения.")'>Редактировать</button>
+    </div>
+
+    <div class="grid-2">
+        @* Журнал инсулина *@
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Журнал инсулина</div>
+                    <div class="card-sub">Последние введения из мобильного приложения ребёнка</div>
+                </div>
+            </div>
+            <div class="ins-list" role="list">
+                @if (_insulinLog.Count == 0)
+                {
+                    <div class="empty-state empty-state--compact" role="status">
+                        Данные появятся после ввода инсулина в мобильном приложении ребёнка.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var ins in _insulinLog)
+                    {
+                        <div class="ins-row" role="listitem">
+                            <span class="ins-dot @ins.Type"
+                                  aria-label="@(ins.Type == "bolus" ? "Болюс" : "Базальный")"></span>
+                            <div class="ins-info">
+                                <span class="ins-name">@ins.Name</span>
+                                <span class="ins-time">@ins.Time</span>
+                            </div>
+                            <strong class="ins-dose">@ins.Dose</strong>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        @* Основные показатели *@
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">Основные показатели</div>
+            </div>
+            <table class="data-table" aria-label="Основные показатели здоровья ребёнка">
+                <tbody>
+                    <tr>
+                        <td>Целевой диапазон</td>
+                        <td style="font-weight:600;text-align:right">3.9–10.0 ммоль/л</td>
+                    </tr>
+                    <tr>
+                        <td>Средняя глюкоза (7 дней)</td>
+                        <td class="tabular-nums" style="font-weight:600;text-align:right">
+                            @_avgGlucose ммоль/л
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>HbA1c (оценка)</td>
+                        <td class="tabular-nums" style="font-weight:600;text-align:right">
+                            @_childProfile.HbA1c%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Коэффициент чувствительности</td>
+                        <td style="font-weight:600;text-align:right">1:2.5</td>
+                    </tr>
+                    <tr>
+                        <td>Углеводный коэффициент</td>
+                        <td style="font-weight:600;text-align:right">1:10 г/ед</td>
+                    </tr>
+                    <tr>
+                        <td>TIR за 7 дней</td>
+                        <td class="tabular-nums"
+                            style="font-weight:600;text-align:right;color:var(--color-glucose-normal)">
+                            @_tirNormal%
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* НАСТРОЙКИ *@
+<div class="tab-pane @PaneClass("settings")" id="pane-settings" role="tabpanel">
+    <div class="grid-2">
+
+        @* Уведомления *@
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">Уведомления</div>
+            </div>
+            <div class="settings-group" role="list">
+                @foreach (var s in _notifSettings)
+                {
+                    <div class="setting-row" role="listitem">
+                        <div class="setting-text">
+                            <div class="setting-label">@s.Label</div>
+                            <div class="setting-desc">@s.Description</div>
+                        </div>
+                        <button class="toggle-sw @(s.Enabled ? "on" : "")"
+                                role="switch"
+                                aria-checked="@s.Enabled.ToString().ToLower()"
+                                aria-label="@s.Label"
+                                @onclick="() => ToggleSetting(s)">
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Устройства *@
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">Устройства</div>
+            </div>
+            <div class="settings-group" role="list">
+                @foreach (var d in _devices)
+                {
+                    <div class="setting-row" role="listitem">
+                        <div class="setting-text">
+                            <div class="setting-label">@d.Name</div>
+                            <div class="setting-desc">@d.Description</div>
+                        </div>
+                        <button class="btn btn--soft btn--sm"
+                                aria-label="Подключить @d.Name"
+                                disabled="@d.IsConnected"
+                                @onclick="() => ConnectDevice(d)">@(d.IsConnected ? "Подключено" : "Подключить")</button>
+                    </div>
+                }
+            </div>
+
+            <div style="margin-top:var(--spacing-5);padding-top:var(--spacing-4);border-top:1px solid var(--color-divider)">
+                <div class="card-title" style="font-size:var(--font-size-sm);margin-bottom:var(--spacing-3)">
+                    Профиль родителя
+                </div>
+                <div class="settings-group">
+                    <div class="setting-row">
+                        <div class="setting-text">
+                            <div class="setting-label">Мои данные</div>
+                            <div class="setting-desc">@_parentProfile.DisplayName · @_parentProfile.Email · @_parentProfile.Phone</div>
+                        </div>
+                        <button class="btn btn--ghost btn--sm"
+                                @onclick="OpenParentProfileEditor">Редактировать</button>
+                    </div>
+                    @if (_isParentProfileEditorOpen)
+                    {
+                        <div class="inline-editor">
+                            <div class="editor-grid">
+                                <div class="input-wrap">
+                                    <label class="form-label" for="parentName">Имя</label>
+                                    <input id="parentName" class="form-input" @bind="_parentProfileForm.DisplayName" />
+                                </div>
+                                <div class="input-wrap">
+                                    <label class="form-label" for="parentEmail">Email</label>
+                                    <input id="parentEmail" class="form-input" type="email" @bind="_parentProfileForm.Email" />
+                                </div>
+                                <div class="input-wrap">
+                                    <label class="form-label" for="parentPhone">Телефон</label>
+                                    <input id="parentPhone" class="form-input" @bind="_parentProfileForm.Phone" />
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(_parentProfileError))
+                            {
+                                <div class="form-error">@_parentProfileError</div>
+                            }
+                            <div class="editor-actions">
+                                <button class="btn btn--primary btn--sm" @onclick="SaveParentProfileAsync">Сохранить</button>
+                                <button class="btn btn--ghost btn--sm" @onclick="CancelParentProfileEdit">Отмена</button>
+                            </div>
+                        </div>
+                    }
+                    <div class="setting-row">
+                        <div class="setting-text">
+                            <div class="setting-label">Доступ другим</div>
+                            <div class="setting-desc">Пригласить второго родителя или врача</div>
+                        </div>
+                        <button class="btn btn--ghost btn--sm"
+                                @onclick='() => ShowNotice("Приглашение второго родителя или врача пока в разработке.")'>+ Пригласить</button>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-text">
+                            <div class="setting-label">Смена пароля</div>
+                            <div class="setting-desc">Последнее изменение: 3 месяца назад</div>
+                        </div>
+                        <button class="btn btn--ghost btn--sm"
+                                @onclick='() => ShowNotice("Смена пароля пока в разработке.")'>Изменить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Состояние навигации
+    private string _activeTab = "overview";
+    private int _chartRange = 12;
+    private bool _hasChild;
+    private string? _noticeMessage;
+
+    // Состояние фильтров
+    private string _alertFilter = "";
+    private string _measStatusFilter = "";
+    private DateTime _measFilterDate = DateTime.Today;
+    private int _measPage = 1;
+    private const int MeasPageSize = 10;
+    private const string BackpackStorageKey = "sg-parent-backpack-v1";
+    private const string ParentProfileStorageKey = "sg-parent-profile-v1";
+
+    // Живые данные
+    private double _currentGlucose;
+    private string _currentGlucoseClass = "normal";
+    private int _tirNormal;
+    private int _tirHigh;
+    private int _tirLow;
+    private string _avgGlucose = "—";
+    private int _totalMeas;
+    private int _newMeasurementsCount => _measurements.Count(m => m.IsNew);
+    private int _criticalAlertsCount => _allAlerts.Count(a => a.Type == "danger" && a.IsUnread);
+    private int _lowStockCount => _backpackItems.Count(i => i.StatusClass is "low" or "empty");
+    private bool _browserStateLoaded;
+    private bool _isBackpackEditorOpen;
+    private string? _editingBackpackItemId;
+    private string? _backpackFormError;
+    private BackpackItemForm _backpackForm = new();
+    private bool _isParentProfileEditorOpen;
+    private string? _parentProfileError;
+    private ParentProfileForm _parentProfileForm = new();
+    private ParentProfile _parentProfile = new();
+
+    // Вкладки / панели
+    private string TabClass(string tab) => _activeTab == tab ? "active" : "";
+    private string PaneClass(string tab) => _activeTab == tab ? "active" : "";
+
+    private void SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        var url = tab == "overview"
+            ? "/parent/dashboard"
+            : $"/parent/dashboard?tab={tab}";
+        Navigation.NavigateTo(url, forceLoad: false);
+    }
+
+    // Инициализация
+    protected override void OnInitialized()
+    {
+        SyncTabFromUri();
+    }
+
+    protected override void OnParametersSet()
+    {
+        SyncTabFromUri();
+    }
+
+    private void SyncTabFromUri()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var tab = query["tab"]?.ToLowerInvariant();
+        _activeTab = string.IsNullOrEmpty(tab) ? "overview" : tab;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        try
+        {
+            var children = await Api.GetMyChildrenAsync(CancellationToken.None);
+            var childId = children.FirstOrDefault()?.ChildId ?? Guid.Empty;
+
+            if (childId == Guid.Empty)
+            {
+                _hasChild = false;
+                ResetChildData();
+                return;
+            }
+
+            _hasChild = true;
+
+            var summaryTask = Api.GetDashboardSummaryAsync(childId, CancellationToken.None);
+            var profileTask = Api.GetChildProfileAsync(childId, CancellationToken.None);
+            var statsTask = Api.GetStatisticsVmAsync(childId, "7d", CancellationToken.None);
+            var timelineTask = Api.GetTimelineAsync(childId, DateTime.UtcNow.AddDays(-7), DateTime.UtcNow, CancellationToken.None);
+            var measurementsTask = Api.GetMeasurementsAsync(childId, DateTime.UtcNow.AddDays(-1), DateTime.UtcNow, CancellationToken.None);
+
+            await Task.WhenAll(summaryTask, profileTask, statsTask, timelineTask, measurementsTask);
+
+            var summary = summaryTask.Result;
+            var profile = profileTask.Result;
+            var stats = statsTask.Result;
+
+            // Метрики из сводки
+            if (summary.LatestGlucose.HasValue)
+            {
+                _currentGlucose = (double)summary.LatestGlucose.Value;
+                _currentGlucoseClass = summary.LatestGlucoseUiState switch
+                {
+                    "Critical" or "Danger" => "danger",
+                    "Warning" or "Elevated" => "warn",
+                    _ => "normal"
+                };
+            }
+
+            _totalMeas = summary.TotalMeasurements;
+
+            // Метрики из статистики
+            if (stats is not null)
+            {
+                _tirNormal = (int)Math.Round(stats.TimeInTargetRange);
+                _tirHigh = (int)Math.Round(stats.TimeAboveRange + stats.TimeCriticallyHigh);
+                _tirLow = (int)Math.Round(stats.TimeBelowRange + stats.TimeCriticallyLow);
+                _avgGlucose = stats.AverageGlucose.ToString("F1");
+                _totalMeas = stats.TotalMeasurements;
+            }
+
+            // Профиль ребёнка
+            if (profile is not null)
+            {
+                var age = DateTime.Today.Year - profile.DateOfBirth.Year;
+                if (profile.DateOfBirth > DateOnly.FromDateTime(DateTime.Today).AddYears(-age)) age--;
+
+                _childProfile.Name = profile.FullName;
+                _childProfile.Age = age.ToString();
+                _childProfile.DiabetesType = profile.DiabetesType;
+            }
+
+            // Уведомления из таймлайна
+            var alerts = timelineTask.Result;
+            if (alerts.Count > 0)
+            {
+                _allAlerts = alerts
+                    .Where(e => e.EventType == TimelineEventType.Alert)
+                    .Select(e => new AlertItem(
+                        e.Title ?? "Событие",
+                        e.Description ?? $"Глюкоза: {e.GlucoseValue?.ToString("F1") ?? "—"} ммоль/л",
+                        GetRelativeTime(e.OccurredAt),
+                        e.GlucoseUiState switch
+                        {
+                            "Critical" or "Danger" => "danger",
+                            "Warning" => "warn",
+                            _ => "info"
+                        },
+                        e.GlucoseUiState == "Critical" ? "!" : "•",
+                        e.IsImportant
+                    ))
+                    .ToList();
+
+                _recentAlerts = _allAlerts.Take(5).ToList();
+            }
+
+            _measurements.Clear();
+            _measurements.AddRange(measurementsTask.Result
+                .OrderByDescending(m => m.MeasurementTime)
+                .Select(m => new MeasurementItem(
+                    m.MeasurementTime.ToLocalTime().ToString("HH:mm"),
+                    m.GlucoseValue.ToString("F1"),
+                    GetTrendIcon(m.GlucoseUiState),
+                    string.IsNullOrWhiteSpace(m.Notes) ? "Без заметки" : m.Notes,
+                    GetMeasurementStatus(m.GlucoseUiState),
+                    GetMeasurementStatusClass(m.GlucoseUiState),
+                    m.MeasurementTime > DateTime.UtcNow.AddHours(-1))));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Ошибка загрузки данных дашборда");
+        }
+    }
+
+    private static string GetRelativeTime(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+        if (diff.TotalMinutes < 1) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч назад";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн назад";
+        return utcTime.ToString("dd.MM");
+    }
+
+    private static string GetMeasurementStatusClass(string? state) => state switch
+    {
+        "Critical" or "Danger" => "danger",
+        "Warning" or "Elevated" => "warn",
+        _ => "normal"
+    };
+
+    private static string GetMeasurementStatus(string? state) => GetMeasurementStatusClass(state) switch
+    {
+        "danger" => "Критично",
+        "warn" => "Выше нормы",
+        _ => "Норма"
+    };
+
+    private static string GetTrendIcon(string? state) => GetMeasurementStatusClass(state) switch
+    {
+        "danger" => "↓↓",
+        "warn" => "↑",
+        _ => "→"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await LoadBrowserStateAsync();
+
+        if (_activeTab == "overview")
+            await RenderChartAsync();
+
+        try
+        {
+            var vapidPublicKey = Configuration["Vapid:PublicKey"] ?? string.Empty;
+            var apiBaseUrl = Configuration["ApiBaseUrl"] ?? string.Empty;
+            var token = await TokenStore.GetTokenAsync();
+
+            if (!string.IsNullOrEmpty(vapidPublicKey) && !string.IsNullOrEmpty(token))
+            {
+                await JS.InvokeVoidAsync(
+                    "registerPushSubscription",
+                    vapidPublicKey,
+                    apiBaseUrl,
+                    token);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось зарегистрировать Push-подписку.");
+        }
+    }
+
+    private async Task LoadBrowserStateAsync()
+    {
+        if (_browserStateLoaded)
+        {
+            return;
+        }
+
+        _browserStateLoaded = true;
+
+        try
+        {
+            var storedBackpack = await JS.InvokeAsync<string?>("localStorage.getItem", BackpackStorageKey);
+            var backpackItems = string.IsNullOrWhiteSpace(storedBackpack)
+                ? null
+                : JsonSerializer.Deserialize<List<BackpackItem>>(storedBackpack);
+
+            _backpackItems.Clear();
+            if (backpackItems is { Count: > 0 })
+            {
+                _backpackItems.AddRange(backpackItems);
+            }
+
+            var storedProfile = await JS.InvokeAsync<string?>("localStorage.getItem", ParentProfileStorageKey);
+            var profile = string.IsNullOrWhiteSpace(storedProfile)
+                ? null
+                : JsonSerializer.Deserialize<ParentProfile>(storedProfile);
+            if (profile is not null)
+            {
+                _parentProfile = profile;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is JSException or JsonException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить локальное состояние кабинета родителя.");
+        }
+    }
+
+    private async Task RenderChartAsync()
+    {
+        try
+        {
+            var points = _measurements
+                .Select(m => new
+                {
+                    Label = m.Time,
+                    Value = double.TryParse(m.Value, out var value) ? value : 0d
+                })
+                .ToList();
+
+            await JS.InvokeVoidAsync(
+                "SugarGuard.renderGlucoseChart",
+                "glucoseChart",
+                JsonSerializer.Serialize(points.Select(p => p.Label)),
+                JsonSerializer.Serialize(points.Select(p => p.Value)),
+                "#0694a2");
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    // График
+    private async Task SetChartRange(int hours)
+    {
+        _chartRange = hours;
+        await RenderChartAsync();
+    }
+
+    // Измерения
+    private List<MeasurementItem> _filteredMeasurements =>
+        _measurements
+            .Where(m => string.IsNullOrEmpty(_measStatusFilter) || m.StatusClass == _measStatusFilter)
+            .Skip((_measPage - 1) * MeasPageSize)
+            .Take(MeasPageSize)
+            .ToList();
+
+    private void ApplyMeasFilter() => _measPage = 1;
+
+    private void ResetMeasFilter()
+    {
+        _measFilterDate = DateTime.Today;
+        _measStatusFilter = "";
+        _measPage = 1;
+    }
+
+    private void PrevMeasPage() { if (_measPage > 1) _measPage--; }
+
+    private void NextMeasPage()
+    {
+        if (_measPage * MeasPageSize < _totalMeas) _measPage++;
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        var rows = new System.Text.StringBuilder();
+        rows.AppendLine("Время,Глюкоза,Тренд,Статус,Заметка");
+        foreach (var m in _measurements)
+            rows.AppendLine($"{m.Time},{m.Value},{m.Trend},{m.Status},{m.Note}");
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "SugarGuard.downloadCsv",
+                "sugarguard-export.csv",
+                rows.ToString());
+        }
+        catch (JSException) { }
+    }
+
+    // Уведомления
+    private List<AlertItem> _filteredAlerts =>
+        string.IsNullOrEmpty(_alertFilter)
+            ? _allAlerts
+            : _allAlerts.Where(a => a.Type == _alertFilter).ToList();
+
+    private void SetAlertFilter(string filter) => _alertFilter = filter;
+    private void DismissAlert(AlertItem alert) => _allAlerts.Remove(alert);
+    private void MarkAllAlertsRead()
+    {
+        foreach (var a in _allAlerts) a.IsUnread = false;
+        ShowNotice("Все уведомления отмечены как прочитанные.");
+    }
+
+    private void OpenAddBackpackItem()
+    {
+        _editingBackpackItemId = null;
+        _backpackForm = BackpackItemForm.FromTemplate(BackpackTemplates[0]);
+        _backpackFormError = null;
+        _isBackpackEditorOpen = true;
+    }
+
+    private void EditBackpackItem(BackpackItem item)
+    {
+        _editingBackpackItemId = item.Id;
+        _backpackForm = BackpackItemForm.FromItem(item);
+        _backpackFormError = null;
+        _isBackpackEditorOpen = true;
+    }
+
+    private void CancelBackpackEdit()
+    {
+        _isBackpackEditorOpen = false;
+        _editingBackpackItemId = null;
+        _backpackFormError = null;
+    }
+
+    private void OnBackpackTemplateChanged(ChangeEventArgs args)
+    {
+        var key = args.Value?.ToString() ?? BackpackTemplates[0].Key;
+        var template = BackpackTemplates.FirstOrDefault(t => t.Key == key) ?? BackpackTemplates[0];
+        _backpackForm = BackpackItemForm.FromTemplate(template);
+        _backpackFormError = null;
+    }
+
+    private async Task SaveBackpackItemAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_backpackForm.Name))
+        {
+            _backpackFormError = "Введите название позиции.";
+            return;
+        }
+
+        if (_backpackForm.Quantity < 0)
+        {
+            _backpackFormError = "Количество не может быть отрицательным.";
+            return;
+        }
+
+        var item = _backpackForm.ToItem(_editingBackpackItemId);
+        var index = _editingBackpackItemId is null
+            ? -1
+            : _backpackItems.FindIndex(i => i.Id == _editingBackpackItemId);
+
+        if (index >= 0)
+        {
+            _backpackItems[index] = item;
+            ShowNotice("Позиция рюкзака обновлена.");
+        }
+        else
+        {
+            _backpackItems.Insert(0, item);
+            ShowNotice("Позиция добавлена в рюкзак.");
+        }
+
+        await SaveBackpackAsync();
+        CancelBackpackEdit();
+    }
+
+    private async Task RemoveBackpackItemAsync(string itemId)
+    {
+        var item = _backpackItems.FirstOrDefault(i => i.Id == itemId);
+        if (item is null)
+        {
+            return;
+        }
+
+        _backpackItems.Remove(item);
+        await SaveBackpackAsync();
+        ShowNotice($"Позиция «{item.Name}» удалена из рюкзака.");
+    }
+
+    private async Task SaveBackpackAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                BackpackStorageKey,
+                JsonSerializer.Serialize(_backpackItems));
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось сохранить рюкзак в localStorage.");
+            ShowNotice("Позиция изменена, но браузер не разрешил сохранить её локально.");
+        }
+    }
+
+    // Настройки
+    private void ToggleSetting(NotifSetting s)
+    {
+        s.Enabled = !s.Enabled;
+        ShowNotice($"Настройка «{s.Label}» {(s.Enabled ? "включена" : "выключена")}.");
+    }
+
+    private void ConnectDevice(DeviceItem device)
+    {
+        var index = _devices.IndexOf(device);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _devices[index] = device with
+        {
+            Description = "Подключено локально",
+            IsConnected = true
+        };
+
+        ShowNotice($"{device.Name}: подключение сохранено.");
+    }
+
+    private void OpenParentProfileEditor()
+    {
+        _parentProfileForm = ParentProfileForm.FromProfile(_parentProfile);
+        _parentProfileError = null;
+        _isParentProfileEditorOpen = true;
+    }
+
+    private void CancelParentProfileEdit()
+    {
+        _isParentProfileEditorOpen = false;
+        _parentProfileError = null;
+    }
+
+    private async Task SaveParentProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_parentProfileForm.DisplayName))
+        {
+            _parentProfileError = "Введите имя родителя.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_parentProfileForm.Email) || !_parentProfileForm.Email.Contains('@'))
+        {
+            _parentProfileError = "Введите корректный email.";
+            return;
+        }
+
+        _parentProfile = _parentProfileForm.ToProfile();
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                ParentProfileStorageKey,
+                JsonSerializer.Serialize(_parentProfile));
+            ShowNotice("Данные родителя сохранены.");
+            CancelParentProfileEdit();
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось сохранить профиль родителя в localStorage.");
+            _parentProfileError = "Не удалось сохранить данные в браузере.";
+        }
+    }
+
+    private void ShowNotice(string message)
+    {
+        _noticeMessage = message;
+    }
+
+    private void ClearNotice()
+    {
+        _noticeMessage = null;
+    }
+
+    private void ResetChildData()
+    {
+        _currentGlucose = 0;
+        _currentGlucoseClass = "normal";
+        _tirNormal = 0;
+        _tirHigh = 0;
+        _tirLow = 0;
+        _avgGlucose = "—";
+        _totalMeas = 0;
+        _recentAlerts.Clear();
+        _allAlerts.Clear();
+        _measurements.Clear();
+        _backpackItems.Clear();
+        _doctorNotes.Clear();
+        _insulinLog.Clear();
+        _childProfile = new ChildProfile
+        {
+            Name = "Ребёнок не привязан",
+            Age = "—",
+            DiabetesType = "—",
+            DiagnosisDate = "—",
+            Endocrinologist = "—",
+            Contact = "—",
+            Email = "—",
+            HbA1c = "—"
+        };
+    }
+
+    // Хелперы
+    private static string GetPositionWord(int n) => n switch
+    {
+        1 => "позиция",
+        2 or 3 or 4 => "позиции",
+        _ => "позиций"
+    };
+
+    // Данные — загружаются из API
+    private List<AlertItem> _recentAlerts = new();
+    private List<AlertItem> _allAlerts = new();
+    private readonly List<MeasurementItem> _measurements = new();
+    private readonly List<BackpackItem> _backpackItems = new();
+    private readonly List<DoctorNote> _doctorNotes = new();
+
+    private ChildProfile _childProfile = new()
+    {
+        Name             = "Ребёнок не привязан",
+        Age              = "—",
+        DiabetesType     = "—",
+        DiagnosisDate    = "—",
+        Endocrinologist  = "—",
+        Contact          = "—",
+        Email            = "—",
+        HbA1c            = "—",
+    };
+
+    private readonly List<InsulinEntry> _insulinLog = new();
+
+    private readonly List<NotifSetting> _notifSettings = new()
+    {
+        new("Критический уровень глюкозы",    "Мгновенно при <3.5 или >13.9 ммоль/л", true),
+        new("Предупреждение о пропуске укола", "Если базальный не введён вовремя",      true),
+        new("Низкий запас в рюкзаке",          "Уведомление при остатке <3 шт.",        false),
+        new("Ежедневная сводка в Telegram",    "Отчёт в 21:00 каждый день",             true),
+        new("Email-уведомления",               "Дублировать критические в email",        false),
+    };
+
+    private readonly List<DeviceItem> _devices = new()
+    {
+        new("Датчик глюкозы", "Не подключён", false),
+        new("Инсулиновая помпа", "Не подключена", false),
+        new("Считыватель NightRider", "Не подключён", false),
+    };
+
+    private static readonly List<BackpackTemplate> BackpackTemplates =
+    [
+        new("apple", "Яблоко", "Перекус", "перекус", "шт.", "🍎", "Быстрый перекус", 1.0m),
+        new("juice", "Сок 200 мл", "Перекус", "перекус", "шт.", "🧃", "Для коррекции гипогликемии", 2.0m),
+        new("cookies", "Печенье", "Перекус", "перекус", "уп.", "🍪", "Порционный перекус", 1.5m),
+        new("glucometer", "Глюкометр", "Измерения", "устройство", "шт.", "▣", "Основной прибор для измерения", 0m),
+        new("strips", "Тест-полоски", "Измерения", "расходник", "шт.", "▤", "Полоски для глюкометра", 0m),
+        new("lancets", "Ланцеты", "Измерения", "расходник", "шт.", "•", "Сменные ланцеты", 0m),
+        new("insulin", "Инсулин", "Инсулин", "препарат", "шт.", "✚", "Запасная ручка или картридж", 0m),
+        new("glucagon", "Глюкагон", "Экстренно", "препарат", "шт.", "!", "Экстренный набор", 0m),
+        new("custom", "Своя позиция", "Другое", "позиция", "шт.", "+", "Добавлено вручную", 0m)
+    ];
+
+    // Внутренние типы
+    /// <summary>
+    /// Событие/уведомление дашборда
+    /// </summary>
+    private sealed class AlertItem
+    {
+        public string Title { get; init; }
+        public string Description { get; init; }
+        public string Time { get; init; }
+        public string Type { get; init; }
+        public string Icon { get; init; }
+        public bool IsUnread { get; set; }
+
+        public AlertItem(string title, string desc, string time,
+                         string type, string icon, bool isUnread)
+        {
+            Title = title; Description = desc; Time = time;
+            Type = type; Icon = icon; IsUnread = isUnread;
+        }
+    }
+
+    /// <summary>
+    /// Строка таблицы измерений глюкозы
+    /// </summary>
+    private sealed record MeasurementItem(
+        string Time, string Value, string Trend, string Note,
+        string Status, string StatusClass, bool IsNew)
+    {
+        public string TrendIcon => Trend switch
+        {
+            "↑↑" => "⬆⬆",
+            "↑"  => "⬆",
+            "→"  => "➡",
+            "↓"  => "⬇",
+            "↓↓" => "⬇⬇",
+            _    => Trend
+        };
+    }
+
+    private sealed class BackpackItem
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = "Другое";
+        public string Icon { get; set; } = "+";
+        public string Description { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public string Unit { get; set; } = "шт.";
+        public decimal BreadUnits { get; set; }
+
+        public string Status => Quantity switch
+        {
+            <= 0 => "Нет",
+            <= 2 => "Мало",
+            _ => "Достаточно"
+        };
+
+        public string StatusClass => Quantity switch
+        {
+            <= 0 => "empty",
+            <= 2 => "low",
+            _ => "ok"
+        };
+    }
+
+    private sealed record BackpackTemplate(
+        string Key,
+        string Name,
+        string Category,
+        string Type,
+        string Unit,
+        string Icon,
+        string Description,
+        decimal BreadUnits);
+
+    private sealed class BackpackItemForm
+    {
+        public string TemplateKey { get; set; } = "apple";
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = "Перекус";
+        public string Icon { get; set; } = "+";
+        public string Description { get; set; } = string.Empty;
+        public int Quantity { get; set; } = 1;
+        public string Unit { get; set; } = "шт.";
+        public decimal BreadUnits { get; set; }
+
+        public static BackpackItemForm FromTemplate(BackpackTemplate template) => new()
+        {
+            TemplateKey = template.Key,
+            Name = template.Name,
+            Category = template.Category,
+            Icon = template.Icon,
+            Description = template.Description,
+            Quantity = 1,
+            Unit = template.Unit,
+            BreadUnits = template.BreadUnits
+        };
+
+        public static BackpackItemForm FromItem(BackpackItem item) => new()
+        {
+            TemplateKey = "custom",
+            Name = item.Name,
+            Category = item.Category,
+            Icon = item.Icon,
+            Description = item.Description,
+            Quantity = item.Quantity,
+            Unit = item.Unit,
+            BreadUnits = item.BreadUnits
+        };
+
+        public BackpackItem ToItem(string? existingId) => new()
+        {
+            Id = existingId ?? Guid.NewGuid().ToString("N"),
+            Name = Name.Trim(),
+            Category = Category.Trim(),
+            Icon = string.IsNullOrWhiteSpace(Icon) ? "+" : Icon.Trim(),
+            Description = Description.Trim(),
+            Quantity = Quantity,
+            Unit = string.IsNullOrWhiteSpace(Unit) ? "шт." : Unit.Trim(),
+            BreadUnits = BreadUnits
+        };
+    }
+
+    /// <summary>
+    /// Записка врача с тегами
+    /// </summary>
+    private sealed record DoctorNote(
+        string Doctor, string Date, string Text, List<string> Tags);
+
+    /// <summary>
+    /// Профиль ребёнка-пациента
+    /// </summary>
+    private sealed class ChildProfile
+    {
+        public string Name            { get; set; } = "";
+        public string Age             { get; set; } = "";
+        public string DiabetesType    { get; set; } = "";
+        public string DiagnosisDate   { get; set; } = "";
+        public string Endocrinologist { get; set; } = "";
+        public string Contact         { get; set; } = "";
+        public string Email           { get; set; } = "";
+        public string HbA1c           { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Запись журнала инсулина
+    /// </summary>
+    private sealed record InsulinEntry(
+        string Name, string Dose, string Time, string Type);
+
+    private sealed class ParentProfile
+    {
+        public string DisplayName { get; set; } = "Родитель";
+        public string Email { get; set; } = "email не указан";
+        public string Phone { get; set; } = "телефон не указан";
+    }
+
+    private sealed class ParentProfileForm
+    {
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+
+        public static ParentProfileForm FromProfile(ParentProfile profile) => new()
+        {
+            DisplayName = profile.DisplayName,
+            Email = profile.Email,
+            Phone = profile.Phone
+        };
+
+        public ParentProfile ToProfile() => new()
+        {
+            DisplayName = DisplayName.Trim(),
+            Email = Email.Trim(),
+            Phone = string.IsNullOrWhiteSpace(Phone) ? "телефон не указан" : Phone.Trim()
+        };
+    }
+
+    /// <summary>
+    /// Настройка уведомлений 
+    /// </summary>
+    private sealed class NotifSetting
+    {
+        public string Label       { get; init; }
+        public string Description { get; init; }
+        public bool   Enabled     { get; set; }
+
+        public NotifSetting(string label, string desc, bool enabled)
+        {
+            Label = label; Description = desc; Enabled = enabled;
+        }
+    }
+
+    private sealed record DeviceItem(string Name, string Description, bool IsConnected); // Устройство мониторинга/терапии
+}

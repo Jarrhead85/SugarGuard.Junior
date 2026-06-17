@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Pages.LoginPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource Space32},{StaticResource Space64},{StaticResource Space32},{StaticResource Space32}"
+                             Spacing="{StaticResource Space24}"
+                             VerticalOptions="Center">
+
+            <!-- Заголовок -->
+            <VerticalStackLayout Spacing="{StaticResource Space8}" HorizontalOptions="Center">
+                <Label Text="SugarGuard"
+                       Style="{StaticResource PageTitleTextCentered}"
+                       TextColor="{StaticResource Primary}" />
+                <Label Text="Войдите в аккаунт"
+                       Style="{StaticResource BodyTextMuted}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <!-- Форма входа: glass-card -->
+            <Border Style="{StaticResource Card}"
+                    Padding="{StaticResource Space24}">
+                <VerticalStackLayout Spacing="{StaticResource Space16}">
+
+                    <!-- Email -->
+                    <VerticalStackLayout Spacing="{StaticResource Space8}">
+                        <Label Text="Email"
+                               Style="{StaticResource BodyText}"
+                               FontAttributes="Bold" />
+                        <Border StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                Stroke="{DynamicResource BorderDefault}"
+                                StrokeThickness="1"
+                                Padding="12,0">
+                            <Entry Text="{Binding Email}"
+                                   Placeholder="example@mail.ru"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="16"
+                                   Keyboard="Email"
+                                   TextColor="{DynamicResource TextPrimary}"
+                                   PlaceholderColor="{DynamicResource TextFaint}"
+                                   HeightRequest="48" />
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Пароль -->
+                    <VerticalStackLayout Spacing="{StaticResource Space8}">
+                        <Label Text="Пароль"
+                               Style="{StaticResource BodyText}"
+                               FontAttributes="Bold" />
+                        <Border StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                Stroke="{DynamicResource BorderDefault}"
+                                StrokeThickness="1"
+                                Padding="12,0">
+                            <Entry Text="{Binding Password}"
+                                   Placeholder="••••••••"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="16"
+                                   IsPassword="True"
+                                   TextColor="{DynamicResource TextPrimary}"
+                                   PlaceholderColor="{DynamicResource TextFaint}"
+                                   HeightRequest="48" />
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Сообщение об ошибке -->
+                    <Label Text="{Binding ErrorMessage}"
+                           FontFamily="{StaticResource Satoshi}"
+                           FontSize="14"
+                           TextColor="{StaticResource Danger}"
+                           IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}"
+                           HorizontalOptions="Center" />
+
+                    <!-- Кнопка входа (Primary) -->
+                    <Button Text="Войти"
+                            Command="{Binding LoginCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            HeightRequest="52"
+                            IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+
+                    <!-- Индикатор загрузки -->
+                    <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                       IsVisible="{Binding IsLoading}"
+                                       Color="{StaticResource Primary}"
+                                       HorizontalOptions="Center" />
+
+                </VerticalStackLayout>
+            </Border>
+
+            <HorizontalStackLayout HorizontalOptions="Center"
+                                   Spacing="4">
+                <Label Text="Нет аккаунта?"
+                       Style="{StaticResource BodyText}"
+                       TextColor="{DynamicResource TextMuted}" />
+                <Label Text="Создать"
+                       Style="{StaticResource BodyText}"
+                       TextColor="{DynamicResource Primary}"
+                       FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding GoToRegisterCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </HorizontalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

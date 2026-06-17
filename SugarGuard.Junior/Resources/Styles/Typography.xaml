@@ -1,0 +1,410 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. РЁСЂРёС„С‚РѕРІС‹Рµ СЃРµРјРµР№СЃС‚РІР°  -->
+
+    <!--
+        Р­С‚Рё РєР»СЋС‡Рё РґРѕР»Р¶РЅС‹ СЃРѕРІРїР°РґР°С‚СЊ СЃ alias, Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅРЅС‹РјРё РІ MauiProgram.cs.
+        РџСЂРµРґРїРѕР»Р°РіР°РµС‚СЃСЏ, С‡С‚Рѕ С‚Р°Рј СѓР¶Рµ Р±СѓРґСѓС‚ РїРѕРґРєР»СЋС‡РµРЅС‹:
+        - ClashDisplay
+        - Satoshi
+        - OpenSansRegular (С‚РѕР»СЊРєРѕ РІСЂРµРјРµРЅРЅРѕ, РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё)
+    -->
+
+    <!-- РћСЃРЅРѕРІРЅРѕР№ display-С€СЂРёС„С‚ РґР»СЏ hero, KPI Рё СЌРєСЂР°РЅРЅС‹С… Р·Р°РіРѕР»РѕРІРєРѕРІ -->
+    <x:String x:Key="FontFamilyDisplay">ClashDisplay</x:String>
+
+    <!-- РћСЃРЅРѕРІРЅРѕР№ UI/body-С€СЂРёС„С‚ РґР»СЏ РёРЅС‚РµСЂС„РµР№СЃР° -->
+    <x:String x:Key="FontFamilyBody">Satoshi</x:String>
+
+    <!--
+        Р’СЂРµРјРµРЅРЅС‹Р№ legacy/fallback-РєР»СЋС‡.
+        РќРµ РёСЃРїРѕР»СЊР·СѓРµРј РµРіРѕ РІ РЅРѕРІС‹С… СЃС‚РёР»СЏС… РєР°Рє РѕСЃРЅРѕРІРЅРѕР№.
+        РћСЃС‚Р°РІР»СЏРµРј С‚РѕР»СЊРєРѕ РґР»СЏ СЃС‚Р°СЂС‹С… СЌРєСЂР°РЅРѕРІ, РµСЃР»Рё РіРґРµ-С‚Рѕ РµС‰Рµ РµСЃС‚СЊ РїСЂСЏРјС‹Рµ СЃСЃС‹Р»РєРё.
+    -->
+    <x:String x:Key="FontFamilyLegacy">OpenSansRegular</x:String>
+
+    <!-- РђР»РёР°СЃС‹ РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё СЃРѕ СЃС‚Р°СЂС‹Рј XAML -->
+    <x:String x:Key="ClashDisplay">ClashDisplay</x:String>
+    <x:String x:Key="Satoshi">Satoshi</x:String>
+    <x:String x:Key="OpenSansRegular">OpenSansRegular</x:String>
+
+    <!-- 2. Р Р°Р·РјРµСЂС‹ С‚РµРєСЃС‚Р° -->
+
+    <!-- РЎР°РјС‹Р№ РјР°Р»РµРЅСЊРєРёР№ С‚РµРєСЃС‚: РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Рµ РїРѕРґРїРёСЃРё, metadata -->
+    <x:Double x:Key="TextXs">12</x:Double>
+
+    <!-- РњР°Р»С‹Р№ РёРЅС‚РµСЂС„РµР№СЃРЅС‹Р№ С‚РµРєСЃС‚: captions, chips, compact buttons -->
+    <x:Double x:Key="TextSm">14</x:Double>
+
+    <!-- РћСЃРЅРѕРІРЅРѕР№ С‚РµРєСЃС‚ РёРЅС‚РµСЂС„РµР№СЃР° -->
+    <x:Double x:Key="TextBase">16</x:Double>
+
+    <!-- РЈСЃРёР»РµРЅРЅС‹Р№ С‚РµРєСЃС‚ СЃРµРєС†РёР№ / РїРѕРґР·Р°РіРѕР»РѕРІРєРѕРІ -->
+    <x:Double x:Key="TextLg">20</x:Double>
+
+    <!-- Р­РєСЂР°РЅРЅС‹Рµ Р·Р°РіРѕР»РѕРІРєРё -->
+    <x:Double x:Key="TextXl">28</x:Double>
+
+    <!-- РљСЂСѓРїРЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ Рё KPI -->
+    <x:Double x:Key="TextValueMd">36</x:Double>
+    <x:Double x:Key="TextValueLg">48</x:Double>
+    <x:Double x:Key="TextValueXl">64</x:Double>
+
+    <!-- 3. РњРµР¶Р±СѓРєРІРµРЅРЅС‹Рµ Рё РјРµР¶СЃС‚СЂРѕС‡РЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё -->
+
+    <!-- РЎС‚Р°РЅРґР°СЂС‚РЅР°СЏ РїР»РѕС‚РЅРѕСЃС‚СЊ С‚РµРєСЃС‚Р° -->
+    <x:Double x:Key="LineHeightCompact">1.1</x:Double>
+    <x:Double x:Key="LineHeightDefault">1.25</x:Double>
+    <x:Double x:Key="LineHeightRelaxed">1.4</x:Double>
+
+    <!-- 4. РўРµРєСЃС‚РѕРІС‹Рµ СЂРѕР»Рё -->
+
+    <!-- РЎР°РјС‹Р№ РєСЂСѓРїРЅС‹Р№ display-С‚РµРєСЃС‚ РґР»СЏ hero Рё РєР»СЋС‡РµРІС‹С… СЌРєСЂР°РЅРѕРІ -->
+    <Style x:Key="DisplayText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyDisplay}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextValueLg}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightCompact}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Р­РєСЃС‚СЂРµРјР°Р»СЊРЅРѕ РєСЂСѓРїРЅС‹Рµ РїРѕРєР°Р·Р°С‚РµР»Рё, РЅР°РїСЂРёРјРµСЂ С†РµРЅС‚СЂР°Р»СЊРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ СЃР°С…Р°СЂР° -->
+    <Style x:Key="DisplayValueText"
+           TargetType="Label"
+           BasedOn="{StaticResource DisplayText}">
+        <Setter Property="FontSize" Value="{DynamicResource TextValueXl}" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+    </Style>
+
+    <!-- Page title -->
+
+    <!-- Р—Р°РіРѕР»РѕРІРѕРє СЌРєСЂР°РЅР° / СЃС‚СЂР°РЅРёС†С‹ -->
+    <Style x:Key="PageTitleText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyDisplay}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextXl}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightCompact}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Р¦РµРЅС‚СЂРёСЂРѕРІР°РЅРЅС‹Р№ page-title, СѓРґРѕР±РЅРѕ РґР»СЏ auth Рё onboarding -->
+    <Style x:Key="PageTitleTextCentered"
+           TargetType="Label"
+           BasedOn="{StaticResource PageTitleText}">
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+    </Style>
+
+    <!-- Section heading -->
+
+
+    <!-- Р—Р°РіРѕР»РѕРІРѕРє СЃРµРєС†РёРё РІРЅСѓС‚СЂРё СЃС‚СЂР°РЅРёС†С‹ -->
+    <Style x:Key="SectionHeadingText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextLg}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightDefault}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Р‘РѕР»РµРµ СЃРїРѕРєРѕР№РЅС‹Р№ РІР°СЂРёР°РЅС‚ Р·Р°РіРѕР»РѕРІРєР° СЃРµРєС†РёРё -->
+    <Style x:Key="SectionHeadingTextMuted"
+           TargetType="Label"
+           BasedOn="{StaticResource SectionHeadingText}">
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- Body -->
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ РѕСЃРЅРѕРІРЅРѕР№ С‚РµРєСЃС‚ РёРЅС‚РµСЂС„РµР№СЃР° -->
+    <Style x:Key="BodyText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightRelaxed}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- РћСЃРЅРѕРІРЅРѕР№ С‚РµРєСЃС‚, РЅРѕ РїСЂРёРіР»СѓС€РµРЅРЅС‹Р№ -->
+    <Style x:Key="BodyTextMuted"
+           TargetType="Label"
+           BasedOn="{StaticResource BodyText}">
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- Р•С‰Рµ Р±РѕР»РµРµ С‚РёС…РёР№ РІСЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Р№ С‚РµРєСЃС‚ -->
+    <Style x:Key="BodyTextFaint"
+           TargetType="Label"
+           BasedOn="{StaticResource BodyText}">
+        <Setter Property="TextColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- Caption -->
+    <!-- РџРѕРґРїРёСЃРё РїРѕРґ Р±Р»РѕРєР°РјРё, С‚Р°Р№РјСЃС‚РµРјРїС‹, helper text -->
+    <Style x:Key="CaptionText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextSm}" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightDefault}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- РћС‡РµРЅСЊ С‚РёС…Р°СЏ РїРѕРґРїРёСЃСЊ РґР»СЏ РІС‚РѕСЂРѕСЃС‚РµРїРµРЅРЅС‹С… РґРµС‚Р°Р»РµР№ -->
+    <Style x:Key="CaptionTextFaint"
+           TargetType="Label"
+           BasedOn="{StaticResource CaptionText}">
+        <Setter Property="TextColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- Chip -->
+    <!-- РўРµРєСЃС‚ РґР»СЏ С‡РёРїРѕРІ, Р±РµР№РґР¶РµР№ Рё pill-РєРѕРјРїРѕРЅРµРЅС‚РѕРІ -->
+    <Style x:Key="ChipText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextXs}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightCompact}" />
+        <Setter Property="TextColor" Value="{DynamicResource White}" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+    </Style>
+
+    <!-- Value -->
+    <!-- РЎСЂРµРґРЅРµРµ РїРѕ СЂР°Р·РјРµСЂСѓ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ KPI-РєР°СЂС‚РѕС‡РµРє -->
+    <Style x:Key="ValueText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyDisplay}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextValueMd}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightCompact}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- РљСЂСѓРїРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РєР»СЋС‡РµРІРѕРіРѕ KPI -->
+    <Style x:Key="ValueTextLarge"
+           TargetType="Label"
+           BasedOn="{StaticResource ValueText}">
+        <Setter Property="FontSize" Value="{DynamicResource TextValueLg}" />
+    </Style>
+
+    <!-- Р—РЅР°С‡РµРЅРёРµ, С†РµРЅС‚СЂРёСЂРѕРІР°РЅРЅРѕРµ РІРЅСѓС‚СЂРё hero-card -->
+    <Style x:Key="ValueTextCentered"
+           TargetType="Label"
+           BasedOn="{StaticResource ValueTextLarge}">
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+    </Style>
+
+    <!-- Р—РЅР°С‡РµРЅРёРµ СЃ muted-С†РІРµС‚РѕРј, РЅР°РїСЂРёРјРµСЂ РґР»СЏ РІС‚РѕСЂРёС‡РЅС‹С… KPI -->
+    <Style x:Key="ValueTextMuted"
+           TargetType="Label"
+           BasedOn="{StaticResource ValueText}">
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- 5. Р РѕР»Рё РґР»СЏ РєРЅРѕРїРѕРє Рё РєРѕРЅС‚СЂРѕР»РѕРІ -->
+    <!-- РўРµРєСЃС‚ primary/secondary-РєРЅРѕРїРѕРє -->
+    <Style x:Key="ButtonText"
+           TargetType="Button">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextSm}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <!-- РўРµРєСЃС‚ ghost/tertiary-РєРЅРѕРїРѕРє -->
+    <Style x:Key="ButtonTextGhost"
+           TargetType="Button"
+           BasedOn="{StaticResource ButtonText}">
+        <Setter Property="FontAttributes" Value="None" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ Entry -->
+    <Style x:Key="EntryText"
+           TargetType="Entry">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ Editor -->
+    <Style x:Key="EditorText"
+           TargetType="Editor">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ Picker -->
+    <Style x:Key="PickerText"
+           TargetType="Picker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="TitleColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ DatePicker -->
+    <Style x:Key="DatePickerText"
+           TargetType="DatePicker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ TimePicker -->
+    <Style x:Key="TimePickerText"
+           TargetType="TimePicker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ SearchBar -->
+    <Style x:Key="SearchBarText"
+           TargetType="SearchBar">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+        <Setter Property="CancelButtonColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- РЎС‚РёР»СЊ С‚РµРєСЃС‚Р° РґР»СЏ SearchHandler -->
+    <Style x:Key="SearchHandlerText"
+           TargetType="SearchHandler">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- 6. РћР±С‰РёРµ С‚РµРєСЃС‚РѕРІС‹Рµ СЃС‚РёР»Рё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ -->
+    <Style TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightRelaxed}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ Button РЅР° СѓСЂРѕРІРЅРµ С‚РёРїРѕРіСЂР°С„РёРєРё -->
+    <Style TargetType="Button">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextSm}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ Entry -->
+    <Style TargetType="Entry">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ Editor -->
+    <Style TargetType="Editor">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ Picker -->
+    <Style TargetType="Picker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="TitleColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ DatePicker -->
+    <Style TargetType="DatePicker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ TimePicker -->
+    <Style TargetType="TimePicker">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ SearchBar -->
+    <Style TargetType="SearchBar">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+        <Setter Property="CancelButtonColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <!-- Р‘Р°Р·РѕРІС‹Р№ implicit-СЃС‚РёР»СЊ SearchHandler -->
+    <Style TargetType="SearchHandler">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextBase}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+    <!-- 7. Legacy-Р°Р»РёР°СЃС‹ РґР»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё СЃРѕ СЃС‚Р°СЂС‹Рј РєРѕРґРѕРј -->
+    <x:Double x:Key="FontSizeCaption">12</x:Double>
+    <x:Double x:Key="FontSizeSmall">14</x:Double>
+    <x:Double x:Key="FontSizeBody">16</x:Double>
+    <x:Double x:Key="FontSizeSubheading">20</x:Double>
+    <x:Double x:Key="FontSizeHeading">28</x:Double>
+    <x:Double x:Key="FontSizeValue">48</x:Double>
+
+    <!-- РЎС‚Р°СЂС‹Рµ headline-РєР»СЋС‡Рё -->
+    <Style x:Key="Headline"
+           TargetType="Label"
+           BasedOn="{StaticResource PageTitleTextCentered}" />
+
+    <Style x:Key="SubHeadline"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyDisplay}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextLg}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+    </Style>
+
+    <!-- РЎС‚Р°СЂС‹Рµ naming-Р°Р»РёР°СЃС‹ РґР»СЏ ValueText -->
+    <Style x:Key="MetricValueText"
+           TargetType="Label"
+           BasedOn="{StaticResource ValueText}" />
+
+    <Style x:Key="MetricLabelText"
+           TargetType="Label"
+           BasedOn="{StaticResource CaptionText}" />
+
+    <!-- РўРµРєСЃС‚ РґР»СЏ helper/description -->
+    <Style x:Key="HelperText"
+           TargetType="Label"
+           BasedOn="{StaticResource CaptionText}" />
+
+    <!-- РўРµРєСЃС‚ РґР»СЏ РѕС‡РµРЅСЊ РјР°Р»РµРЅСЊРєРёС… С‚РµС…РЅРёС‡РµСЃРєРёС… РїРѕРґРїСѓРЅРєС‚РѕРІ -->
+    <Style x:Key="MetaText"
+           TargetType="Label">
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilyBody}" />
+        <Setter Property="FontSize" Value="{DynamicResource TextXs}" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="LineHeight" Value="{DynamicResource LineHeightDefault}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextFaint}" />
+    </Style>
+
+</ResourceDictionary>

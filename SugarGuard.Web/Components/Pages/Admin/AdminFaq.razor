@@ -1,0 +1,38 @@
+@page "/admin/faq"
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@layout Layout.AdminLayout
+@inject SugarGuardApiService Api
+
+<h1>FAQ Content</h1>
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="error-message">@_errorMessage</div>
+}
+<div class="stack">
+    @foreach (var article in _faq)
+    {
+        <article class="panel">
+            <h3>@article.Title</h3>
+            <p class="muted-text">@article.Content</p>
+        </article>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<FaqVm> _faq = [];
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _faq = await Api.GetFaqAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _faq = [];
+        }
+    }
+}

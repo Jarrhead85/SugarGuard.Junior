@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:SugarGuard.Junior.Views.Controls"
+             x:Class="SugarGuard.Junior.Views.Pages.VerifyPage"
+             Title=""
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource PaddingPage}"
+                             Spacing="{StaticResource Spacing24}"
+                             VerticalOptions="Center">
+
+            <!-- Иконка / заголовок -->
+            <VerticalStackLayout Spacing="{StaticResource Spacing8}" HorizontalOptions="Center">
+                <Label Text="Подтвердите email"
+                       Style="{StaticResource PageTitleTextCentered}" />
+                <Label Style="{StaticResource BodyTextMuted}"
+                       HorizontalTextAlignment="Center">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Код отправлен на " />
+                            <Span Text="{Binding Email}"
+                                  FontAttributes="Bold" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </VerticalStackLayout>
+
+            <!-- CodeInput -->
+            <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
+                <VerticalStackLayout Spacing="{StaticResource Spacing20}" HorizontalOptions="Center">
+
+                    <controls:CodeInputControl x:Name="codeInput"
+                                               Code="{Binding Code}"
+                                               HorizontalOptions="Center" />
+
+                    <!-- Ошибка -->
+                    <Label Text="{Binding ErrorMessage}"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{StaticResource GlucoseDangerColor}"
+                           HorizontalTextAlignment="Center"
+                           IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
+
+                    <!-- Кнопка подтвердить (на случай если CodeCompleted не сработал) -->
+                    <Button Text="Подтвердить"
+                            Command="{Binding VerifyCodeCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            IsEnabled="{Binding Code.Length, Converter={StaticResource StepEqualsConverter}, ConverterParameter=8}" />
+
+                    <!-- Повторная отправка -->
+                    <VerticalStackLayout Spacing="{StaticResource Spacing8}" HorizontalOptions="Center">
+                        <Button Text="{Binding ResendButtonText}"
+                                Command="{Binding ResendCodeCommand}"
+                                Style="{StaticResource GhostButton}"
+                                IsEnabled="{Binding CanResend}" />
+
+                        <Label HorizontalTextAlignment="Center" Style="{StaticResource CaptionText}">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="Не пришёл код? " />
+                                    <Span Text="{Binding Email}"
+                                          TextColor="{StaticResource Primary}"
+                                          FontAttributes="Bold">
+                                        <Span.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding ChangeEmailCommand}" />
+                                        </Span.GestureRecognizers>
+                                    </Span>
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Загрузка -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               Color="{StaticResource Primary}"
+                               HorizontalOptions="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

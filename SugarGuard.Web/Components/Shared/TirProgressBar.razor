@@ -1,0 +1,347 @@
+﻿@* Presentation — сегментированный прогресс-бар времени в диапазоне *@
+
+@* Разметка *@
+<div class="sg-tir" role="group" aria-label="@GroupAriaLabel">
+
+    @* Подписи над баром: процентные значения *@
+    @if (ShowLabels)
+    {
+        <div class="sg-tir__labels" aria-hidden="true">
+            <span class="sg-tir__label sg-tir__label--low"
+                  title="Время ниже диапазона (гипогликемия)">
+                <svg viewBox="0 0 10 10" fill="none" stroke="currentColor"
+                     stroke-width="1.8" aria-hidden="true">
+                    <path d="M5 1v8M2 6l3 3 3-3" />
+                </svg>
+                @SafeBelow.ToString("F0")%
+            </span>
+            <span class="sg-tir__label sg-tir__label--normal"
+                  title="Время в целевом диапазоне">
+                @SafeInRange.ToString("F0")%
+            </span>
+            <span class="sg-tir__label sg-tir__label--high"
+                  title="Время выше диапазона (гипергликемия)">
+                @SafeAbove.ToString("F0")%
+                <svg viewBox="0 0 10 10" fill="none" stroke="currentColor"
+                     stroke-width="1.8" aria-hidden="true">
+                    <path d="M5 9V1M2 4l3-3 3 3" />
+                </svg>
+            </span>
+        </div>
+    }
+
+    @* Трёхсегментный прогресс-бар *@
+    <div class="sg-tir__bar @BarSizeClass"
+         role="progressbar"
+         aria-valuenow="@((int)SafeInRange)"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-label="Время в диапазоне: @((int)SafeInRange)%">
+
+        @* Сегмент: ниже диапазона *@
+        @if (SafeBelow > 0.5)
+        {
+            <div class="sg-tir__segment sg-tir__segment--low"
+                 style="width: @(SafeBelow.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%"
+                 title="Ниже диапазона: @SafeBelow.ToString("F0")%">
+            </div>
+        }
+
+        @* Сегмент: в целевом диапазоне *@
+        @if (SafeInRange > 0.5)
+        {
+            <div class="sg-tir__segment sg-tir__segment--normal @TirNormalClass"
+                 style="width: @(SafeInRange.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%"
+                 title="В диапазоне: @SafeInRange.ToString("F0")%">
+            </div>
+        }
+
+        @* Сегмент: выше диапазона *@
+        @if (SafeAbove > 0.5)
+        {
+            <div class="sg-tir__segment sg-tir__segment--high"
+                 style="width: @(SafeAbove.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%"
+                 title="Выше диапазона: @SafeAbove.ToString("F0")%">
+            </div>
+        }
+
+        @* Пустой бар — нет данных *@
+        @if (SafeInRange <= 0.5 && SafeBelow <= 0.5 && SafeAbove <= 0.5)
+        {
+            <div class="sg-tir__segment sg-tir__segment--empty" style="width: 100%"></div>
+        }
+    </div>
+
+    @* Легенда *@
+    @if (ShowLegend)
+    {
+        <div class="sg-tir__legend" role="list">
+            <div class="sg-tir__legend-item" role="listitem">
+                <span class="sg-tir__legend-dot sg-tir__legend-dot--low" aria-hidden="true"></span>
+                <span class="sg-tir__legend-text">
+                    Гипо
+                    <strong>@SafeBelow.ToString("F0")%</strong>
+                </span>
+            </div>
+            <div class="sg-tir__legend-item" role="listitem">
+                <span class="sg-tir__legend-dot sg-tir__legend-dot--normal" aria-hidden="true"></span>
+                <span class="sg-tir__legend-text">
+                    В диапазоне
+                    <strong>@SafeInRange.ToString("F0")%</strong>
+                </span>
+            </div>
+            <div class="sg-tir__legend-item" role="listitem">
+                <span class="sg-tir__legend-dot sg-tir__legend-dot--high" aria-hidden="true"></span>
+                <span class="sg-tir__legend-text">
+                    Гипер
+                    <strong>@SafeAbove.ToString("F0")%</strong>
+                </span>
+            </div>
+        </div>
+    }
+</div>
+
+@* Scoped-стили *@
+
+<style>
+    /* Контейнер */
+    .sg-tir {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    /* Подписи над баром */
+    .sg-tir__labels {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .sg-tir__label {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    .sg-tir__label svg {
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+    }
+
+    /* Цвета подписей */
+    .sg-tir__label--low    { color: var(--color-blue); }
+    .sg-tir__label--normal { color: var(--color-success); }
+    .sg-tir__label--high   { color: var(--color-warning); }
+
+    /* Прогресс-бар */
+    .sg-tir__bar {
+        display: flex;
+        border-radius: var(--radius-full);
+        overflow: hidden;
+        background: var(--color-surface-offset);
+        min-width: 0;
+    }
+
+    /* Размеры бара */
+    .sg-tir__bar--sm { height: 6px; }
+    .sg-tir__bar--md { height: 10px; }
+    .sg-tir__bar--lg { height: 14px; }
+
+    /* Сегменты */
+    .sg-tir__segment {
+        height: 100%;
+        transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        min-width: 0;
+    }
+
+    /* Ниже диапазона (гипо) */
+    .sg-tir__segment--low {
+        background: var(--color-blue);
+        border-radius: var(--radius-full) 0 0 var(--radius-full);
+    }
+
+    /* В целевом диапазоне */
+    .sg-tir__segment--normal {
+        background: var(--color-success);
+    }
+
+    /* Вариант: TIR хороший */
+    .sg-tir__segment--normal.sg-tir--good {
+        background: var(--color-success);
+    }
+
+    /* Вариант: TIR средний */
+    .sg-tir__segment--normal.sg-tir--warning {
+        background: var(--color-warning);
+    }
+
+    /* Вариант: TIR плохой */
+    .sg-tir__segment--normal.sg-tir--danger {
+        background: var(--color-error);
+    }
+
+    /* Выше диапазона (гипер) */
+    .sg-tir__segment--high {
+        background: var(--color-orange);
+        border-radius: 0 var(--radius-full) var(--radius-full) 0;
+    }
+
+    /* Пустой бар */
+    .sg-tir__segment--empty {
+        background: var(--color-surface-dynamic);
+        border-radius: var(--radius-full);
+    }
+
+    .sg-tir__segment:not(:first-child) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .sg-tir__segment:not(:last-child) {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    /* Легенда */
+    .sg-tir__legend {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        flex-wrap: wrap;
+    }
+
+    .sg-tir__legend-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .sg-tir__legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        flex-shrink: 0;
+    }
+
+    .sg-tir__legend-dot--low    { background: var(--color-blue); }
+    .sg-tir__legend-dot--normal { background: var(--color-success); }
+    .sg-tir__legend-dot--high   { background: var(--color-orange); }
+
+    .sg-tir__legend-text {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+
+    .sg-tir__legend-text strong {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text);
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-tir__segment {
+            transition: none;
+        }
+    }
+</style>
+
+@* логика компонента *@
+@code {
+    [Parameter]
+    public double TimeInRange { get; set; } // Процент времени в целевом диапазоне
+
+    [Parameter]
+    public double TimeBelowRange { get; set; } // Процент времени ниже целевого диапазона
+
+    [Parameter]
+    public double TimeAboveRange { get; set; } // Процент времени выше целевого диапазона
+
+    [Parameter]
+    public string Size { get; set; } = "md"; // Размер бара
+
+    [Parameter]
+    public bool ShowLabels { get; set; } = true; // Показывать ли процентные подписи над баром
+
+    [Parameter]
+    public bool ShowLegend { get; set; } // Показывать ли цветовую легенду под баром
+
+    // Вычисляемые свойства
+    private double SafeInRange => Math.Clamp(TimeInRange, 0, 100); // Нормализованный процент времени в диапазоне
+
+    /// <summary>
+    /// Нормализованный процент времени ниже диапазона
+    /// </summary>
+    private double SafeBelow
+    {
+        get
+        {
+            var below = Math.Clamp(TimeBelowRange, 0, 100);
+            var above = Math.Clamp(TimeAboveRange, 0, 100);
+
+            if (below == 0 && above == 0)
+            {
+                var remainder = Math.Max(0, 100 - SafeInRange);
+                return Math.Round(remainder / 2.0, 1);
+            }
+
+            return below;
+        }
+    }
+
+    /// <summary>
+    /// Нормализованный процент времени выше диапазона
+    /// </summary>
+    private double SafeAbove
+    {
+        get
+        {
+            var below = Math.Clamp(TimeBelowRange, 0, 100);
+            var above = Math.Clamp(TimeAboveRange, 0, 100);
+
+            if (below == 0 && above == 0)
+            {
+                var remainder = Math.Max(0, 100 - SafeInRange);
+                return Math.Round(remainder / 2.0, 1);
+            }
+
+            return above;
+        }
+    }
+
+    /// <summary>
+    /// CSS-класс размера бара на основе параметра
+    /// </summary>
+    private string BarSizeClass => Size switch
+    {
+        "sm" => "sg-tir__bar--sm",
+        "lg" => "sg-tir__bar--lg",
+        _    => "sg-tir__bar--md"
+    };
+
+    /// <summary>
+    /// CSS-класс для сегмента «в диапазоне» 
+    /// </summary>
+    private string TirNormalClass => SafeInRange switch
+    {
+        >= 70 => "sg-tir--good",
+        >= 50 => "sg-tir--warning",
+        _     => "sg-tir--danger"
+    };
+
+    /// <summary>
+    /// aria-label для всей группы
+    /// </summary>
+    private string GroupAriaLabel =>
+        $"Время в диапазоне: {SafeInRange:F0}%. " +
+        $"Гипогликемия: {SafeBelow:F0}%. " +
+        $"Гипергликемия: {SafeAbove:F0}%.";
+}

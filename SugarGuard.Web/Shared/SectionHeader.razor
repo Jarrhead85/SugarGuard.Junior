@@ -1,0 +1,30 @@
+<div class="sg-section-header @Class">
+    <div>
+        <h2>@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p>@Description</p>
+        }
+    </div>
+
+    @if (TrailingContent is not null)
+    {
+        <div class="sg-section-header__trailing">
+            @TrailingContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? TrailingContent { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+}

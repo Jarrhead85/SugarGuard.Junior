@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Pages.AddSnackDialog"
+             Title="Добавить перекус"
+             BackgroundColor="#00000080"
+             Padding="16">
+
+    <Border Stroke="{DynamicResource BorderDefault}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 20"
+            BackgroundColor="{DynamicResource Surface}"
+            VerticalOptions="Center">
+        <Grid RowDefinitions="Auto,Auto,Auto"
+              Padding="18"
+              RowSpacing="{StaticResource Space16}">
+
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="{StaticResource Space12}">
+                <VerticalStackLayout Grid.Column="0"
+                                     Spacing="{StaticResource Space4}">
+                    <Label Text="Добавить перекус"
+                           Style="{StaticResource SectionHeadingText}" />
+                    <Label Text="Название и хлебные единицы"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{DynamicResource TextMuted}" />
+                </VerticalStackLayout>
+
+                <Button Grid.Column="1"
+                        Text="×"
+                        Command="{Binding CancelCommand}"
+                        Style="{StaticResource SoftButton}"
+                        WidthRequest="44"
+                        HeightRequest="40"
+                        Padding="0"
+                        FontSize="18" />
+            </Grid>
+
+            <VerticalStackLayout Grid.Row="1"
+                                 Spacing="{StaticResource Space12}">
+                <VerticalStackLayout Spacing="{StaticResource Space6}">
+                    <Label Text="Название перекуса"
+                           Style="{StaticResource CaptionText}"
+                           FontAttributes="Bold" />
+                    <Border BackgroundColor="{DynamicResource SurfaceOffset}"
+                            Stroke="{DynamicResource InputBorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="{StaticResource PaddingInput}">
+                        <Entry Placeholder="Например: яблоко, сок, печенье"
+                               Text="{Binding SnackName, Mode=TwoWay}"
+                               Style="{StaticResource EntryText}"
+                               Keyboard="Text"
+                               ReturnType="Next"
+                               MaxLength="100" />
+                    </Border>
+                    <Label Text="{Binding SnackNameError}"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{DynamicResource Danger}"
+                           IsVisible="{Binding SnackNameError, Converter={StaticResource StringNotEmptyConverter}}" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="{StaticResource Space6}">
+                    <Label Text="Хлебные единицы (ХЕ)"
+                           Style="{StaticResource CaptionText}"
+                           FontAttributes="Bold" />
+                    <Border BackgroundColor="{DynamicResource SurfaceOffset}"
+                            Stroke="{DynamicResource InputBorderColor}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="{StaticResource PaddingInput}">
+                        <Entry Placeholder="Например: 1.5"
+                               Text="{Binding BreadUnitsText, Mode=TwoWay}"
+                               Style="{StaticResource EntryText}"
+                               Keyboard="Numeric"
+                               ReturnType="Done"
+                               ReturnCommand="{Binding AddSnackCommand}" />
+                    </Border>
+                    <Label Text="1 ХЕ примерно 10-12 г углеводов"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{DynamicResource TextFaint}" />
+                    <Label Text="{Binding BreadUnitsError}"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{DynamicResource Danger}"
+                           IsVisible="{Binding BreadUnitsError, Converter={StaticResource StringNotEmptyConverter}}" />
+                </VerticalStackLayout>
+
+                <Border StrokeThickness="0"
+                        BackgroundColor="{DynamicResource DangerSoft}"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="{StaticResource Space12}"
+                        IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}">
+                    <Label Text="{Binding ErrorMessage}"
+                           Style="{StaticResource CaptionText}"
+                           TextColor="{DynamicResource Danger}" />
+                </Border>
+            </VerticalStackLayout>
+
+            <Grid Grid.Row="2"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="{StaticResource Space10}">
+                <Button Grid.Column="0"
+                        Text="Отмена"
+                        Command="{Binding CancelCommand}"
+                        Style="{StaticResource SecondaryButton}" />
+                <Button Grid.Column="1"
+                        Text="Добавить"
+                        Command="{Binding AddSnackCommand}"
+                        Style="{StaticResource PrimaryButton}"
+                        IsEnabled="{Binding IsFormValid}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsLoading}" Value="True">
+                            <Setter Property="Text" Value="Добавление..." />
+                            <Setter Property="IsEnabled" Value="False" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</ContentPage>

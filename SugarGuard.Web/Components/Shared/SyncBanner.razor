@@ -1,0 +1,286 @@
+﻿@namespace SugarGuard.Web.Components.Shared
+
+@* SyncBanner — состояния *@
+
+@if (_currentState is not SyncState.Hidden)
+{
+    <div class="sync-banner sync-banner--@GetStateClass()"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true"
+         aria-label="@GetAriaLabel()">
+
+        @* Иконка состояния *@
+        <span class="sync-banner__icon" aria-hidden="true">
+            @if (_currentState is SyncState.Syncing)
+            {
+                @* StateBannerLoading — Primary spinner *@
+                <svg class="sync-spinner" width="16" height="16"
+                     viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+            }
+            else if (_currentState is SyncState.Pending)
+            {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+            }
+            else if (_currentState is SyncState.Offline)
+            {
+                @* StateBannerOffline — TextSecondary *@
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                    <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                    <line x1="12" y1="20" x2="12.01" y2="20" />
+                </svg>
+            }
+            else if (_currentState is SyncState.Conflict)
+            {
+                @* Conflict — GlucoseWarning *@
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+            }
+            else if (_currentState is SyncState.Error)
+            {
+                @* GlucoseDanger *@
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+            }
+        </span>
+
+        @* Текст сообщения *@
+        <span class="sync-banner__message">@GetMessage()</span>
+
+        @* Счётчик: pending или conflict *@
+        @if (_currentState is SyncState.Pending && PendingItemsCount > 0)
+        {
+            <span class="sync-banner__badge"
+                  aria-label="@PendingItemsCount ожидающих">
+                @PendingItemsCount
+            </span>
+        }
+        else if (_currentState is SyncState.Conflict && PendingSyncConflicts > 0)
+        {
+            <span class="sync-banner__badge sync-banner__badge--conflict"
+                  aria-label="@PendingSyncConflicts конфликтов">
+                @PendingSyncConflicts
+            </span>
+        }
+
+        @* Кнопки действий *@
+        <div class="sync-banner__actions">
+            @if (_currentState is SyncState.Conflict && OnResolveConflicts.HasDelegate)
+            {
+                <button class="sync-banner__action-btn"
+                        type="button"
+                        @onclick="OnResolveConflictsClickAsync">
+                    Разрешить
+                </button>
+            }
+
+            @if (_currentState is SyncState.Error && OnRetry.HasDelegate)
+            {
+                <button class="sync-banner__action-btn"
+                        type="button"
+                        @onclick="OnRetryClickAsync">
+                    Повторить
+                </button>
+            }
+
+            @if (_currentState is SyncState.Offline && OnGoOffline.HasDelegate)
+            {
+                <button class="sync-banner__action-btn"
+                        type="button"
+                        @onclick="OnGoOfflineClickAsync">
+                    Офлайн-режим
+                </button>
+            }
+
+            @* Кнопка закрытия *@
+            @if (_currentState is SyncState.Error or SyncState.Conflict)
+            {
+                <button class="sync-banner__dismiss-btn"
+                        type="button"
+                        aria-label="Закрыть уведомление"
+                        @onclick="DismissAsync">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         aria-hidden="true">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    // Параметры           
+    [Parameter] public bool IsSyncing { get; set; } // Идёт активная синхронизация
+
+    [Parameter] public int PendingItemsCount { get; set; } // Количество элементов, ожидающих отправки
+
+    [Parameter] public bool IsConnected { get; set; } = true; // Устройство подключено к сети
+
+    [Parameter] public int PendingSyncConflicts { get; set; } // Количество конфликтов синхронизации
+
+    [Parameter] public bool HasSyncError { get; set; } // Есть ошибка синхронизации
+
+    [Parameter] public string? ErrorMessage { get; set; } // Текст ошибки для отображения пользователю
+
+    [Parameter] public EventCallback OnResolveConflicts { get; set; } // Callback для разрешения конфликтов
+
+    [Parameter] public EventCallback OnRetry { get; set; } // Callback для повтора синхронизации после ошибки
+
+    [Parameter] public EventCallback OnGoOffline { get; set; } // Callback для перехода в офлайн-режим
+
+    [Parameter] public EventCallback OnDismissed { get; set; } // Callback после закрытия баннера пользователем
+
+    // Состояние    
+    private SyncState _currentState = SyncState.Hidden; // Текущее вычисленное состояние баннера
+
+    private bool _dismissed; // Флаг ручного закрытия пользователем
+
+    // Жизненный цикл 
+    /// <inheritdoc/>
+    protected override void OnParametersSet()
+    {
+        // Сбрасываем dismiss при появлении нового конфликта или ошибки
+        if (_dismissed
+            && (IsSyncing || !IsConnected || PendingSyncConflicts > 0 || HasSyncError))
+        {
+            _dismissed = false;
+        }
+
+        _currentState = ResolveState();
+    }
+
+    // Логика состояний
+    /// <summary>
+    /// Вычисляет текущее состояние по приоритету
+    /// </summary>
+    private SyncState ResolveState()
+    {
+        if (_dismissed) return SyncState.Hidden;
+        if (PendingSyncConflicts > 0) return SyncState.Conflict;
+        if (HasSyncError) return SyncState.Error;
+        if (IsSyncing) return SyncState.Syncing;
+        if (!IsConnected) return SyncState.Offline;
+        if (PendingItemsCount > 0) return SyncState.Pending;
+        return SyncState.Hidden;
+    }
+
+    /// <summary>
+    /// CSS-модификатор для текущего состояния
+    /// </summary>
+    private string GetStateClass() => _currentState switch
+    {
+        SyncState.Syncing => "syncing",
+        SyncState.Pending => "pending",
+        SyncState.Offline => "offline",
+        SyncState.Conflict => "conflict",
+        SyncState.Error => "error",
+        _ => "hidden"
+    };
+
+    /// <summary>
+    /// Текст сообщения для текущего состояния
+    /// </summary>
+    private string GetMessage() => _currentState switch
+    {
+        SyncState.Syncing => "Синхронизация...",
+        SyncState.Pending => PendingItemsCount == 1
+            ? "1 запись ожидает синхронизации"
+            : $"{PendingItemsCount} записей ожидают синхронизации",
+        SyncState.Offline => "Нет подключения к интернету",
+        SyncState.Conflict => PendingSyncConflicts == 1
+            ? "1 конфликт синхронизации требует внимания"
+            : $"{PendingSyncConflicts} конфликта(ов) синхронизации",
+        SyncState.Error => !string.IsNullOrWhiteSpace(ErrorMessage)
+            ? ErrorMessage
+            : "Ошибка синхронизации",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// aria-label для screen reader с полным описанием
+    /// </summary>
+    private string GetAriaLabel() => _currentState switch
+    {
+        SyncState.Syncing => "Идёт синхронизация данных",
+        SyncState.Pending => $"Ожидает синхронизации: {PendingItemsCount}",
+        SyncState.Offline => "Устройство не в сети. Данные будут синхронизированы при восстановлении соединения",
+        SyncState.Conflict => $"Обнаружено конфликтов: {PendingSyncConflicts}. Требуется ручное разрешение",
+        SyncState.Error => $"Ошибка синхронизации: {ErrorMessage ?? "неизвестная ошибка"}",
+        _ => string.Empty
+    };
+
+    // Обработчики
+    /// <summary>
+    /// Вызывает callback разрешения конфликтов
+    /// </summary>
+    private async Task OnResolveConflictsClickAsync()
+        => await OnResolveConflicts.InvokeAsync();
+
+    /// <summary>
+    /// Вызывает callback повтора синхронизации
+    /// </summary>
+    private async Task OnRetryClickAsync()
+        => await OnRetry.InvokeAsync();
+
+    /// <summary>
+    /// Вызывает callback перехода в офлайн-режим
+    /// </summary>
+    private async Task OnGoOfflineClickAsync()
+        => await OnGoOffline.InvokeAsync();
+
+    /// <summary>
+    /// Закрывает баннер и уведомляет родителя
+    /// </summary>
+    private async Task DismissAsync()
+    {
+        _dismissed = true;
+        _currentState = SyncState.Hidden;
+        await OnDismissed.InvokeAsync();
+    }
+
+    // Перечисление состояний
+
+    /// <summary>
+    /// возможные состояния баннера синхронизации
+    /// </summary>
+    private enum SyncState
+    {       
+        Hidden, // Баннер скрыт
+       
+        Syncing, // Активная синхронизация
+       
+        Pending, // Есть записи, ожидающие отправки
+       
+        Offline, // Нет подключения к сети
+       
+        Conflict, // Конфликт версий данных
+       
+        Error // Ошибка при синхронизации
+    }
+}

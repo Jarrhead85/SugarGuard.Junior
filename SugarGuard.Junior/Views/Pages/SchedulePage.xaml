@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<pages:SwipeablePage
+    x:Class="SugarGuard.Junior.Views.Pages.SchedulePage"
+    x:Name="PageRoot"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:SugarGuard.Junior.Models.Core"
+    xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
+    Title="Расписание измерений"
+    BackgroundColor="{DynamicResource BackgroundPage}">
+
+    <CollectionView ItemsSource="{Binding ScheduleItems}"
+                    SelectionMode="None"
+                    VerticalScrollBarVisibility="Never"
+                    BackgroundColor="Transparent">
+
+        <CollectionView.ItemsLayout>
+            <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="{StaticResource Space16}"
+                                 Spacing="{StaticResource Space12}">
+                <Border Style="{StaticResource DataCard}">
+                    <VerticalStackLayout Spacing="{StaticResource Space8}">
+                        <Label Text="Расписание"
+                               Style="{StaticResource PageTitleText}" />
+                        <Label Text="Когда напоминать об измерении сахара."
+                               Style="{StaticResource BodyText}"
+                               TextColor="{DynamicResource TextMuted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource DataCard}">
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto"
+                          ColumnSpacing="{StaticResource Space12}">
+                        <Label Grid.Row="0"
+                               Grid.Column="0"
+                               Text="Следующее измерение"
+                               Style="{StaticResource CaptionText}" />
+                        <Label Grid.Row="1"
+                               Grid.Column="0"
+                               Text="{Binding NextMeasurementText}"
+                               Style="{StaticResource SectionHeadingText}" />
+                        <ActivityIndicator Grid.RowSpan="2"
+                                           Grid.Column="1"
+                                           IsRunning="{Binding IsLoading}"
+                                           IsVisible="{Binding IsLoading}"
+                                           Color="{StaticResource Primary}"
+                                           VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource DataCard}">
+                    <VerticalStackLayout Spacing="{StaticResource Space10}">
+                        <Label Text="Добавить время"
+                               Style="{StaticResource SectionHeadingText}" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource Space8}">
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource BorderDefault}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 12"
+                                    Padding="12,0">
+                                <Entry x:Name="TimeEntry"
+                                       Text="{Binding NewTimeText}"
+                                       Placeholder="08:30"
+                                       Keyboard="Numeric"
+                                       ReturnType="Done"
+                                       ReturnCommand="{Binding AddTimeCommand}"
+                                       MaxLength="5"
+                                       HeightRequest="48"
+                                       BackgroundColor="Transparent"
+                                       TextColor="{DynamicResource TextPrimary}"
+                                       PlaceholderColor="{DynamicResource TextFaint}"
+                                       TextChanged="OnTimeEntryTextChanged" />
+                            </Border>
+
+                            <Button Grid.Column="1"
+                                    Text="+"
+                                    Command="{Binding AddTimeCommand}"
+                                    Style="{StaticResource PrimaryButton}"
+                                    HeightRequest="48"
+                                    WidthRequest="52"
+                                    Padding="0"
+                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                        </Grid>
+                        <Label Text="Формат: 08:30, 12:00 или 18:15."
+                               Style="{StaticResource CaptionText}"
+                               TextColor="{DynamicResource TextMuted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{Binding ErrorMessage}"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}"
+                       Style="{StaticResource BodyText}"
+                       TextColor="{StaticResource Danger}"
+                       HorizontalOptions="Center" />
+
+                <Label Text="Времена измерений"
+                       Style="{StaticResource SectionHeadingText}"
+                       IsVisible="{Binding HasScheduleItems}" />
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.EmptyView>
+            <VerticalStackLayout Padding="{StaticResource Space24}"
+                                 Spacing="{StaticResource Space8}"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+                <Label Text="Расписание пока пустое"
+                       Style="{StaticResource SectionHeadingText}"
+                       HorizontalTextAlignment="Center" />
+                <Label Text="Добавьте первое время измерения."
+                       Style="{StaticResource BodyText}"
+                       TextColor="{DynamicResource TextMuted}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </CollectionView.EmptyView>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="models:MeasurementSchedule">
+                <Border Style="{StaticResource DataCard}"
+                        Margin="16,0,16,0">
+                    <Grid ColumnDefinitions="*,Auto,Auto"
+                          RowDefinitions="Auto,Auto"
+                          ColumnSpacing="{StaticResource Space8}"
+                          RowSpacing="2">
+                        <Label Grid.Row="0"
+                               Grid.Column="0"
+                               Text="{Binding FormattedTime}"
+                               Style="{StaticResource SectionHeadingText}" />
+                        <Label Grid.Row="1"
+                               Grid.Column="0"
+                               Text="{Binding IsActive, Converter={StaticResource BoolToActiveStatusConverter}}"
+                               Style="{StaticResource CaptionText}"
+                               TextColor="{DynamicResource TextMuted}" />
+                        <Button Grid.RowSpan="2"
+                                Grid.Column="1"
+                                Text="{Binding IsActive, Converter={StaticResource BoolToToggleTextConverter}}"
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.ToggleActiveCommand}"
+                                CommandParameter="{Binding .}"
+                                Style="{StaticResource SoftButton}"
+                                HeightRequest="40"
+                                Padding="10,0" />
+                        <Button Grid.RowSpan="2"
+                                Grid.Column="2"
+                                Text="×"
+                                Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.RemoveTimeCommand}"
+                                CommandParameter="{Binding .}"
+                                BackgroundColor="{DynamicResource DangerSoft}"
+                                TextColor="{DynamicResource Danger}"
+                                CornerRadius="12"
+                                FontSize="18"
+                                WidthRequest="44"
+                                HeightRequest="40"
+                                Padding="0" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+</pages:SwipeablePage>

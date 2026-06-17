@@ -1,0 +1,1347 @@
+﻿@page "/admin/users"
+@attribute [Authorize(Roles = Roles.Admin + "," + Roles.SupportAdmin)]
+@implements IDisposable
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Shared.Constants
+
+@inject HttpClient Http
+
+<PageTitle>Пользователи — SugarGuard Admin</PageTitle>
+
+<div class="admin-users-page">
+    <PageHeader Eyebrow="Admin / Users"
+                Title="Пользователи и связи"
+                Subtitle="Управление ролями, быстрый поиск по базе и ручное создание связей между родителями, врачами и детьми.">
+        <TrailingContent>
+            <button class="sg-btn sg-btn-soft"
+                    type="button"
+                    @onclick="LoadUsersAsync"
+                    disabled="@_isRefreshing">
+                @(_isRefreshing ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <div class="sg-alert @GetStatusClass()">
+            @_statusMessage
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <section class="sg-panel sg-loading-panel">
+            <div class="sg-spinner"></div>
+            <p>Загружаем пользователей...</p>
+        </section>
+    }
+    else
+    {
+        <section class="sg-stats-grid">
+            <StatCard Label="Всего пользователей"
+                      Value="@_users.Count.ToString()"
+                      Subtitle="Лимит загрузки: 500"
+                      Status="neutral" />
+
+            <StatCard Label="Активные"
+                      Value="@_users.Count(x => x.IsActive).ToString()"
+                      Subtitle="Не деактивированы"
+                      Status="safe" />
+
+            <StatCard Label="Родители"
+                      Value="@_users.Count(x => IsRole(x.Role, Roles.Parent)).ToString()"
+                      Subtitle="Доступны для parent-child"
+                      Status="neutral" />
+
+            <StatCard Label="Врачи / админы"
+                      Value="@_users.Count(x => IsDoctorLinkRole(x.Role)).ToString()"
+                      Subtitle="Доступны для doctor-child"
+                      Status="neutral" />
+        </section>
+
+        <section class="sg-main-layout">
+            <div class="sg-main-column">
+                <section class="sg-panel">
+                    <SectionHeader Title="Список пользователей"
+                                   Description="Фильтрация выполняется на странице, роли обновляются через API.">
+                        <TrailingContent>
+                            <span class="sg-pill sg-pill-neutral">
+                                Показано: @FilteredUsers.Count()
+                            </span>
+                        </TrailingContent>
+                    </SectionHeader>
+
+                    <div class="sg-toolbar">
+                        <div class="sg-field">
+                            <label class="sg-label" for="users-search">Поиск</label>
+                            <input id="users-search"
+                                   class="sg-input"
+                                   type="search"
+                                   value="@_searchTerm"
+                                   @oninput="OnSearchChanged"
+                                   placeholder="Email, Telegram ID, GUID, роль" />
+                        </div>
+
+                        <div class="sg-field sg-field-compact">
+                            <label class="sg-label" for="users-role-filter">Роль</label>
+                            <select id="users-role-filter"
+                                    class="sg-select"
+                                    value="@_selectedRoleFilter"
+                                    @onchange="OnRoleFilterChanged">
+                                <option value="">Все роли</option>
+                                @foreach (var role in _assignableRoles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (!FilteredUsers.Any())
+                    {
+                        <div class="sg-empty-state">
+                            <div class="sg-empty-icon">∅</div>
+                            <h3>Ничего не найдено</h3>
+                            <p>Измените строку поиска или снимите фильтр по роли.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="sg-users-list">
+                            @foreach (var user in FilteredUsers)
+                            {
+                                <article class="sg-user-row" @key="user.UserId">
+                                    <div class="sg-user-main">
+                                        <div class="sg-user-title-row">
+                                            <h3>@GetUserTitle(user)</h3>
+
+                                            <div class="sg-user-badges">
+                                                <span class="sg-pill @GetRolePillClass(user.Role)">
+                                                    @user.Role
+                                                </span>
+
+                                                <span class="sg-pill @(user.IsActive ? "sg-pill-success" : "sg-pill-danger")">
+                                                    @(user.IsActive ? "Активен" : "Неактивен")
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="sg-user-meta">
+                                            <span><strong>ID:</strong> @user.UserId</span>
+                                            <span><strong>Telegram:</strong> @(user.TelegramId?.ToString() ?? "—")</span>
+                                            <span><strong>Создан:</strong> @FormatUtc(user.CreatedAt)</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="sg-user-actions">
+                                        <div class="sg-field sg-field-grow">
+                                            <label class="sg-label" for="@($"role-{user.UserId}")">Новая роль</label>
+                                            <select id="@($"role-{user.UserId}")"
+                                                    class="sg-select"
+                                                    value="@GetDraftRole(user.UserId, user.Role)"
+                                                    @onchange="args => OnRoleDraftChanged(user.UserId, args)">
+                                                @foreach (var role in _assignableRoles)
+                                                {
+                                                    <option value="@role">@role</option>
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <button class="sg-btn sg-btn-primary"
+                                                type="button"
+                                                @onclick="() => UpdateRoleAsync(user)"
+                                                disabled="@(!CanSaveRole(user))">
+                                            @(_roleSavingUserId == user.UserId ? "Сохраняем..." : "Сохранить роль")
+                                        </button>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+
+            <aside class="sg-side-column">
+                <section class="sg-panel">
+                    <SectionHeader Title="Связать родителя"
+                                   Description="Создаёт запись в ParentChildLinks.">
+                        <TrailingContent>
+                            <span class="sg-pill sg-pill-neutral">
+                                Parent → Child
+                            </span>
+                        </TrailingContent>
+                    </SectionHeader>
+
+                    <div class="sg-form-grid">
+                        <div class="sg-field">
+                            <label class="sg-label" for="parent-user-select">Родитель</label>
+                            <select id="parent-user-select"
+                                    class="sg-select"
+                                    @bind="_parentLinkForm.ParentUserId">
+                                <option value="">Выберите пользователя</option>
+                                @foreach (var parent in ParentCandidates)
+                                {
+                                    <option value="@parent.UserId.ToString()">@GetUserOptionText(parent)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="parent-child-id">ChildId</label>
+                            <input id="parent-child-id"
+                                   class="sg-input"
+                                   type="text"
+                                   @bind="_parentLinkForm.ChildId"
+                                   @bind:event="oninput"
+                                   placeholder="GUID ребёнка" />
+                        </div>
+
+                        <button class="sg-btn sg-btn-primary"
+                                type="button"
+                                @onclick="CreateParentChildLinkAsync"
+                                disabled="@_isParentLinkSubmitting">
+                            @(_isParentLinkSubmitting ? "Создаём..." : "Создать связь")
+                        </button>
+                    </div>
+                </section>
+
+                <section class="sg-panel">
+                    <SectionHeader Title="Связать врача"
+                                   Description="Создаёт запись в DoctorChildLinks.">
+                        <TrailingContent>
+                            <span class="sg-pill sg-pill-neutral">
+                                Doctor → Child
+                            </span>
+                        </TrailingContent>
+                    </SectionHeader>
+
+                    <div class="sg-form-grid">
+                        <div class="sg-field">
+                            <label class="sg-label" for="doctor-user-select">Врач / админ</label>
+                            <select id="doctor-user-select"
+                                    class="sg-select"
+                                    @bind="_doctorLinkForm.DoctorUserId">
+                                <option value="">Выберите пользователя</option>
+                                @foreach (var doctor in DoctorCandidates)
+                                {
+                                    <option value="@doctor.UserId.ToString()">@GetUserOptionText(doctor)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="sg-field">
+                            <label class="sg-label" for="doctor-child-id">ChildId</label>
+                            <input id="doctor-child-id"
+                                   class="sg-input"
+                                   type="text"
+                                   @bind="_doctorLinkForm.ChildId"
+                                   @bind:event="oninput"
+                                   placeholder="GUID ребёнка" />
+                        </div>
+
+                        <button class="sg-btn sg-btn-primary"
+                                type="button"
+                                @onclick="CreateDoctorChildLinkAsync"
+                                disabled="@_isDoctorLinkSubmitting">
+                            @(_isDoctorLinkSubmitting ? "Создаём..." : "Создать связь")
+                        </button>
+                    </div>
+                </section>
+
+                <section class="sg-panel">
+                    <SectionHeader Title="Подсказки"
+                                   Description="Чтобы избежать конфликтов в админке." />
+
+                    <ul class="sg-hints-list">
+                        <li>Для parent-child выбирайте только пользователей с ролью <strong>Parent</strong>.</li>
+                        <li>Для doctor-child допустимы роли <strong>Doctor</strong>, <strong>Admin</strong> и <strong>SupportAdmin</strong>.</li>
+                        <li>ChildId вводится вручную GUID-значением ребёнка.</li>
+                        <li>После смены роли список кандидатов в формах обновляется автоматически.</li>
+                    </ul>
+                </section>
+            </aside>
+        </section>
+    }
+</div>
+
+<style>
+    .admin-users-page {
+        display: grid;
+        gap: 20px;
+        color: var(--sg-text, #16213E);
+    }
+
+    .sg-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface, rgba(255, 255, 255, 0.84));
+        box-shadow: var(--shadow-md, 0 24px 48px rgba(18, 31, 58, 0.11));
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        padding: 24px;
+    }
+
+    .admin-users-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        background:
+            radial-gradient(circle at top left, rgba(86, 208, 191, 0.16), transparent 28%),
+            radial-gradient(circle at top right, rgba(109, 174, 255, 0.12), transparent 24%),
+            var(--sg-surface, rgba(255, 255, 255, 0.84));
+    }
+
+    .hero-copy {
+        display: grid;
+        gap: 12px;
+        max-width: 720px;
+    }
+
+    .hero-copy h1 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 1;
+        font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+        letter-spacing: -0.03em;
+    }
+
+    .hero-copy p {
+        margin: 0;
+        color: var(--sg-text-muted, #667694);
+        font-size: 15px;
+        line-height: 1.65;
+        max-width: 64ch;
+    }
+
+    .hero-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text-muted, #667694);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-label-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--sg-primary, #1B8E8B), var(--sg-primary-alt, #2678D9));
+        box-shadow: 0 0 0 4px rgba(27, 142, 139, 0.12);
+    }
+
+    .hero-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-start;
+        flex-shrink: 0;
+    }
+
+    .sg-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .sg-stat-card {
+        display: grid;
+        gap: 8px;
+        padding: 20px;
+        border-radius: 22px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface, rgba(255, 255, 255, 0.84));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-stat-label {
+        color: var(--sg-text-faint, #96A2B8);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .sg-stat-value {
+        font-size: clamp(28px, 3vw, 38px);
+        line-height: 1;
+        font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    }
+
+    .sg-stat-hint {
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+    }
+
+    .sg-main-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
+        gap: 20px;
+        align-items: start;
+    }
+
+    .sg-main-column,
+    .sg-side-column {
+        display: grid;
+        gap: 20px;
+    }
+
+    .sg-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .sg-section-header h2 {
+        margin: 0 0 6px 0;
+        font-size: 24px;
+        line-height: 1.1;
+        font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+    }
+
+    .sg-section-header p {
+        margin: 0;
+        color: var(--sg-text-muted, #667694);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .sg-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .sg-field {
+        display: grid;
+        gap: 8px;
+    }
+
+    .sg-field-compact {
+        min-width: 0;
+    }
+
+    .sg-field-grow {
+        min-width: 220px;
+        flex: 1 1 220px;
+    }
+
+    .sg-label {
+        color: var(--sg-text-faint, #96A2B8);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .sg-input,
+    .sg-select {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        color: var(--sg-text, #16213E);
+        font: inherit;
+        outline: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .sg-input:focus,
+    .sg-select:focus {
+        border-color: rgba(27, 142, 139, 0.45);
+        box-shadow: 0 0 0 4px rgba(27, 142, 139, 0.12);
+    }
+
+    .sg-users-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .sg-user-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-user-main {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .sg-user-title-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .sg-user-title-row h3 {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.3;
+        word-break: break-word;
+    }
+
+    .sg-user-badges {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .sg-user-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .sg-user-actions {
+        display: flex;
+        align-items: end;
+        gap: 12px;
+        flex-wrap: wrap;
+        min-width: min(100%, 360px);
+        justify-content: flex-end;
+    }
+
+    .sg-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 999px;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+        white-space: nowrap;
+    }
+
+    .sg-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .sg-btn:disabled {
+        cursor: default;
+        opacity: 0.65;
+        transform: none;
+    }
+
+    .sg-btn-primary {
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--sg-primary, #1B8E8B), var(--sg-primary-alt, #2678D9));
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-btn-soft {
+        color: var(--sg-primary, #1B8E8B);
+        background: rgba(27, 142, 139, 0.12);
+        border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
+    }
+
+    .sg-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
+
+    .sg-pill-neutral {
+        color: var(--sg-text-muted, #667694);
+        background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
+        border-color: var(--sg-border, rgba(22, 33, 62, 0.10));
+    }
+
+    .sg-pill-success {
+        color: var(--sg-success, #37A563);
+        background: rgba(55, 165, 99, 0.14);
+    }
+
+    .sg-pill-danger {
+        color: var(--sg-danger, #DB5967);
+        background: rgba(219, 89, 103, 0.14);
+    }
+
+    .sg-pill-parent {
+        color: var(--sg-primary, #1B8E8B);
+        background: rgba(27, 142, 139, 0.12);
+    }
+
+    .sg-pill-doctor {
+        color: var(--sg-primary-alt, #2678D9);
+        background: rgba(38, 120, 217, 0.12);
+    }
+
+    .sg-pill-admin {
+        color: #7D4BDB;
+        background: rgba(125, 75, 219, 0.12);
+    }
+
+    .sg-pill-support {
+        color: #D97706;
+        background: rgba(217, 119, 6, 0.12);
+    }
+
+    .sg-form-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .sg-hints-list {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 10px;
+        color: var(--sg-text-muted, #667694);
+        line-height: 1.6;
+        font-size: 14px;
+    }
+
+    .sg-alert {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid transparent;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.5;
+        box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-alert-info {
+        color: var(--sg-primary-alt, #2678D9);
+        background: rgba(38, 120, 217, 0.12);
+        border-color: rgba(38, 120, 217, 0.18);
+    }
+
+    .sg-alert-success {
+        color: var(--sg-success, #37A563);
+        background: rgba(55, 165, 99, 0.14);
+        border-color: rgba(55, 165, 99, 0.20);
+    }
+
+    .sg-alert-danger {
+        color: var(--sg-danger, #DB5967);
+        background: rgba(219, 89, 103, 0.14);
+        border-color: rgba(219, 89, 103, 0.20);
+    }
+
+    .sg-loading-panel {
+        display: grid;
+        place-items: center;
+        gap: 12px;
+        min-height: 180px;
+        color: var(--sg-text-muted, #667694);
+    }
+
+    .sg-spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 3px solid rgba(38, 120, 217, 0.14);
+        border-top-color: var(--sg-primary-alt, #2678D9);
+        animation: sg-spin 0.9s linear infinite;
+    }
+
+    .sg-empty-state {
+        display: grid;
+        place-items: center;
+        text-align: center;
+        gap: 10px;
+        min-height: 220px;
+        border-radius: 20px;
+        border: 1px dashed var(--sg-border, rgba(22, 33, 62, 0.10));
+        background: rgba(255, 255, 255, 0.35);
+        color: var(--sg-text-muted, #667694);
+    }
+
+    .sg-empty-state h3 {
+        margin: 0;
+        color: var(--sg-text, #16213E);
+        font-size: 18px;
+    }
+
+    .sg-empty-state p {
+        margin: 0;
+        max-width: 42ch;
+    }
+
+    .sg-empty-icon {
+        width: 52px;
+        height: 52px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        background: rgba(27, 142, 139, 0.12);
+        color: var(--sg-primary, #1B8E8B);
+        font-size: 24px;
+        font-weight: 900;
+    }
+
+    @@keyframes sg-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@media (max-width: 1180px) {
+        .sg-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sg-main-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 860px) {
+        .admin-users-hero,
+        .sg-user-row,
+        .sg-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-users-hero {
+            display: grid;
+        }
+
+        .hero-actions {
+            justify-content: stretch;
+        }
+
+        .hero-actions .sg-btn {
+            width: 100%;
+        }
+
+        .sg-user-title-row,
+        .sg-section-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .sg-user-badges,
+        .sg-user-actions {
+            justify-content: flex-start;
+        }
+
+        .sg-user-actions {
+            min-width: 0;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .sg-panel {
+            padding: 18px;
+            border-radius: 20px;
+        }
+
+        .sg-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .sg-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .sg-user-meta {
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sg-btn,
+        .sg-select,
+        .sg-input {
+            width: 100%;
+        }
+    }
+</style>
+
+@code {
+    private readonly CancellationTokenSource _disposeCts = new();
+    private readonly List<AdminUserItem> _users = [];
+    private readonly Dictionary<Guid, string> _roleDrafts = new();
+
+    private readonly ParentChildLinkFormModel _parentLinkForm = new();
+    private readonly DoctorChildLinkFormModel _doctorLinkForm = new();
+
+    private static readonly string[] _assignableRoles =
+    [
+        Roles.Parent,
+        Roles.Doctor,
+        Roles.Admin,
+        Roles.SupportAdmin
+    ];
+
+    private bool _isLoading = true;
+    private bool _isRefreshing;
+    private bool _isParentLinkSubmitting;
+    private bool _isDoctorLinkSubmitting;
+    private Guid? _roleSavingUserId;
+
+    private string _searchTerm = string.Empty;
+    private string _selectedRoleFilter = string.Empty;
+    private string? _statusMessage;
+    private StatusTone _statusTone = StatusTone.Info;
+
+    private IEnumerable<AdminUserItem> FilteredUsers =>
+        _users
+            .Where(MatchesRoleFilter)
+            .Where(MatchesSearch)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.EmailForLogin ?? string.Empty);
+
+    private IEnumerable<AdminUserItem> ParentCandidates =>
+        _users
+            .Where(x => x.IsActive && IsRole(x.Role, Roles.Parent))
+            .OrderBy(x => x.EmailForLogin ?? string.Empty)
+            .ThenBy(x => x.CreatedAt);
+
+    private IEnumerable<AdminUserItem> DoctorCandidates =>
+        _users
+            .Where(x => x.IsActive && IsDoctorLinkRole(x.Role))
+            .OrderBy(x => x.EmailForLogin ?? string.Empty)
+            .ThenBy(x => x.CreatedAt);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        if (_isRefreshing)
+        {
+            return;
+        }
+
+        var cancellationToken = _disposeCts.Token;
+
+        try
+        {
+            _isRefreshing = true;
+
+            if (_users.Count == 0)
+            {
+                _isLoading = true;
+            }
+
+            ClearStatus();
+
+            using var response = await Http.GetAsync("api/admin/users-roles/users?limit=500", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
+                return;
+            }
+
+            var users = await response.Content.ReadFromJsonAsync<List<AdminUserItem>>(cancellationToken: cancellationToken) ?? [];
+
+            _users.Clear();
+            _users.AddRange(users.OrderByDescending(x => x.CreatedAt));
+
+            _roleDrafts.Clear();
+
+            foreach (var user in _users)
+            {
+                _roleDrafts[user.UserId] = user.Role;
+            }
+
+            NormalizeForms();
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Не удалось загрузить пользователей: {ex.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _isLoading = false;
+            _isRefreshing = false;
+        }
+    }
+
+    private async Task UpdateRoleAsync(AdminUserItem user)
+    {
+        var cancellationToken = _disposeCts.Token;
+        var newRole = GetDraftRole(user.UserId, user.Role);
+
+        if (!IsAssignableRole(newRole))
+        {
+            SetStatus("Выбрана недопустимая роль.", StatusTone.Danger);
+            return;
+        }
+
+        if (string.Equals(user.Role, newRole, StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus("Роль не изменилась.", StatusTone.Info);
+            return;
+        }
+
+        try
+        {
+            _roleSavingUserId = user.UserId;
+            ClearStatus();
+
+            using var response = await Http.PutAsJsonAsync(
+                $"api/admin/users-roles/users/{user.UserId:guid}/role",
+                new UpdateUserRoleRequest { NewRole = newRole },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
+                return;
+            }
+
+            var updatedUser = await response.Content.ReadFromJsonAsync<AdminUserItem>(cancellationToken: cancellationToken);
+
+            if (updatedUser is not null)
+            {
+                ReplaceUser(updatedUser);
+            }
+            else
+            {
+                user.Role = newRole;
+                _roleDrafts[user.UserId] = newRole;
+            }
+
+            NormalizeForms();
+            SetStatus("Роль пользователя обновлена.", StatusTone.Success);
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Не удалось обновить роль: {ex.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _roleSavingUserId = null;
+        }
+    }
+
+    private async Task CreateParentChildLinkAsync()
+    {
+        var cancellationToken = _disposeCts.Token;
+
+        if (!Guid.TryParse(_parentLinkForm.ParentUserId, out var parentUserId))
+        {
+            SetStatus("Выберите родителя из списка.", StatusTone.Danger);
+            return;
+        }
+
+        if (!Guid.TryParse(_parentLinkForm.ChildId, out var childId))
+        {
+            SetStatus("Укажите корректный ChildId в формате GUID.", StatusTone.Danger);
+            return;
+        }
+
+        var parent = _users.FirstOrDefault(x => x.UserId == parentUserId);
+
+        if (parent is null || !IsRole(parent.Role, Roles.Parent))
+        {
+            SetStatus("Выбранный пользователь не является родителем.", StatusTone.Danger);
+            return;
+        }
+
+        try
+        {
+            _isParentLinkSubmitting = true;
+            ClearStatus();
+
+            using var response = await Http.PostAsJsonAsync(
+                "api/admin/users-roles/links/parent-child",
+                new CreateParentChildLinkRequest
+                {
+                    ParentUserId = parentUserId,
+                    ChildId = childId
+                },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
+                return;
+            }
+
+            _parentLinkForm.ChildId = string.Empty;
+            SetStatus("Связь parent-child успешно создана.", StatusTone.Success);
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Не удалось создать связь parent-child: {ex.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _isParentLinkSubmitting = false;
+        }
+    }
+
+    private async Task CreateDoctorChildLinkAsync()
+    {
+        var cancellationToken = _disposeCts.Token;
+
+        if (!Guid.TryParse(_doctorLinkForm.DoctorUserId, out var doctorUserId))
+        {
+            SetStatus("Выберите врача или администратора из списка.", StatusTone.Danger);
+            return;
+        }
+
+        if (!Guid.TryParse(_doctorLinkForm.ChildId, out var childId))
+        {
+            SetStatus("Укажите корректный ChildId в формате GUID.", StatusTone.Danger);
+            return;
+        }
+
+        var doctor = _users.FirstOrDefault(x => x.UserId == doctorUserId);
+
+        if (doctor is null || !IsDoctorLinkRole(doctor.Role))
+        {
+            SetStatus("Выбранный пользователь не может быть связан как врач.", StatusTone.Danger);
+            return;
+        }
+
+        try
+        {
+            _isDoctorLinkSubmitting = true;
+            ClearStatus();
+
+            using var response = await Http.PostAsJsonAsync(
+                "api/admin/users-roles/links/doctor-child",
+                new CreateDoctorChildLinkRequest
+                {
+                    DoctorUserId = doctorUserId,
+                    ChildId = childId
+                },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
+                return;
+            }
+
+            _doctorLinkForm.ChildId = string.Empty;
+            SetStatus("Связь doctor-child успешно создана.", StatusTone.Success);
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Не удалось создать связь doctor-child: {ex.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _isDoctorLinkSubmitting = false;
+        }
+    }
+
+    private void OnSearchChanged(ChangeEventArgs args)
+    {
+        _searchTerm = args.Value?.ToString()?.Trim() ?? string.Empty;
+    }
+
+    private void OnRoleFilterChanged(ChangeEventArgs args)
+    {
+        _selectedRoleFilter = args.Value?.ToString()?.Trim() ?? string.Empty;
+    }
+
+    private void OnRoleDraftChanged(Guid userId, ChangeEventArgs args)
+    {
+        _roleDrafts[userId] = args.Value?.ToString()?.Trim() ?? string.Empty;
+    }
+
+    private bool CanSaveRole(AdminUserItem user)
+    {
+        if (_roleSavingUserId.HasValue)
+        {
+            return false;
+        }
+
+        var draftRole = GetDraftRole(user.UserId, user.Role);
+
+        return IsAssignableRole(draftRole)
+               && !string.Equals(draftRole, user.Role, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetDraftRole(Guid userId, string fallbackRole)
+    {
+        return _roleDrafts.TryGetValue(userId, out var role) && !string.IsNullOrWhiteSpace(role)
+            ? role
+            : fallbackRole;
+    }
+
+    private bool MatchesSearch(AdminUserItem user)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            return true;
+        }
+
+        var term = _searchTerm.Trim();
+
+        return (user.EmailForLogin?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+               || user.UserId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase)
+               || user.Role.Contains(term, StringComparison.OrdinalIgnoreCase)
+               || (user.TelegramId?.ToString()?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private bool MatchesRoleFilter(AdminUserItem user)
+    {
+        return string.IsNullOrWhiteSpace(_selectedRoleFilter)
+               || string.Equals(user.Role, _selectedRoleFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAssignableRole(string? role)
+    {
+        return _assignableRoles.Contains(role ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRole(string? left, string? right)
+    {
+        return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDoctorLinkRole(string? role)
+    {
+        return IsRole(role, Roles.Doctor)
+               || IsRole(role, Roles.Admin)
+               || IsRole(role, Roles.SupportAdmin);
+    }
+
+    private static string GetUserTitle(AdminUserItem user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.EmailForLogin))
+        {
+            return user.EmailForLogin;
+        }
+
+        return $"Пользователь {user.UserId}";
+    }
+
+    private static string GetUserOptionText(AdminUserItem user)
+    {
+        var emailPart = !string.IsNullOrWhiteSpace(user.EmailForLogin)
+            ? user.EmailForLogin
+            : "Без email";
+
+        return $"{emailPart} · {user.Role} · {ShortId(user.UserId)}";
+    }
+
+    private static string ShortId(Guid id)
+    {
+        var value = id.ToString("N");
+        return $"{value[..8]}…{value[^4..]}";
+    }
+
+    private static string FormatUtc(DateTime value)
+    {
+        return value.ToUniversalTime().ToString("dd.MM.yyyy HH:mm 'UTC'");
+    }
+
+    private string GetRolePillClass(string role)
+    {
+        if (IsRole(role, Roles.Parent))
+        {
+            return "sg-pill-parent";
+        }
+
+        if (IsRole(role, Roles.Doctor))
+        {
+            return "sg-pill-doctor";
+        }
+
+        if (IsRole(role, Roles.Admin))
+        {
+            return "sg-pill-admin";
+        }
+
+        if (IsRole(role, Roles.SupportAdmin))
+        {
+            return "sg-pill-support";
+        }
+
+        return "sg-pill-neutral";
+    }
+
+    private string GetStatusClass()
+    {
+        return _statusTone switch
+        {
+            StatusTone.Success => "sg-alert-success",
+            StatusTone.Danger => "sg-alert-danger",
+            _ => "sg-alert-info"
+        };
+    }
+
+    private async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(cancellationToken: cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(payload?.Message))
+            {
+                return payload.Message;
+            }
+
+            if (!string.IsNullOrWhiteSpace(payload?.Error))
+            {
+                return payload.Error;
+            }
+        }
+        catch
+        {
+        }
+
+        return $"Ошибка API: {(int)response.StatusCode} {response.ReasonPhrase}";
+    }
+
+    private void ReplaceUser(AdminUserItem updatedUser)
+    {
+        var index = _users.FindIndex(x => x.UserId == updatedUser.UserId);
+
+        if (index >= 0)
+        {
+            _users[index] = updatedUser;
+        }
+        else
+        {
+            _users.Add(updatedUser);
+        }
+
+        _roleDrafts[updatedUser.UserId] = updatedUser.Role;
+    }
+
+    private void NormalizeForms()
+    {
+        if (!string.IsNullOrWhiteSpace(_parentLinkForm.ParentUserId)
+            && !ParentCandidates.Any(x => x.UserId.ToString() == _parentLinkForm.ParentUserId))
+        {
+            _parentLinkForm.ParentUserId = string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_doctorLinkForm.DoctorUserId)
+            && !DoctorCandidates.Any(x => x.UserId.ToString() == _doctorLinkForm.DoctorUserId))
+        {
+            _doctorLinkForm.DoctorUserId = string.Empty;
+        }
+    }
+
+    private void SetStatus(string message, StatusTone tone)
+    {
+        _statusMessage = message;
+        _statusTone = tone;
+    }
+
+    private void ClearStatus()
+    {
+        _statusMessage = null;
+        _statusTone = StatusTone.Info;
+    }
+
+    public void Dispose()
+    {
+        if (_disposeCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
+    }
+
+    private sealed class AdminUserItem
+    {
+        public Guid UserId { get; set; }
+        public string? EmailForLogin { get; set; }
+        public long? TelegramId { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class UpdateUserRoleRequest
+    {
+        public string NewRole { get; set; } = string.Empty;
+    }
+
+    private sealed class CreateParentChildLinkRequest
+    {
+        public Guid ParentUserId { get; set; }
+        public Guid ChildId { get; set; }
+    }
+
+    private sealed class CreateDoctorChildLinkRequest
+    {
+        public Guid DoctorUserId { get; set; }
+        public Guid ChildId { get; set; }
+    }
+
+    private sealed class ParentChildLinkFormModel
+    {
+        public string ParentUserId { get; set; } = string.Empty;
+        public string ChildId { get; set; } = string.Empty;
+    }
+
+    private sealed class DoctorChildLinkFormModel
+    {
+        public string DoctorUserId { get; set; } = string.Empty;
+        public string ChildId { get; set; } = string.Empty;
+    }
+
+    private sealed class ApiErrorResponse
+    {
+        public string? Error { get; set; }
+        public string? Message { get; set; }
+    }
+
+    private enum StatusTone
+    {
+        Info,
+        Success,
+        Danger
+    }
+}

@@ -1,0 +1,362 @@
+﻿.data-table-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+/* Шапка: заголовок + действия */
+.data-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-8);
+}
+
+.data-table-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.data-table-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    flex-shrink: 0;
+}
+
+/* Горизонтальный скролл на узких экранах */
+.data-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+/* Таблица */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 520px; /* предотвращает слишком сильное сжатие */
+}
+
+/* Заголовки */
+.data-table thead tr {
+    border-bottom: 1px solid var(--color-divider);
+}
+
+.data-table th {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    padding: var(--space-8) var(--space-16);
+    text-align: left;
+    white-space: nowrap;
+    background: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Числовые колонки */
+.data-table th.col-number,
+.data-table td.col-number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Колонка действий */
+.data-table th.col-actions,
+.data-table td.col-actions {
+    text-align: right;
+    white-space: nowrap;
+    width: 1%; /* минимальная ширина под контент */
+}
+
+/* Сортируемый заголовок */
+.col-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    transition: color var(--transition);
+    white-space: nowrap;
+}
+
+.col-sort-btn:hover {
+    color: var(--color-text);
+}
+
+.col-sort-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+.sort-icon { font-size: 12px; }
+.sort-icon--neutral { opacity: 0.35; }
+
+/* Активная сортировка */
+.data-table th.col-sorted .col-sort-btn {
+    color: var(--color-primary);
+}
+
+/* Строки данных */
+.data-table tbody tr {
+    border-bottom: 1px solid var(--color-divider);
+    transition: background var(--transition);
+}
+
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover td {
+    background: var(--color-surface-offset);
+}
+
+.data-table td {
+    padding: var(--space-12) var(--space-16);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--color-text);
+    vertical-align: middle;
+}
+
+/* Кликабельная строка */
+.row-clickable {
+    cursor: pointer;
+}
+
+.row-clickable:focus-visible td:first-child {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+.row-clickable:active td {
+    background: var(--color-surface-offset);
+}
+
+/* ── Скелетон ─────────────────────────────────────────────────────────── */
+
+@@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+
+.data-table-skeleton {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    overflow: hidden;
+}
+
+.skeleton-row {
+    display: flex;
+    gap: var(--space-16);
+    padding: var(--space-12) var(--space-16);
+    border-bottom: 1px solid var(--color-divider);
+}
+
+.skeleton-row:last-child { border-bottom: none; }
+
+.skeleton-row--head {
+    background: var(--color-surface);
+    padding: var(--space-8) var(--space-16);
+}
+
+.skeleton {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+        90deg,
+        var(--color-surface-offset)  25%,
+        var(--color-surface)         50%,
+        var(--color-surface-offset)  75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-text {
+    height: 14px;
+    flex: 1;
+}
+
+.skeleton-text--wide { flex: 2; }
+
+/* ── Пустое состояние ─────────────────────────────────────────────────── */
+
+.data-table-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-48) var(--space-24);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.data-table-empty__icon {
+    color: var(--color-text-faint);
+    margin-bottom: var(--space-16);
+}
+
+.data-table-empty__title {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-8);
+    max-width: 36ch;
+}
+
+.data-table-empty__text {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    max-width: 44ch;
+    margin-bottom: var(--space-20);
+}
+
+.data-table-empty__action { margin-top: var(--space-4); }
+
+/* ── Мобильные карточки ( 768px) ─────────────────────────────────────── */
+
+.data-table-cards {
+    display: none;
+    flex-direction: column;
+    gap: var(--space-8);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.data-table-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-16);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--transition);
+}
+
+.data-table-card.row-clickable {
+    cursor: pointer;
+}
+
+.data-table-card.row-clickable:hover {
+    box-shadow: var(--shadow-hero);
+}
+
+.data-table-card.row-clickable:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
+}
+
+.data-table-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-8);
+    margin-top: var(--space-12);
+    padding-top: var(--space-12);
+    border-top: 1px solid var(--color-divider);
+}
+
+@@media (max-width: 767px) {
+    .data-table-scroll { display: none; }
+    .data-table-cards  { display: flex; }
+}
+
+/* ── Пагинация ────────────────────────────────────────────────────────── */
+
+.data-table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    padding: var(--space-8) 0;
+    flex-wrap: wrap;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.pagination-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--color-surface-offset);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.pagination-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.pagination-page {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    min-width: 24px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────── */
+
+@@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+    .data-table tbody tr,
+    .data-table-card,
+    .pagination-btn,
+    .col-sort-btn { transition: none; }
+}

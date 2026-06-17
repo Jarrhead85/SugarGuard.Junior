@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:domain="clr-namespace:SugarGuard.Domain.Enums;assembly=SugarGuard.Domain"
+             x:Class="SugarGuard.Junior.Views.Components.StatusChip"
+             x:Name="this">
+
+    <!-- Компонент статуса сахара. -->
+
+    <Border Style="{StaticResource GlucoseNormalChipContainer}"
+            HorizontalOptions="Start"
+            VerticalOptions="Center">
+
+        <Border.Triggers>
+            <!-- Внимание -->
+            <DataTrigger TargetType="Border"
+                         Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                         Value="{x:Static domain:GlucoseUiState.Attention}">
+                <Setter Property="Style" Value="{StaticResource GlucoseWarningChipContainer}" />
+            </DataTrigger>
+
+            <!-- Критично -->
+            <DataTrigger TargetType="Border"
+                         Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                         Value="{x:Static domain:GlucoseUiState.Critical}">
+                <Setter Property="Style" Value="{StaticResource GlucoseDangerChipContainer}" />
+            </DataTrigger>
+        </Border.Triggers>
+
+        <Label Text="{Binding Source={x:Reference this}, Path=StatusText}"
+               Style="{StaticResource GlucoseNormalChipText}"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               VerticalTextAlignment="Center">
+
+            <Label.Triggers>
+                <!-- Внимание -->
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                             Value="{x:Static domain:GlucoseUiState.Attention}">
+                    <Setter Property="Style" Value="{StaticResource GlucoseWarningChipText}" />
+                </DataTrigger>
+
+                <!-- Критично -->
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding Source={x:Reference this}, Path=UiState}"
+                             Value="{x:Static domain:GlucoseUiState.Critical}">
+                    <Setter Property="Style" Value="{StaticResource GlucoseDangerChipText}" />
+                </DataTrigger>
+            </Label.Triggers>
+        </Label>
+    </Border>
+</ContentView>

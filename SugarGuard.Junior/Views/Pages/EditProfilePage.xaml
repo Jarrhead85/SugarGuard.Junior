@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage x:Class="SugarGuard.Junior.Views.Pages.EditProfilePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:SugarGuard.Junior.ViewModels"
+             xmlns:enums="clr-namespace:SugarGuard.Junior.Models.Enums"
+             x:DataType="viewmodels:EditProfilePageViewModel"
+             Title="Редактирование профиля">
+
+    <ScrollView>
+        <StackLayout Padding="20" Spacing="15">
+
+            <!-- Индикатор загрузки -->
+            <ActivityIndicator IsVisible="{Binding IsLoading}"
+                             IsRunning="{Binding IsLoading}"
+                             Color="{StaticResource Primary}" />
+
+            <!-- Фото ребёнка (TODO-3) -->
+            <Label Text="Фото профиля"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   Margin="0,10,0,5" />
+            <Frame Padding="0"
+                   CornerRadius="80"
+                   WidthRequest="120"
+                   HeightRequest="120"
+                   HorizontalOptions="Center"
+                   HasShadow="False"
+                   IsClippedToBounds="True"
+                   BorderColor="{StaticResource Gray300}">
+                <Image Source="{Binding PhotoUrl}"
+                       Aspect="AspectFill"
+                       HeightRequest="120"
+                       WidthRequest="120" />
+            </Frame>
+            <ActivityIndicator IsVisible="{Binding IsPhotoBusy}"
+                             IsRunning="{Binding IsPhotoBusy}"
+                             Color="{StaticResource Primary}" />
+            <StackLayout Orientation="Horizontal"
+                         HorizontalOptions="Center"
+                         Spacing="10">
+                <Button Text="Выбрать фото"
+                        Command="{Binding PickAndUploadPhotoCommand}"
+                        IsEnabled="{Binding IsPhotoBusy, Converter={StaticResource InvertedBoolConverter}}"
+                        BackgroundColor="{StaticResource Primary}"
+                        TextColor="White" />
+                <Button Text="Удалить"
+                        Command="{Binding RemovePhotoCommand}"
+                        IsEnabled="{Binding HasPhoto}"
+                        IsVisible="{Binding HasPhoto}"
+                        BackgroundColor="{StaticResource Danger}"
+                        TextColor="White" />
+            </StackLayout>
+
+            <!-- Основная информация -->
+            <Label Text="Основная информация" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,10,0,5" />
+
+            <!-- Имя -->
+            <StackLayout>
+                <Label Text="Имя *" />
+                <Entry Text="{Binding FirstName}"
+                       Placeholder="Имя"
+                       PlaceholderColor="#9CA3AF"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- Фамилия -->
+            <StackLayout>
+                <Label Text="Фамилия *" />
+                <Entry Text="{Binding LastName}"
+                       Placeholder="Фамилия"
+                       PlaceholderColor="#9CA3AF"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- Дата рождения -->
+            <StackLayout>
+                <Label Text="Дата рождения *" />
+                <DatePicker Date="{Binding DateOfBirth}" 
+                           Format="dd.MM.yyyy"
+                           IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="{Binding Age, StringFormat='Возраст: {0} лет'}" 
+                       FontSize="12" 
+                       TextColor="{StaticResource Gray600}" />
+            </StackLayout>
+
+            <!-- Физические параметры -->
+            <Label Text="Физические параметры" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,20,0,5" />
+
+            <!-- Вес -->
+            <StackLayout>
+                <Label Text="Вес (кг) *" />
+                <Entry Text="{Binding Weight}" 
+                       Placeholder="Введите вес в килограммах"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- Рост -->
+            <StackLayout>
+                <Label Text="Рост (см) *" />
+                <Entry Text="{Binding Height}" 
+                       Placeholder="Введите рост в сантиметрах"
+                       Keyboard="Numeric"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- ИМТ -->
+            <Label Text="{Binding BMIText}" 
+                   FontSize="14" 
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource Primary}" 
+                   HorizontalOptions="Center" />
+
+            <!-- Информация о диабете -->
+            <Label Text="Информация о диабете" 
+                   FontSize="18" 
+                   FontAttributes="Bold" 
+                   Margin="0,20,0,5" />
+
+            <!-- Тип диабета -->
+            <StackLayout>
+                <Label Text="Тип диабета *" />
+                <Picker Title="Выберите тип диабета"
+                        ItemsSource="{Binding DiabetesTypesList}"
+                        SelectedItem="{Binding DiabetesType}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}">
+                    <Picker.ItemDisplayBinding>
+                        <Binding Path="." Converter="{StaticResource DiabetesTypeConverter}" />
+                    </Picker.ItemDisplayBinding>
+                </Picker>
+            </StackLayout>
+
+            <!-- Дата диагноза -->
+            <StackLayout>
+                <Label Text="Дата диагноза" />
+                <DatePicker Date="{Binding DiagnosisDate}" 
+                           Format="dd.MM.yyyy"
+                           IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- Схема инсулина -->
+            <StackLayout>
+                <Label Text="Схема инсулина" />
+                <Entry Text="{Binding InsulinScheme}" 
+                       Placeholder="Например: Быстрый + длительный"
+                       IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </StackLayout>
+
+            <!-- Ошибки валидации -->
+            <Frame IsVisible="{Binding HasValidationErrors}" 
+                   BackgroundColor="{StaticResource Danger}" 
+                   Padding="10" 
+                   Margin="0,10">
+                <Label Text="{Binding ValidationErrors}" 
+                       TextColor="White" 
+                       FontSize="12" />
+            </Frame>
+
+            <!-- Кнопки -->
+            <StackLayout Orientation="Horizontal" 
+                        HorizontalOptions="FillAndExpand" 
+                        Spacing="10" 
+                        Margin="0,20,0,0">
+                
+                <Button Text="Отмена" 
+                        Command="{Binding CancelCommand}"
+                        BackgroundColor="{StaticResource Gray300}"
+                        TextColor="{StaticResource Gray900}"
+                        HorizontalOptions="FillAndExpand" />
+                
+                <Button Text="Сохранить" 
+                        Command="{Binding SaveCommand}"
+                        BackgroundColor="{StaticResource Primary}"
+                        TextColor="White"
+                        HorizontalOptions="FillAndExpand" />
+            </StackLayout>
+
+        </StackLayout>
+    </ScrollView>
+
+</ContentPage>

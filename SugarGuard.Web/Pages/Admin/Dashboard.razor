@@ -1,0 +1,656 @@
+@* Главная панель администратора *@
+
+@page "/admin"
+@page "/admin/dashboard"
+
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Models.Analytics
+@using AdminUserVm = SugarGuard.Web.ViewModels.AdminUserVm
+@using SyncLogVm = SugarGuard.Web.ViewModels.SyncLogVm
+@using SystemStatsVm = SugarGuard.Web.ViewModels.SystemStatsVm
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@inject SugarGuard.Web.Services.SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Панель администратора — SugarGuard</PageTitle>
+
+@* состояние загрузки *@
+
+@if (_isLoading)
+{
+    <div class="admin-page" aria-busy="true" aria-label="Загрузка панели администратора">
+
+        <div class="admin-page__header">
+            <div>
+                <div class="skeleton skeleton--heading"></div>
+                <div class="skeleton skeleton--text" style="width: 260px;"></div>
+            </div>
+        </div>
+
+        <div class="admin-kpi-grid">
+            @for (int i = 0; i < 6; i++)
+            {
+                <div class="kpi-card kpi-card--skeleton">
+                    <div class="skeleton" style="width:40px;height:40px;border-radius:var(--radius-lg);"></div>
+                    <div style="flex:1">
+                        <div class="skeleton skeleton--text" style="width:80px;"></div>
+                        <div class="skeleton skeleton--text" style="width:50px;height:1.8em;margin-top:var(--space-1);"></div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="admin-grid">
+            <div class="admin-section">
+                <div class="skeleton skeleton--heading" style="width:200px;margin-bottom:var(--space-4);"></div>
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="skeleton skeleton--text"></div>
+                }
+            </div>
+            <div class="admin-section">
+                <div class="skeleton skeleton--heading" style="width:160px;margin-bottom:var(--space-4);"></div>
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="skeleton skeleton--text"></div>
+                }
+            </div>
+        </div>
+
+    </div>
+    return;
+}
+
+@* ОШИБКА ЗАГРУЗКИ *@
+
+@if (_loadError is not null)
+{
+    <div class="admin-page">
+        <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">
+                <svg width="48" height="48" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </span>
+            <h2 class="empty-state__title">Не удалось загрузить данные</h2>
+            <p class="empty-state__text">@_loadError</p>
+            <button class="btn btn--primary" @onclick="LoadDataAsync">
+                Повторить
+            </button>
+        </div>
+    </div>
+    return;
+}
+
+@* ОСНОВНОЕ СОДЕРЖИМОЕ *@
+
+<div class="admin-page">
+
+    @* Шапка *@
+    <div class="admin-page__header">
+        <div>
+            <h1 class="admin-page__title">Панель администратора</h1>
+            <p class="admin-page__subtitle">
+                Обновлено: @_loadedAt.ToString("dd.MM.yyyy HH:mm:ss") UTC
+                @if (_stats is not null)
+                {
+                    <span class="admin-page__server-time">
+                        · Сервер: @_stats.ServerUtcTime.ToString("HH:mm:ss")
+                    </span>
+                }
+            </p>
+        </div>
+
+        <div class="admin-page__actions">
+            @* Индикатор здоровья API *@
+            <div class="health-badge health-badge--@(_healthCss)"
+                 role="status"
+                 aria-label="Состояние API: @(_healthLabel)"
+                 title="GET /api/health">
+                <span class="health-badge__dot" aria-hidden="true"></span>
+                <span class="health-badge__label">@_healthLabel</span>
+            </div>
+
+            <button class="btn btn--ghost btn--icon-left"
+                    @onclick="LoadDataAsync"
+                    disabled="@_isRefreshing"
+                    aria-label="Обновить данные">
+                <svg width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     class="@(_isRefreshing ? "spin" : "")"
+                     aria-hidden="true">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                <span>Обновить</span>
+            </button>
+        </div>
+    </div>
+
+    @* KPI-карточки *@
+    @if (_stats is not null)
+    {
+        <section class="admin-kpi-grid" aria-label="Системные метрики">
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon kpi-card__icon--blue" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Всего пользователей</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.TotalUsers.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon kpi-card__icon--green" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Всего детей</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.TotalChildren.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="kpi-card" role="article">
+                <span class="kpi-card__icon kpi-card__icon--teal" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Измерений в БД</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.TotalMeasurements.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="kpi-card @(_stats.HangfireJobCount > 0 ? "kpi-card--warn" : "")" role="article">
+                <span class="kpi-card__icon kpi-card__icon--orange" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Задачи Hangfire</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.HangfireJobCount.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="kpi-card @(_stats.UnresolvedConflicts > 0 ? "kpi-card--error" : "")" role="article">
+                <span class="kpi-card__icon kpi-card__icon--red" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Конфликты синхр.</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.UnresolvedConflicts.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="kpi-card @(_stats.PendingExportJobs > 0 ? "kpi-card--warn" : "")" role="article">
+                <span class="kpi-card__icon kpi-card__icon--purple" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                </span>
+                <div class="kpi-card__body">
+                    <span class="kpi-card__label">Экспорты в очереди</span>
+                    <span class="kpi-card__value tabular-nums">@_stats.PendingExportJobs.ToString("N0")</span>
+                </div>
+            </div>
+
+        </section>
+    }
+
+    @* Основная сетка: таблицы + быстрые действия *@
+    <div class="admin-grid">
+
+        @* Последние пользователи *@
+        <section class="admin-section" aria-label="Последние пользователи">
+
+            <div class="admin-section__header">
+                <h2 class="admin-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    Пользователи
+                    @if (_users is not null)
+                    {
+                        <span class="badge badge--neutral">@_users.Count</span>
+                    }
+                </h2>
+                <button class="btn btn--ghost btn--sm"
+                        @onclick='() => Navigation.NavigateTo("/admin/users")'>
+                    Все →
+                </button>
+            </div>
+
+            @if (_users is null || _users.Count == 0)
+            {
+                <div class="table-empty">
+                    <svg width="32" height="32" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.5"
+                         aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                    </svg>
+                    <span>Пользователи не найдены</span>
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="admin-table" aria-label="Список последних пользователей">
+                        <thead>
+                            <tr>
+                                <th scope="col">Email</th>
+                                <th scope="col">Роль</th>
+                                <th scope="col">Telegram</th>
+                                <th scope="col">Создан</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in _users.Take(10))
+                            {
+                                <tr>
+                                    <td class="admin-table__email">
+                                        <span title="@user.UserId.ToString("D")">
+                                            @(user.EmailForLogin ?? "—")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="role-badge role-badge--@(user.Role.ToLower())">
+                                            @user.Role
+                                        </span>
+                                    </td>
+                                    <td class="admin-table__mono tabular-nums">
+                                        @(user.TelegramId.HasValue ? user.TelegramId.Value.ToString() : "—")
+                                    </td>
+                                    <td class="admin-table__date tabular-nums">
+                                        @user.CreatedAt.ToString("dd.MM.yyyy")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+        </section>
+
+        @* Лог синхронизации *@
+        <section class="admin-section" aria-label="Лог синхронизации">
+
+            <div class="admin-section__header">
+                <h2 class="admin-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Синхронизация
+                    @if (_syncLogs is not null)
+                    {
+                        var conflicts = _syncLogs.Count(s => s.IsConflict);
+                        if (conflicts > 0)
+                        {
+                            <span class="badge badge--error">@conflicts конфл.</span>
+                        }
+                    }
+                </h2>
+                <button class="btn btn--ghost btn--sm"
+                        @onclick='() => Navigation.NavigateTo("/admin/sync-logs")'>
+                    Все →
+                </button>
+            </div>
+
+            @if (_syncLogs is null || _syncLogs.Count == 0)
+            {
+                <div class="table-empty">
+                    <svg width="32" height="32" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.5"
+                         aria-hidden="true">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    <span>Записи синхронизации отсутствуют</span>
+                </div>
+            }
+            else
+            {
+                <div class="table-wrapper">
+                    <table class="admin-table" aria-label="Лог синхронизации">
+                        <thead>
+                            <tr>
+                                <th scope="col">Тип</th>
+                                <th scope="col">Статус</th>
+                                <th scope="col">Конфликт</th>
+                                <th scope="col">Время</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in _syncLogs.Take(10))
+                            {
+                                <tr class="@(log.IsConflict ? "admin-table__row--conflict" : "")">
+                                    <td class="admin-table__mono admin-table__mono--sm">
+                                        @log.EntityType
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-badge--@(log.Status.ToLower())">
+                                            @log.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (log.IsConflict)
+                                        {
+                                            <span class="conflict-flag" aria-label="Конфликт" title="@log.Error">
+                                                <svg width="14" height="14" viewBox="0 0 24 24"
+                                                     fill="none" stroke="currentColor" stroke-width="2.5"
+                                                     stroke-linecap="round" stroke-linejoin="round"
+                                                     aria-hidden="true">
+                                                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+                                                    <line x1="12" y1="8" x2="12" y2="12"/>
+                                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                                </svg>
+                                                Да
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="admin-table__date tabular-nums">
+                                        @log.CreatedAt.ToString("dd.MM HH:mm")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+        </section>
+
+        @* Быстрые действия *@
+        <section class="admin-section admin-section--actions" aria-label="Быстрые действия">
+
+            <div class="admin-section__header">
+                <h2 class="admin-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                    Быстрые действия
+                </h2>
+            </div>
+
+            <nav class="quick-actions" aria-label="Навигация по разделам администратора">
+
+                <a class="quick-action-card" href="/admin/users" aria-label="Управление пользователями">
+                    <span class="quick-action-card__icon quick-action-card__icon--blue" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </span>
+                    <div class="quick-action-card__body">
+                        <span class="quick-action-card__title">Пользователи</span>
+                        <span class="quick-action-card__desc">Управление ролями и аккаунтами</span>
+                    </div>
+                    <svg class="quick-action-card__arrow" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </a>
+
+                <a class="quick-action-card" href="/admin/sync-logs" aria-label="Просмотр лога синхронизации">
+                    <span class="quick-action-card__icon quick-action-card__icon--teal" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </span>
+                    <div class="quick-action-card__body">
+                        <span class="quick-action-card__title">Синхронизация</span>
+                        <span class="quick-action-card__desc">Конфликты и журнал синхронизации</span>
+                    </div>
+                    @if (_syncLogs?.Any(s => s.IsConflict) is true)
+                    {
+                        <span class="badge badge--error" aria-label="Есть конфликты">!</span>
+                    }
+                    <svg class="quick-action-card__arrow" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </a>
+
+                <a class="quick-action-card" href="/admin/audit" aria-label="Журнал аудита">
+                    <span class="quick-action-card__icon quick-action-card__icon--red" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </span>
+                    <div class="quick-action-card__body">
+                        <span class="quick-action-card__title">Аудит</span>
+                        <span class="quick-action-card__desc">Журнал действий пользователей</span>
+                    </div>
+                    <svg class="quick-action-card__arrow" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </a>
+
+                <a class="quick-action-card" href="/admin/system" aria-label="Системная информация">
+                    <span class="quick-action-card__icon quick-action-card__icon--orange" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                    </span>
+                    <div class="quick-action-card__body">
+                        <span class="quick-action-card__title">Система</span>
+                        <span class="quick-action-card__desc">Статистика сервера и Hangfire</span>
+                    </div>
+                    <svg class="quick-action-card__arrow" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </a>
+
+                <a class="quick-action-card" href="/admin/faq" aria-label="Управление FAQ">
+                    <span class="quick-action-card__icon quick-action-card__icon--purple" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </span>
+                    <div class="quick-action-card__body">
+                        <span class="quick-action-card__title">FAQ</span>
+                        <span class="quick-action-card__desc">Статьи базы знаний</span>
+                    </div>
+                    <svg class="quick-action-card__arrow" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </a>
+
+            </nav>
+
+        </section>
+
+    </div>
+
+</div>
+
+@code {
+    // СОСТОЯНИЕ   
+    private bool _isLoading = true; // Флаг первоначальной загрузки
+
+    private bool _isRefreshing; // Флаг фонового обновления
+
+    private string? _loadError; // Сообщение критической ошибки загрузки
+
+    private DateTime _loadedAt; // Время последнего успешного обновления данных
+
+    private SystemStatsVm? _stats; // Системные метрики
+
+    private HealthVm? _health; // Состояние здоровья API
+
+    private List<AdminUserVm>? _users; // Список последних пользователей
+
+    private List<SyncLogVm>? _syncLogs; // Записи лога синхронизации
+
+    // ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
+    /// <summary>
+    /// CSS-модификатор для индикатора здоровья API
+    /// </summary>
+    private string _healthCss => _health?.Status?.ToLower() switch
+    {
+        "healthy"  => "ok",
+        "degraded" => "warn",
+        _          => "error"
+    };
+
+    /// <summary>
+    /// Текстовая метка здоровья API
+    /// </summary>
+    private string _healthLabel => _health?.Status?.ToLower() switch
+    {
+        "healthy"  => "API: OK",
+        "degraded" => "API: деградация",
+        _          => "API: недоступен"
+    };
+
+    // ЖИЗНЕННЫЙ ЦИКЛ
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    // ЗАГРУЗКА ДАННЫХ
+    /// <summary>
+    /// Параллельно загружает все секции дашборда
+    /// </summary>
+    private async Task LoadDataAsync()
+    {
+        if (_isRefreshing) return;
+
+        _isRefreshing = true;
+        _loadError    = null;
+
+        if (_stats is null && _users is null)
+            _isLoading = true;
+
+        StateHasChanged();
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            var statsTask    = ApiService.GetSystemStatsAsync(cts.Token);
+            var healthTask   = ApiService.GetHealthAsync(cts.Token);
+            var usersTask    = ApiService.GetUsersAsync(cancellationToken: cts.Token);
+            var syncLogsTask = ApiService.GetSyncLogsAsync(cancellationToken: cts.Token);
+
+            await Task.WhenAll(statsTask, healthTask, usersTask, syncLogsTask);
+
+            _stats    = await statsTask;
+            var (health, _, _) = await healthTask;
+            _health   = health;
+            _users    = (await usersTask).ToList();
+            _syncLogs = (await syncLogsTask).ToList();
+
+            _loadedAt = DateTime.UtcNow;
+        }
+        catch (OperationCanceledException)
+        {
+            _loadError = "Превышено время ожидания ответа от сервера (30 с). Проверьте соединение.";
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading    = false;
+            _isRefreshing = false;
+        }
+    }
+}

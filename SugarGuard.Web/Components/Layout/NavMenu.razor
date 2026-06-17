@@ -1,0 +1,312 @@
+﻿@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using SugarGuard.Web.Services
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<nav class="topbar--nav" role="navigation" aria-label="Основная навигация">
+
+    <div class="topbar__left">
+        @* Кнопка мобильного меню *@
+        <button class="topbar__hamburger"
+                type="button"
+                aria-label="@(_mobileOpen ? "Закрыть меню" : "Открыть меню")"
+                aria-expanded="@_mobileOpen"
+                aria-controls="topbar-nav-links"
+                @onclick="ToggleMobileMenu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                @if (_mobileOpen)
+                {
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                }
+                else
+                {
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                }
+            </svg>
+        </button>
+
+        @* Логотип + название *@
+        <a href="/" class="topbar__brand" aria-label="SugarGuard — на главную">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect width="28" height="28" rx="8" fill="var(--sg-primary, #1B8E8B)" />
+                <path d="M14 6C10.5 6 8 9 8 12.5C8 16.5 12 20 14 22C16 20 20 16.5 20 12.5C20 9 17.5 6 14 6Z"
+                      fill="white" opacity="0.95" />
+                <circle cx="14" cy="13" r="2.5" fill="var(--sg-primary, #1B8E8B)" />
+            </svg>
+            <span class="topbar__brand-text">SugarGuard</span>
+        </a>
+    </div>
+
+    @* Основные пункты меню — адаптируются по роли *@
+    <div id="topbar-nav-links"
+         class="topbar__nav @(_mobileOpen ? "topbar__nav--open" : "")"
+         role="menubar">
+
+        <AuthorizeView Roles="Parent">
+            <Authorized>
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/parent/dashboard"
+                         Match="NavLinkMatch.All"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    Дашборд
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/parent/measurements"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    Измерения
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/parent/backpack"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M16 20V8a4 4 0 0 0-8 0v12" />
+                        <rect x="4" y="10" width="16" height="12" rx="2" />
+                    </svg>
+                    Рюкзак
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/parent/settings"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Настройки
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Doctor">
+            <Authorized>
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/doctor/dashboard"
+                         Match="NavLinkMatch.All"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    Дашборд
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/doctor/patients"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    Пациенты
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Admin,SupportAdmin">
+            <Authorized>
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/admin/dashboard"
+                         Match="NavLinkMatch.All"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    Дашборд
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/admin/users"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    Пользователи
+                </NavLink>
+
+                <NavLink class="topbar__link"
+                         ActiveClass="topbar__link--active"
+                         href="/admin/system"
+                         Match="NavLinkMatch.Prefix"
+                         role="menuitem">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <rect x="2" y="3" width="20" height="14" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                    Система
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+
+    @* Правая часть: пользователь + кнопки *@
+    <div class="topbar__right">
+
+        @* Переключатель темы *@
+        <button class="topbar__icon-btn"
+                type="button"
+                aria-label="Переключить тему"
+                @onclick="ToggleThemeAsync">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+        </button>
+
+        @* Блок с именем и ролью текущего пользователя *@
+        <AuthorizeView>
+            <Authorized>
+                <div class="topbar__user" aria-label="Текущий пользователь">
+                    <div class="topbar__avatar" aria-hidden="true">
+                        @_userInitial
+                    </div>
+                    <div class="topbar__user-info">
+                        <span class="topbar__user-name">@_userName</span>
+                        <span class="topbar__user-role">@_userRole</span>
+                    </div>
+                </div>
+
+                <button class="topbar__icon-btn"
+                        type="button"
+                        aria-label="Выйти из аккаунта"
+                        @onclick="LogoutAsync">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                </button>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</nav>
+
+@* Мобильный оверлей *@
+@if (_mobileOpen)
+{
+    <div class="topbar__overlay"
+         aria-hidden="true"
+         @onclick="ToggleMobileMenu">
+    </div>
+}
+
+@code {
+    private bool _mobileOpen;
+    private string _userName = string.Empty;
+    private string _userRole = string.Empty;
+    private string _userInitial = "?";
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            // Читаем имя из claim email или name
+            _userName = user.FindFirst("email")?.Value
+                     ?? user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                     ?? user.Identity.Name
+                     ?? "Пользователь";
+
+            _userRole = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value switch
+            {
+                "Parent" => "Родитель",
+                "Doctor" => "Врач",
+                "Admin" => "Администратор",
+                "SupportAdmin" => "Поддержка",
+                var r => r ?? string.Empty
+            };
+
+            _userInitial = _userName.Length > 0
+                ? _userName[0].ToString().ToUpperInvariant()
+                : "U";
+        }
+    }
+
+    private void ToggleMobileMenu() => _mobileOpen = !_mobileOpen; // Переключает мобильное меню
+
+    /// <summary>
+    /// Переключает светлую/тёмную тему через JS
+    /// </summary>
+    private async Task ToggleThemeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SgTheme.toggle");
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Выход: удаляет токен и перенаправляет на /login
+    /// </summary>
+    private async Task LogoutAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SgTokenStore.remove");
+        }
+        catch (JSException)
+        {
+        }
+
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

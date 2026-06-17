@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Кисти для primary-кнопки -->
+    <!-- Основной фирменный градиент -->
+    <LinearGradientBrush x:Key="PrimaryButtonBackgroundBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#1B8E8B" Offset="0.0" />
+        <GradientStop Color="#2678D9" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <!-- Более плотный градиент для состояния нажатия -->
+    <LinearGradientBrush x:Key="PrimaryButtonPressedBackgroundBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#167B79" Offset="0.0" />
+        <GradientStop Color="#1F69C1" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <!-- 2. Общая база кнопок -->
+    <Style x:Key="ButtonBase" TargetType="Button">
+        <!-- Типографика UI Kit -->
+        <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontAttributes" Value="Bold" />
+
+        <!-- Удобная тач-зона -->
+        <Setter Property="MinimumHeightRequest" Value="52" />
+        <Setter Property="MinimumWidthRequest" Value="52" />
+
+        <!-- Мягкая форма и отступы -->
+        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="Padding" Value="20,14" />
+
+        <!-- Сброс платформенных рамок -->
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="BorderColor" Value="Transparent" />
+
+        <!-- Базовые визуальные параметры -->
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="Scale" Value="1" />
+
+        <!-- Общие состояния -->
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <!-- Состояние нажатия:
+                         легкое визуальное уплотнение без агрессии -->
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="Opacity" Value="0.96" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Hover нужен в основном для desktop -->
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.98" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Disabled должен быть читаемым, но явно неактивным -->
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#8A99A8" Dark="#7D8CA3" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#DCE4EA" Dark="#2C3442" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#C8D3DB" Dark="#3B4657" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- 3. Primary button -->
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+        <Setter Property="TextColor" Value="{StaticResource TextOnPrimary}" />
+        <Setter Property="Background" Value="{StaticResource PrimaryButtonBackgroundBrush}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Background" Value="{StaticResource PrimaryButtonPressedBackgroundBrush}" />
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="Opacity" Value="0.97" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.98" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Background" Value="{x:Null}" />
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#DCE4EA" Dark="#2C3442" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#8A99A8" Dark="#7D8CA3" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderWidth" Value="0" />
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Implicit primary для всех Button без явного Style -->
+    <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}" />
+
+    <!-- 4. Secondary button -->
+    <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+        <Setter Property="Background" Value="{x:Null}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderWidth" Value="1.5" />
+
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#141B8E8B" Dark="#1456D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#141B8E8B" Dark="#1456D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#8A99A8" Dark="#7D8CA3" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#C8D3DB" Dark="#3B4657" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderWidth" Value="1.5" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- 5. Soft button -->
+    <Style x:Key="SoftButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+        <Setter Property="Background" Value="{x:Null}" />
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1F1B8E8B" Dark="#1F56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="BorderColor" Value="Transparent" />
+
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#331B8E8B" Dark="#3356D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#331B8E8B" Dark="#3356D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#DCE4EA" Dark="#2C3442" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#8A99A8" Dark="#7D8CA3" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderWidth" Value="0" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- 6. Ghost button -->
+    <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+        <Setter Property="Background" Value="{x:Null}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#626C71" Dark="#A7A9A9" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="BorderColor" Value="Transparent" />
+        <Setter Property="FontAttributes" Value="None" />
+
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#1416213E" Dark="#14EDF4FF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#1416213E" Dark="#14EDF4FF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#8A99A8" Dark="#7D8CA3" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderWidth" Value="0" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="Opacity" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

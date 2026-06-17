@@ -1,0 +1,70 @@
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <base href="/" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/images/sugarguard-icon.png" />
+
+    @* Preconnect к Fontshare CDN — снижает задержку загрузки шрифтов *@
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+
+    @*
+        Satoshi (body, 300/400/500/600/700) + Clash Display (display, 400/500/600/700)
+        Единый шрифтовой стек с MAUI-приложением — UIKit-v2.
+        Clash Display требует явных весов 400–700, иначе браузер имитирует bold через faux-bold.
+    *@
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700&f[]=clash-display@400,500,600,700&display=swap"
+          rel="stylesheet" />
+
+    @*
+        Порядок загрузки CSS — СТРОГО:
+        1. variables.css  — дизайн-токены (:root, [data-theme])
+        2. sg-tokens.css  — compat-алиасы --sg-* и --primary / --tx и т.д.
+        3. app.css        — base reset, компоненты, layout
+        4. SugarGuard.Web.styles.css — scoped Razor (.razor.css)
+    *@
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/sg-tokens.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="SugarGuard.Web.styles.css" />
+
+    <HeadOutlet />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+
+    @*
+        Порядок JS — СТРОГО:
+        1. Chart.js            — глобальный объект Chart
+        2. annotation-plugin   — расширяет Chart; ДОЛЖЕН идти до glucose-chart.js
+        3. glucose-chart.js    — регистрирует плагин и задаёт window.SugarGuardCharts
+        4. theme.js            — вызывает SugarGuardCharts.applyTheme(); ПОСЛЕ glucose-chart.js
+        5. tokenStore.js       — работа с JWT; не зависит от Chart, но до Blazor
+        6. blazor.web.js       — Blazor runtime; ВСЕГДА последним
+    *@
+
+    <!-- Chart.js 4.x -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+    <!-- Annotation plugin — ОБЯЗАТЕЛЬНО до glucose-chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <!-- Единый модуль графиков SugarGuard -->
+    <script src="js/glucose-chart.js"></script>
+
+    <!-- Тема — ПОСЛЕ glucose-chart.js, чтобы applyTheme() уже существовал -->
+    <script src="js/theme.js"></script>
+
+    <!-- JWT-хранилище -->
+    <script src="js/tokenStore.js"></script>
+
+    <!-- Универсальные Blazor JS Interop хелперы (TODO-3) -->
+    <script src="js/interop.js"></script>
+
+    <!-- Blazor runtime — всегда последним -->
+    <script src="_framework/blazor.web.js"></script>
+</body>
+</html>

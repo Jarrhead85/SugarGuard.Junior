@@ -1,0 +1,235 @@
+@* EventTimeline.razor — Лента событий (измерений глюкозы) на дашборде родителя *@
+
+@using SugarGuard.Web.Services
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@* Состояние загрузки: skeleton-заглушки *@
+@if (IsLoading)
+{
+    <div class="sg-timeline" aria-busy="true" aria-label="Загрузка ленты событий">
+        @* Рендерим SkeletonCount скелетонов — число совпадает с ожидаемым MaxItems,
+           чтобы не было скачка высоты при появлении реальных данных *@
+        @for (int i = 0; i < SkeletonCount; i++)
+        {
+            <div class="sg-timeline__item sg-timeline__item--skeleton" aria-hidden="true">
+                <div class="sg-timeline__dot-wrap">
+                    <div class="sg-skeleton sg-timeline__dot sg-timeline__dot--skeleton"></div>
+                    @if (i < SkeletonCount - 1)
+                    {
+                        <div class="sg-timeline__line"></div>
+                    }
+                </div>
+                <div class="sg-timeline__body">
+                    <div class="sg-timeline__row">
+                        <div class="sg-skeleton sg-skeleton--bar" style="width:60px;height:16px;"></div>
+                        <div class="sg-skeleton sg-skeleton--bar" style="width:80px;height:12px;margin-left:auto;"></div>
+                    </div>
+                    <div class="sg-skeleton sg-skeleton--bar" style="width:120px;height:12px;margin-top:6px;"></div>
+                </div>
+            </div>
+        }
+    </div>
+}
+@* Пустое состояние *@
+else if (DisplayItems.Count == 0)
+{
+    <div class="sg-timeline-empty" role="status">
+        @* Иконка пустого состояния — вертикальная нить с точкой *@
+        <svg class="sg-timeline-empty__icon"
+             viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <line x1="12" y1="2" x2="12" y2="9" />
+            <line x1="12" y1="15" x2="12" y2="22" />
+        </svg>
+        <p class="sg-timeline-empty__text">@EmptyMessage</p>
+    </div>
+}
+@* Основной список событий *@
+else
+{
+    <ol class="sg-timeline"
+        aria-label="Лента измерений глюкозы"
+        role="list">
+
+        @for (int i = 0; i < DisplayItems.Count; i++)
+        {
+            var item = DisplayItems[i];
+            var isLast = (i == DisplayItems.Count - 1);
+
+            @* Вычисляем CSS-модификатор варианта: normal / attention / critical *@
+            var dotVariant = ResolveVariant(item.GlucoseUiState);
+            var rowClass = "sg-timeline__item" + (item.IsCritical ? " sg-timeline__item--critical" : "");
+
+            <li class="@rowClass">
+
+                @* Левая колонка: dot + вертикальная нить *@
+                <div class="sg-timeline__dot-wrap" aria-hidden="true">
+
+                    @* Dot-индикатор окрашивается по статусу глюкозы *@
+                    <div class="@("sg-timeline__dot sg-timeline__dot--" + dotVariant)"
+                         title="@ResolveStatusLabel(item.GlucoseUiState)">
+                        @* Пульс только для критических значений *@
+                        @if (item.IsCritical)
+                        {
+                            <span class="sg-timeline__dot-pulse" aria-hidden="true"></span>
+                        }
+                    </div>
+
+                    @* Вертикальная нить — не рисуем для последнего элемента *@
+                    @if (!isLast)
+                    {
+                        <div class="sg-timeline__line"></div>
+                    }
+                </div>
+
+                @* Тело события *@
+                <div class="sg-timeline__body">
+
+                    @* Строка 1: значение глюкозы + временная метка *@
+                    <div class="sg-timeline__row">
+
+                        @* Значение глюкозы с единицей и семантическим классом *@
+                        <span class="@("sg-timeline__glucose sg-timeline__glucose--" + dotVariant)"
+                              aria-label="@($"Глюкоза {item.GlucoseValue:F1} ммоль/л, статус: {ResolveStatusLabel(item.GlucoseUiState)}")">
+                            @item.GlucoseValue.ToString("F1")
+                            <span class="sg-timeline__unit">ммоль/л</span>
+                        </span>
+
+                        @* Временная метка — скрываем на очень узких экранах через CSS *@
+                        <time class="sg-timeline__time"
+                              datetime="@item.MeasurementTime.ToString("O")"
+                              title="@item.MeasurementTime.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                            @FormatTime(item.MeasurementTime)
+                        </time>
+                    </div>
+
+                    @* Строка 2: метка статуса + заметка (если есть) *@
+                    <div class="sg-timeline__row sg-timeline__row--meta">
+
+                        @* Бейдж статуса — короткий текст типа «Норма», «Внимание», «Критично» *@
+                        <span class="@("sg-timeline__badge sg-timeline__badge--" + dotVariant)">
+                            @ResolveStatusLabel(item.GlucoseUiState)
+                        </span>
+
+                        @* Заметка из поля Notes (опционально) *@
+                        @if (!string.IsNullOrWhiteSpace(item.Notes))
+                        {
+                            <span class="sg-timeline__note" title="@item.Notes">
+                                @TruncateNote(item.Notes, 40)
+                            </span>
+                        }
+                    </div>
+                </div>
+            </li>
+        }
+    </ol>
+
+    @* Ссылка «Показать все» — если записей больше, чем MaxItems *@
+    @if (Items != null && Items.Count > MaxItems && !string.IsNullOrWhiteSpace(AllItemsHref))
+    {
+        <div class="sg-timeline__footer">
+            <a href="@AllItemsHref" class="sg-timeline__show-all">
+                Показать все (@Items.Count)
+                <svg width="14" height="14" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" />
+                </svg>
+            </a>
+        </div>
+    }
+}
+
+@code {
+    // Параметры компонента 
+    [Parameter]
+    public IList<MeasurementVm>? Items { get; set; } // Список элементов истории измерений
+
+    [Parameter]
+    public bool IsLoading { get; set; } // Признак загрузки данных
+
+    [Parameter]
+    public int MaxItems { get; set; } = 10; // Максимальное число строк, которые отображаются в ленте
+
+    [Parameter]
+    public string EmptyMessage { get; set; } =
+        "Измерений пока нет. Данные появятся после первого замера в приложении."; // Текст для пустого состояния (нет данных)
+
+    [Parameter]
+    public string? AllItemsHref { get; set; } // URL страницы полной истории
+
+    [Parameter]
+    public int SkeletonCount { get; set; } = 5; // Число skeleton-строк при IsLoading=true
+
+    // Вычисляемые свойства
+    /// <summary>
+    /// Срез Items, ограниченный MaxItems
+    /// </summary>
+    private IList<MeasurementVm> DisplayItems =>
+        Items is { Count: > 0 }
+            ? Items.Take(MaxItems).ToList()
+            : new List<MeasurementVm>();
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Переводит строковый GlucoseUiState в CSS-модификатор dot-элемента.
+    /// </summary>
+    private static string ResolveVariant(string? uiState) =>
+        uiState?.ToLowerInvariant() switch
+        {
+            "critical" => "critical",
+            "attention" => "warning",
+            "normal" => "normal",
+            _ => "normal"
+        };
+
+    /// <summary>
+    /// Возвращает человекочитаемую метку статуса на русском языке
+    /// </summary>
+    private static string ResolveStatusLabel(string? uiState) =>
+        uiState?.ToLowerInvariant() switch
+        {
+            "critical" => "Критично",
+            "attention" => "Внимание",
+            "normal" => "Норма",
+            _ => "Норма"
+        };
+
+    /// <summary>
+    /// Форматирует временную метку в компактный человекочитаемый вид
+    /// </summary>
+    private static string FormatTime(DateTime utcTime)
+    {
+        var local = utcTime.ToLocalTime();
+        var today = DateTime.Today;
+
+        if (local.Date == today)
+            return local.ToString("HH:mm");
+
+        if (local.Date == today.AddDays(-1))
+            return $"Вчера {local:HH:mm}";
+
+        return local.ToString("dd.MM HH:mm");
+    }
+
+    /// <summary>
+    /// Обрезает текст заметки до maxLength символов с добавлением «…»
+    /// </summary>
+    private static string TruncateNote(string notes, int maxLength)
+    {
+        if (notes.Length <= maxLength)
+            return notes;
+
+        // Обрезаем по словам, чтобы не разрывать слово посередине
+        var truncated = notes[..maxLength].TrimEnd();
+        var lastSpace = truncated.LastIndexOf(' ');
+        if (lastSpace > maxLength / 2)
+            truncated = truncated[..lastSpace];
+
+        return truncated + "…";
+    }
+}

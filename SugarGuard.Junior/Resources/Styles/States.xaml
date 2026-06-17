@@ -1,0 +1,693 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- 1. Локальные тени и свечения состояний -->
+    <!-- Мягкое focus-свечение для кнопок и интерактивных поверхностей -->
+    <Shadow x:Key="StateFocusGlow"
+            Brush="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}"
+            Offset="0,0"
+            Radius="18"
+            Opacity="0.18" />
+
+    <!-- Свечение для pending-состояния: запись есть, но отправка еще идет -->
+    <Shadow x:Key="StatePendingGlow"
+            Brush="{AppThemeBinding Light=#2678D9, Dark=#6DAEFF}"
+            Offset="0,10"
+            Radius="28"
+            Opacity="0.16" />
+
+    <!-- Свечение для успешного завершения -->
+    <Shadow x:Key="StateSuccessGlow"
+            Brush="{AppThemeBinding Light=#37A563, Dark=#62D889}"
+            Offset="0,10"
+            Radius="28"
+            Opacity="0.14" />
+
+    <!-- Свечение для ошибки/конфликта синхронизации -->
+    <Shadow x:Key="StateFailedGlow"
+            Brush="{AppThemeBinding Light=#DB5967, Dark=#FF7A8B}"
+            Offset="0,10"
+            Radius="28"
+            Opacity="0.16" />
+
+    <!-- Офлайн-состояние делаем спокойным, без тревожного эффекта -->
+    <Shadow x:Key="StateOfflineGlow"
+            Brush="{AppThemeBinding Light=#16213E, Dark=#000000}"
+            Offset="0,10"
+            Radius="24"
+            Opacity="0.08" />
+
+    <!-- 2. Стили состояний для кнопок -->
+    <Style x:Key="ButtonStates" TargetType="Button">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="TranslationY" Value="0" />
+                            <Setter Property="Shadow" Value="{x:Null}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Для desktop / web-like окружения -->
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.98" />
+                            <Setter Property="Scale" Value="1.01" />
+                            <Setter Property="TranslationY" Value="-1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Небольшой тактильный отклик при нажатии -->
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.96" />
+                            <Setter Property="Scale" Value="0.985" />
+                            <Setter Property="TranslationY" Value="1" />
+                            <Setter Property="Shadow" Value="{x:Null}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Focus важен для клавиатурной навигации и desktop -->
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BorderWidth" Value="1.5" />
+                            <Setter Property="BorderColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#661B8E8B" Dark="#8056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Shadow" Value="{StaticResource StateFocusGlow}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Disabled не должен выглядеть сломанным, только недоступным -->
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Shadow" Value="{x:Null}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!--
+        Состояния для icon-only кнопок:
+        - refresh;
+        - retry;
+        - открыть фильтр;
+        - быстрые действия в карточках.
+    -->
+    <Style x:Key="ImageButtonStates" TargetType="ImageButton">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1.04" />
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#121B8E8B" Dark="#1456D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.92" />
+                            <Setter Property="Scale" Value="0.96" />
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#1C1B8E8B" Dark="#2056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#161B8E8B" Dark="#1A56D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Shadow" Value="{StaticResource StateFocusGlow}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.4" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="Shadow" Value="{x:Null}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- 3. Состояния для полей ввода -->
+    <!--
+        Entry используется в:
+        - вводе сахара;
+        - логине;
+        - формах настроек;
+        - кодах привязки.
+    -->
+    <Style x:Key="EntryStates" TargetType="Entry">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#081B8E8B" Dark="#1056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <!-- Focus нужен для активного ввода измерения -->
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#101B8E8B" Dark="#1656D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#16213E" Dark="#FFFFFF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#96A2B8" Dark="#6F7D99" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="PlaceholderColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#AAB5C6" Dark="#5E6C87" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Editor нужен для заметок к измерению, комментариев и пояснений. -->
+    <Style x:Key="EditorStates" TargetType="Editor">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#081B8E8B" Dark="#1056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#101B8E8B" Dark="#1656D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#96A2B8" Dark="#6F7D99" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- SearchBar нужен для истории, справки, экспорта и списков. -->
+    <Style x:Key="SearchBarStates" TargetType="SearchBar">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#081B8E8B" Dark="#1056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#101B8E8B" Dark="#1656D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#16213E" Dark="#FFFFFF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="TextColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#96A2B8" Dark="#6F7D99" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="PlaceholderColor">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#AAB5C6" Dark="#5E6C87" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- Интерактивные поверхности для tappable-card / list-row / quick-action. -->
+    <Style x:Key="InteractiveSurfaceStates" TargetType="Border">
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Scale" Value="1" />
+                            <Setter Property="TranslationY" Value="0" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="1.01" />
+                            <Setter Property="TranslationY" Value="-1" />
+                            <Setter Property="Stroke">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#261B8E8B" Dark="#3056D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Scale" Value="0.99" />
+                            <Setter Property="TranslationY" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="Stroke">
+                                <Setter.Value>
+                                    <AppThemeBinding Light="#401B8E8B" Dark="#4A56D0BF" />
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Shadow" Value="{StaticResource StateFocusGlow}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="Shadow" Value="{x:Null}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <!-- 4. Loading-паттерны -->
+    <!-- Индикатор для async-сценариев -->
+    <Style x:Key="LoadingIndicator" TargetType="ActivityIndicator">
+        <Setter Property="Color">
+            <Setter.Value>
+                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="WidthRequest" Value="32" />
+        <Setter Property="HeightRequest" Value="32" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="IsRunning" Value="True" />
+    </Style>
+
+    <!-- Полупрозрачный overlay. -->
+    <Style x:Key="LoadingOverlay" TargetType="Border">
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#CCFFFFFF" Dark="#CC0F1624" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{AppThemeBinding Light=#121F3A, Dark=#000000}"
+                        Offset="0,14"
+                        Radius="28"
+                        Opacity="0.12" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Карточка внутри overlay для понятного текста -->
+    <Style x:Key="LoadingPanel" TargetType="Border">
+        <Setter Property="StrokeShape" Value="RoundRectangle 24" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F2FFFFFF" Dark="#E0172437" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1816213E" Dark="#18EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LoadingTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#16213E" Dark="#EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LoadingSubtitle" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#667694" Dark="#9EAED0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 5. Баннеры состояний SugarGuard -->
+    <Style x:Key="StateBannerBase" TargetType="Border">
+        <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#F2FFFFFF" Dark="#D6172437" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#1816213E" Dark="#18EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Заголовок баннера -->
+    <Style x:Key="StateBannerTitle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#16213E" Dark="#EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Дополнительное пояснение -->
+    <Style x:Key="StateBannerText" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#667694" Dark="#9EAED0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncPendingBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#182678D9" Dark="#202678D9" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#302678D9" Dark="#402678D9" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StatePendingGlow}" />
+    </Style>
+
+    <Style x:Key="SyncSuccessBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1837A563" Dark="#2062D889" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#3037A563" Dark="#4062D889" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StateSuccessGlow}" />
+    </Style>
+
+    <Style x:Key="SyncFailedBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#18DB5967" Dark="#22FF7A8B" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#30DB5967" Dark="#44FF7A8B" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StateFailedGlow}" />
+    </Style>
+
+    <Style x:Key="OfflineBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#14E9EFF9" Dark="#1A10192A" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#2416213E" Dark="#24576A8F" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StateOfflineGlow}" />
+    </Style>
+
+    <!-- Баннер конфликта синхронизации (оранжевый) -->
+    <Style x:Key="SyncConflictBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#18E3A32B" Dark="#22F4BC56" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Stroke">
+            <Setter.Value>
+                <AppThemeBinding Light="#30E3A32B" Dark="#44F4BC56" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow" Value="{StaticResource StateFailedGlow}" />
+    </Style>
+
+    <!-- Баннер ограниченного режима (предупреждение) -->
+    <Style x:Key="LimitedModeBanner" TargetType="Border" BasedOn="{StaticResource StateBannerBase}">
+        <Setter Property="BackgroundColor" Value="{DynamicResource GlucoseWarningBadgeBg}" />
+        <Setter Property="Stroke" Value="{DynamicResource GlucoseWarningColor}" />
+        <Setter Property="Shadow" Value="{StaticResource StateFailedGlow}" />
+    </Style>
+
+    <Style x:Key="SyncConflictTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#B87D1E" Dark="#FFE0A0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncConflictText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#9E701F" Dark="#F0D4A0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LimitedModeTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#B87D1E" Dark="#FFE0A0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="LimitedModeText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#9E701F" Dark="#F0D4A0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 6. Специализированные тексты для баннеров -->
+    <!-- Pending: пользователь должен понимать, что данные не потеряны -->
+    <Style x:Key="SyncPendingTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#1D5DAA" Dark="#DCEBFF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncPendingText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#3C6BA8" Dark="#B8CBEC" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Success: спокойное позитивное подтверждение -->
+    <Style x:Key="SyncSuccessTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#216E43" Dark="#DFFFEA" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncSuccessText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#317954" Dark="#C8F6D7" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Failed: ошибка есть, но текст должен вести к действию -->
+    <Style x:Key="SyncFailedTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#A43846" Dark="#FFE5E8" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SyncFailedText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#A95C67" Dark="#FFCCD4" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Offline: информируем спокойно, без красной тревоги -->
+    <Style x:Key="OfflineTitle" TargetType="Label" BasedOn="{StaticResource StateBannerTitle}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#16213E" Dark="#EDF4FF" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="OfflineText" TargetType="Label" BasedOn="{StaticResource StateBannerText}">
+        <Setter Property="TextColor">
+            <Setter.Value>
+                <AppThemeBinding Light="#667694" Dark="#9EAED0" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,33 @@
+@inherits LayoutComponentBase
+@inject JwtAuthStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="shell admin-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <span class="sidebar-brand__title">SugarGuard</span>
+            <span class="sidebar-brand__subtitle">Admin Portal</span>
+        </div>
+        <AdminNavMenu />
+    </aside>
+    <div class="main-column">
+        <header class="topbar">
+            <div class="brand-wrap">
+                <div class="brand">Administration</div>
+                <div class="brand-subtitle">Users, roles and system operations</div>
+            </div>
+            <button class="ghost-link" @onclick="SignOutAsync" aria-label="Sign out from admin portal">Sign Out</button>
+        </header>
+        <main class="content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private async Task SignOutAsync()
+    {
+        await AuthStateProvider.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+}

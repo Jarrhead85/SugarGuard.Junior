@@ -1,0 +1,469 @@
+﻿@namespace SugarGuard.Web.Components.Shared
+
+<div class="sg-stat-card sg-stat-card--@_statusClass sg-stat-card--@_variantClass @(IsClickable ? "sg-stat-card--clickable" : "")"
+     role="@(IsClickable ? "button" : "article")"
+     tabindex="@(IsClickable ? 0 : null)"
+     aria-label="@_ariaLabel"
+     @onclick="HandleClickAsync"
+     @onkeydown="HandleKeyDownAsync">
+
+    @* Шапка: иконка + метка + точка синхронизации *@
+    <div class="sg-stat-card__header">
+        @if (Icon is not null)
+        {
+            <span class="sg-stat-card__icon sg-stat-card__icon--@_statusClass" aria-hidden="true">
+                @Icon
+            </span>
+        }
+        <span class="sg-stat-card__label">@Label</span>
+
+        @if (IsPendingSync)
+        {
+            <span class="sg-stat-card__sync-dot"
+                  role="status"
+                  aria-label="Ожидает синхронизации"
+                  title="Ожидает синхронизации">
+            </span>
+        }
+    </div>
+
+    @* Основное значение *@
+    <div class="sg-stat-card__value-row">
+        <span class="sg-stat-card__value" aria-label="@Value @Unit">
+            @Value
+        </span>
+        @if (!string.IsNullOrWhiteSpace(Unit))
+        {
+            <span class="sg-stat-card__unit" aria-hidden="true">@Unit</span>
+        }
+    </div>
+
+    @* Дельта *@
+    @if (!string.IsNullOrWhiteSpace(Delta))
+    {
+        <div class="sg-stat-card__delta sg-stat-card__delta--@_deltaClass"
+             aria-label="@_deltaAriaLabel">
+            <span class="sg-stat-card__delta-arrow" aria-hidden="true">
+                @if (_deltaDirection == DeltaDir.Up)
+                {
+                    <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"
+                         aria-hidden="true" width="10" height="10">
+                        <path d="M6 10V2M6 2L2 6M6 2L10 6"
+                              stroke="currentColor" stroke-width="1.8"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                }
+                else if (_deltaDirection == DeltaDir.Down)
+                {
+                    <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"
+                         aria-hidden="true" width="10" height="10">
+                        <path d="M6 2V10M6 10L2 6M6 10L10 6"
+                              stroke="currentColor" stroke-width="1.8"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                }
+                else
+                {
+                    <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"
+                         aria-hidden="true" width="10" height="10">
+                        <line x1="2" y1="6" x2="10" y2="6"
+                              stroke="currentColor" stroke-width="1.8"
+                              stroke-linecap="round"/>
+                    </svg>
+                }
+            </span>
+            <span class="sg-stat-card__delta-text">@Delta</span>
+            @if (!string.IsNullOrWhiteSpace(DeltaLabel))
+            {
+                <span class="sg-stat-card__delta-label">@DeltaLabel</span>
+            }
+        </div>
+    }
+
+    @* Тренд *@
+    @if (Trend.HasValue)
+    {
+        <span class="sg-stat-trend sg-stat-trend--@(Trend > 0 ? "up" : "down")">
+            @(Trend > 0 ? "↑" : "↓") @Math.Abs(Trend.Value)%
+        </span>
+    }
+
+    @* Подпись *@
+    @if (!string.IsNullOrWhiteSpace(Subtitle))
+    {
+        <p class="sg-stat-card__subtitle">@Subtitle</p>
+    }
+
+    @* Произвольный контент *@
+    @if (ChildContent is not null)
+    {
+        <div class="sg-stat-card__extra">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    // Направление дельты   
+    public enum DeltaDirection { Up, Down, Neutral } // Направление изменения дельты
+
+    private enum DeltaDir { Up, Down, Neutral } // Приватный алиас, чтобы не конфликтовать с внешним enum
+
+    // Параметры    
+    [Parameter] public string Variant { get; set; } = "default"; // Визуальный вариант карточки
+
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty; // Метка карточки
+
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty; // Основное значение для отображения
+
+    [Parameter] public string? Unit { get; set; } // Единица измерения, выводится рядом
+
+    [Parameter] public string? Delta { get; set; }// Строка дельты 
+
+    [Parameter] public string? DeltaLabel { get; set; } // Подпись под дельтой
+
+    [Parameter] public DeltaDirection? Direction { get; set; }// Явное направление стрелки дельты
+
+    [Parameter] public string? Subtitle { get; set; } // Дополнительный текст под значением
+
+    [Parameter] public string Status { get; set; } = "neutral"; // Статус карточки
+
+    [Parameter] public RenderFragment? Icon { get; set; } // Иконка в шапке
+
+    [Parameter] public bool IsPendingSync { get; set; } // Показывать точку ожидания синхронизации
+
+    [Parameter] public double? Trend { get; set; } // Тренд в процентах
+
+    [Parameter] public bool IsClickable { get; set; } // Делает карточку кликабельной
+
+    [Parameter] public EventCallback OnClick { get; set; } // Callback при клике
+
+    [Parameter] public RenderFragment? ChildContent { get; set; } // Произвольный контент в нижней части карточки
+
+    // Вычисляемые свойства 
+    /// <summary>
+    /// CSS-модификатор варианта
+    /// </summary>
+    private string _variantClass => Variant?.ToLowerInvariant() switch
+    {
+        "glucose" => "glucose",
+        "kpi" => "kpi",
+        "metric" or "default" => "default",
+        _ => "default"
+    };
+
+    /// <summary>
+    /// CSS-модификатор статуса
+    /// </summary>
+    private string _statusClass => Status?.ToLowerInvariant() switch
+    {
+        "safe"    => "safe",
+        "warning" => "warning",
+        "danger"  => "danger",
+        _         => "neutral"
+    };
+
+    /// <summary>
+    /// Направление дельты, вычисленное из знака строки или явного параметра
+    /// </summary>
+    private DeltaDir _deltaDirection
+    {
+        get
+        {
+            if (Direction.HasValue)
+                return Direction.Value switch
+                {
+                    DeltaDirection.Up      => DeltaDir.Up,
+                    DeltaDirection.Down    => DeltaDir.Down,
+                    _                      => DeltaDir.Neutral
+                };
+
+            if (string.IsNullOrWhiteSpace(Delta)) return DeltaDir.Neutral;
+            var trimmed = Delta.TrimStart();
+            if (trimmed.StartsWith('+')) return DeltaDir.Up;
+            if (trimmed.StartsWith('-')) return DeltaDir.Down;
+            return DeltaDir.Neutral;
+        }
+    }
+
+    /// <summary>
+    /// CSS-модификатор для блока дельты
+    /// </summary>
+    private string _deltaClass => _deltaDirection switch
+    {
+        DeltaDir.Up   => "up",
+        DeltaDir.Down => "down",
+        _             => "neutral"
+    };
+
+    /// <summary>
+    /// aria-label для дельты
+    /// </summary>
+    private string _deltaAriaLabel
+    {
+        get
+        {
+            var dir = _deltaDirection switch
+            {
+                DeltaDir.Up   => "рост",
+                DeltaDir.Down => "снижение",
+                _             => "без изменений"
+            };
+            return string.IsNullOrWhiteSpace(DeltaLabel)
+                ? $"Изменение: {Delta} ({dir})"
+                : $"Изменение: {Delta} ({dir}), {DeltaLabel}";
+        }
+    }
+
+    /// <summary>
+    /// aria-label всей карточки
+    /// </summary>
+    private string _ariaLabel
+    {
+        get
+        {
+            var base_ = $"{Label}: {Value}{(string.IsNullOrWhiteSpace(Unit) ? "" : " " + Unit)}";
+            if (!string.IsNullOrWhiteSpace(Delta))
+                base_ += $", изменение {Delta}";
+            if (!string.IsNullOrWhiteSpace(Subtitle))
+                base_ += $", {Subtitle}";
+            return base_;
+        }
+    }
+
+    // Обработчики 
+    /// <summary>
+    /// Обрабатывает клик — только если карточка кликабельна
+    /// </summary>
+    private async Task HandleClickAsync()
+    {
+        if (!IsClickable) return;
+        if (OnClick.HasDelegate)
+            await OnClick.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Обрабатывает Enter/Space для keyboard-навигации
+    /// </summary>
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (!IsClickable) return;
+        if (e.Key is "Enter" or " ")
+            await HandleClickAsync();
+    }
+}
+
+<style>
+    /* Появление */
+    @@keyframes sg-stat-appear {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0);   }
+    }
+
+    /* Базовая карточка */
+    .sg-stat-card {
+        display:          flex;
+        flex-direction:   column;
+        gap:              var(--space-2, 0.5rem);
+        padding:          clamp(0.875rem, 2vw, 1.25rem);
+        background-color: var(--color-surface, #ffffff);
+        border-radius:    var(--radius-lg, 24px);
+        border:           1px solid var(--color-border, rgba(22,33,62,0.10));
+        box-shadow:       var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+        transition:       box-shadow  var(--transition-interactive, 180ms cubic-bezier(0.16,1,0.3,1)),
+                          transform   var(--transition-interactive, 180ms cubic-bezier(0.16,1,0.3,1)),
+                          background-color var(--transition-interactive, 180ms cubic-bezier(0.16,1,0.3,1));
+        animation:        sg-stat-appear 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    /* Кликабельная карточка */
+    .sg-stat-card--clickable {
+        cursor: pointer;
+    }
+    .sg-stat-card--clickable:hover {
+        box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+        transform:  translateY(-1px);
+    }
+    .sg-stat-card--clickable:active {
+        transform:  translateY(0);
+        box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06));
+    }
+    .sg-stat-card--clickable:focus-visible {
+        outline:        2px solid var(--color-primary, #1B8E8B);
+        outline-offset: 3px;
+    }
+
+    /* Статусные варианты */
+    .sg-stat-card--safe {
+        border-color: rgba(55, 165, 99, 0.25);
+        background-color: color-mix(in oklab, var(--color-glucose-normal, #37A563) 5%, var(--color-surface));
+    }
+    .sg-stat-card--warning {
+        border-color: rgba(227, 163, 43, 0.28);
+        background-color: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 5%, var(--color-surface));
+    }
+    .sg-stat-card--danger {
+        border-color: rgba(219, 89, 103, 0.28);
+        background-color: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 5%, var(--color-surface));
+    }
+    .sg-stat-card--neutral {
+        border-color: var(--color-border, rgba(22,33,62,0.10));
+    }
+
+    /* Glucose variant */
+    .sg-stat-card--glucose {
+        background: linear-gradient(135deg, var(--color-primary, #1B8E8B) 0%, #146b69 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+    .sg-stat-card--glucose .sg-stat-card__label,
+    .sg-stat-card--glucose .sg-stat-card__subtitle,
+    .sg-stat-card--glucose .sg-stat-card__unit,
+    .sg-stat-card--glucose .sg-stat-card__delta-label {
+        color: rgba(255,255,255,0.7);
+    }
+    .sg-stat-card--glucose .sg-stat-card__value {
+        color: #fff;
+    }
+    .sg-stat-card--glucose .sg-stat-card__delta--up,
+    .sg-stat-card--glucose .sg-stat-card__delta--down,
+    .sg-stat-card--glucose .sg-stat-card__delta--neutral {
+        color: rgba(255,255,255,0.9);
+    }
+    .sg-stat-card--glucose .sg-stat-trend--up,
+    .sg-stat-card--glucose .sg-stat-trend--down {
+        color: rgba(255,255,255,0.85);
+    }
+    .sg-stat-card--glucose .sg-stat-card__icon--neutral {
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+    }
+
+    /* Шапка */
+    .sg-stat-card__header {
+        display:     flex;
+        align-items: center;
+        gap:         var(--space-2, 0.5rem);
+    }
+
+    .sg-stat-card__label {
+        font-size:      var(--text-xs, 0.75rem);
+        font-weight:    700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color:          var(--color-text-faint, #bab9b4);
+        line-height:    1;
+        flex:           1;
+        min-width:      0;
+    }
+
+    /* Иконка */
+    .sg-stat-card__icon {
+        display:         flex;
+        align-items:     center;
+        justify-content: center;
+        width:           32px;
+        height:          32px;
+        border-radius:   var(--radius-md, 18px);
+        flex-shrink:     0;
+    }
+    .sg-stat-card__icon svg { width: 16px; height: 16px; }
+
+    .sg-stat-card__icon--safe    { background: color-mix(in oklab, var(--color-glucose-normal,  #37A563) 12%, transparent); color: var(--color-glucose-normal,  #37A563); }
+    .sg-stat-card__icon--warning { background: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 12%, transparent); color: var(--color-glucose-warning, #E3A32B); }
+    .sg-stat-card__icon--danger  { background: color-mix(in oklab, var(--color-glucose-danger,  #DB5967) 12%, transparent); color: var(--color-glucose-danger,  #DB5967); }
+    .sg-stat-card__icon--neutral { background: var(--color-surface-offset, #f3f0ec); color: var(--color-text-muted, #7a7974); }
+
+    /* Точка синхронизации */
+    .sg-stat-card__sync-dot {
+        width:         8px;
+        height:        8px;
+        border-radius: var(--radius-full, 9999px);
+        background:    var(--color-primary, #1B8E8B);
+        flex-shrink:   0;
+        animation:     sg-sync-pulse 2s ease-in-out infinite;
+    }
+    @@keyframes sg-sync-pulse {
+        0%, 100% { opacity: 1;   transform: scale(1);   }
+        50%      { opacity: 0.5; transform: scale(1.25); }
+    }
+
+    /* Значение */
+    .sg-stat-card__value-row {
+        display:     flex;
+        align-items: baseline;
+        gap:         var(--space-1, 0.25rem);
+        flex-wrap:   wrap;
+    }
+
+    .sg-stat-card__value {
+        font-family:         var(--font-display, 'Clash Display', sans-serif);
+        font-size:           clamp(1.75rem, 3vw, 2.25rem);
+        font-weight:         700;
+        line-height:         1;
+        color:               var(--color-text, #28251d);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sg-stat-card__unit {
+        font-size:   var(--text-sm, 0.875rem);
+        font-weight: 400;
+        color:       var(--color-text-muted, #7a7974);
+        line-height: 1;
+    }
+
+    /* Дельта */
+    .sg-stat-card__delta {
+        display:     flex;
+        align-items: center;
+        gap:         var(--space-1, 0.25rem);
+        font-size:   var(--text-xs, 0.75rem);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sg-stat-card__delta-arrow {
+        display:    inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .sg-stat-card__delta-label {
+        color:      var(--color-text-faint, #bab9b4);
+        font-weight: 400;
+        margin-left: var(--space-1, 0.25rem);
+    }
+
+    .sg-stat-card__delta--up      { color: var(--color-glucose-normal,  #37A563); }
+    .sg-stat-card__delta--down    { color: var(--color-glucose-danger,  #DB5967); }
+    .sg-stat-card__delta--neutral { color: var(--color-text-muted, #7a7974); }
+
+    /* Тренд */
+    .sg-stat-trend {
+        font-size:   var(--text-xs, 0.75rem);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+    .sg-stat-trend--up   { color: var(--color-glucose-normal, #37A563); }
+    .sg-stat-trend--down { color: var(--color-glucose-danger,  #DB5967); }
+
+    /* Подпись */
+    .sg-stat-card__subtitle {
+        font-size:   var(--text-xs, 0.75rem);
+        color:       var(--color-text-muted, #7a7974);
+        margin:      0;
+        line-height: 1.5;
+    }
+
+    /* Дополнительный контент */
+    .sg-stat-card__extra {
+        margin-top: var(--space-2, 0.5rem);
+    }
+
+    /* Reduced motion */
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-stat-card,
+        .sg-stat-card--clickable { animation: none; transition: none; }
+        .sg-stat-card__sync-dot  { animation: none; }
+    }
+</style>

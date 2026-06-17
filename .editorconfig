@@ -1,0 +1,27 @@
+# SugarGuard.Junior - code style and consistency
+root = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Prefer collection initializer
+dotnet_style_prefer_collection_initializer = true:suggestion
+
+# Prefer pattern matching
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_prefer_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Prefer var when type is obvious
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+
+# Prefer expression-bodied members
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+
+# Nullable reference types
+nullable = enable

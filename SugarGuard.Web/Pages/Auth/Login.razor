@@ -1,0 +1,477 @@
+﻿@page "/login"
+@rendermode InteractiveServer
+@layout SugarGuard.Web.Components.Layout.EmptyLayout
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using SugarGuard.Shared.Constants
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.Utilities
+
+@attribute [AllowAnonymous]
+
+@inject JwtAuthStateProvider AuthStateProvider
+@inject IAuthApiClient AuthApi
+@inject NavigationManager Navigation
+
+<PageTitle>Войти — SugarGuard</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card card">
+
+        @* Логотип *@
+        <div class="auth-logo">
+            <img class="sg-auth-logo-image" src="/images/sugarguard-icon.png" alt="" />
+        </div>
+
+        <h1 class="auth-title">Войти в SugarGuard</h1>
+
+        @* Сообщение об ошибке *@
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="auth-error" role="alert">@_errorMessage</div>
+        }
+
+        @* Предупреждение о превышении лимита запросов *@
+        @if (_isRateLimited)
+        {
+            <div class="auth-error"
+                 style="background:rgba(227,163,43,0.10);border-color:rgba(227,163,43,0.25);color:var(--color-glucose-warning)"
+                 role="alert">
+                Слишком много попыток. Подождите немного.
+            </div>
+        }
+
+        @* Форма входа *@
+        @if (!_showForgotPassword)
+        {
+            <EditForm Model="_loginModel" OnValidSubmit="HandleLoginAsync" FormName="login">
+                <DataAnnotationsValidator />
+
+                <div class="input-wrap">
+                    <label class="input-label" for="login-email">Email</label>
+                    <InputText id="login-email"
+                               type="email"
+                               @bind-Value="_loginModel.Email"
+                               class="@($"input-field{(_emailError ? " error" : "")}")"
+                               placeholder="you@example.com"
+                               disabled="@_isLoading" />
+                    <ValidationMessage For="@(() => _loginModel.Email)" class="input-helper error" />
+                </div>
+
+                <div class="input-wrap" style="margin-top:var(--space-16)">
+                    <label class="input-label" for="login-password">Пароль</label>
+                    <div class="input-password-wrap">
+                        <input id="login-password"
+                               @bind="_loginModel.Password"
+                               @bind:event="oninput"
+                               type="@(_showPassword ? "text" : "password")"
+                               class="input-field @(_passwordError ? "error" : "")"
+                               placeholder="••••••••"
+                               disabled="@_isLoading" />
+                        <button type="button"
+                                class="input-eye-btn"
+                                @onclick="() => _showPassword = !_showPassword"
+                                aria-label="@(_showPassword ? "Скрыть пароль" : "Показать пароль")"
+                                tabindex="-1">
+                            @if (_showPassword)
+                            {
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                            }
+                            else
+                            {
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            }
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => _loginModel.Password)" class="input-helper error" />
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary @(_isLoading ? "btn-loading" : "")"
+                        style="width:100%;margin-top:var(--space-24)"
+                        disabled="@(_isLoading || _isRateLimited)">
+                    @if (_isLoading)
+                    {
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                        <span>Вхожу...</span>
+                    }
+                    else
+                    {
+                        <span>Войти</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="auth-divider"><span>или</span></div>
+
+            <button class="btn btn-ghost"
+                    style="width:100%"
+                    @onclick="ShowForgotPassword">
+                Забыли пароль?
+            </button>
+
+            <p class="auth-signup">Нет аккаунта? <a href="/register">Создать</a></p>
+        }
+
+        @* Восстановление пароля *@
+        @if (_showForgotPassword)
+        {
+            @if (_forgotStep == 1)
+            {
+                @* ввод email *@
+                <div class="input-wrap">
+                    <label class="input-label" for="forgot-email">Email для восстановления</label>
+                    <input id="forgot-email"
+                           @bind="_forgotEmail"
+                           type="email"
+                           class="input-field"
+                           placeholder="you@example.com"
+                           disabled="@_forgotLoading" />
+                </div>
+                <button class="btn btn-primary @(_forgotLoading ? "btn-loading" : "")"
+                        style="width:100%;margin-top:var(--space-16)"
+                        @onclick="SendForgotCodeAsync"
+                        disabled="@_forgotLoading">
+                    @if (_forgotLoading)
+                    {
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                        <span>Отправляю...</span>
+                    }
+                    else
+                    {
+                        <span>Отправить код</span>
+                    }
+                </button>
+            }
+            else if (_forgotStep == 2)
+            {
+                @* код + новый пароль *@
+                <div class="input-wrap">
+                    <label class="input-label" for="reset-code">Код из письма</label>
+                    <input id="reset-code"
+                           @bind="_resetCode"
+                           type="text"
+                           class="input-field"
+                           placeholder="ABCD-1234"
+                           inputmode="text"
+                           maxlength="9" />
+                </div>
+                <div class="input-wrap" style="margin-top:var(--space-16)">
+                    <label class="input-label" for="new-password">Новый пароль</label>
+                    <input id="new-password"
+                           @bind="_newPassword"
+                           type="password"
+                           class="input-field"
+                           placeholder="••••••••" />
+                </div>
+                <button class="btn btn-primary @(_forgotLoading ? "btn-loading" : "")"
+                        style="width:100%;margin-top:var(--space-16)"
+                        @onclick="ResetPasswordAsync"
+                        disabled="@_forgotLoading">
+                    @if (_forgotLoading)
+                    {
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                        <span>Сбрасываю...</span>
+                    }
+                    else
+                    {
+                        <span>Сбросить пароль</span>
+                    }
+                </button>
+            }
+            else if (_forgotStep == 3)
+            {
+                @* успех *@
+                <div style="text-align:center;margin:var(--space-24) 0">
+                    <div style="width:56px;height:56px;border-radius:50%;background:rgba(55,165,99,0.12);display:grid;place-items:center;margin:0 auto var(--space-16)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                             stroke="var(--color-glucose-normal)" stroke-width="2.5"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </div>
+                    <p style="font-size:15px;color:var(--color-text);margin-bottom:var(--space-8)">
+                        Пароль успешно изменён
+                    </p>
+                    <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-24)">
+                        Теперь вы можете войти с новым паролем
+                    </p>
+                </div>
+                <button class="btn btn-primary" style="width:100%"
+                        @onclick="ReturnToLogin">
+                    Войти
+                </button>
+            }
+
+            <button class="btn btn-ghost"
+                    style="width:100%;margin-top:var(--space-12)"
+                    @onclick="ResetForgotFlow">
+                ← Назад к входу
+            </button>
+        }
+
+    </div>
+</div>
+
+@code {
+    // Модель формы 
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Неверный формат email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    // Состояние формы входа
+    private LoginModel _loginModel = new();
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _showPassword;
+    private bool _isRateLimited;
+    private bool _emailError;
+    private bool _passwordError;
+
+    // Состояние восстановления пароля
+    private bool _showForgotPassword;
+    private int _forgotStep = 1;
+    private string _forgotEmail = string.Empty;
+    private string _resetCode = string.Empty;
+    private string _newPassword = string.Empty;
+    private bool _forgotLoading;
+
+    // Инициализация
+    /// <summary>
+    /// При первом рендере JS-interop ещё недоступен
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            RedirectByRole(authState.User);
+        }
+    }
+
+    // Обработчик входа 
+    /// <summary>
+    /// Вызывается при успешной валидации формы 
+    /// </summary>
+    private async Task HandleLoginAsync()
+    {
+        _errorMessage = null;
+        _isRateLimited = false;
+        _emailError = false;
+        _passwordError = false;
+
+        var email = _loginModel.Email?.Trim();
+        var password = _loginModel.Password;
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            _emailError = true;
+            _errorMessage = "Введите email";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            _passwordError = true;
+            _errorMessage = "Введите пароль";
+            return;
+        }
+
+        _isLoading = true;
+        StateHasChanged();
+
+        string? error = null;
+        try
+        {
+            error = await AuthStateProvider.LoginAsync(email, password);
+        }
+        catch (Exception ex)
+        {
+            error = $"Ошибка соединения: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged(); 
+        }
+
+        if (error is not null)
+        {
+            if (error.Contains("429", StringComparison.OrdinalIgnoreCase)
+             || error.Contains("слишком много", StringComparison.OrdinalIgnoreCase)
+             || error.Contains("rate", StringComparison.OrdinalIgnoreCase))
+            {
+                _isRateLimited = true;
+            }
+            else
+            {
+                _errorMessage = error;
+            }
+            return;
+        }
+
+        // Логин успешен
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        var returnUrl = ParseReturnUrl();
+        if (!string.IsNullOrWhiteSpace(returnUrl) && SafeRedirect.SanitizeReturnUrl(returnUrl) == returnUrl)
+        {
+            Navigation.NavigateTo(returnUrl, replace: true);
+            return;
+        }
+
+        RedirectByRole(authState.User);
+    }
+
+    // Восстановление пароля
+    /// <summary>
+    /// Отправляет код сброса на указанный email
+    /// </summary>
+    private async Task SendForgotCodeAsync()
+    {
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_forgotEmail))
+        {
+            _errorMessage = "Введите email";
+            return;
+        }
+
+        _forgotLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var sent = await AuthApi.SendPasswordResetCodeAsync(_forgotEmail.Trim());
+            if (!sent)
+            {
+                _errorMessage = "Не удалось отправить код. Проверьте email или попробуйте позже.";
+                return;
+            }
+            _forgotStep = 2;
+        }
+        catch
+        {
+            _errorMessage = "Ошибка отправки кода. Попробуйте позже.";
+        }
+        finally
+        {
+            _forgotLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Восстановление пароля
+    /// <summary>
+    /// Применяет новый пароль по коду из письма
+    /// </summary>
+    private async Task ResetPasswordAsync()
+    {
+        _errorMessage = null;
+
+        if (!ConnectionCodeFormat.IsValid(_resetCode, normalize: true) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            _errorMessage = "Введите код формата ABCD-1234 и новый пароль.";
+            return;
+        }
+
+        _forgotLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthApi.ResetPasswordAsync(
+                _forgotEmail.Trim(), _resetCode.Trim(), _newPassword);
+
+            if (!result.IsSuccess)
+            {
+                _errorMessage = result.Message ?? "Неверный код. Проверьте и попробуйте ещё раз.";
+                return;
+            }
+
+            _forgotStep = 3;
+        }
+        catch
+        {
+            _errorMessage = "Ошибка сброса пароля. Попробуйте позже.";
+        }
+        finally
+        {
+            _forgotLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Вспомогательные методы 
+    /// <summary>
+    /// Показывает форму восстановления пароля 
+    /// </summary>
+    private void ShowForgotPassword()
+    {
+        _errorMessage = null;
+        _showForgotPassword = true;
+    }
+
+    /// <summary>
+    /// Возвращает пользователя к форме входа после успешного сброса
+    /// </summary>
+    private void ReturnToLogin()
+    {
+        _showForgotPassword = false;
+        _forgotStep = 1;
+    }
+
+    /// <summary>
+    /// Полностью сбрасывает состояние формы восстановления
+    /// </summary>
+    private void ResetForgotFlow()
+    {
+        _showForgotPassword = false;
+        _forgotStep = 1;
+        _forgotEmail = string.Empty;
+        _resetCode = string.Empty;
+        _newPassword = string.Empty;
+        _errorMessage = null;
+    }
+
+    /// <summary>
+    /// Перенаправляет пользователя на дашборд его роли
+    /// </summary>
+    private void RedirectByRole(ClaimsPrincipal user)
+    {
+        var destination = user switch
+        {
+            var u when u.IsInRole("Admin") || u.IsInRole("SupportAdmin") => "/admin",
+            var u when u.IsInRole("Doctor") => "/doctor/patients",
+            _ => "/parent/dashboard"
+        };
+        Navigation.NavigateTo(destination, replace: true);
+    }
+
+    /// <summary>
+    /// парсит returnUrl из query string текущей страницы
+    /// </summary>
+    private string? ParseReturnUrl()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue("returnUrl", out var values) ? values.ToString() : null;
+    }
+}

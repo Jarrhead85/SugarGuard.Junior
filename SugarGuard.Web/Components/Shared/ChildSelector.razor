@@ -1,0 +1,750 @@
+﻿@* компонент выбора ребёнка в sidebar*@
+@namespace SugarGuard.Web.Components.Shared
+@using SugarGuard.Web.Models
+@using SugarGuard.Web.Services
+@inject SugarGuardApiService ApiService
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="child-selector" role="navigation" aria-label="Выбор ребёнка">
+
+    @* Заголовок секции *@
+    <div class="child-selector__header">
+        <span class="child-selector__label">МОИ ДЕТИ</span>
+
+        @if (!_isLoading && _children.Count > 0)
+        {
+            <span class="child-selector__count" aria-label="@_children.Count детей">
+                @_children.Count
+            </span>
+        }
+    </div>
+
+    @* Состояние загрузки (скелетон) *@
+    @if (_isLoading)
+    {
+        <div class="child-selector__list" aria-busy="true" aria-label="Загрузка списка детей">
+            @for (var i = 0; i < 3; i++)
+            {
+                <div class="child-selector__skeleton-item">
+                    <div class="skeleton child-selector__skeleton-avatar"></div>
+                    <div class="child-selector__skeleton-text">
+                        <div class="skeleton child-selector__skeleton-name"></div>
+                        <div class="skeleton child-selector__skeleton-sub"></div>
+                    </div>
+                </div>
+            }
+        </div>
+        return;
+    }
+
+    @* Состояние ошибки загрузки *@
+    @if (_hasError)
+    {
+        <div class="child-selector__error" role="alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>Не удалось загрузить</span>
+            <button class="child-selector__retry-btn"
+                    type="button"
+                    @onclick="LoadChildrenAsync"
+                    aria-label="Повторить загрузку списка детей">
+                Повторить
+            </button>
+        </div>
+        return;
+    }
+
+    @* Пустое состояние (нет привязанных детей) *@
+    @if (_children.Count == 0)
+    {
+        <div class="child-selector__empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+            </svg>
+            <p class="child-selector__empty-title">Нет детей</p>
+            <p class="child-selector__empty-desc">
+                Привяжите ребёнка через код приглашения
+            </p>
+        </div>
+        return;
+    }
+
+    @* Список детей *@
+    <ul class="child-selector__list" role="listbox"
+        aria-label="Список детей"
+        aria-activedescendant="@($"child-item-{SelectedChildId}")">
+
+        @foreach (var child in _children)
+        {
+            var isSelected = child.ChildId == SelectedChildId;
+
+            <li id="@($"child-item-{child.ChildId}")"
+                class="child-selector__item @(isSelected ? "child-selector__item--active" : string.Empty)"
+                role="option"
+                aria-selected="@isSelected.ToString().ToLower()"
+                aria-label="@($"{child.FullName}{(isSelected ? ", выбран" : string.Empty)}")"
+                @onclick="() => SelectChildAsync(child.ChildId)"
+                @onkeydown="e => HandleKeyDownAsync(e, child.ChildId)"
+                tabindex="@(isSelected ? 0 : -1)">
+
+                @* Аватар (фото или инициалы) *@
+                <div class="child-selector__avatar @(isSelected ? "child-selector__avatar--active" : string.Empty)"
+                     aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(child.PhotoUrl))
+                    {
+                        <img class="child-selector__photo"
+                             src="@child.PhotoUrl"
+                             alt="@child.FullName" />
+                    }
+                    else
+                    {
+                        <span class="child-selector__initials">
+                            @GetInitials(child.FirstName, child.LastName)
+                        </span>
+                    }
+                </div>
+
+                @* Имя ребёнка *@
+                <div class="child-selector__info">
+                    <span class="child-selector__name">
+                        @child.FirstName
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(child.LastName))
+                    {
+                        <span class="child-selector__lastname">
+                            @child.LastName
+                        </span>
+                    }
+                </div>
+
+                @* Индикатор активного выбора *@
+                @if (isSelected)
+                {
+                    <div class="child-selector__active-dot" aria-hidden="true"></div>
+                }
+
+                @* Кнопка загрузки фото *@
+                <button class="child-selector__photo-btn"
+                        type="button"
+                        title="Загрузить / сменить фото"
+                        aria-label="Загрузить или сменить фото ребёнка"
+                        disabled="@_isUploadingPhoto"
+                        @onclick="() => OpenPhotoPickerAsync(child.ChildId)"
+                        @onclick:stopPropagation="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                    </svg>
+                </button>
+
+            </li>
+        }
+
+    </ul>
+
+    @* Скрытый InputFile для выбора файла *@
+    <InputFile id="@($"child-photo-input-{_activeUploadChildId}")"
+               OnChange="HandlePhotoFileSelectedAsync"
+               accept="image/jpeg,image/png,image/webp,image/gif"
+               style="display:none" />
+
+    @if (!string.IsNullOrEmpty(_photoUploadError))
+    {
+        <div class="child-selector__photo-error" role="alert">
+            @_photoUploadError
+        </div>
+    }
+
+</div>
+
+@* Scoped-стили *@
+<style>
+    /* Контейнер */
+    .child-selector {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        padding: var(--space-4) 0;
+    }
+
+    /* Заголовок */
+    .child-selector__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 var(--space-12);
+        margin-bottom: var(--space-4);
+    }
+
+    .child-selector__label {
+        font-family: var(--font-body);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-text-faint);
+        white-space: nowrap;
+    }
+
+    .child-selector__count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 var(--space-4);
+        font-family: var(--font-body);
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--color-text-faint);
+        background: var(--color-surface-offset);
+        border-radius: var(--radius-full);
+    }
+
+    /* Список */
+    .child-selector__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* Элемент списка */
+    .child-selector__item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        padding: var(--space-8) var(--space-12);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background var(--transition), color var(--transition);
+        outline: none;
+        position: relative;
+        user-select: none;
+        min-height: 44px;
+    }
+
+        .child-selector__item:hover {
+            background: var(--color-surface-offset);
+        }
+
+        .child-selector__item:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+        .child-selector__item:active {
+            background: color-mix(in oklab, var(--color-primary) 8%, var(--color-surface));
+            transform: scale(0.985);
+            transition: background 80ms, transform 80ms;
+        }
+
+    /* Активный элемент */
+    .child-selector__item--active {
+        background: color-mix(in oklab, var(--color-primary) 10%, var(--color-surface));
+    }
+
+        .child-selector__item--active:hover {
+            background: color-mix(in oklab, var(--color-primary) 14%, var(--color-surface));
+        }
+
+    /* Аватар */
+    .child-selector__avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: var(--radius-full);
+        background: color-mix(in oklab, var(--color-primary) 12%, var(--color-surface-offset));
+        flex-shrink: 0;
+        transition: background var(--transition);
+        overflow: hidden;
+    }
+
+    .child-selector__avatar--active {
+        background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+    }
+
+    .child-selector__photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: var(--radius-full);
+    }
+
+    .child-selector__initials {
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    /* Информация о ребёнке */
+    .child-selector__info {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .child-selector__name {
+        font-family: var(--font-body);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+    }
+
+    .child-selector__lastname {
+        font-family: var(--font-body);
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--color-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+    }
+
+    /* Активный элемент — имя ярче */
+    .child-selector__item--active .child-selector__name {
+        color: var(--color-primary);
+    }
+
+    /* Точка активного выбора */
+    .child-selector__active-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: var(--radius-full);
+        background: var(--color-primary);
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    /* Кнопка загрузки фото */
+    .child-selector__photo-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        background: none;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        color: var(--color-text-faint);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity var(--transition), background var(--transition), color var(--transition);
+        flex-shrink: 0;
+    }
+
+    .child-selector__item:hover .child-selector__photo-btn,
+    .child-selector__item:focus-within .child-selector__photo-btn,
+    .child-selector__item--active .child-selector__photo-btn {
+        opacity: 1;
+    }
+
+    .child-selector__photo-btn:hover {
+        background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+        color: var(--color-primary);
+    }
+
+    .child-selector__photo-btn:focus-visible {
+        opacity: 1;
+        outline: 2px solid var(--color-primary);
+        outline-offset: 1px;
+    }
+
+    .child-selector__photo-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .child-selector__photo-error {
+        font-size: 11px;
+        color: var(--color-danger, #c0392b);
+        padding: var(--space-4) var(--space-12);
+        text-align: center;
+    }
+
+    /* Ошибка загрузки */
+    .child-selector__error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-16) var(--space-12);
+        text-align: center;
+        color: var(--color-text-faint);
+        font-size: 12px;
+    }
+
+    .child-selector__retry-btn {
+        font-family: var(--font-body);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-primary);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: var(--space-4) var(--space-8);
+        border-radius: var(--radius-sm);
+        min-height: 32px;
+        transition: background var(--transition), color var(--transition);
+    }
+
+        .child-selector__retry-btn:hover {
+            background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+        }
+
+        .child-selector__retry-btn:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+    /* Пустое состояние */
+    .child-selector__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-24) var(--space-16);
+        gap: var(--space-8);
+        color: var(--color-text-faint);
+    }
+
+    .child-selector__empty-title {
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        margin: 0;
+    }
+
+    .child-selector__empty-desc {
+        font-family: var(--font-body);
+        font-size: 12px;
+        color: var(--color-text-faint);
+        margin: 0;
+        max-width: 22ch;
+        line-height: 1.5;
+    }
+
+    /* Скелетон */
+    .child-selector__skeleton-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        padding: var(--space-8) var(--space-12);
+    }
+
+    .child-selector__skeleton-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: var(--radius-full);
+        flex-shrink: 0;
+    }
+
+    .child-selector__skeleton-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        flex: 1;
+    }
+
+    .child-selector__skeleton-name {
+        height: 14px;
+        width: 80px;
+        border-radius: var(--radius-sm);
+    }
+
+    .child-selector__skeleton-sub {
+        height: 11px;
+        width: 55px;
+        border-radius: var(--radius-sm);
+    }
+
+    .skeleton {
+        background: linear-gradient( 90deg, var(--color-surface-offset) 25%, color-mix(in oklab, var(--color-surface-offset) 50%, var(--color-border)) 50%, var(--color-surface-offset) 75% );
+        background-size: 200% 100%;
+        animation: child-selector-shimmer 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes child-selector-shimmer {
+        0%
+
+    {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+
+    }
+
+    /* Reduced motion */
+    @@media (prefers-reduced-motion: reduce) {
+        .child-selector__item, .child-selector__item:active
+
+    {
+        transition: none;
+        transform: none;
+    }
+
+    .skeleton {
+        animation: none;
+    }
+
+    }
+</style>
+
+@code {
+    // Параметры    
+    [Parameter]
+    public Guid? SelectedChildId { get; set; } // Идентификатор текущего выбранного ребёнка
+   
+    [Parameter]
+    public EventCallback<Guid> OnChildSelected { get; set; } // Событие смены выбранного ребёнка
+
+    // Состояние
+    private List<ChildProfileVm> _children = new();
+    private bool _isLoading;
+    private bool _hasError;
+    private CancellationTokenSource _cts = new();
+
+    // загрузка фото ребёнка
+    private const long MaxPhotoBytes = 5L * 1024L * 1024L; 
+    private static readonly HashSet<string> AllowedPhotoExt = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+    private Guid _activeUploadChildId;
+    private bool _isUploadingPhoto;
+    private string? _photoUploadError;
+
+    // Жизненный цикл 
+    /// <inheritdoc/>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChildrenAsync();
+    }
+
+    // Загрузка данных
+    /// <summary>
+    /// Загружает список привязанных детей через API
+    /// </summary>
+    private async Task LoadChildrenAsync()
+    {
+        _isLoading = true;
+        _hasError = false;
+        StateHasChanged();
+
+        try
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+            _cts = new CancellationTokenSource();
+
+            _children = await ApiService.GetMyChildrenAsync(_cts.Token);
+
+            // Автовыбор первого ребёнка, если выбор ещё не сделан
+            if (_children.Count > 0 &&
+                (SelectedChildId is null || _children.All(c => c.ChildId != SelectedChildId)))
+            {
+                await OnChildSelected.InvokeAsync(_children[0].ChildId);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception)
+        {
+            _hasError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Обработчики событий
+    /// <summary>
+    /// Выбирает ребёнка по идентификатору и уведомляет родительский компонент
+    /// </summary>
+    private async Task SelectChildAsync(Guid childId)
+    {
+        if (childId == SelectedChildId)
+            return;
+
+        await OnChildSelected.InvokeAsync(childId);
+    }
+
+    /// <summary>
+    /// Обрабатывает нажатие клавиш для навигации по списку
+    /// </summary>
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e, Guid childId)
+    {
+        switch (e.Key)
+        {
+            case "Enter":
+            case " ":
+                await SelectChildAsync(childId);
+                break;
+
+            case "ArrowDown":
+                {
+                    var index = _children.FindIndex(c => c.ChildId == childId);
+                    if (index >= 0 && index < _children.Count - 1)
+                        await SelectChildAsync(_children[index + 1].ChildId);
+                    break;
+                }
+
+            case "ArrowUp":
+                {
+                    var index = _children.FindIndex(c => c.ChildId == childId);
+                    if (index > 0)
+                        await SelectChildAsync(_children[index - 1].ChildId);
+                    break;
+                }
+        }
+    }
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Формирует инициалы из имени и фамилии
+    /// </summary>
+    private static string GetInitials(string firstName, string? lastName)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            return "??";
+
+        if (!string.IsNullOrWhiteSpace(lastName))
+            return $"{char.ToUpperInvariant(firstName[0])}{char.ToUpperInvariant(lastName[0])}";
+
+        // нет фамилии — берём первые два символа имени
+        return firstName.Length >= 2
+            ? $"{char.ToUpperInvariant(firstName[0])}{char.ToUpperInvariant(firstName[1])}"
+            : char.ToUpperInvariant(firstName[0]).ToString();
+    }
+
+    // IDisposable 
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+
+    // Загрузка фото
+    /// <summary>
+    /// Программно открывает скрытый файл для выбранного ребёнка
+    /// </summary>
+    private async Task OpenPhotoPickerAsync(Guid childId)
+    {
+        _photoUploadError = null;
+        _activeUploadChildId = childId;
+        try
+        {
+            await JS.InvokeVoidAsync("SugarGuard.clickById",
+                $"child-photo-input-{childId:D}");
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Обрабатывает выбор файла
+    /// </summary>
+    private async Task HandlePhotoFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        _photoUploadError = null;
+        var childId = _activeUploadChildId;
+
+        var file = e.File;
+        if (file is null)
+            return;
+
+        if (file.Size > MaxPhotoBytes)
+        {
+            _photoUploadError = $"Файл слишком большой (макс. {MaxPhotoBytes / 1024 / 1024} МБ).";
+            StateHasChanged();
+            return;
+        }
+
+        var ext = Path.GetExtension(file.Name);
+        if (string.IsNullOrEmpty(ext) || !AllowedPhotoExt.Contains(ext))
+        {
+            _photoUploadError = "Недопустимый формат. Разрешены: jpg, jpeg, png, webp, gif.";
+            StateHasChanged();
+            return;
+        }
+
+        _isUploadingPhoto = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var src = file.OpenReadStream(MaxPhotoBytes);
+            using var buffer = new MemoryStream();
+            await src.CopyToAsync(buffer);
+            buffer.Position = 0;
+
+            var newPhotoUrl = await ApiService.UploadChildPhotoAsync(
+                childId, buffer, file.Name, file.ContentType ?? "application/octet-stream", _cts.Token);
+
+            if (string.IsNullOrEmpty(newPhotoUrl))
+            {
+                _photoUploadError = "Не удалось загрузить фото.";
+                return;
+            }
+
+            // Обновляем PhotoUrl в локальном списке
+            var idx = _children.FindIndex(c => c.ChildId == childId);
+            if (idx >= 0)
+            {
+                _children[idx] = new ChildProfileVm
+                {
+                    ChildId = _children[idx].ChildId,
+                    FirstName = _children[idx].FirstName,
+                    LastName = _children[idx].LastName,
+                    DateOfBirth = _children[idx].DateOfBirth,
+                    DiabetesType = _children[idx].DiabetesType,
+                    PhotoUrl = newPhotoUrl
+                };
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or InvalidOperationException)
+        {
+            _photoUploadError = "Ошибка при загрузке фото.";
+        }
+        finally
+        {
+            _isUploadingPhoto = false;
+            StateHasChanged();
+        }
+    }
+}

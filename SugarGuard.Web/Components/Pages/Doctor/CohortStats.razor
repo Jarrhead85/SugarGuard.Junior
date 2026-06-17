@@ -1,0 +1,962 @@
+﻿@* Shared-компонент сводной статистики группы врача *@
+@using SugarGuard.Web.ViewModels
+@using SugarGuard.Web.Services
+@using CohortVm = SugarGuard.Web.ViewModels.DoctorCohortSummaryVm
+
+@* Разметка *@
+@* Состояние: загрузка *@
+@if (_isLoading)
+{
+    <div class="sg-cohort-skeleton" aria-busy="true" aria-label="Загрузка статистики когорты">
+        <div class="sg-cohort-kpi-grid">
+            <div class="sg-skeleton sg-skeleton--kpi"></div>
+            <div class="sg-skeleton sg-skeleton--kpi"></div>
+            <div class="sg-skeleton sg-skeleton--kpi"></div>
+            <div class="sg-skeleton sg-skeleton--kpi"></div>
+        </div>
+        <div class="sg-skeleton sg-skeleton--detail"></div>
+    </div>
+}
+@* Состояние: ошибка *@
+else if (_errorMessage is not null)
+{
+    <div class="sg-cohort-error" role="alert">
+        <div class="sg-cohort-error__icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="10" cy="10" r="8" />
+                <line x1="10" y1="6" x2="10" y2="10" />
+                <circle cx="10" cy="13.5" r="0.8" fill="currentColor" stroke="none" />
+            </svg>
+        </div>
+        <div class="sg-cohort-error__body">
+            <p class="sg-cohort-error__message">@_errorMessage</p>
+            <button class="sg-btn sg-btn--soft sg-btn--sm"
+                    @onclick="LoadAsync"
+                    disabled="@_isLoading"
+                    aria-label="Повторить загрузку">
+                Повторить
+            </button>
+        </div>
+    </div>
+}
+@* Состояние: нет пациентов *@
+else if (_vm is not null && _vm.TotalPatients == 0)
+{
+    <div class="sg-cohort-empty" role="status">
+        <div class="sg-cohort-empty__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+        </div>
+        <p class="sg-cohort-empty__title">Нет прикреплённых пациентов</p>
+        <p class="sg-cohort-empty__sub">Статистика когорты появится после добавления пациентов.</p>
+    </div>
+}
+@* Состояние: данные получены *@
+else if (_vm is not null)
+{
+    <div class="sg-cohort" role="region" aria-label="Статистика когорты пациентов">
+
+        @* KPI-карточки *@
+        <div class="sg-cohort-kpi-grid" role="list">
+
+            @* Всего пациентов *@
+            <article class="sg-cohort-kpi" role="listitem"
+                     aria-label="Всего пациентов: @_vm.TotalPatients">
+                <div class="sg-cohort-kpi__icon sg-cohort-kpi__icon--primary" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                </div>
+                <div class="sg-cohort-kpi__body">
+                    <span class="sg-cohort-kpi__value">@_vm.TotalPatients</span>
+                    <span class="sg-cohort-kpi__label">Пациентов</span>
+                </div>
+            </article>
+
+            @* Средний TIR *@
+            <article class="sg-cohort-kpi @TirKpiClass" role="listitem"
+                     aria-label="Средний TIR: @_vm.AverageTimeInTargetRange.ToString("F1")%">
+                <div class="sg-cohort-kpi__icon @TirIconClass" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                </div>
+                <div class="sg-cohort-kpi__body">
+                    <span class="sg-cohort-kpi__value sg-cohort-kpi__value--mono">
+                        @_vm.AverageTimeInTargetRange.ToString("F1")%
+                    </span>
+                    <span class="sg-cohort-kpi__label">Средний TIR</span>
+                </div>
+            </article>
+
+            @* Критические сегодня *@
+            <article class="sg-cohort-kpi @CriticalKpiClass" role="listitem"
+                     aria-label="С критическими значениями сегодня: @_vm.PatientsWithCriticalToday">
+                <div class="sg-cohort-kpi__icon @CriticalIconClass" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                </div>
+                <div class="sg-cohort-kpi__body">
+                    <span class="sg-cohort-kpi__value">@_vm.PatientsWithCriticalToday</span>
+                    <span class="sg-cohort-kpi__label">Критических сегодня</span>
+                </div>
+            </article>
+
+            @* Без измерений сегодня *@
+            <article class="sg-cohort-kpi @SilentKpiClass" role="listitem"
+                     aria-label="Без измерений сегодня: @_vm.PatientsWithoutMeasurementsToday">
+                <div class="sg-cohort-kpi__icon @SilentIconClass" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                        <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+                        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                    </svg>
+                </div>
+                <div class="sg-cohort-kpi__body">
+                    <span class="sg-cohort-kpi__value">@_vm.PatientsWithoutMeasurementsToday</span>
+                    <span class="sg-cohort-kpi__label">Тихих сегодня</span>
+                </div>
+            </article>
+        </div>
+
+        @* Детальная разбивка *@
+        <div class="sg-cohort-detail" role="region" aria-label="Детали когорты">
+
+            @* TIR-блок *@
+            <section class="sg-cohort-section" aria-labelledby="cohort-tir-heading">
+                <div class="sg-cohort-section__header">
+                    <h3 id="cohort-tir-heading" class="sg-cohort-section__title">
+                        Время в диапазоне (TIR)
+                        <span class="sg-cohort-section__badge @TirBadgeClass">@TirLabel</span>
+                    </h3>
+                    <span class="sg-cohort-section__value" aria-hidden="true">
+                        @_vm.AverageTimeInTargetRange.ToString("F1")%
+                    </span>
+                </div>
+
+                @* Прогресс-бар TIR *@
+                <TirProgressBar TimeInRange="@_vm.AverageTimeInTargetRange"
+                                Size="lg"
+                                ShowLabels="true"
+                                ShowLegend="true" />
+
+                @* Целевая метка ─ стандарт ADA: ≥70% *@
+                <div class="sg-cohort-tir-target" role="note" aria-label="Целевой показатель TIR по стандарту ADA">
+                    <span class="sg-cohort-tir-target__line" aria-hidden="true"></span>
+                    <span class="sg-cohort-tir-target__label">Цель: ≥70% (ADA 2024)</span>
+                    <span class="sg-cohort-tir-target__line" aria-hidden="true"></span>
+                </div>
+            </section>
+
+            @* Критические и тихие *@
+            <div class="sg-cohort-alerts-row">
+
+                @* Критические ─ пациенты с опасными значениями *@
+                <section class="sg-cohort-alert-card @(HasCritical ? "sg-cohort-alert-card--danger" : "")"
+                         aria-labelledby="cohort-critical-heading">
+                    <div class="sg-cohort-alert-card__head">
+                        <span class="sg-cohort-alert-card__dot @(HasCritical ? "sg-cohort-alert-card__dot--danger" : "")"
+                              aria-hidden="true"></span>
+                        <h4 id="cohort-critical-heading" class="sg-cohort-alert-card__title">
+                            Критические значения сегодня
+                        </h4>
+                    </div>
+                    <div class="sg-cohort-alert-card__body">
+                        <span class="sg-cohort-alert-card__count @(HasCritical ? "sg-cohort-alert-card__count--danger" : "")">
+                            @_vm.PatientsWithCriticalToday
+                        </span>
+                        <span class="sg-cohort-alert-card__of">из @_vm.TotalPatients</span>
+                    </div>
+                    @if (HasCritical)
+                    {
+                        <p class="sg-cohort-alert-card__hint sg-cohort-alert-card__hint--danger">
+                            @CriticalPercent.ToString("F0")% пациентов нуждаются во внимании
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="sg-cohort-alert-card__hint">Критических значений не зафиксировано</p>
+                    }
+                </section>
+
+                @* Тихие ─ пациенты без данных за 24 ч *@
+                <section class="sg-cohort-alert-card @(HasSilent ? "sg-cohort-alert-card--warning" : "")"
+                         aria-labelledby="cohort-silent-heading">
+                    <div class="sg-cohort-alert-card__head">
+                        <span class="sg-cohort-alert-card__dot @(HasSilent ? "sg-cohort-alert-card__dot--warning" : "")"
+                              aria-hidden="true"></span>
+                        <h4 id="cohort-silent-heading" class="sg-cohort-alert-card__title">
+                            Без измерений сегодня
+                        </h4>
+                    </div>
+                    <div class="sg-cohort-alert-card__body">
+                        <span class="sg-cohort-alert-card__count @(HasSilent ? "sg-cohort-alert-card__count--warning" : "")">
+                            @_vm.PatientsWithoutMeasurementsToday
+                        </span>
+                        <span class="sg-cohort-alert-card__of">из @_vm.TotalPatients</span>
+                    </div>
+                    @if (HasSilent)
+                    {
+                        <p class="sg-cohort-alert-card__hint sg-cohort-alert-card__hint--warning">
+                            @SilentPercent.ToString("F0")% пациентов не прислали данные
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="sg-cohort-alert-card__hint">Все пациенты отправили данные</p>
+                    }
+                </section>
+            </div>
+        </div>
+
+        @* Метаданные: когда обновлено *@
+        <div class="sg-cohort-footer" aria-label="Время последнего обновления">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                 stroke-width="1.6" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" />
+                <path d="M8 4v4l2.5 1.5" />
+            </svg>
+            <time datetime="@_vm.GeneratedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")"
+                  title="Данные актуальны на @FormatGeneratedAt(_vm.GeneratedAt)">
+                Обновлено: @FormatGeneratedAt(_vm.GeneratedAt)
+            </time>
+            @if (ShowRefreshButton)
+            {
+                <button class="sg-btn sg-btn--ghost sg-btn--sm sg-cohort-refresh"
+                        @onclick="LoadAsync"
+                        disabled="@_isLoading"
+                        aria-label="Обновить статистику когорты">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                         stroke-width="1.6" aria-hidden="true">
+                        <path d="M1.5 8A6.5 6.5 0 0 1 13.3 4.3" />
+                        <path d="M14.5 8A6.5 6.5 0 0 1 2.7 11.7" />
+                        <polyline points="10,1 13.5,4.3 10,7.5" />
+                        <polyline points="6,14.5 2.5,11.7 6,8.5" />
+                    </svg>
+                    Обновить
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@* Scoped-стили *@
+<style>
+    /* KPI-сетка */
+    .sg-cohort-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-4);
+        margin-bottom: var(--space-6);
+    }
+
+    @@media (max-width: 900px) {
+        .sg-cohort-kpi-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .sg-cohort-kpi-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    /* KPI-карточка */
+    .sg-cohort-kpi {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-5);
+        border-radius: var(--radius-xl);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow var(--transition-interactive), border-color var(--transition-interactive);
+    }
+
+        .sg-cohort-kpi:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+    /* тревожный (критическое значение) */
+    .sg-cohort-kpi--danger {
+        border-color: color-mix(in oklab, var(--color-error) 30%, transparent);
+        background: color-mix(in oklab, var(--color-error) 5%, var(--color-surface));
+    }
+
+    /* предупреждение (нет данных) */
+    .sg-cohort-kpi--warning {
+        border-color: color-mix(in oklab, var(--color-warning) 30%, transparent);
+        background: color-mix(in oklab, var(--color-warning) 5%, var(--color-surface));
+    }
+
+    /* Иконка KPI */
+    .sg-cohort-kpi__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: var(--radius-md);
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+    }
+
+        .sg-cohort-kpi__icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    /* Цвета иконок */
+    .sg-cohort-kpi__icon--primary {
+        background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+        color: var(--color-primary);
+    }
+
+    .sg-cohort-kpi__icon--tir-good {
+        background: color-mix(in oklab, var(--color-success) 12%, transparent);
+        color: var(--color-success);
+    }
+
+    .sg-cohort-kpi__icon--tir-warning {
+        background: color-mix(in oklab, var(--color-warning) 12%, transparent);
+        color: var(--color-warning);
+    }
+
+    .sg-cohort-kpi__icon--tir-danger {
+        background: color-mix(in oklab, var(--color-error) 12%, transparent);
+        color: var(--color-error);
+    }
+
+    .sg-cohort-kpi__icon--danger {
+        background: color-mix(in oklab, var(--color-error) 12%, transparent);
+        color: var(--color-error);
+    }
+
+    .sg-cohort-kpi__icon--warning {
+        background: color-mix(in oklab, var(--color-warning) 12%, transparent);
+        color: var(--color-warning);
+    }
+
+    .sg-cohort-kpi__icon--muted {
+        background: var(--color-surface-offset);
+        color: var(--color-text-muted);
+    }
+
+    /* Тело KPI */
+    .sg-cohort-kpi__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-width: 0;
+    }
+
+    .sg-cohort-kpi__value {
+        font-size: var(--text-xl);
+        font-weight: 700;
+        color: var(--color-text);
+        line-height: 1;
+    }
+
+    .sg-cohort-kpi__value--mono {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sg-cohort-kpi__label {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        line-height: 1.3;
+    }
+
+    /* Детальный блок */
+    .sg-cohort-detail {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+    }
+
+    /* Секция TIR */
+    .sg-cohort-section {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-6);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .sg-cohort-section__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+    }
+
+    .sg-cohort-section__title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--color-text);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+    }
+
+    .sg-cohort-section__badge {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-full);
+        line-height: 1.4;
+    }
+
+    .sg-cohort-section__badge--good {
+        background: color-mix(in oklab, var(--color-success) 15%, transparent);
+        color: var(--color-success);
+    }
+
+    .sg-cohort-section__badge--warning {
+        background: color-mix(in oklab, var(--color-warning) 15%, transparent);
+        color: var(--color-warning);
+    }
+
+    .sg-cohort-section__badge--danger {
+        background: color-mix(in oklab, var(--color-error) 15%, transparent);
+        color: var(--color-error);
+    }
+
+    .sg-cohort-section__value {
+        font-size: var(--text-xl);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text);
+        white-space: nowrap;
+    }
+
+    /* Целевая метка ADA */
+    .sg-cohort-tir-target {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin-top: var(--space-1);
+    }
+
+    .sg-cohort-tir-target__line {
+        flex: 1;
+        height: 1px;
+        background: var(--color-divider);
+    }
+
+    .sg-cohort-tir-target__label {
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+        white-space: nowrap;
+        font-style: italic;
+    }
+
+    /* Строка критических / тихих */
+    .sg-cohort-alerts-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+    }
+
+    @@media (max-width: 640px) {
+        .sg-cohort-alerts-row
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    /* Карточка критических/тихих */
+    .sg-cohort-alert-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        transition: border-color var(--transition-interactive), background var(--transition-interactive);
+    }
+
+    .sg-cohort-alert-card--danger {
+        border-color: color-mix(in oklab, var(--color-error) 30%, transparent);
+        background: color-mix(in oklab, var(--color-error) 4%, var(--color-surface));
+    }
+
+    .sg-cohort-alert-card--warning {
+        border-color: color-mix(in oklab, var(--color-warning) 30%, transparent);
+        background: color-mix(in oklab, var(--color-warning) 4%, var(--color-surface));
+    }
+
+    /* Заголовок карточки */
+    .sg-cohort-alert-card__head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .sg-cohort-alert-card__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background: var(--color-text-faint);
+        flex-shrink: 0;
+    }
+
+    .sg-cohort-alert-card__dot--danger {
+        background: var(--color-error);
+    }
+
+    .sg-cohort-alert-card__dot--warning {
+        background: var(--color-warning);
+    }
+
+    .sg-cohort-alert-card__title {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0;
+    }
+
+    /* Счётчик */
+    .sg-cohort-alert-card__body {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+    }
+
+    .sg-cohort-alert-card__count {
+        font-size: var(--text-xl);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text);
+        line-height: 1;
+    }
+
+    .sg-cohort-alert-card__count--danger {
+        color: var(--color-error);
+    }
+
+    .sg-cohort-alert-card__count--warning {
+        color: var(--color-warning);
+    }
+
+    .sg-cohort-alert-card__of {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+    }
+
+    /* Подсказка */
+    .sg-cohort-alert-card__hint {
+        font-size: var(--text-xs);
+        color: var(--color-text-muted);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .sg-cohort-alert-card__hint--danger {
+        color: var(--color-error);
+    }
+
+    .sg-cohort-alert-card__hint--warning {
+        color: var(--color-warning);
+    }
+
+    /* Footer */
+    .sg-cohort-footer {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--color-divider);
+        font-size: var(--text-xs);
+        color: var(--color-text-faint);
+    }
+
+        .sg-cohort-footer svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .sg-cohort-footer time {
+            flex: 1;
+        }
+
+    .sg-cohort-refresh {
+        margin-left: auto;
+    }
+
+        .sg-cohort-refresh svg {
+            width: 13px;
+            height: 13px;
+        }
+
+    /* Ошибка */
+    .sg-cohort-error {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-4);
+        padding: var(--space-5);
+        border-radius: var(--radius-xl);
+        background: color-mix(in oklab, var(--color-error) 6%, var(--color-surface));
+        border: 1px solid color-mix(in oklab, var(--color-error) 25%, transparent);
+    }
+
+    .sg-cohort-error__icon {
+        width: 24px;
+        height: 24px;
+        color: var(--color-error);
+        flex-shrink: 0;
+        margin-top: var(--space-1);
+    }
+
+        .sg-cohort-error__icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+    .sg-cohort-error__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        flex: 1;
+    }
+
+    .sg-cohort-error__message {
+        font-size: var(--text-sm);
+        color: var(--color-error);
+        margin: 0;
+    }
+
+    /* Пустое состояние */
+    .sg-cohort-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-12) var(--space-8);
+        gap: var(--space-3);
+    }
+
+    .sg-cohort-empty__icon {
+        width: 48px;
+        height: 48px;
+        color: var(--color-text-faint);
+    }
+
+        .sg-cohort-empty__icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+    .sg-cohort-empty__title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--color-text);
+        margin: 0;
+    }
+
+    .sg-cohort-empty__sub {
+        font-size: var(--text-sm);
+        color: var(--color-text-muted);
+        margin: 0;
+        max-width: 36ch;
+    }
+
+    /* Скелетон-лоадер */
+    .sg-cohort-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-6);
+    }
+
+    .sg-skeleton {
+        background: linear-gradient( 90deg, var(--color-surface-offset) 25%, var(--color-surface-dynamic) 50%, var(--color-surface-offset) 75% );
+        background-size: 200% 100%;
+        animation: sg-cohort-shimmer 1.5s ease-in-out infinite;
+        border-radius: var(--radius-xl);
+    }
+
+    .sg-skeleton--kpi {
+        height: 88px;
+    }
+
+    .sg-skeleton--detail {
+        height: 240px;
+    }
+
+    @@keyframes sg-cohort-shimmer {
+        0%
+
+    {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+
+    }
+
+    /* Кнопки */
+    .sg-btn {
+        min-height: 44px;
+        padding: 0 var(--space-6);
+        border-radius: var(--radius-full);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        font-family: var(--font-body);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        cursor: pointer;
+        border: none;
+        transition: transform var(--transition-interactive), background var(--transition-interactive), opacity var(--transition-interactive);
+        white-space: nowrap;
+    }
+
+        .sg-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .sg-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .sg-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .sg-btn--sm {
+        min-height: 36px;
+        padding: 0 var(--space-4);
+        font-size: var(--text-xs);
+    }
+
+    .sg-btn--soft {
+        background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+        color: var(--color-primary);
+        border: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+    }
+
+        .sg-btn--soft:hover:not(:disabled) {
+            background: color-mix(in oklab, var(--color-primary) 18%, transparent);
+        }
+
+    .sg-btn--ghost {
+        background: transparent;
+        color: var(--color-text-muted);
+        border: 1px solid var(--color-border);
+    }
+
+        .sg-btn--ghost:hover:not(:disabled) {
+            background: var(--color-surface-offset);
+            color: var(--color-text);
+        }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-skeleton, .sg-cohort-kpi, .sg-cohort-alert-card
+
+    {
+        animation: none;
+        transition: none;
+    }
+
+    }
+</style>
+
+@* логика компонента *@
+@code {
+    [Inject]
+    private SugarGuardApiService ApiService { get; set; } = default!; // Сервис API
+
+    [Parameter]
+    public bool ShowRefreshButton { get; set; } = true; // Показывать ли кнопку «Обновить» в футере
+
+    [Parameter]
+    public EventCallback<CohortVm> OnLoaded { get; set; } // Callback, вызываемый после успешной загрузки данных
+
+    // Состояние 
+    private CohortVm? _vm;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    // Жизненный цикл
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    // Методы
+    /// <summary>
+    /// Загружает сводную статистику группы
+    /// </summary>
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _vm = await ApiService.GetDoctorCohortSummaryAsync();
+
+            if (OnLoaded.HasDelegate && _vm is not null)
+            {
+                await OnLoaded.InvokeAsync(_vm);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+        {
+            _errorMessage = "Не удалось загрузить статистику когорты. Проверьте соединение и попробуйте снова.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // Вычисляемые свойства
+    /// <summary>
+    /// если среди пациентов есть критические значения сегодня
+    /// </summary>
+    private bool HasCritical =>
+        _vm is not null && _vm.PatientsWithCriticalToday > 0;
+
+    /// <summary>
+    /// если есть пациенты без измерений за 24 ч
+    /// </summary>
+    private bool HasSilent =>
+        _vm is not null && _vm.PatientsWithoutMeasurementsToday > 0;
+
+    /// <summary>
+    /// Процент пациентов с критическими значениями сегодня (0–100)
+    /// </summary>
+    private double CriticalPercent =>
+        _vm is null || _vm.TotalPatients == 0
+            ? 0
+            : (double)_vm.PatientsWithCriticalToday / _vm.TotalPatients * 100;
+
+    /// <summary>
+    /// Процент «тихих» пациентов без измерений за 24 ч (0–100)
+    /// </summary>
+    private double SilentPercent =>
+        _vm is null || _vm.TotalPatients == 0
+            ? 0
+            : (double)_vm.PatientsWithoutMeasurementsToday / _vm.TotalPatients * 100;
+
+    //  CSS-классы — KPI 
+    /// <summary>
+    /// CSS-модификатор KPI-карточки 
+    /// </summary>
+    private string TirKpiClass => _vm is null ? string.Empty : _vm.AverageTimeInTargetRange switch
+    {
+        >= 70 => string.Empty,
+        >= 50 => string.Empty,
+        _ => "sg-cohort-kpi--danger"
+    };
+
+    /// <summary>
+    /// CSS-класс иконки KPI-карточки
+    /// </summary>
+    private string TirIconClass => _vm is null ? "sg-cohort-kpi__icon--primary" : _vm.AverageTimeInTargetRange switch
+    {
+        >= 70 => "sg-cohort-kpi__icon--tir-good",
+        >= 50 => "sg-cohort-kpi__icon--tir-warning",
+        _ => "sg-cohort-kpi__icon--tir-danger"
+    };
+
+    /// <summary>
+    /// CSS-модификатор KPI-карточки критических
+    /// </summary>
+    private string CriticalKpiClass =>
+        HasCritical ? "sg-cohort-kpi--danger" : string.Empty;
+
+    /// <summary>
+    /// CSS-класс иконки KPI критических
+    /// </summary>
+    private string CriticalIconClass =>
+        HasCritical ? "sg-cohort-kpi__icon--danger" : "sg-cohort-kpi__icon--muted";
+
+    /// <summary>
+    /// CSS-модификатор KPI-карточки тихих
+    /// </summary>
+    private string SilentKpiClass =>
+        HasSilent ? "sg-cohort-kpi--warning" : string.Empty;
+
+    /// <summary>
+    /// CSS-класс иконки KPI тихих
+    /// </summary>
+    private string SilentIconClass =>
+        HasSilent ? "sg-cohort-kpi__icon--warning" : "sg-cohort-kpi__icon--muted";
+
+    // CSS-классы — значок TIR 
+    /// <summary>
+    /// Текстовая метка качества TIR для бейджа
+    /// </summary>
+    private string TirLabel => _vm is null ? string.Empty : _vm.AverageTimeInTargetRange switch
+    {
+        >= 70 => "Норма",
+        >= 50 => "Ниже цели",
+        _ => "Критично"
+    };
+
+    /// <summary>
+    /// CSS-модификатор бейджа TIR
+    /// </summary>
+    private string TirBadgeClass => _vm is null ? string.Empty : _vm.AverageTimeInTargetRange switch
+    {
+        >= 70 => "sg-cohort-section__badge--good",
+        >= 50 => "sg-cohort-section__badge--warning",
+        _ => "sg-cohort-section__badge--danger"
+    };
+
+    // Форматирование
+    /// <summary>
+    /// Форматирует дату и время генерации сводки в читаемую строку на русском
+    /// </summary>
+    private static string FormatGeneratedAt(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        var now = DateTime.Now;
+
+        // Сегодня — показываем только время
+        if (local.Date == now.Date)
+            return local.ToString("HH:mm", new System.Globalization.CultureInfo("ru-RU"));
+
+        // Вчера
+        if (local.Date == now.Date.AddDays(-1))
+            return $"вчера в {local:HH:mm}";
+
+        // Раньше — полная дата
+        return local.ToString("d MMM, HH:mm", new System.Globalization.CultureInfo("ru-RU"));
+    }
+}

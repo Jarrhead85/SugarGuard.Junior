@@ -1,0 +1,581 @@
+﻿@page "/parent/sync-conflicts"
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@attribute [Authorize]
+@inject SugarGuardApiService ApiService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Конфликты синхронизации — SugarGuard</PageTitle>
+
+
+<div class="sync-page">
+
+    <PageHeader Title="Конфликты синхронизации">
+        <TrailingContent>
+            <button class="btn btn-outline" @onclick="LoadDataAsync" disabled="@_isLoading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                </svg>
+                Обновить
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    <!-- Карточки статистики -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">Всего записей</div>
+            <div class="stat-value">@_allLogs.Count</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Конфликты</div>
+            <div class="stat-value @(_conflictCount > 0 ? "danger" : "success")">@_conflictCount</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Ожидают</div>
+            <div class="stat-value @(_pendingCount > 0 ? "warning" : "success")">@_pendingCount</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Ошибки</div>
+            <div class="stat-value @(_failedCount > 0 ? "danger" : "success")">@_failedCount</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Выполнено</div>
+            <div class="stat-value success">@_successCount</div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters-row">
+        <select class="filter-select" @bind="_filterStatus">
+            <option value="">Все статусы</option>
+            <option value="pending">Ожидает</option>
+            <option value="success">Выполнено</option>
+            <option value="conflict">Конфликт</option>
+            <option value="failed">Ошибка</option>
+            <option value="resolved">Решено</option>
+        </select>
+
+        <select class="filter-select" @bind="_filterEntityType">
+            <option value="">Все типы</option>
+            <option value="Measurement">Измерение</option>
+            <option value="Snack">Перекус</option>
+            <option value="DoctorNote">Заметка врача</option>
+        </select>
+
+        <select class="filter-select" @bind="_filterConflict">
+            <option value="">Все</option>
+            <option value="true">Только конфликты</option>
+            <option value="false">Без конфликтов</option>
+        </select>
+
+        <button class="btn btn-outline btn-sm" @onclick="ApplyFilters">
+            Применить
+        </button>
+
+        <button class="btn btn-outline btn-sm" @onclick="ResetFilters">
+            Сбросить
+        </button>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-container">
+        <div class="table-header-row">
+            <span class="table-header-title">
+                Журнал синхронизации
+                @if (_filteredLogs.Count != _allLogs.Count)
+                {
+                    <span style="font-weight:400; color:var(--sg-text-muted); font-size:0.85rem;">
+                        (показано @_filteredLogs.Count из @_allLogs.Count)
+                    </span>
+                }
+            </span>
+            @if (_conflictCount > 0)
+            {
+                <button class="btn btn-danger btn-sm" @onclick="ResolveAllConflictsAsync" disabled="@_isResolving">
+                    @if (_isResolving)
+                    {
+                        <span class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                        <span>Решаю...</span>
+                    }
+                    else
+                    {
+                        <span>Решить все конфликты</span>
+                    }
+                </button>
+            }
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-overlay">
+                <div class="spinner"></div>
+                <span>Загружаем данные...</span>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_loadError))
+        {
+            <div style="padding: 32px; text-align: center;">
+                <p class="error-text" style="font-size:0.95rem;">@_loadError</p>
+                <button class="btn btn-outline" style="margin-top:12px;" @onclick="LoadDataAsync">
+                    Повторить
+                </button>
+            </div>
+        }
+        else if (_pagedLogs.Count == 0)
+        {
+            <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                    <path d="m9 9 6 6" />
+                    <path d="m15 9-6 6" />
+                </svg>
+                <h3>Конфликтов нет</h3>
+                <p>Все данные синхронизированы успешно. Конфликты отсутствуют.</p>
+            </div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID записи</th>
+                        <th>Тип сущности</th>
+                        <th>ID сущности</th>
+                        <th>Статус</th>
+                        <th>Конфликт</th>
+                        <th>Создано</th>
+                        <th>Ошибка</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _pagedLogs)
+                    {
+                        <tr @onclick="() => OpenDetail(log)" style="cursor:pointer;">
+                            <td>
+                                <span style="font-family:monospace; font-size:0.78rem; color:var(--sg-text-muted);">
+                                    @log.SyncLogId.ToString()[..8]…
+                                </span>
+                            </td>
+                            <td>
+                                <span class="entity-type-chip">@log.EntityType</span>
+                            </td>
+                            <td>
+                                <span style="font-family:monospace; font-size:0.78rem;">
+                                    @(log.EntityId.Length > 12 ? log.EntityId[..12] + "…" : log.EntityId)
+                                </span>
+                            </td>
+                            <td>@RenderStatusBadge(log.Status)</td>
+                            <td>
+                                @if (log.IsConflict)
+                                {
+                                    <span class="conflict-badge">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                            <line x1="12" y1="9" x2="12" y2="13" />
+                                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                                        </svg>
+                                        Конфликт
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-gray">Нет</span>
+                                }
+                            </td>
+                            <td style="color:var(--sg-text-muted); font-size:0.82rem;">
+                                @log.CreatedAt.ToLocalTime().ToString("dd.MM.yy HH:mm")
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(log.Error))
+                                {
+                                    <span title="@log.Error" style="color:var(--sg-danger); font-size:0.78rem; cursor:help;">
+                                        @(log.Error.Length > 30 ? log.Error[..30] + "…" : log.Error)
+                                    </span>
+                                }
+                            </td>
+                            <td @onclick:stopPropagation="true">
+                                <button class="btn btn-outline btn-sm" @onclick="() => OpenDetail(log)">
+                                    Детали
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <!-- Пагинация -->
+            <div class="pagination-row">
+                <span class="pagination-info">
+                    Страница @_currentPage из @_totalPages &nbsp;·&nbsp; @_filteredLogs.Count записей
+                </span>
+                <div class="pagination-buttons">
+                    <button class="btn btn-outline btn-sm" @onclick="PrevPage" disabled="@(_currentPage <= 1)">
+                        ← Назад
+                    </button>
+                    <button class="btn btn-outline btn-sm" @onclick="NextPage" disabled="@(_currentPage >= _totalPages)">
+                        Вперёд →
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Панель деталей -->
+@if (_showDetail && _selectedLog is not null)
+{
+    <div class="overlay-backdrop" @onclick="CloseDetail"></div>
+    <div class="detail-panel">
+        <div class="detail-header">
+            <h3>Детали записи</h3>
+            <button class="btn btn-outline btn-sm" @onclick="CloseDetail">✕</button>
+        </div>
+        <div class="detail-body">
+            <div class="detail-field">
+                <div class="detail-field-label">SyncLog ID</div>
+                <div class="detail-field-value" style="font-family:monospace;">@_selectedLog.SyncLogId</div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">Child ID</div>
+                <div class="detail-field-value" style="font-family:monospace;">@_selectedLog.ChildId</div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">Тип сущности</div>
+                <div class="detail-field-value">@_selectedLog.EntityType</div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">ID сущности</div>
+                <div class="detail-field-value" style="font-family:monospace;">@_selectedLog.EntityId</div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">Статус</div>
+                <div class="detail-field-value">@RenderStatusBadge(_selectedLog.Status)</div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">Конфликт</div>
+                <div class="detail-field-value">
+                    @if (_selectedLog.IsConflict)
+                    {
+                        <span class="badge badge-danger">Да — конфликт</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-success">Нет</span>
+                    }
+                </div>
+            </div>
+            <div class="detail-field">
+                <div class="detail-field-label">Создано (UTC)</div>
+                <div class="detail-field-value">@_selectedLog.CreatedAt.ToString("dd.MM.yyyy HH:mm:ss")</div>
+            </div>
+            @if (!string.IsNullOrEmpty(_selectedLog.Error))
+            {
+                <div class="detail-field">
+                    <div class="detail-field-label">Текст ошибки</div>
+                    <div class="detail-field-value" style="color:var(--sg-danger); font-size:0.82rem; background:var(--sg-danger-soft); border-radius:6px; padding:8px 10px;">
+                        @_selectedLog.Error
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="detail-footer">
+            @if (_selectedLog.IsConflict && _selectedLog.Status != "resolved")
+            {
+                <button class="btn btn-danger" @onclick="() => ResolveSingleConflictAsync(_selectedLog)"
+                        disabled="@_isResolving">
+                    Решить конфликт
+                </button>
+            }
+            <button class="btn btn-outline" @onclick="CloseDetail">Закрыть</button>
+        </div>
+    </div>
+}
+
+<!-- Toast-уведомления -->
+<div class="toast-container">
+    @foreach (var toast in _toasts)
+    {
+        <div class="toast @GetToastClass(toast.Type)">
+            @toast.Message
+        </div>
+    }
+</div>
+
+@code {
+    // Модели 
+    /// <summary>
+    /// Внутренняя модель toast-уведомления
+    /// </summary>
+    private sealed class ToastItem
+    {
+        public string Message { get; init; } = string.Empty;
+        public string Type { get; init; } = "info"; 
+    }
+
+    // Состояние страницы
+    private List<SyncLogVm> _allLogs = new();
+    private List<SyncLogVm> _filteredLogs = new();
+    private List<SyncLogVm> _pagedLogs = new();
+    private SyncLogVm? _selectedLog;
+
+    private bool _isLoading;
+    private bool _isResolving;
+    private bool _showDetail;
+    private string _loadError = string.Empty;
+
+    // Фильтры 
+    private string _filterStatus = string.Empty;
+    private string _filterEntityType = string.Empty;
+    private string _filterConflict = string.Empty;
+
+    // Пагинация
+    private int _currentPage = 1;
+    private const int PageSize = 25;
+    private int _totalPages = 1;
+
+    // Статистика 
+    private int _conflictCount;
+    private int _pendingCount;
+    private int _failedCount;
+    private int _successCount;
+
+    // Toast 
+    private readonly List<ToastItem> _toasts = new();
+
+    // Lifecycle 
+    /// <summary>
+    /// Загрузка данных при инициализации компонента
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    // Загрузка данных
+    /// <summary>
+    /// Загружает журнал синхронизации с сервера и пересчитывает статистику
+    /// </summary>
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _loadError = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ApiService.GetSyncLogsAsync(cancellationToken: CancellationToken.None);
+            _allLogs = result?.ToList() ?? new List<SyncLogVm>();
+            ComputeStats();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Не удалось загрузить данные: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Статистика 
+    /// <summary>
+    /// Пересчитывает агрегированную статистику по всем записям
+    /// </summary>
+    private void ComputeStats()
+    {
+        _conflictCount = _allLogs.Count(l => l.IsConflict && l.Status != "resolved");
+        _pendingCount = _allLogs.Count(l => l.Status == "pending");
+        _failedCount = _allLogs.Count(l => l.Status == "failed");
+        _successCount = _allLogs.Count(l => l.Status == "success" || l.Status == "resolved");
+    }
+
+    // Фильтрация и пагинация 
+    /// <summary>
+    /// Применяет выбранные фильтры и перестраивает список
+    /// </summary>
+    private void ApplyFilters()
+    {
+        var query = _allLogs.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_filterStatus))
+            query = query.Where(l => l.Status == _filterStatus);
+
+        if (!string.IsNullOrEmpty(_filterEntityType))
+            query = query.Where(l => l.EntityType == _filterEntityType);
+
+        if (!string.IsNullOrEmpty(_filterConflict))
+        {
+            var isConflict = _filterConflict == "true";
+            query = query.Where(l => l.IsConflict == isConflict);
+        }
+
+        _filteredLogs = query
+            .OrderByDescending(l => l.CreatedAt)
+            .ToList();
+
+        _currentPage = 1;
+        UpdatePage();
+    }
+
+    /// <summary>
+    /// Сбрасывает все фильтры и показывает полный список
+    /// </summary>
+    private void ResetFilters()
+    {
+        _filterStatus = string.Empty;
+        _filterEntityType = string.Empty;
+        _filterConflict = string.Empty;
+        ApplyFilters();
+    }
+
+    /// <summary>
+    /// Обновляет текущую страницу
+    /// </summary>
+    private void UpdatePage()
+    {
+        _totalPages = Math.Max(1, (int)Math.Ceiling(_filteredLogs.Count / (double)PageSize));
+        _currentPage = Math.Clamp(_currentPage, 1, _totalPages);
+        _pagedLogs = _filteredLogs
+            .Skip((_currentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+        StateHasChanged();
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1)
+        {
+            _currentPage--;
+            UpdatePage();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < _totalPages)
+        {
+            _currentPage++;
+            UpdatePage();
+        }
+    }
+
+    //Детальная панель 
+    /// <summary>
+    /// Открывает боковую панель с деталями выбранной записи
+    /// </summary>
+    private void OpenDetail(SyncLogVm log)
+    {
+        _selectedLog = log;
+        _showDetail = true;
+    }
+
+    /// <summary>
+    /// Закрывает боковую панель деталей
+    /// </summary>
+    private void CloseDetail()
+    {
+        _showDetail = false;
+        _selectedLog = null;
+    }
+
+    // Разрешение конфликтов
+    /// <summary>
+    /// Разрешает все неразрешённые конфликты через API
+    /// </summary>
+    private async Task ResolveAllConflictsAsync()
+    {
+        _isResolving = true;
+        StateHasChanged();
+
+        try
+        {
+            await ApiService.ResolveAllSyncConflictsAsync(cancellationToken: CancellationToken.None);
+            ShowToast("Все конфликты успешно разрешены", "success");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Ошибка: {ex.Message}", "error");
+        }
+        finally
+        {
+            _isResolving = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Разрешает конкретный конфликт по ID записи
+    /// </summary>
+    private async Task ResolveSingleConflictAsync(SyncLogVm log)
+    {
+        _isResolving = true;
+        StateHasChanged();
+
+        try
+        {
+            await ApiService.ResolveSyncConflictAsync(log.SyncLogId, cancellationToken: CancellationToken.None);
+            ShowToast($"Конфликт {log.SyncLogId.ToString()[..8]} разрешён", "success");
+            CloseDetail();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Ошибка: {ex.Message}", "error");
+        }
+        finally
+        {
+            _isResolving = false;
+            StateHasChanged();
+        }
+    }
+
+    // Toast-уведомления
+    /// <summary>
+    /// Показывает toast-уведомление с авто-скрытием через 3 секунды
+    /// </summary>
+    private void ShowToast(string message, string type = "info")
+    {
+        var toast = new ToastItem { Message = message, Type = type };
+        _toasts.Add(toast);
+        StateHasChanged();
+
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            _toasts.Remove(toast);
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private static string GetToastClass(string type) => type switch
+    {
+        "success" => "toast-success",
+        "error" => "toast-error",
+        _ => "toast-info"
+    };
+
+    // Вспомогательные методы UI
+    /// <summary>
+    /// Возвращает разметку бейджа статуса для отображения в таблице
+    /// </summary>
+    private RenderFragment RenderStatusBadge(string status) => status switch
+    {
+        "success" => @<span class="badge badge-success">Выполнено</span>,
+        "resolved" => @<span class="badge badge-success">Решено</span>,
+        "pending" => @<span class="badge badge-warning">Ожидает</span>,
+        "conflict" => @<span class="badge badge-danger">Конфликт</span>,
+        "failed" => @<span class="badge badge-danger">Ошибка</span>,
+        _ => @<span class="badge badge-gray">@status</span>
+    };
+}

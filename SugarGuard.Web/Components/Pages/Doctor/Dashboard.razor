@@ -1,0 +1,610 @@
+﻿@page "/doctor/dashboard"
+@attribute [Authorize(Roles = "Doctor")]
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+@inject ILogger<Dashboard> Logger
+
+<PageTitle>Дашборд врача — SugarGuard</PageTitle>
+
+<div class="doctor-dashboard">
+
+    <PageHeader Eyebrow="Врач"
+                Title="Дашборд"
+                Subtitle="Сводная информация по когорте пациентов и их текущее состояние.">
+        <TrailingContent>
+            <a class="btn btn-ghost" href="/doctor/cohort-stats">
+                Статистика когорты
+            </a>
+            <button class="btn btn-secondary"
+                    type="button"
+                    @onclick="RefreshAsync"
+                    disabled="@_isLoading">
+                Обновить
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    {{! Ошибка загрузки }}
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <AlertBanner Type="error"
+                     Title="Не удалось загрузить данные"
+                     Message="@_errorMessage"
+                     OnClose="ClearError" />
+    }
+
+    {{! KPI-карточки когорты }}
+    <section class="kpi-grid">
+        @if (_isLoadingCohort)
+        {
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="kpi-skeleton card">
+                    <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
+                </div>
+            }
+        }
+        else
+        {
+            <div class="kpi-card card @GetKpiClass(_cohort?.TotalPatients, null, KpiVariant.Neutral)">
+                <p class="kpi-card__label">Всего пациентов</p>
+                <strong class="kpi-card__value">
+                    @(_cohort?.TotalPatients.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                </strong>
+                <p class="kpi-card__hint">в моей когорте</p>
+            </div>
+
+            <div class="kpi-card card @GetKpiClass(_cohort?.PatientsWithCriticalToday, 0, KpiVariant.Danger)">
+                <p class="kpi-card__label">Критических сегодня</p>
+                <strong class="kpi-card__value kpi-card__value--danger">
+                    @(_cohort?.PatientsWithCriticalToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                </strong>
+                <p class="kpi-card__hint">пациентов с критическим сахаром</p>
+            </div>
+
+            <div class="kpi-card card @GetTirKpiClass(_cohort?.AverageTimeInTargetRange)">
+                <p class="kpi-card__label">Средний TIR</p>
+                <strong class="kpi-card__value">
+                    @FormatPercent(_cohort?.AverageTimeInTargetRange)
+                </strong>
+                <p class="kpi-card__hint">время в целевом диапазоне</p>
+            </div>
+
+            <div class="kpi-card card @GetKpiClass(_cohort?.PatientsWithoutMeasurementsToday, 0, KpiVariant.Warning)">
+                <p class="kpi-card__label">Без измерений</p>
+                <strong class="kpi-card__value kpi-card__value--warning">
+                    @(_cohort?.PatientsWithoutMeasurementsToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                </strong>
+                <p class="kpi-card__hint">пациентов сегодня</p>
+            </div>
+        }
+    </section>
+
+    {{! Список пациентов }}
+    <section class="patients-section card">
+        <div class="patients-section__header">
+            <div>
+                <h2>Мои пациенты</h2>
+                <p class="patients-section__description">
+                    @if (!_isLoadingPatients)
+                    {
+                        @($"Найдено: {_patients.Count}")
+                    }
+                </p>
+            </div>
+
+            <div class="patients-section__controls">
+                <div class="form-field sort-field">
+                    <label class="form-field__label" for="sort-select">Сортировка</label>
+                    <select id="sort-select"
+                            class="input-field"
+                            @bind="_sortBy"
+                            @bind:after="OnSortChangedAsync">
+                        <option value="@PatientSortBy.Name">По имени</option>
+                        <option value="@PatientSortBy.Tir">По TIR</option>
+                        <option value="@PatientSortBy.LastMeasurement">По последнему измерению</option>
+                    </select>
+                </div>
+
+                <a class="btn btn-primary" href="/doctor/patients">
+                    Все пациенты
+                </a>
+            </div>
+        </div>
+
+        @if (_isLoadingPatients)
+        {
+            <div class="patients-skeleton">
+                @for (var i = 0; i < 3; i++)
+                {
+                    <div class="patient-skeleton-row">
+                        <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
+                    </div>
+                }
+            </div>
+        }
+        else if (_patients.Count == 0)
+        {
+            <EmptyState Title="Пациентов нет"
+                        Description="Пока ни один ребёнок не привязан к вашему аккаунту. Обратитесь к администратору.">
+                <Icon>
+                    <span>🩺</span>
+                </Icon>
+            </EmptyState>
+        }
+        else
+        {
+            <div class="patients-list">
+                @foreach (var patient in _patients.Take(MaxPatientsOnDashboard))
+                {
+                    <PatientCard Patient="@patient"
+                                 OnViewDetail="@(() => NavigateToPatient(patient.ChildId))" />
+                }
+
+                @if (_patients.Count > MaxPatientsOnDashboard)
+                {
+                    <div class="patients-list__more">
+                        <a class="btn btn-ghost" href="/doctor/patients">
+                            Показать ещё @(_patients.Count - MaxPatientsOnDashboard) пациентов →
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+</div>
+
+@code {
+    // Константы 
+    private const int MaxPatientsOnDashboard = 6; // Максимальное число пациентов на дашборде
+
+    // Состояние загрузки
+    private bool _isLoading => _isLoadingCohort || _isLoadingPatients; // Общий флаг загрузки
+
+    private bool _isLoadingCohort = true; // Флаг загрузки данных когорты
+
+    private bool _isLoadingPatients = true; // Флаг загрузки списка пациентов
+
+    private string? _errorMessage; // Сообщение ошибки
+
+    // Данные 
+    private DoctorCohortSummaryVm? _cohort; // Сводка по группе
+
+    private readonly List<DoctorPatientSummaryVm> _patients = []; // Список пациентов
+
+    private string _sortBy = PatientSortBy.LastMeasurement; // Текущая сортировка пациентов
+
+    // Lifecycle 
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(
+            LoadCohortAsync(CancellationToken.None),
+            LoadPatientsAsync(CancellationToken.None));
+    }
+
+    // Загрузка данных 
+    /// <summary>
+    /// Загружает сводку по группе
+    /// </summary>
+    private async Task LoadCohortAsync(CancellationToken cancellationToken)
+    {
+        _isLoadingCohort = true;
+
+        try
+        {
+            _cohort = await ApiService.GetDoctorCohortSummaryAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Загрузка сводки когорты отменена.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке сводки когорты.");
+            _errorMessage = "Не удалось загрузить сводку когорты. Проверьте подключение к API.";
+        }
+        finally
+        {
+            _isLoadingCohort = false;
+        }
+    }
+
+    /// <summary>
+    /// Загружает список пациентов
+    /// </summary>
+    private async Task LoadPatientsAsync(CancellationToken cancellationToken)
+    {
+        _isLoadingPatients = true;
+
+        try
+        {
+            var result = await ApiService.GetDoctorPatientsAsync(_sortBy, cancellationToken);
+            _patients.Clear();
+
+            if (result is not null)
+            {
+                _patients.AddRange(result);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Загрузка списка пациентов отменена.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке пациентов.");
+            _errorMessage = "Не удалось загрузить список пациентов. Попробуйте обновить страницу.";
+        }
+        finally
+        {
+            _isLoadingPatients = false;
+        }
+    }
+
+    /// <summary>
+    /// Обновляет все данные на странице
+    /// </summary>
+    private async Task RefreshAsync()
+    {
+        _errorMessage = null;
+
+        await Task.WhenAll(
+            LoadCohortAsync(CancellationToken.None),
+            LoadPatientsAsync(CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Вызывается при смене сортировки пациентов
+    /// </summary>
+    private async Task OnSortChangedAsync()
+    {
+        await LoadPatientsAsync(CancellationToken.None);
+    }
+
+    // Навигация 
+    /// <summary>
+    /// Переходит на страницу детализации пациента
+    /// </summary>
+    private void NavigateToPatient(Guid childId)
+    {
+        Navigation.NavigateTo($"/doctor/patients/{childId}");
+    }
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Очищает сообщение ошибки
+    /// </summary>
+    private void ClearError()
+    {
+        _errorMessage = null;
+    }
+
+    /// <summary>
+    /// Форматирует процент TIR для KPI-карточки
+    /// </summary>
+    private static string FormatPercent(double? value)
+    {
+        if (!value.HasValue)
+        {
+            return "—";
+        }
+
+        return value.Value.ToString("N1", CultureInfo.InvariantCulture) + "%";
+    }
+
+    /// <summary>
+    /// Возвращает CSS-модификатор KPI-карточки по значению и порогу
+    /// </summary>
+    private static string GetKpiClass(int? value, int? dangerThreshold, KpiVariant variant)
+    {
+        if (variant == KpiVariant.Neutral || !value.HasValue || !dangerThreshold.HasValue)
+        {
+            return string.Empty;
+        }
+
+        if (value.Value > dangerThreshold.Value && variant == KpiVariant.Danger)
+        {
+            return "kpi-card--danger";
+        }
+
+        if (value.Value > dangerThreshold.Value && variant == KpiVariant.Warning)
+        {
+            return "kpi-card--warning";
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Возвращает CSS-модификатор KPI-карточки TIR по значению
+    /// </summary>
+    private static string GetTirKpiClass(double? tir)
+    {
+        if (!tir.HasValue)
+        {
+            return string.Empty;
+        }
+
+        return tir.Value switch
+        {
+            >= 70.0 => "kpi-card--success",
+            >= 50.0 => "kpi-card--warning",
+            _ => "kpi-card--danger"
+        };
+    }
+
+    // Вспомогательные типы
+    /// <summary>
+    /// Вариант цветового состояния KPI-карточки
+    /// </summary>
+    private enum KpiVariant
+    {
+        Neutral,
+        Warning,
+        Danger
+    }
+
+    /// <summary>
+    /// Константы сортировки пациентов
+    /// </summary>
+    private static class PatientSortBy
+    {       
+        public const string Name = "name"; // По имени
+       
+        public const string Tir = "tir"; // По TIR (Time In Range)
+       
+        public const string LastMeasurement = "lastMeasurement"; // По времени последнего измерения
+    }    
+}
+
+<style>
+    /* Страница */
+    .doctor-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-20);
+    }
+
+    /* Шапка */
+    .page-header {
+        padding: var(--space-24);
+    }
+
+    .page-header__content {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-16);
+        flex-wrap: wrap;
+    }
+
+    .page-eyebrow {
+        margin: 0 0 var(--space-8);
+        font-size: 12px;
+        line-height: 1.4;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-faint);
+        font-weight: 700;
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .page-description {
+        margin: var(--space-8) 0 0;
+        color: var(--color-text-muted);
+        max-width: 60ch;
+    }
+
+    .page-header__actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-12);
+        flex-wrap: wrap;
+    }
+
+    /* KPI-сетка */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-16);
+    }
+
+    .kpi-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-8);
+        padding: var(--space-20);
+        transition: box-shadow var(--transition);
+    }
+
+    .kpi-skeleton {
+        min-height: 120px;
+    }
+
+    .kpi-card__label {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.4;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-faint);
+        font-weight: 700;
+    }
+
+    .kpi-card__value {
+        font-family: var(--font-display);
+        font-size: clamp(28px, 3vw, 36px);
+        line-height: 1;
+        color: var(--color-text);
+    }
+
+    .kpi-card__value--danger {
+        color: var(--color-glucose-danger, #DB5967);
+    }
+
+    .kpi-card__value--warning {
+        color: var(--color-glucose-warning, #E3A32B);
+    }
+
+    .kpi-card__hint {
+        margin: 0;
+        font-size: 13px;
+        color: var(--color-text-muted);
+    }
+
+    /* Цветовые модификаторы KPI-карточек */
+    .kpi-card--danger {
+        border-color: rgba(219, 89, 103, 0.28);
+        background: rgba(219, 89, 103, 0.05);
+    }
+
+    .kpi-card--warning {
+        border-color: rgba(227, 163, 43, 0.28);
+        background: rgba(227, 163, 43, 0.05);
+    }
+
+    .kpi-card--success {
+        border-color: rgba(27, 142, 139, 0.28);
+        background: rgba(27, 142, 139, 0.05);
+    }
+
+    /* Секция пациентов */
+    .patients-section {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .patients-section__header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--space-16);
+        flex-wrap: wrap;
+        padding: var(--space-20) var(--space-20) var(--space-16);
+    }
+
+        .patients-section__header h2 {
+            margin: 0;
+        }
+
+    .patients-section__description {
+        margin: var(--space-4) 0 0;
+        font-size: 13px;
+        color: var(--color-text-muted);
+    }
+
+    .patients-section__controls {
+        display: flex;
+        align-items: flex-end;
+        gap: var(--space-12);
+        flex-wrap: wrap;
+    }
+
+    .sort-field {
+        min-width: 200px;
+    }
+
+    /* Список пациентов */
+    .patients-list {
+        display: flex;
+        flex-direction: column;
+        padding: 0 var(--space-20) var(--space-20);
+        gap: var(--space-12);
+    }
+
+    .patients-list__more {
+        display: flex;
+        justify-content: center;
+        padding-top: var(--space-8);
+    }
+
+    /* Скелетоны пациентов */
+    .patients-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-12);
+        padding: 0 var(--space-20) var(--space-20);
+    }
+
+    .patient-skeleton-row {
+        min-height: 80px;
+    }
+
+    /* Form */
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-field__label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+    }
+
+    /* Responsive */
+    @@media (max-width: 1100px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .page-header,
+        .patients-section__header,
+        .patients-list,
+        .patients-skeleton {
+            padding-left: var(--space-16);
+            padding-right: var(--space-16);
+        }
+
+        .patients-section__header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .patients-section__controls {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .sort-field {
+            min-width: 0;
+            flex: 1;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header__content {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .page-header__actions {
+            width: 100%;
+            flex-direction: column;
+        }
+
+            .page-header__actions .btn {
+                width: 100%;
+                text-align: center;
+            }
+    }
+</style>

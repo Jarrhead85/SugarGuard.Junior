@@ -1,0 +1,244 @@
+﻿/* Появление */
+@keyframes syncBannerIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Базовый баннер */
+.sync-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-16);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.4;
+    width: 100%;
+    animation: syncBannerIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Иконка */
+.sync-banner__icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+/* Спиннер синхронизации */
+.sync-spinner {
+    animation: syncSpin 900ms linear infinite;
+}
+
+@keyframes syncSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Текст сообщения */
+.sync-banner__message {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Счётчик */
+.sync-banner__badge {
+    flex-shrink: 0;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 var(--space-6);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.22);
+    color: inherit;
+}
+
+.sync-banner__badge--conflict {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Блок действий */
+.sync-banner__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    flex-shrink: 0;
+}
+
+/* Кнопка действия (Разрешить / Повторить / Офлайн-режим) */
+.sync-banner__action-btn {
+    min-height: 28px;
+    padding: 0 var(--space-10);
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: inherit;
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition-interactive), transform var(--transition-interactive);
+}
+
+    .sync-banner__action-btn:hover {
+        background: rgba(255, 255, 255, 0.28);
+        transform: translateY(-1px);
+    }
+
+    .sync-banner__action-btn:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+
+    .sync-banner__action-btn:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+/* Кнопка закрытия */
+.sync-banner__dismiss-btn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: inherit;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity var(--transition-interactive), background var(--transition-interactive);
+}
+
+    .sync-banner__dismiss-btn:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.22);
+    }
+
+    .sync-banner__dismiss-btn:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+/* Цвета состояний */
+/* Синхронизация */
+.sync-banner--syncing {
+    background: color-mix(in oklab, var(--color-primary, #1B8E8B) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-primary, #1B8E8B) 22%, transparent);
+    color: var(--color-primary, #1B8E8B);
+}
+
+/* Ожидание */
+.sync-banner--pending {
+    background: rgba(38, 120, 217, 0.10);
+    border: 1px solid rgba(38, 120, 217, 0.20);
+    color: #2678D9;
+}
+
+/* Офлайн */
+.sync-banner--offline {
+    background: var(--color-surface-offset);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+/* Конфликт */
+.sync-banner--conflict {
+    background: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 12%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 25%, transparent);
+    color: var(--color-glucose-warning, #E3A32B);
+}
+
+    .sync-banner--conflict .sync-banner__badge--conflict {
+        background: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 18%, transparent);
+    }
+
+/* Ошибка */
+.sync-banner--error {
+    background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 10%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-danger, #DB5967) 22%, transparent);
+    color: var(--color-glucose-danger, #DB5967);
+}
+
+/* Dark mode */
+
+:global([data-theme="dark"]) .sync-banner--syncing {
+    background: color-mix(in oklab, var(--color-primary, #56D0BF) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-primary, #56D0BF) 20%, transparent);
+    color: var(--color-primary, #56D0BF);
+}
+
+:global([data-theme="dark"]) .sync-banner--pending {
+    background: rgba(109, 174, 255, 0.10);
+    border-color: rgba(109, 174, 255, 0.20);
+    color: #6DAEFF;
+}
+
+:global([data-theme="dark"]) .sync-banner--offline {
+    background: var(--color-surface-offset);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+:global([data-theme="dark"]) .sync-banner--conflict {
+    background: color-mix(in oklab, var(--color-glucose-warning, #F4BC56) 12%, transparent);
+    border-color: color-mix(in oklab, var(--color-glucose-warning, #F4BC56) 22%, transparent);
+    color: var(--color-glucose-warning, #F4BC56);
+}
+
+:global([data-theme="dark"]) .sync-banner--error {
+    background: color-mix(in oklab, var(--color-glucose-danger, #FF7A8B) 10%, transparent);
+    border-color: color-mix(in oklab, var(--color-glucose-danger, #FF7A8B) 20%, transparent);
+    color: var(--color-glucose-danger, #FF7A8B);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .sync-banner {
+        flex-wrap: wrap;
+        gap: var(--space-6);
+        padding: var(--space-8) var(--space-12);
+    }
+
+    .sync-banner__message {
+        white-space: normal;
+    }
+
+    .sync-banner__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .sync-banner {
+        animation: none;
+    }
+
+    .sync-spinner {
+        animation: none;
+    }
+}

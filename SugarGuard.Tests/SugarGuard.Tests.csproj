@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.1" />
+    <PackageReference Include="FsCheck.Xunit" Version="2.16.6" />
+    <PackageReference Include="Hangfire.InMemory" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SugarGuard.Shared\SugarGuard.Shared.csproj" />
+    <ProjectReference Include="..\SugarGuard.Domain\SugarGuard.Domain.csproj" />
+    <ProjectReference Include="..\SugarGuard.Application\SugarGuard.Application.csproj" />
+    <ProjectReference Include="..\SugarGuard.Infrastructure\SugarGuard.Infrastructure.csproj" />
+    <ProjectReference Include="..\SugarGuard.Web\SugarGuard.Web.csproj" />
+    <ProjectReference Include="..\SugarGuard.API\SugarGuard.API.csproj" />
+    <ProjectReference Include="..\SugarGuard.Junior.Core\SugarGuard.Junior.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SugarGuard.Bot\Services\TelegramRateLimiter.cs"
+             Link="Unit\Bot\TelegramRateLimiter.cs" />
+    <Compile Include="..\SugarGuard.Bot\Services\MarkdownSafe.cs"
+             Link="Unit\Bot\MarkdownSafe.cs" />
+    <Compile Include="..\SugarGuard.Junior\Utilities\CipherFormat.cs"
+             Link="Security\CipherFormat.cs" />
+    <Compile Include="..\SugarGuard.Web\Utilities\SafeRedirect.cs"
+             Link="Security\SafeRedirect.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

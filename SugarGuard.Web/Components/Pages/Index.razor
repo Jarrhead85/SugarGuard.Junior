@@ -1,0 +1,1047 @@
+@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SugarGuard.Web.Services
+
+@attribute [AllowAnonymous]
+@layout EmptyLayout
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@* Автоматический редирект авторизованных пользователей *@
+
+<PageTitle>SugarGuard — система управления диабетом</PageTitle>
+
+<div class="sg-landing">
+
+    @* ШАПКА *@
+    <header class="sg-landing__header">
+        <div class="sg-landing__header-inner">
+            <a class="sg-landing__brand" href="/" aria-label="SugarGuard — на главную">
+                <span class="sg-landing__logo" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.2"
+                         aria-hidden="true" focusable="false">
+                        <path d="M12 3c3.1 0 5.5 2.4 5.5 5.6 0 4.5-5.5 12.4-5.5 12.4S6.5 13.1 6.5 8.6C6.5 5.4 8.9 3 12 3Z" />
+                        <path d="M9 9.5c1.2-1.7 4.8-1.7 6 0" />
+                    </svg>
+                </span>
+                <span class="sg-landing__brand-name">SugarGuard</span>
+            </a>
+
+            <nav class="sg-landing__nav" aria-label="Навигация">
+                <button class="sg-landing__theme-toggle"
+                        type="button"
+                        @onclick="ToggleThemeAsync"
+                        aria-label="Переключить тему"
+                        title="Переключить тему">
+                    @(isDarkTheme ? "☀" : "☾")
+                </button>
+                <a class="sg-landing__nav-link" href="/login">Войти</a>
+                <a class="sg-landing__nav-link sg-landing__nav-link--primary" href="/register">
+                    Зарегистрироваться
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    @* HERO *@
+    <main id="main-content">
+        <section class="sg-landing__hero" aria-labelledby="hero-heading">
+            <div class="sg-landing__hero-inner">
+
+                <div class="sg-landing__hero-content">
+                    <div class="sg-landing__eyebrow" role="status" aria-live="polite">
+                        <span class="sg-landing__dot" aria-hidden="true"></span>
+                        Система в сети
+                    </div>
+
+                    <h1 id="hero-heading" class="sg-landing__hero-title">
+                        Диабет под<br />контролем
+                    </h1>
+
+                    <p class="sg-landing__hero-desc">
+                        Отслеживайте уровень глюкозы, получайте ИИ-рекомендации
+                        и держите врача в курсе — всё в одном приложении.
+                    </p>
+
+                    <div class="sg-landing__hero-actions">
+                        <a href="/login"
+                           class="sg-btn sg-btn--primary"
+                           aria-label="Войти в личный кабинет">
+                            Войти
+                        </a>
+                        <a href="/register"
+                           class="sg-btn sg-btn--ghost"
+                           aria-label="Создать новый аккаунт">
+                            Зарегистрироваться
+                        </a>
+                    </div>
+                </div>
+
+                @* Иллюстративные карточки *@
+                <div class="sg-landing__hero-visual" aria-hidden="true">
+                    <div class="sg-landing__mock-card sg-landing__mock-card--glucose">
+                        <div class="sg-landing__mock-label">Глюкоза сейчас</div>
+                        <div class="sg-landing__mock-value">
+                            6.4
+                            <span class="sg-landing__mock-unit">ммоль/л</span>
+                        </div>
+                        <div class="sg-landing__mock-status sg-landing__mock-status--ok">● В норме</div>
+
+                        <svg class="sg-landing__spark" viewBox="0 0 200 48"
+                             fill="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="sparkGrad" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="var(--sg-primary)" />
+                                    <stop offset="100%" stop-color="var(--sg-primary-2, var(--sg-primary))" />
+                                </linearGradient>
+                                <linearGradient id="sparkArea" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="var(--sg-primary)" stop-opacity="0.28" />
+                                    <stop offset="100%" stop-color="var(--sg-primary)" stop-opacity="0" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M0 32 C20 30 36 20 56 24 C76 28 96 16 120 14 C144 12 164 22 200 18
+                                     L200 48 L0 48 Z"
+                                  fill="url(#sparkArea)" />
+                            <path d="M0 32 C20 30 36 20 56 24 C76 28 96 16 120 14 C144 12 164 22 200 18"
+                                  stroke="url(#sparkGrad)" stroke-width="2.5"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+
+                    <div class="sg-landing__mock-card sg-landing__mock-card--rec">
+                        <div class="sg-landing__mock-label">Рекомендация ИИ</div>
+                        <p class="sg-landing__mock-rec-text">
+                            Уровень глюкозы стабилен. Лёгкий перекус из 1,5 ХЕ
+                            перед прогулкой будет оптимальным.
+                        </p>
+                        <div class="sg-landing__mock-badge">СРЕДНИЙ</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        @* ФИЧИ *@
+        <section class="sg-landing__features" aria-labelledby="features-heading">
+            <div class="sg-landing__section-inner">
+                <h2 id="features-heading" class="sg-landing__section-title">
+                    Всё, что нужно для управления диабетом
+                </h2>
+
+                <ul class="sg-landing__features-grid" role="list">
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18" />
+                                <path d="m7 14 4-4 3 3 5-7" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">График глюкозы</h3>
+                        <p class="sg-landing__feature-desc">
+                            Наглядная визуализация за день, неделю и месяц
+                            с зонами целевого диапазона.
+                        </p>
+                    </li>
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M12 8v4l3 3" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">ИИ-рекомендации</h3>
+                        <p class="sg-landing__feature-desc">
+                            Персональные советы на основе GigaChat с учётом
+                            текущего уровня глюкозы и состояния ребёнка.
+                        </p>
+                    </li>
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <path d="M6 7h12" />
+                                <path d="M9 7V5a3 3 0 1 1 6 0v2" />
+                                <path d="M6 7l1 12h10l1-12" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">Рюкзачок</h3>
+                        <p class="sg-landing__feature-desc">
+                            Быстрый учёт перекусов в хлебных единицах
+                            с уведомлением родителей через Telegram.
+                        </p>
+                    </li>
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">Связь с врачом</h3>
+                        <p class="sg-landing__feature-desc">
+                            Врач видит историю измерений, добавляет заметки
+                            и получает сводку по пациентам.
+                        </p>
+                    </li>
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">Безопасность</h3>
+                        <p class="sg-landing__feature-desc">
+                            Медицинские данные шифруются AES-256.
+                            JWT с Refresh Token Rotation и строгим RBAC.
+                        </p>
+                    </li>
+                    <li class="sg-landing__feature-card">
+                        <span class="sg-landing__feature-icon" aria-hidden="true">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2">
+                                <polyline points="8 17 12 21 16 17" />
+                                <line x1="12" y1="12" x2="12" y2="21" />
+                                <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" />
+                            </svg>
+                        </span>
+                        <h3 class="sg-landing__feature-title">Синхронизация</h3>
+                        <p class="sg-landing__feature-desc">
+                            Данные синхронизируются между мобильным
+                            приложением и веб-кабинетом в реальном времени.
+                        </p>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        @* РОЛИ *@
+        <section class="sg-landing__roles" aria-labelledby="roles-heading">
+            <div class="sg-landing__section-inner">
+                <h2 id="roles-heading" class="sg-landing__section-title">
+                    Личный кабинет для каждой роли
+                </h2>
+
+                <div class="sg-landing__roles-grid">
+                    <div class="sg-landing__role-card sg-landing__role-card--parent">
+                        <div class="sg-landing__role-icon" aria-hidden="true">👨‍👩‍👦</div>
+                        <h3 class="sg-landing__role-title">Родитель</h3>
+                        <p class="sg-landing__role-desc">
+                            Мониторинг глюкозы, управление рюкзачком, аналитика,
+                            экспорт отчётов и связь с врачом.
+                        </p>
+                    </div>
+                    <div class="sg-landing__role-card sg-landing__role-card--doctor">
+                        <div class="sg-landing__role-icon" aria-hidden="true">👨‍⚕️</div>
+                        <h3 class="sg-landing__role-title">Врач</h3>
+                        <p class="sg-landing__role-desc">
+                            Список пациентов с TIR, история измерений,
+                            заметки и сводная статистика.
+                        </p>
+                    </div>
+                    <div class="sg-landing__role-card sg-landing__role-card--admin">
+                        <div class="sg-landing__role-icon" aria-hidden="true">🛡️</div>
+                        <h3 class="sg-landing__role-title">Администратор</h3>
+                        <p class="sg-landing__role-desc">
+                            Управление пользователями, аудит, системный мониторинг
+                            и генерация инвайт-кодов.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        @* CTA *@
+        <section class="sg-landing__cta" aria-labelledby="cta-heading">
+            <div class="sg-landing__section-inner sg-landing__section-inner--narrow">
+                <h2 id="cta-heading" class="sg-landing__cta-title">
+                    Начните прямо сейчас
+                </h2>
+                <p class="sg-landing__cta-desc">
+                    Присоединяйтесь к SugarGuard — безопасной системе управления
+                    диабетом для детей и их родителей.
+                </p>
+                <div class="sg-landing__hero-actions">
+                    <a href="/login"
+                       class="sg-btn sg-btn--primary sg-btn--lg"
+                       aria-label="Войти в личный кабинет">
+                        Войти
+                    </a>
+                    <a href="/register"
+                       class="sg-btn sg-btn--ghost sg-btn--lg"
+                       aria-label="Зарегистрироваться">
+                        Создать аккаунт
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    @* ПОДВАЛ *@
+    <footer class="sg-landing__footer" role="contentinfo">
+        <div class="sg-landing__section-inner">
+            <span class="sg-landing__footer-copy">
+                &copy; @DateTime.Now.Year SugarGuard. Все права защищены.
+            </span>
+            <nav class="sg-landing__footer-nav" aria-label="Ссылки подвала">
+                <a href="/login" class="sg-landing__footer-link">Войти</a>
+                <a href="/register" class="sg-landing__footer-link">Регистрация</a>
+                <a href="/forgot-password" class="sg-landing__footer-link">Восстановление пароля</a>
+            </nav>
+        </div>
+    </footer>
+
+</div>
+
+@* Стили *@
+<style>
+    /* Токены */
+    :root {
+        --sg-primary: #1b8e8b;
+        --sg-primary-2: #2678d9;
+        --sg-primary-soft: rgba(27,142,139,.12);
+        --sg-bg: #f4f7fb;
+        --sg-surface: #ffffff;
+        --sg-surface-2: #f0f4fa;
+        --sg-border: rgba(22,33,62,.10);
+        --sg-text: #16213e;
+        --sg-text-muted: #667694;
+        --sg-text-faint: #96a2b8;
+        --sg-success: #37a563;
+        --sg-warning: #e3a32b;
+        --sg-danger: #db5967;
+        --sg-radius-sm: 0.5rem;
+        --sg-radius-md: 0.875rem;
+        --sg-radius-lg: 1.25rem;
+        --sg-radius-xl: 1.75rem;
+        --sg-shadow-sm: 0 2px 8px rgba(22,33,62,.06);
+        --sg-shadow-md: 0 8px 24px rgba(22,33,62,.09);
+        --sg-shadow-lg: 0 20px 48px rgba(22,33,62,.13);
+        --sg-font-body: 'Satoshi', system-ui, sans-serif;
+        --sg-font-display: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+        --sg-transition: 180ms cubic-bezier(.16,1,.3,1);
+    }
+
+    [data-theme="dark"] {
+        --sg-primary: #56d0bf;
+        --sg-primary-2: #6daeff;
+        --sg-primary-soft: rgba(86,208,191,.12);
+        --sg-bg: #0b1018;
+        --sg-surface: rgba(18,24,36,.82);
+        --sg-surface-2: rgba(17,24,37,.95);
+        --sg-border: rgba(213,228,255,.09);
+        --sg-text: #edf4ff;
+        --sg-text-muted: #9eaed0;
+        --sg-text-faint: #6f7d99;
+        --sg-success: #62d889;
+        --sg-warning: #f4bc56;
+        --sg-danger: #ff7a8b;
+        --sg-shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+        --sg-shadow-md: 0 8px 24px rgba(0,0,0,.32);
+        --sg-shadow-lg: 0 20px 48px rgba(0,0,0,.45);
+    }
+
+    /* Шрифты */
+    @@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&f[]=clash-display@500,600&display=swap');
+
+    /* Базовый сброс для лендинга */
+    .sg-landing {
+        font-family: var(--sg-font-body);
+        background-color: var(--sg-bg);
+        color: var(--sg-text);
+        min-height: 100dvh;
+        -webkit-font-smoothing: antialiased;
+    }
+
+        /* Skip-ссылка доступности */
+        .sg-landing a[href="#main-content"] {
+            position: absolute;
+            top: -100%;
+            left: var(--sg-space-4, 1rem);
+            background: var(--sg-primary);
+            color: #fff;
+            padding: .5rem 1rem;
+            border-radius: var(--sg-radius-sm);
+            font-weight: 600;
+            z-index: 9999;
+            transition: top var(--sg-transition);
+        }
+
+            .sg-landing a[href="#main-content"]:focus {
+                top: .5rem;
+            }
+
+    /* Header */
+    .sg-landing__header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: .75rem 0;
+        border-bottom: 1px solid var(--sg-border);
+        background: color-mix(in oklab, var(--sg-surface) 88%, transparent);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    .sg-landing__header-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 clamp(1rem, 4vw, 2rem);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .sg-landing__brand {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        text-decoration: none;
+        color: var(--sg-text);
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+
+    .sg-landing__logo {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--sg-radius-sm);
+        background: linear-gradient(135deg, var(--sg-primary), var(--sg-primary-2));
+        display: grid;
+        place-items: center;
+        color: #fff;
+        flex-shrink: 0;
+        box-shadow: 0 8px 20px rgba(27,142,139,.28);
+    }
+
+    .sg-landing__brand-name {
+        color: var(--sg-text);
+    }
+
+    /* Nav */
+    .sg-landing__nav {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    .sg-landing__nav-link {
+        display: inline-flex;
+        align-items: center;
+        padding: .5rem 1rem;
+        border-radius: var(--sg-radius-sm);
+        font-size: .875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background var(--sg-transition), color var(--sg-transition);
+        color: var(--sg-text-muted);
+        border: 1px solid transparent;
+        min-height: 40px;
+    }
+
+        .sg-landing__nav-link:hover {
+            background: var(--sg-primary-soft);
+            color: var(--sg-primary);
+        }
+
+    .sg-landing__nav-link--primary {
+        background: linear-gradient(135deg, var(--sg-primary), var(--sg-primary-2));
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 4px 14px rgba(27,142,139,.25);
+    }
+
+        .sg-landing__nav-link--primary:hover {
+            background: linear-gradient(135deg, var(--sg-primary-2), var(--sg-primary));
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(27,142,139,.35);
+            transform: translateY(-1px);
+        }
+
+    .sg-landing__nav-link:focus-visible {
+        outline: 2px solid var(--sg-primary);
+        outline-offset: 2px;
+    }
+
+    .sg-landing__theme-toggle {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--sg-radius-sm);
+        border: 1px solid var(--sg-border);
+        background: var(--sg-surface);
+        color: var(--sg-text);
+        display: inline-grid;
+        place-items: center;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background var(--sg-transition), color var(--sg-transition), border-color var(--sg-transition);
+    }
+
+        .sg-landing__theme-toggle:hover {
+            background: var(--sg-primary-soft);
+            color: var(--sg-primary);
+            border-color: rgba(27,142,139,.25);
+        }
+
+        .sg-landing__theme-toggle:focus-visible {
+            outline: 2px solid var(--sg-primary);
+            outline-offset: 2px;
+        }
+
+    /* Кнопки */
+    .sg-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        min-height: 44px;
+        padding: .625rem 1.5rem;
+        border-radius: var(--sg-radius-sm);
+        font-size: .9rem;
+        font-weight: 600;
+        font-family: var(--sg-font-body);
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: background var(--sg-transition), transform var(--sg-transition), box-shadow var(--sg-transition);
+        white-space: nowrap;
+    }
+
+    .sg-btn--primary {
+        background: linear-gradient(135deg, var(--sg-primary), var(--sg-primary-2));
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(27,142,139,.28);
+    }
+
+        .sg-btn--primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(27,142,139,.38);
+        }
+
+        .sg-btn--primary:active {
+            transform: translateY(0);
+        }
+
+    .sg-btn--ghost {
+        background: transparent;
+        color: var(--sg-text-muted);
+        border-color: var(--sg-border);
+    }
+
+        .sg-btn--ghost:hover {
+            background: var(--sg-primary-soft);
+            color: var(--sg-primary);
+            border-color: rgba(27,142,139,.25);
+        }
+
+    .sg-btn--lg {
+        min-height: 52px;
+        padding: .75rem 2rem;
+        font-size: 1rem;
+        border-radius: var(--sg-radius-md);
+    }
+
+    .sg-btn:focus-visible {
+        outline: 2px solid var(--sg-primary);
+        outline-offset: 2px;
+    }
+
+    /* Общий контейнер секций */
+    .sg-landing__section-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 clamp(1rem, 4vw, 2rem);
+    }
+
+    .sg-landing__section-inner--narrow {
+        max-width: 640px;
+    }
+
+    .sg-landing__section-title {
+        font-family: var(--sg-font-display);
+        font-size: clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+        font-weight: 600;
+        letter-spacing: -.03em;
+        color: var(--sg-text);
+        text-align: center;
+        margin: 0 0 2.5rem;
+    }
+
+    /* Hero */
+    .sg-landing__hero {
+        padding: clamp(3rem, 8vw, 6rem) 0 clamp(2rem, 5vw, 4rem);
+    }
+
+    .sg-landing__hero-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 clamp(1rem, 4vw, 2rem);
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 3rem;
+        align-items: center;
+    }
+
+    .sg-landing__hero-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .sg-landing__eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--sg-primary);
+        background: var(--sg-primary-soft);
+        padding: .375rem .875rem;
+        border-radius: 999px;
+        border: 1px solid rgba(27,142,139,.2);
+        width: fit-content;
+    }
+
+    .sg-landing__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--sg-success);
+        box-shadow: 0 0 0 4px rgba(55,165,99,.2);
+        animation: sg-dot-pulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes sg-dot-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 4px rgba(55,165,99,.2);
+        }
+
+        50% {
+            box-shadow: 0 0 0 7px rgba(55,165,99,.08);
+        }
+    }
+
+    .sg-landing__hero-title {
+        font-family: var(--sg-font-display);
+        font-size: clamp(2.5rem, 1.2rem + 4vw, 5rem);
+        font-weight: 600;
+        line-height: .96;
+        letter-spacing: -.04em;
+        color: var(--sg-text);
+        margin: 0;
+    }
+
+    .sg-landing__hero-desc {
+        font-size: clamp(1rem, .9rem + .25vw, 1.15rem);
+        color: var(--sg-text-muted);
+        line-height: 1.65;
+        margin: 0;
+        max-width: 52ch;
+    }
+
+    .sg-landing__hero-actions {
+        display: flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    /* Hero visual */
+    .sg-landing__hero-visual {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .sg-landing__mock-card {
+        border-radius: var(--sg-radius-lg);
+        padding: 1.25rem 1.5rem;
+        border: 1px solid var(--sg-border);
+        box-shadow: var(--sg-shadow-md);
+        background: color-mix(in oklab, var(--sg-surface) 88%, transparent);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .sg-landing__mock-label {
+        font-size: .75rem;
+        font-weight: 600;
+        color: var(--sg-text-muted);
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        margin-bottom: .5rem;
+    }
+
+    .sg-landing__mock-value {
+        font-family: var(--sg-font-display);
+        font-size: clamp(2rem, 1.5rem + 1.2vw, 3.2rem);
+        font-weight: 600;
+        line-height: 1;
+        color: var(--sg-text);
+        letter-spacing: -.03em;
+    }
+
+    .sg-landing__mock-unit {
+        font-family: var(--sg-font-body);
+        font-size: .9rem;
+        font-weight: 500;
+        color: var(--sg-text-muted);
+    }
+
+    .sg-landing__mock-status {
+        margin-top: .5rem;
+        font-size: .8rem;
+        font-weight: 600;
+    }
+
+    .sg-landing__mock-status--ok {
+        color: var(--sg-success);
+    }
+
+    .sg-landing__mock-status--bad {
+        color: var(--sg-danger);
+    }
+
+    .sg-landing__spark {
+        width: 100%;
+        height: 48px;
+        margin-top: .75rem;
+    }
+
+    .sg-landing__mock-rec-text {
+        font-size: .875rem;
+        color: var(--sg-text-muted);
+        line-height: 1.55;
+        margin: .25rem 0 .75rem;
+    }
+
+    .sg-landing__mock-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: .25rem .75rem;
+        border-radius: 999px;
+        background: rgba(227,163,43,.12);
+        color: var(--sg-warning);
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        border: 1px solid rgba(227,163,43,.2);
+    }
+
+    /* Features */
+    .sg-landing__features {
+        padding: clamp(2.5rem, 6vw, 5rem) 0;
+        background: var(--sg-surface-2);
+        border-top: 1px solid var(--sg-border);
+        border-bottom: 1px solid var(--sg-border);
+    }
+
+    .sg-landing__features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+        gap: 1.25rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sg-landing__feature-card {
+        background: color-mix(in oklab, var(--sg-surface) 90%, transparent);
+        border: 1px solid var(--sg-border);
+        border-radius: var(--sg-radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--sg-shadow-sm);
+        transition: transform var(--sg-transition), box-shadow var(--sg-transition);
+    }
+
+        .sg-landing__feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--sg-shadow-md);
+        }
+
+    .sg-landing__feature-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: var(--sg-radius-sm);
+        background: var(--sg-primary-soft);
+        color: var(--sg-primary);
+        margin-bottom: .875rem;
+        flex-shrink: 0;
+    }
+
+    .sg-landing__feature-title {
+        font-size: 1.0rem;
+        font-weight: 700;
+        color: var(--sg-text);
+        margin: 0 0 .5rem;
+    }
+
+    .sg-landing__feature-desc {
+        font-size: .875rem;
+        color: var(--sg-text-muted);
+        line-height: 1.6;
+        margin: 0;
+        max-width: none;
+    }
+
+    /* Roles */
+    .sg-landing__roles {
+        padding: clamp(2.5rem, 6vw, 5rem) 0;
+    }
+
+    .sg-landing__roles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+        gap: 1.25rem;
+    }
+
+    .sg-landing__role-card {
+        padding: 1.75rem 1.5rem;
+        border-radius: var(--sg-radius-lg);
+        border: 1px solid var(--sg-border);
+        background: color-mix(in oklab, var(--sg-surface) 85%, transparent);
+        box-shadow: var(--sg-shadow-sm);
+        transition: transform var(--sg-transition), box-shadow var(--sg-transition);
+    }
+
+        .sg-landing__role-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--sg-shadow-md);
+        }
+
+    .sg-landing__role-card--parent {
+        background: color-mix(in oklab, var(--sg-primary) 6%, var(--sg-surface));
+        border-color: rgba(27,142,139,.15);
+    }
+
+    .sg-landing__role-card--doctor {
+        background: color-mix(in oklab, #2678d9 5%, var(--sg-surface));
+        border-color: rgba(38,120,217,.12);
+    }
+
+    .sg-landing__role-card--admin {
+        background: color-mix(in oklab, #7a39bb 5%, var(--sg-surface));
+        border-color: rgba(122,57,187,.12);
+    }
+
+    .sg-landing__role-icon {
+        font-size: 2rem;
+        margin-bottom: .875rem;
+        line-height: 1;
+    }
+
+    .sg-landing__role-title {
+        font-size: 1.0rem;
+        font-weight: 700;
+        color: var(--sg-text);
+        margin: 0 0 .5rem;
+    }
+
+    .sg-landing__role-desc {
+        font-size: .875rem;
+        color: var(--sg-text-muted);
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* CTA */
+    .sg-landing__cta {
+        padding: clamp(3rem, 6vw, 5rem) 0;
+        background: var(--sg-surface-2);
+        text-align: center;
+        border-top: 1px solid var(--sg-border);
+    }
+
+    .sg-landing__cta-title {
+        font-family: var(--sg-font-display);
+        font-size: clamp(1.75rem, 1.2rem + 2vw, 3rem);
+        font-weight: 600;
+        letter-spacing: -.03em;
+        color: var(--sg-text);
+        margin: 0 0 .875rem;
+    }
+
+    .sg-landing__cta-desc {
+        font-size: clamp(1rem, .9rem + .25vw, 1.1rem);
+        color: var(--sg-text-muted);
+        line-height: 1.6;
+        margin: 0 0 2rem;
+        max-width: 52ch;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .sg-landing__cta .sg-landing__hero-actions {
+        justify-content: center;
+    }
+
+    /* Footer */
+    .sg-landing__footer {
+        padding: 1.5rem 0;
+        border-top: 1px solid var(--sg-border);
+        background: var(--sg-bg);
+    }
+
+        .sg-landing__footer .sg-landing__section-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+    .sg-landing__footer-copy {
+        font-size: .8rem;
+        color: var(--sg-text-faint);
+    }
+
+    .sg-landing__footer-nav {
+        display: flex;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .sg-landing__footer-link {
+        font-size: .8rem;
+        color: var(--sg-text-muted);
+        text-decoration: none;
+        transition: color var(--sg-transition);
+    }
+
+        .sg-landing__footer-link:hover {
+            color: var(--sg-primary);
+        }
+
+        .sg-landing__footer-link:focus-visible {
+            outline: 2px solid var(--sg-primary);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+
+    /* Адаптивность */
+    @@media (max-width: 860px) {
+        .sg-landing__hero-inner {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .sg-landing__hero-visual {
+            display: none;
+        }
+    }
+
+    @@media (max-width: 500px) {
+        .sg-landing__hero-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+            .sg-landing__hero-actions .sg-btn {
+                justify-content: center;
+            }
+
+        .sg-landing__footer .sg-landing__section-inner {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .sg-landing__nav {
+            gap: .25rem;
+        }
+
+        .sg-landing__nav-link {
+            padding: .4rem .75rem;
+            font-size: .8rem;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-landing__dot {
+            animation: none;
+        }
+
+        .sg-btn,
+        .sg-landing__feature-card,
+        .sg-landing__role-card,
+        .sg-landing__nav-link {
+            transition: none;
+        }
+    }
+</style>
+
+@code {
+    private bool isDarkTheme;
+
+    /// <summary>
+    /// При монтировании компонента проверяем аутентификацию
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (!user.Identity?.IsAuthenticated ?? true) return;
+
+            // Редирект по роли
+            var role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                       ?? user.FindFirst("role")?.Value;
+
+            var target = role switch
+            {
+                "Admin" or "SupportAdmin" => "/admin/dashboard",
+                "Doctor" => "/doctor/patients",
+                _ => "/parent/dashboard"
+            };
+
+            Navigation.NavigateTo(target, replace: true);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var theme = await JS.InvokeAsync<string>("sugarGuardTheme.getTheme");
+            isDarkTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+            StateHasChanged();
+        }
+        catch
+        {
+            isDarkTheme = false;
+        }
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("sugarGuardTheme.toggle");
+            var theme = await JS.InvokeAsync<string>("sugarGuardTheme.getTheme");
+            isDarkTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            isDarkTheme = !isDarkTheme;
+        }
+    }
+}

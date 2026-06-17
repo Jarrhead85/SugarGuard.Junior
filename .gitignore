@@ -1,0 +1,137 @@
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options directory
+.vs/
+
+# Secrets and sensitive configuration files
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+*.key
+*.secret
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+
+# Visual Studio Code
+.vscode/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node modules (if any frontend)
+node_modules/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker / Containers
+**/Dockerfile*
+!**/docker/*.Dockerfile
+.dockerignore
+docker-compose*.yml
+!**/docker-compose.prod.yml
+!**/docker-compose.preprod.yml
+!**/docker-compose.dev.yml
+docker-data/
+pgdata/
+redisdata/
+
+# MAUI / Mobile artifacts
+**/bin/
+**/obj/
+**/.vs/
+**/*.apk
+**/*.aab
+**/*.app
+**/*.appx
+**/*.appxbundle
+**/*.appxupload
+**/*.dSYM/
+**/*.dSYM.zip
+**/*.pdb
+**/Resources/Raw/AboutAssets.txt
+**/*.ttf
+**/*.otf
+
+# Build artifacts
+publish/
+*sources.txt
+*sources*.txt
+*.md
+exports/
+
+# .NET / dotnet tools
+**/.config/
+**/global.json
+**/.dotnet/
+**/.nuget/
+**/project.assets.json
+**/project.fragment.lock.json
+**/artifacts/
+
+# Coverage / test results
+**/TestResults/
+**/coverage*/
+**/codecov.yml
+**/.nyc_output/
+
+# Logs
+*.log
+**/logs/
+**/Log/
+
+# Backup
+**/backups/
+**/*.dump
+**/*.sql.gz
+**/*.bak
+
+# Local config
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/settings.json
+!**/settings.json.example
+
+# Local deployment keys and scratch files
+.deploy/
+.deploy2/

@@ -1,0 +1,359 @@
+@* переиспользуемый компонент интерактивного графика глюкозы *@
+
+@namespace SugarGuard.Web.Components.Shared
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+
+@using Microsoft.JSInterop
+@using SugarGuard.Web.Services
+
+@inject IJSRuntime JS
+
+<div class="gc-wrapper">
+
+    @* Шапка: заголовок + TIR-бейдж + переключатель периода  *@
+    @if (ShowHeader)
+    {
+        <div class="gc-header">
+            <div class="gc-header-left">
+                <span class="gc-title">@Title</span>
+
+                @if (!IsLoading && _tirPercent.HasValue)
+                {
+                    <span class="gc-tir-badge" title="Время в целевом диапазоне">
+                        TIR @_tirPercent.Value.ToString("F0")%
+                    </span>
+                }
+            </div>
+
+            @if (ShowPeriodSelector)
+            {
+                <div class="gc-header-right">
+                    <div class="gc-period-selector" role="group" aria-label="Период графика">
+                        @foreach (var p in _periods)
+                        {
+                            <button class="gc-period-btn @(p == _selectedPeriod ? "active" : string.Empty)"
+                                    type="button"
+                                    @onclick="() => OnPeriodClickAsync(p)"
+                                    aria-pressed="@(p == _selectedPeriod ? "true" : "false")">
+                                @p
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* Canvas-контейнер *@
+    <div class="gc-canvas-wrap" style="height: @(HeightPx)px;">
+
+        @if (IsLoading)
+        {
+            @* Skeleton во время загрузки *@
+            <div class="gc-skeleton" aria-hidden="true">
+                <div class="gc-skeleton-shimmer"></div>
+            </div>
+        }
+        else if (Points == null || !Points.Any())
+        {
+            @* Empty state *@
+            <div class="gc-empty" role="status" aria-label="Нет данных">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3 17l4-8 4 5 3-3 4 6" />
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3 21h18" />
+                </svg>
+                <p>Нет данных за выбранный период</p>
+            </div>
+        }
+        else
+        {
+            @* Canvas для Chart.js *@
+            <canvas @ref="_canvasRef"
+                    id="@_chartId"
+                    aria-label="График уровня глюкозы"
+                    role="img"
+                    style="width: 100%; height: @(HeightPx)px;">
+            </canvas>
+        }
+
+    </div>
+
+    @* Легенда зон *@
+    @if (ShowLegend && !IsLoading && Points != null && Points.Any())
+    {
+        <div class="gc-legend" role="list" aria-label="Легенда зон глюкозы">
+            <div class="gc-legend-item gc-legend-normal" role="listitem">
+                <span class="gc-legend-dot" aria-hidden="true"></span>
+                <span>Норма (@TargetMin–@TargetMax)</span>
+            </div>
+            <div class="gc-legend-item gc-legend-warning" role="listitem">
+                <span class="gc-legend-dot" aria-hidden="true"></span>
+                <span>Внимание</span>
+            </div>
+            <div class="gc-legend-item gc-legend-danger" role="listitem">
+                <span class="gc-legend-dot" aria-hidden="true"></span>
+                <span>Опасно</span>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    // Параметры    
+    [Parameter]
+    public IReadOnlyList<ChartPoint>? Points { get; set; } // Список точек для отрисовки на графике
+   
+    [Parameter]
+    public int HeightPx { get; set; } = 200; // Высота canvas в пикселях
+   
+    [Parameter]
+    public double TargetMin { get; set; } = 4.0; // Нижняя граница целевого диапазона нормы
+   
+    [Parameter]
+    public double TargetMax { get; set; } = 10.0; // Верхняя граница целевого диапазона нормы
+   
+    [Parameter]
+    public bool ShowLegend { get; set; } = true; // Показывать ли легенду зон под графиком
+   
+    [Parameter]
+    public bool ShowHeader { get; set; } = true; // Показывать ли шапку
+   
+    [Parameter]
+    public string Title { get; set; } = "График глюкозы"; // Заголовок графика
+   
+    [Parameter]
+    public bool ShowPeriodSelector { get; set; } = false; // Показывать ли переключатель периода
+
+    [Parameter]
+    public EventCallback<string> OnPeriodChanged { get; set; } // Callback при смене периода
+   
+    [Parameter]
+    public bool IsLoading { get; set; } // Показывать skeleton вместо графика
+
+    // Приватное состояние    
+    private ElementReference _canvasRef; // DOM-ссылка на элемент canvas
+   
+    private readonly string _chartId = $"sg-glucose-chart-{Guid.NewGuid():N}"; // Уникальный ID canvas для Chart.js 
+   
+    private bool _chartInitialized; // Флаг: Chart.js уже инициализирован
+   
+    private int _lastPointsHash; // Хэш последнего отрисованного набора Points для детектирования изменений
+   
+    private IReadOnlyList<ChartPoint> _sortedPoints = Array.Empty<ChartPoint>(); // Отсортированный кэш точек для построения payload без повторной сортировки на каждом рендере
+       
+    private object? _chartPayload; // Подготовленный payload
+   
+    private double? _tirPercent; // Вычисленный TIR для текущего набора Points
+   
+    private readonly string[] _periods = ["24ч", "7д", "30д"]; // Доступные периоды для переключателя
+   
+    private string _selectedPeriod = "24ч"; // Текущий выбранный период
+
+    // Жизненный цикл
+    /// <inheritdoc/>
+    protected override async Task OnParametersSetAsync()
+    {
+        var newHash = HashCode.Combine(
+            ComputePointsHash(Points),
+            TargetMin,
+            TargetMax,
+            HeightPx);
+        if (newHash == _lastPointsHash)
+        {
+            return;
+        }
+
+        _lastPointsHash = newHash;
+
+        _sortedPoints = (Points ?? Array.Empty<ChartPoint>())
+            .OrderBy(p => p.Time)
+            .ToArray();
+
+        _tirPercent = ComputeTir(_sortedPoints, TargetMin, TargetMax);
+        _chartPayload = _sortedPoints.Count == 0 ? null : BuildChartPayload(_sortedPoints);
+
+        if (_chartInitialized && _chartPayload is not null)
+        {
+            await UpdateChartAsync();
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_chartInitialized && _chartPayload is not null)
+        {
+            await InitChartAsync();
+        }
+    }
+
+    // Инициализация и обновление Chart.js
+    /// <summary>
+    /// Создаёт Chart.js instance через JS Interop
+    /// </summary>
+    private async Task InitChartAsync()
+    {
+        if (_chartInitialized || _chartPayload is null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("sgGlucoseChart.init", _canvasRef, _chartPayload);
+            _chartInitialized = true;
+        }
+        catch (JSException ex)
+        {
+            Console.Error.WriteLine($"GlucoseChart JS init failed: {ex.Message}");
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Обновляет данные Chart.js
+    /// </summary>
+    private async Task UpdateChartAsync()
+    {
+        if (!_chartInitialized || _chartPayload is null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("sgGlucoseChart.update", _chartId, _chartPayload);
+        }
+        catch (JSException ex)
+        {
+            Console.Error.WriteLine($"GlucoseChart JS update failed: {ex.Message}");
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    // Переключатель периода
+    /// <summary>
+    /// Обрабатывает нажатие кнопки периода и уведомляет родителя
+    /// </summary>
+    private async Task OnPeriodClickAsync(string period)
+    {
+        if (_selectedPeriod == period)
+            return;
+
+        _selectedPeriod = period;
+
+        if (OnPeriodChanged.HasDelegate)
+            await OnPeriodChanged.InvokeAsync(period);
+    }
+
+    // Построение payload для Chart.js 
+    /// <summary>
+    /// Собирает полный конфигурационный объект
+    /// </summary>
+    private object BuildChartPayload(IReadOnlyList<ChartPoint> sorted)
+    {
+        var spanDays = sorted.Count > 1
+            ? (sorted[^1].Time - sorted[0].Time).TotalDays
+            : 0;
+
+        var labels = sorted
+            .Select(p => spanDays > 1
+                ? p.Time.ToLocalTime().ToString("dd.MM HH:mm")
+                : p.Time.ToLocalTime().ToString("HH:mm"))
+            .ToArray();
+
+        var values = sorted
+            .Select(p => p.Value)
+            .ToArray();
+
+        var colors = sorted
+            .Select(p => p.Value is < 3.3 or > 15.0 ? "danger"
+                : p.Value < TargetMin || p.Value > TargetMax ? "warning"
+                : "safe")
+            .ToArray();
+
+        // Y-ось: оставляем запас сверху и снизу
+        var yMax = Math.Max(TargetMax + 4.0, sorted.Any() ? sorted.Max(p => p.Value) * 1.1 : TargetMax + 4.0);
+
+        return new
+        {
+            chartId = _chartId,
+            labels,
+            values,
+            colors,
+            zones = new
+            {
+                targetMin = TargetMin,
+                targetMax = TargetMax,
+                criticalLow = 3.3,
+                criticalHigh = 15.0
+            },
+            yMin = 0.0,
+            yMax,
+            height = HeightPx
+        };
+    }
+
+    // Вспомогательные методы
+    /// <summary>
+    /// Вычисляет TIR — процент точек в целевом диапазоне
+    /// </summary>
+    private static double? ComputeTir(IReadOnlyList<ChartPoint>? points, double min, double max)
+    {
+        if (points == null || points.Count == 0)
+            return null;
+
+        var inRange = points.Count(p => p.Value >= min && p.Value <= max);
+        return inRange * 100.0 / points.Count;
+    }
+
+    /// <summary>
+    /// Вычисляет хэш набора точек для быстрого сравнения при смене параметров
+    /// </summary>
+    private static int ComputePointsHash(IReadOnlyList<ChartPoint>? points)
+    {
+        if (points == null || !points.Any())
+            return 0;
+
+        var hash = new HashCode();
+        hash.Add(points.Count);
+        hash.Add(points[0].Time.Ticks);
+        hash.Add(points[^1].Time.Ticks);
+        hash.Add(points.Sum(p => p.Value));
+        return hash.ToHashCode();
+    }
+
+    // IAsyncDisposable 
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        if (!_chartInitialized)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("sgGlucoseChart.destroy", _chartId);
+        }
+        catch
+        {
+        }
+    }
+
+    // Вложенные типы 
+    public sealed record ChartPoint(DateTime Time, double Value); // DTO точки на графике. Используется как входной параметр
+
+    /// <summary>
+    /// Конвертирует список 
+    /// </summary>
+    public static IReadOnlyList<ChartPoint> FromMeasurements(
+        IEnumerable<SugarGuard.Web.ViewModels.MeasurementVm> measurements)
+        => measurements
+            .Select(m => new ChartPoint(m.MeasurementTime, (double)m.GlucoseValue))
+            .OrderBy(p => p.Time)
+            .ToList();
+}

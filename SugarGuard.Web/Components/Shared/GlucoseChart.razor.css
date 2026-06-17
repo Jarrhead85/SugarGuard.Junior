@@ -1,0 +1,200 @@
+﻿/* Обёртка */
+.gc-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    width: 100%;
+}
+
+/* Шапка */
+.gc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    flex-wrap: wrap;
+}
+
+.gc-header-left {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-12);
+    flex-wrap: wrap;
+}
+
+.gc-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    flex-wrap: wrap;
+}
+
+.gc-title {
+    font-family: var(--font-body);
+    font-size: var(--text-sm, 14px);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* TIR-бейдж */
+.gc-tir-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: var(--radius-full);
+    background: color-mix(in oklab, var(--color-glucose-normal) 12%, transparent);
+    color: var(--color-glucose-normal);
+    font-family: var(--font-body);
+    font-size: var(--text-xs, 12px);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Кнопки периода */
+.gc-period-selector {
+    display: flex;
+    gap: var(--space-4);
+}
+
+.gc-period-btn {
+    height: 28px;
+    padding: 0 var(--space-12);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-xs, 12px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-interactive), color var(--transition-interactive), border-color var(--transition-interactive);
+}
+
+    .gc-period-btn:hover {
+        background: var(--color-surface-offset);
+        color: var(--color-text);
+    }
+
+    .gc-period-btn:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        border-radius: var(--radius-full);
+    }
+
+    .gc-period-btn:active {
+        transform: scale(0.97);
+        transition: transform 80ms;
+    }
+
+    .gc-period-btn.active {
+        background: color-mix(in oklab, var(--color-primary) 12%, var(--color-surface));
+        border-color: transparent;
+        color: var(--color-primary);
+    }
+
+/* Canvas-контейнер */
+.gc-canvas-wrap {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+    .gc-canvas-wrap canvas {
+        display: block;
+        width: 100% !important;
+    }
+
+/* Skeleton */
+.gc-skeleton {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-offset);
+    overflow: hidden;
+}
+
+.gc-skeleton-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient( 90deg, transparent 0%, var(--color-surface-dynamic, rgba(255, 255, 255, 0.12)) 50%, transparent 100% );
+    background-size: 200% 100%;
+    animation: gc-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes gc-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Empty state */
+.gc-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    color: var(--color-text-faint);
+}
+
+    .gc-empty p {
+        font-family: var(--font-body);
+        font-size: var(--text-sm, 14px);
+        color: var(--color-text-faint);
+        margin: 0;
+    }
+
+/* Легенда зон */
+.gc-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+    flex-wrap: wrap;
+}
+
+.gc-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-family: var(--font-body);
+    font-size: var(--text-xs, 11px);
+    color: var(--color-text-muted);
+}
+
+.gc-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.gc-legend-normal .gc-legend-dot {
+    background: var(--color-glucose-normal);
+}
+
+.gc-legend-warning .gc-legend-dot {
+    background: var(--color-glucose-warning);
+}
+
+.gc-legend-danger .gc-legend-dot {
+    background: var(--color-glucose-danger);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .gc-skeleton-shimmer {
+        animation: none;
+    }
+
+    .gc-period-btn:active {
+        transform: none;
+    }
+}

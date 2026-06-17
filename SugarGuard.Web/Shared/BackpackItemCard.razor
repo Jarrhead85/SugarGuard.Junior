@@ -1,0 +1,783 @@
+@* Карточка одного перекуса из рюкзака ребёнка *@
+
+@using System.Globalization
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+
+<div class="sg-bpcard @(_showDeleteConfirm ? "sg-bpcard--confirm" : "") @Class"
+     role="listitem">
+
+    @* Основное состояние карточки *@
+    @if (!_showDeleteConfirm)
+    {
+        @* Левый блок: иконка перекуса *@
+        <div class="sg-bpcard__icon" aria-hidden="true">
+            @* Иконка «яблоко» — нейтральный символ перекуса *@
+            <svg viewBox="0 0 24 24"
+                 fill="none"
+                 xmlns="http://www.w3.org/2000/svg"
+                 aria-hidden="true">
+                @* Тело яблока *@
+                <path d="M12 2a4 4 0 0 1 4 4c0 .55-.06 1.09-.18 1.6A6 6 0 0 1 18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6a6 6 0 0 1 2.18-4.6A4.07 4.07 0 0 1 8 6a4 4 0 0 1 4-4z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+                @* Листик *@
+                <path d="M12 2c0 0 2-1 3-1"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round" />
+            </svg>
+        </div>
+
+        @* Центральный блок: название и мета *@
+        <div class="sg-bpcard__content">
+
+            @* Название перекуса — главный текст карточки *@
+            <p class="sg-bpcard__name" title="@Item.SnackName">
+                @Item.SnackName
+            </p>
+
+            @* Метаданные: кем добавлен и когда *@
+            <p class="sg-bpcard__meta">
+                <span class="sg-bpcard__addedby">@AddedByLabel</span>
+                <span class="sg-bpcard__dot" aria-hidden="true">·</span>
+                @* Время отображается в локальной зоне браузера *@
+                <time class="sg-bpcard__time"
+                      datetime="@Item.CreatedAt.ToString("O")">
+                    @FormatCreatedAt(Item.CreatedAt)
+                </time>
+            </p>
+
+        </div>
+
+        @* Правый блок: ХЕ + действия *@
+        <div class="sg-bpcard__right">
+
+            @* Хлебные единицы — ключевой медицинский показатель *@
+            <div class="sg-bpcard__bu" aria-label="@Item.BreadUnits.ToString("F1") хлебных единиц">
+                <span class="sg-bpcard__bu-value">@Item.BreadUnits.ToString("F1", CultureInfo.InvariantCulture)</span>
+                <span class="sg-bpcard__bu-label">ХЕ</span>
+            </div>
+
+            @* Панель кнопок действий *@
+            <div class="sg-bpcard__actions" role="group" aria-label="Действия с перекусом @Item.SnackName">
+
+                @* Кнопка «Съедено» — POST /api/backpack/{id}/consume *@
+                @if (OnConsume.HasDelegate)
+                {
+                    <button class="sg-bpcard__btn sg-bpcard__btn--consume"
+                            type="button"
+                            title="Отметить как съеденное"
+                            aria-label="Съедено: @Item.SnackName"
+                            disabled="@(IsConsuming || IsDeleting)"
+                            @onclick="HandleConsumeClick">
+                        @if (IsConsuming)
+                        {
+                            @* Спиннер во время отправки запроса *@
+                            <svg class="sg-bpcard__spinner"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-dasharray="31.4 31.4"
+                                        transform="rotate(-90 12 12)" />
+                            </svg>
+                        }
+                        else
+                        {
+                            @* Иконка «галочка» *@
+                            <svg viewBox="0 0 24 24"
+                                 fill="none"
+                                 aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12"
+                                          stroke="currentColor"
+                                          stroke-width="2.2"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round" />
+                            </svg>
+                        }
+                    </button>
+                }
+
+                @* Кнопка «Удалить» — показывает inline-confirm *@
+                @if (OnDelete.HasDelegate)
+                {
+                    <button class="sg-bpcard__btn sg-bpcard__btn--delete"
+                            type="button"
+                            title="Удалить перекус"
+                            aria-label="Удалить: @Item.SnackName"
+                            disabled="@(IsConsuming || IsDeleting)"
+                            @onclick="ShowDeleteConfirm">
+                        @if (IsDeleting)
+                        {
+                            @* Спиннер во время удаления *@
+                            <svg class="sg-bpcard__spinner"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-dasharray="31.4 31.4"
+                                        transform="rotate(-90 12 12)" />
+                            </svg>
+                        }
+                        else
+                        {
+                            @* Иконка «корзина» *@
+                            <svg viewBox="0 0 24 24"
+                                 fill="none"
+                                 aria-hidden="true">
+                                <polyline points="3 6 5 6 21 6"
+                                          stroke="currentColor"
+                                          stroke-width="2"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                                <path d="M10 11v6M14 11v6"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      stroke-linecap="round" />
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+                                      stroke="currentColor"
+                                      stroke-width="2"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                            </svg>
+                        }
+                    </button>
+                }
+
+            </div>
+        </div>
+    }
+    else
+    {
+        @* Inline-подтверждение удаления *@
+        <div class="sg-bpcard__confirm-body"
+             role="alertdialog"
+             aria-modal="false"
+             aria-label="Подтверждение удаления перекуса @Item.SnackName">
+
+            @* Иконка предупреждения *@
+            <div class="sg-bpcard__confirm-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"
+                     fill="none"
+                     xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round" />
+                    <line x1="12" y1="9" x2="12" y2="13"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round" />
+                    <line x1="12" y1="17" x2="12.01" y2="17"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round" />
+                </svg>
+            </div>
+
+            @* Текст подтверждения *@
+            <p class="sg-bpcard__confirm-text">
+                Удалить <strong>«@Item.SnackName»</strong>?
+            </p>
+
+            @* Кнопки подтверждения/отмены *@
+            <div class="sg-bpcard__confirm-actions">
+
+                @* Отменить — возвращает обычный вид карточки *@
+                <button class="sg-bpcard__confirm-btn sg-bpcard__confirm-btn--cancel"
+                        type="button"
+                        aria-label="Отменить удаление"
+                        @onclick="HideDeleteConfirm">
+                    Отмена
+                </button>
+
+                @* Подтвердить удаление — вызывает OnDelete *@
+                <button class="sg-bpcard__confirm-btn sg-bpcard__confirm-btn--danger"
+                        type="button"
+                        aria-label="Подтвердить удаление @Item.SnackName"
+                        disabled="@IsDeleting"
+                        @onclick="HandleDeleteConfirm">
+                    @if (IsDeleting)
+                    {
+                        <svg class="sg-bpcard__spinner"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-dasharray="31.4 31.4"
+                                    transform="rotate(-90 12 12)" />
+                        </svg>
+                        <span>Удаление…</span>
+                    }
+                    else
+                    {
+                        <span>Удалить</span>
+                    }
+                </button>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@* CODE-BEHIND *@
+@code {
+    // Публичные параметры
+    /// <summary>
+    /// Данные перекуса из BackpackItemVm (API DTO)
+    /// </summary>
+    [Parameter, EditorRequired]
+    public ViewModels.BackpackItemVm Item { get; set; } = default!;
+
+    /// <summary>
+    /// Обработчик нажатия «Съедено»
+    /// </summary>
+    [Parameter]
+    public EventCallback<Guid> OnConsume { get; set; }
+
+    /// <summary>
+    /// Обработчик нажатия «Удалить»
+    /// </summary>
+    [Parameter]
+    public EventCallback<Guid> OnDelete { get; set; }
+
+    /// <summary>
+    /// Флаг загрузки для кнопки «Съедено»
+    /// </summary>
+    [Parameter]
+    public bool IsConsuming { get; set; }
+
+    /// <summary>
+    /// Флаг загрузки для кнопки «Удалить»
+    /// </summary>
+    [Parameter]
+    public bool IsDeleting { get; set; }
+
+    /// <summary>
+    /// Текущее значение глюкозы ребёнка
+    /// </summary>
+    [Parameter]
+    public double CurrentGlucose { get; set; }
+
+    /// <summary>
+    /// Дополнительные CSS-классы для корневого элемента карточки
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    // Приватное состояние
+    /// <summary>
+    /// Флаг отображения inline-подтверждения удаления
+    /// </summary>
+    private bool _showDeleteConfirm;
+
+    // Вычисляемые свойства
+    /// <summary>
+    /// Человекочитаемая метка источника добавления перекуса
+    /// </summary>
+    private string AddedByLabel => Item.AddedBy?.ToLowerInvariant() switch
+    {
+        "parent"  => "Родитель",
+        "doctor"  => "Врач",
+        "child"   => "Ребёнок",
+        null or "" => "Добавлено",
+        var other  => other
+    };
+
+    // Форматирование времени
+    /// <summary>
+    /// Форматирует время добавления перекуса в читаемый вид
+    /// </summary>
+    private static string FormatCreatedAt(DateTime createdAtUtc)
+    {
+        var local = createdAtUtc.ToLocalTime();
+        var now   = DateTime.Now;
+        var time  = local.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+        if (local.Date == now.Date)
+            return time;
+
+        if (local.Date == now.Date.AddDays(-1))
+            return $"Вчера, {time}";
+
+        var culture = new CultureInfo("ru-RU");
+
+        if (local.Year == now.Year)
+            return $"{local.Day} {culture.DateTimeFormat.GetMonthName(local.Month).ToLower()}, {time}";
+
+        return $"{local.Day} {culture.DateTimeFormat.GetMonthName(local.Month).ToLower()} {local.Year}, {time}";
+    }
+
+    // Обработчики событий
+    /// <summary>
+    /// Обрабатывает клик по кнопке «Съедено»
+    /// </summary>
+    private async Task HandleConsumeClick()
+    {
+        if (OnConsume.HasDelegate)
+            await OnConsume.InvokeAsync(Item.BackpackItemId);
+    }
+
+    /// <summary>
+    /// Показывает inline-диалог подтверждения удаления
+    /// </summary>
+    private void ShowDeleteConfirm()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    /// <summary>
+    /// Скрывает диалог подтверждения, возвращает обычный вид карточки
+    /// </summary>
+    private void HideDeleteConfirm()
+    {
+        _showDeleteConfirm = false;
+    }
+
+    /// <summary>
+    /// Обрабатывает подтверждение удаления
+    /// </summary>
+    private async Task HandleDeleteConfirm()
+    {
+        if (OnDelete.HasDelegate)
+            await OnDelete.InvokeAsync(Item.BackpackItemId);
+
+        _showDeleteConfirm = false;
+    }
+
+}
+
+@* СТИЛИ КОМПОНЕНТА *@
+<style>
+    /* Корневая карточка перекуса */
+    .sg-bpcard {
+        display: flex;
+        align-items: center;
+        gap: 12px;                             
+        padding: 14px 16px;                 
+        border-radius: 16px;              
+        background: var(--sg-surface, rgba(255,255,255,0.84));
+        border: 1px solid var(--sg-border, rgba(22,33,62,0.10));
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        font-family: var(--font-body, 'Satoshi', system-ui, sans-serif);
+        transition: box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                    background 200ms cubic-bezier(0.16, 1, 0.3, 1);
+        list-style: none;
+    }
+
+    /* Лёгкий lift при наведении — ощущение интерактивности */
+    .sg-bpcard:hover {
+        box-shadow: 0 4px 20px rgba(22, 33, 62, 0.08);
+    }
+
+    /* Состояние «ждёт подтверждения удаления» — жёлтый акцент рамки */
+    .sg-bpcard--confirm {
+        border-color: rgba(227, 163, 43, 0.35);
+        background: rgba(227, 163, 43, 0.05);
+    }
+
+    /* Иконка перекуса  */
+    .sg-bpcard__icon {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--sg-primary-soft, rgba(27,142,139,0.12));
+        color: var(--sg-primary, #1B8E8B);
+    }
+
+    .sg-bpcard__icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Контентный блок: название и мета  */
+    .sg-bpcard__content {
+        flex: 1;
+        min-width: 0;   
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    /* Название перекуса — обрезается если слишком длинное */
+    .sg-bpcard__name {
+        margin: 0;
+        font-size: clamp(0.875rem, 0.8rem + 0.35vw, 1rem); 
+        font-weight: 600;
+        color: var(--sg-text, #16213E);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+    }
+
+    /* Строка метаданных */
+    .sg-bpcard__meta {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem); 
+        color: var(--sg-text-faint, #96A2B8);
+        line-height: 1.4;
+    }
+
+    /* Разделитель между AddedBy и временем */
+    .sg-bpcard__dot {
+        opacity: 0.5;
+        font-size: 0.75em;
+    }
+
+    /* Правый блок: ХЕ + кнопки  */
+    .sg-bpcard__right {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Блок хлебных единиц */
+    /* ХЕ — ключевой медицинский показатель карточки */
+    .sg-bpcard__bu {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 1px;
+        min-width: 36px;
+    }
+
+    .sg-bpcard__bu-value {
+        font-family: var(--font-display, 'Clash Display', system-ui, sans-serif);
+        font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem); 
+        font-weight: 600;
+        line-height: 1;
+        color: var(--sg-text, #16213E);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sg-bpcard__bu-label {
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--sg-text-faint, #96A2B8);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        line-height: 1;
+    }
+
+    /* Панель кнопок действий */
+    .sg-bpcard__actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Базовые стили для кнопок действий */
+    .sg-bpcard__btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 4px;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        transition: background  180ms cubic-bezier(0.16, 1, 0.3, 1),
+                    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                    transform    180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sg-bpcard__btn svg {
+        width: 17px;
+        height: 17px;
+        flex-shrink: 0;
+    }
+
+    /* Кнопка заблокирована во время запроса */
+    .sg-bpcard__btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .sg-bpcard__btn:focus-visible {
+        outline: 2px solid var(--sg-primary, #1B8E8B);
+        outline-offset: 2px;
+    }
+
+    .sg-bpcard__btn:not(:disabled):active {
+        transform: scale(0.9);
+    }
+
+    /* Кнопка «Съедено» */
+    .sg-bpcard__btn--consume {
+        color: var(--sg-success, #37A563);
+    }
+
+    .sg-bpcard__btn--consume:not(:disabled):hover {
+        background: rgba(55, 165, 99, 0.12);
+        border-color: rgba(55, 165, 99, 0.25);
+    }
+
+    /* Кнопка «Удалить» */
+    .sg-bpcard__btn--delete {
+        color: var(--sg-text-faint, #96A2B8);
+    }
+
+    .sg-bpcard__btn--delete:not(:disabled):hover {
+        color: var(--sg-danger, #DB5967);
+        background: rgba(219, 89, 103, 0.10);
+        border-color: rgba(219, 89, 103, 0.22);
+    }
+
+    /* Спиннер */
+    .sg-bpcard__spinner {
+        animation: bpcard-spin 0.9s linear infinite;
+        width: 17px;
+        height: 17px;
+    }
+
+    @@keyframes bpcard-spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+    }
+
+    /* INLINE-CONFIRM (диалог подтверждения удаления) */
+
+    /* Confirm-тело занимает всю ширину карточки */
+    .sg-bpcard__confirm-body {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    /* Маленькая иконка предупреждения */
+    .sg-bpcard__confirm-icon {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        color: var(--sg-warning, #E3A32B);
+    }
+
+    .sg-bpcard__confirm-icon svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Текст вопроса: «Удалить «Яблоко»?» */
+    .sg-bpcard__confirm-text {
+        flex: 1;
+        margin: 0;
+        font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem); 
+        color: var(--sg-text, #16213E);
+        line-height: 1.4;
+    }
+
+    /* Кнопки «Отмена» и «Удалить» */
+    .sg-bpcard__confirm-actions {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Базовые стили для обоих вариантов кнопок confirm */
+    .sg-bpcard__confirm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 14px;
+        min-height: 32px;
+        border-radius: 999px;
+        font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background  180ms cubic-bezier(0.16, 1, 0.3, 1),
+                    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+    }
+
+    .sg-bpcard__confirm-btn:focus-visible {
+        outline: 2px solid var(--sg-primary, #1B8E8B);
+        outline-offset: 2px;
+    }
+
+    .sg-bpcard__confirm-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* «Отмена» */
+    .sg-bpcard__confirm-btn--cancel {
+        background: transparent;
+        color: var(--sg-text-muted, #667694);
+        border: 1px solid var(--sg-border, rgba(22,33,62,0.12));
+    }
+
+    .sg-bpcard__confirm-btn--cancel:hover {
+        background: var(--sg-surface-offset, #E9EFF9);
+        border-color: rgba(22,33,62,0.20);
+    }
+
+    /* «Удалить» */
+    .sg-bpcard__confirm-btn--danger {
+        background: rgba(219, 89, 103, 0.12);
+        color: var(--sg-danger, #DB5967);
+        border: 1px solid rgba(219, 89, 103, 0.25);
+    }
+
+    .sg-bpcard__confirm-btn--danger:not(:disabled):hover {
+        background: rgba(219, 89, 103, 0.20);
+        border-color: rgba(219, 89, 103, 0.40);
+    }
+
+    /* ТЁМНАЯ ТЕМА */
+
+    [data-theme="dark"] .sg-bpcard {
+        background: var(--sg-surface, rgba(18,24,36,0.74));
+        border-color: var(--sg-border, rgba(213,228,255,0.09));
+    }
+
+    [data-theme="dark"] .sg-bpcard:hover {
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="dark"] .sg-bpcard--confirm {
+        border-color: rgba(244, 188, 86, 0.30);
+        background: rgba(244, 188, 86, 0.06);
+    }
+
+    [data-theme="dark"] .sg-bpcard__icon {
+        background: rgba(86, 208, 191, 0.12);
+        color: var(--sg-primary-strong, #56D0BF);
+    }
+
+    [data-theme="dark"] .sg-bpcard__name {
+        color: var(--sg-text, #EDF4FF);
+    }
+
+    [data-theme="dark"] .sg-bpcard__meta {
+        color: var(--sg-text-faint, #6F7D99);
+    }
+
+    [data-theme="dark"] .sg-bpcard__bu-value {
+        color: var(--sg-text, #EDF4FF);
+    }
+
+    [data-theme="dark"] .sg-bpcard__bu-label {
+        color: var(--sg-text-faint, #6F7D99);
+    }
+
+    [data-theme="dark"] .sg-bpcard__btn--delete {
+        color: var(--sg-text-faint, #6F7D99);
+    }
+
+    [data-theme="dark"] .sg-bpcard__btn--delete:not(:disabled):hover {
+        color: var(--sg-danger-dark, #FF7A8B);
+        background: rgba(255, 122, 139, 0.12);
+        border-color: rgba(255, 122, 139, 0.25);
+    }
+
+    [data-theme="dark"] .sg-bpcard__btn--consume:not(:disabled):hover {
+        background: rgba(98, 216, 137, 0.12);
+        border-color: rgba(98, 216, 137, 0.25);
+    }
+
+    [data-theme="dark"] .sg-bpcard__confirm-text {
+        color: var(--sg-text, #EDF4FF);
+    }
+
+    [data-theme="dark"] .sg-bpcard__confirm-btn--cancel {
+        color: var(--sg-text-muted, #9EAED0);
+        border-color: var(--sg-border, rgba(213,228,255,0.09));
+    }
+
+    [data-theme="dark"] .sg-bpcard__confirm-btn--cancel:hover {
+        background: var(--sg-surface-offset, #10192A);
+        border-color: rgba(213,228,255,0.18);
+    }
+
+    [data-theme="dark"] .sg-bpcard__confirm-btn--danger {
+        color: var(--sg-danger-dark, #FF7A8B);
+        background: rgba(255, 122, 139, 0.12);
+        border-color: rgba(255, 122, 139, 0.25);
+    }
+
+    [data-theme="dark"] .sg-bpcard__confirm-btn--danger:not(:disabled):hover {
+        background: rgba(255, 122, 139, 0.22);
+    }
+
+    /* АДАПТИВ */
+
+    @@media (max-width: 400px) {
+        .sg-bpcard {
+            padding: 12px;
+            gap: 10px;
+        }
+
+        /* Скрываем «Родитель» */
+        .sg-bpcard__meta {
+            display: none;
+        }
+
+        /* Иконку папки убираем */
+        .sg-bpcard__icon {
+            display: none;
+        }
+
+        /* Confirm-body на малом экране */
+        .sg-bpcard__confirm-body {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sg-bpcard__confirm-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+
+    /* убираем все анимации и переходы */
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-bpcard,
+        .sg-bpcard__btn,
+        .sg-bpcard__confirm-btn {
+            transition: none;
+        }
+
+        .sg-bpcard__spinner {
+            animation: none;
+        }
+
+        .sg-bpcard__icon:hover {
+            transform: none;
+        }
+    }
+</style>

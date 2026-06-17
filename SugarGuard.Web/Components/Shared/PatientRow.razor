@@ -1,0 +1,261 @@
+﻿@* Строка таблицы пациентов врача *@
+
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.Models.Analytics
+
+@* Каждая строка — интерактивный элемент*@
+<tr class="patient-row @(IsSelected ? "patient-row--selected" : "")"
+    @onclick="HandleRowClick"
+    role="button"
+    tabindex="0"
+    @onkeydown="HandleKeyDown"
+    aria-selected="@IsSelected"
+    aria-label="Пациент @Patient.FirstName @Patient.LastName">
+
+    @* Имя пациента *@
+    <td class="patient-row__cell patient-row__cell--name">
+        <div class="patient-row__name-wrap">
+            <span class="patient-row__avatar" aria-hidden="true">
+                @AvatarInitials
+            </span>
+            <div class="patient-row__name-info">
+                <span class="patient-row__full-name">
+                    @Patient.LastName @Patient.FirstName
+                </span>
+                <span class="patient-row__diabetes-type">
+                    @Patient.DiabetesType · @AgeString
+                </span>
+            </div>
+        </div>
+    </td>
+
+    @* Последнее измерение *@
+    <td class="patient-row__cell patient-row__cell--glucose">
+        @if (Patient.LatestGlucose.HasValue)
+        {
+            <span class="glucose-badge glucose-badge--@GlucoseBadgeModifier"
+                  title="@GlucoseTitle">
+                @Patient.LatestGlucose.Value.ToString("F1") <small>ммоль/л</small>
+            </span>
+        }
+        else
+        {
+            <span class="patient-row__no-data" title="Нет данных за последние 24 ч">—</span>
+        }
+    </td>
+
+    @* Время последнего измерения *@
+    <td class="patient-row__cell patient-row__cell--time">
+        @if (Patient.LatestMeasurementTime.HasValue)
+        {
+            <time datetime="@Patient.LatestMeasurementTime.Value.ToString("o")"
+                  title="@Patient.LatestMeasurementTime.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                @FormatRelativeTime(Patient.LatestMeasurementTime.Value)
+            </time>
+        }
+        else
+        {
+            <span class="patient-row__no-data">—</span>
+        }
+    </td>
+
+    @* TIR *@
+    <td class="patient-row__cell patient-row__cell--tir">
+        <div class="tir-bar" title="Время в целевом диапазоне: @Patient.TimeInTargetRange.ToString("F0") %">
+            <div class="tir-bar__fill tir-bar__fill--@TirModifier"
+                 style="width: @TirWidthStyle"
+                 role="progressbar"
+                 aria-valuenow="@((int)Patient.TimeInTargetRange)"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+            </div>
+        </div>
+        <span class="tir-bar__label @("tir-bar__label--" + TirModifier)">
+            @Patient.TimeInTargetRange.ToString("F0") %
+        </span>
+    </td>
+
+    @* Критические эпизоды за 7 дней *@
+    <td class="patient-row__cell patient-row__cell--critical">
+        @if (Patient.CriticalEventsLast7Days > 0)
+        {
+            <span class="critical-badge critical-badge--@CriticalModifier"
+                  title="Критических эпизодов за 7 дней">
+                @Patient.CriticalEventsLast7Days
+            </span>
+        }
+        else
+        {
+            <span class="patient-row__ok" title="Критических эпизодов нет">
+                <svg width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                </svg>
+            </span>
+        }
+    </td>
+
+    @* Измерений за 7 дней *@
+    <td class="patient-row__cell patient-row__cell--measurements">
+        <span class="patient-row__count">
+            @Patient.MeasurementsLast7Days
+        </span>
+    </td>
+
+    @* Кнопка «Открыть» *@
+    <td class="patient-row__cell patient-row__cell--action">
+        <button class="btn-icon btn-icon--ghost"
+                type="button"
+                @onclick:stopPropagation="true"
+                @onclick="HandleRowClick"
+                aria-label="Открыть профиль @Patient.FirstName @Patient.LastName">
+            <svg width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"
+                 aria-hidden="true">
+                <polyline points="9 18 15 12 9 6" />
+            </svg>
+        </button>
+    </td>
+</tr>
+
+@code {
+    // ПАРАМЕТРЫ   
+    [Parameter, EditorRequired]
+    public DoctorPatientSummaryVm Patient { get; set; } = default!; // Сводка по пациенту, отображаемая в строке
+
+    [Parameter]
+    public EventCallback<Guid> OnSelectPatient { get; set; } // Callback при выборе строки
+
+    [Parameter]
+    public bool IsSelected { get; set; } // true — строка подсвечена как выбранная
+
+    // ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
+    /// <summary>
+    /// Инициалы пациента для аватара
+    /// </summary>
+    private string AvatarInitials
+    {
+        get
+        {
+            var first = Patient.FirstName?.TrimStart().FirstOrDefault();
+            var last = Patient.LastName?.TrimStart().FirstOrDefault();
+            return string.Concat(
+                last.HasValue ? last.Value.ToString().ToUpperInvariant() : string.Empty,
+                first.HasValue ? first.Value.ToString().ToUpperInvariant() : string.Empty);
+        }
+    }
+
+    /// <summary>
+    /// Возраст в годах или «нет данных» при нулевой дате
+    /// </summary>
+    private string AgeString
+    {
+        get
+        {
+            if (Patient.DateOfBirth == default) return "возраст неизвестен";
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var age = today.Year - Patient.DateOfBirth.Year;
+            if (Patient.DateOfBirth > today.AddYears(-age)) age--;
+            return age switch
+            {
+                1 => "1 год",
+                >= 2 and <= 4 => $"{age} года",
+                _ => $"{age} лет",
+            };
+        }
+    }
+
+    // Глюкоза 
+    /// <summary>
+    /// CSS-модификатор бейджа глюкозы
+    /// </summary>
+    private string GlucoseBadgeModifier => Patient.LatestGlucoseUiState?.ToLowerInvariant() switch
+    {
+        "normal" => "normal",
+        "warning" => "warning",
+        "danger" => "danger",
+        "critical" => "critical",
+        _ => "unknown",
+    };
+
+    /// <summary>
+    /// Всплывающая подсказка для ячейки глюкозы
+    /// </summary>
+    private string GlucoseTitle => Patient.LatestGlucoseUiState switch
+    {
+        "Normal" => "Глюкоза в норме",
+        "Warning" => "Глюкоза вне диапазона",
+        "Danger" => "Требует внимания",
+        "Critical" => "Критическое значение!",
+        _ => "Статус глюкозы неизвестен",
+    };
+
+    // TIR
+    /// <summary>
+    /// CSS-модификатор полосы TIR
+    /// </summary>
+    private string TirModifier => Patient.TimeInTargetRange switch
+    {
+        >= 70 => "good",
+        >= 50 => "warning",
+        _ => "poor",
+    };
+
+    /// <summary>
+    /// Ширина полосы TIR
+    /// </summary>
+    private string TirWidthStyle
+    {
+        get
+        {
+            var clamped = Math.Clamp(Patient.TimeInTargetRange, 0.0, 100.0);
+            return $"{clamped:F0}%";
+        }
+    }
+
+    // Критические эпизоды
+    /// <summary>
+    /// CSS-модификатор бейджа критических эпизодов
+    /// </summary>
+    private string CriticalModifier => Patient.CriticalEventsLast7Days switch
+    {
+        <= 1 => "low",
+        <= 3 => "medium",
+        _ => "high",
+    };
+
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    private async Task HandleRowClick()
+    {
+        if (OnSelectPatient.HasDelegate)
+            await OnSelectPatient.InvokeAsync(Patient.ChildId);
+    }
+
+    /// <summary>
+    /// Активация строки клавиатурой
+    /// </summary>
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or " ")
+            await HandleRowClick();
+    }
+
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    /// <summary>
+    /// Форматирует дату последнего измерения в относительном виде
+    /// </summary>
+    private static string FormatRelativeTime(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+
+        if (diff.TotalMinutes < 1) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч назад";
+        if (diff.TotalDays < 2) return "вчера";
+
+        return utcTime.ToLocalTime().ToString("dd.MM");
+    }
+}

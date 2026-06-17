@@ -1,0 +1,1203 @@
+﻿/* ==========================================================================
+   SugarGuard Web — app.css
+   Глобальные стили приложения.
+
+   ВАЖНО: Bootstrap полностью удалён.
+   Источник токенов: variables.css (единственный источник истины).
+   Bootstrap-компоненты (.container, .row и т.д.) здесь не используются —
+   всё заменено кастомными SG-компонентами.
+
+   Порядок загрузки в App.razor:
+   1. variables.css  — токены (цвета, шрифты, радиусы, тени, spacing)
+   2. sg-tokens.css  — compat-алиасы (--sg-* → --color-*)
+   3. app.css        — этот файл (base reset + глобальные утилиты)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS Reset / Base — вместо Bootstrap Reboot
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    hanging-punctuation: first last;
+    scroll-padding-top: var(--spacing-16);
+    height: 100%;
+}
+
+body {
+    min-height: 100dvh;
+    line-height: 1.6;
+    font-family: var(--font-body, 'Satoshi', sans-serif);
+    font-size: var(--font-size-base); /* 15px из variables.css */
+    color: var(--color-text);
+    background-color: var(--color-bg);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell--care {
+    background:
+        radial-gradient(circle at 12% 8%, rgba(84, 205, 195, .18), transparent 30%),
+        radial-gradient(circle at 90% 5%, rgba(197, 151, 45, .14), transparent 24%),
+        linear-gradient(180deg, rgba(247, 253, 251, .86), var(--color-bg) 42%);
+}
+
+[data-theme="dark"] .app-shell--care {
+    background:
+        radial-gradient(circle at 12% 8%, rgba(84, 205, 195, .14), transparent 30%),
+        radial-gradient(circle at 90% 5%, rgba(197, 151, 45, .12), transparent 24%),
+        linear-gradient(180deg, rgba(14, 31, 39, .88), var(--color-bg) 48%);
+}
+
+.app-shell--care .sidebar,
+.app-shell--care .topbar,
+.app-shell--care .card {
+    background:
+        linear-gradient(180deg, color-mix(in oklab, var(--color-surface) 92%, white), var(--color-surface));
+    border-color: color-mix(in oklab, var(--color-border) 70%, #c5972d);
+}
+
+.app-shell--care .page-content {
+    background:
+        radial-gradient(circle at 100% 0%, rgba(84, 205, 195, .10), transparent 34%),
+        radial-gradient(circle at 0% 100%, rgba(197, 151, 45, .08), transparent 28%);
+}
+
+.sidebar-logo-image {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 8px 18px rgba(1, 105, 111, .22);
+    flex-shrink: 0;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+ul[role="list"],
+ol[role="list"] {
+    list-style: none;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+    line-height: 1.15;
+    font-family: var(--font-display, 'ClashDisplay', sans-serif);
+    color: var(--color-text);
+}
+
+p, li, figcaption {
+    text-wrap: pretty;
+    max-width: 72ch;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-divider);
+    margin: var(--spacing-8) 0;
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-interactive);
+}
+
+    a:hover {
+        color: var(--color-primary-hover);
+        text-decoration: underline;
+    }
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+button {
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+/* Выделение текста */
+::selection {
+    background: color-mix(in oklab, var(--color-primary) 25%, transparent);
+    color: var(--color-text);
+}
+
+/* Фокус-кольцо — единый стиль для всего приложения */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+}
+
+/* Интерактивные элементы — плавные переходы */
+a,
+button,
+[role="button"],
+[role="link"],
+input,
+textarea,
+select {
+    transition: color var(--transition-interactive), background-color var(--transition-interactive), border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+}
+
+/* Уважаем prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   2. Скрытый контент для screen readers
+   -------------------------------------------------------------------------- */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Глобальные утилиты — спиннер загрузки
+   -------------------------------------------------------------------------- */
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid color-mix(in oklab, var(--color-primary) 25%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: sg-spin 0.7s linear infinite;
+}
+
+.loading-spinner--sm {
+    width: 14px;
+    height: 14px;
+}
+
+.loading-spinner--lg {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+}
+
+@keyframes sg-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   4. Скелетон-анимация (shimmer) — используется в LoadingSkeleton и компонентах
+   -------------------------------------------------------------------------- */
+
+@keyframes sg-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton {
+    background: linear-gradient( 90deg, var(--color-surface-offset) 25%, color-mix(in oklab, var(--color-surface-offset) 50%, var(--color-border)) 50%, var(--color-surface-offset) 75% );
+    background-size: 200% 100%;
+    animation: sg-shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+}
+
+.skeleton-heading {
+    height: 1.5em;
+    width: 45%;
+    margin-bottom: var(--spacing-4);
+}
+
+.skeleton-text {
+    height: 1em;
+    margin-bottom: var(--spacing-2);
+}
+
+    .skeleton-text:last-child {
+        width: 60%;
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+        background: var(--color-surface-offset);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   5. Пустые состояния (empty state) — единый стиль
+   -------------------------------------------------------------------------- */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--spacing-16) var(--spacing-8);
+    color: var(--color-text-muted);
+}
+
+.empty-state__icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: var(--spacing-4);
+    color: var(--color-text-faint);
+}
+
+.empty-state__title {
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-2);
+}
+
+.empty-state__text {
+    font-size: var(--font-size-sm);
+    max-width: 36ch;
+    margin-bottom: var(--spacing-6);
+    line-height: 1.55;
+}
+
+/* --------------------------------------------------------------------------
+   6. Глобальные кнопки — .btn
+   Основные варианты: --primary, --ghost, --danger, --warning
+   -------------------------------------------------------------------------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-height: 44px;
+    padding: 0 var(--spacing-5);
+    border-radius: var(--radius-full);
+    border: none;
+    font-family: var(--font-body);
+    font-size: var(--font-size-sm); /* 14px */
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color var(--transition-interactive), color var(--transition-interactive), box-shadow var(--transition-interactive), transform var(--transition-interactive), opacity var(--transition-interactive);
+    position: relative;
+    user-select: none;
+}
+
+    .btn:not(:disabled):hover {
+        transform: translateY(-1px);
+    }
+
+    .btn:not(:disabled):active {
+        transform: scale(0.985);
+        opacity: 0.97;
+    }
+
+    .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+/* Первичная кнопка */
+.btn--primary {
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+    .btn--primary:not(:disabled):hover {
+        background-color: var(--color-primary-hover);
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+    .btn--primary:not(:disabled):active {
+        background-color: var(--color-primary-active);
+    }
+
+/* Ghost-кнопка */
+.btn--ghost {
+    background-color: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+    .btn--ghost:not(:disabled):hover {
+        background-color: var(--color-surface-offset);
+        color: var(--color-text);
+        text-decoration: none;
+    }
+
+/* Кнопка-иконка (квадратная) */
+.btn--icon {
+    padding: 0;
+    width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    border-radius: var(--radius-md);
+}
+
+.btn--icon-left {
+    padding-left: var(--spacing-4);
+}
+
+/* Опасная кнопка */
+.btn--danger {
+    background-color: var(--color-glucose-danger);
+    color: #ffffff;
+}
+
+    .btn--danger:not(:disabled):hover {
+        filter: brightness(0.9);
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+/* Предупреждающая кнопка */
+.btn--warning {
+    background-color: var(--color-glucose-warning);
+    color: #ffffff;
+}
+
+    .btn--warning:not(:disabled):hover {
+        filter: brightness(0.9);
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+/* Soft-кнопка (заливка цветом primary с низкой opacity) */
+.btn--soft {
+    background-color: color-mix(in oklab, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    border: 1px solid var(--color-border);
+}
+
+    .btn--soft:not(:disabled):hover {
+        background-color: color-mix(in oklab, var(--color-primary) 18%, transparent);
+        color: var(--color-primary-hover);
+        text-decoration: none;
+    }
+
+/* Спиннер внутри кнопки */
+.btn .btn-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: sg-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   7. Бейджи / чипы — .badge
+   -------------------------------------------------------------------------- */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: 2px var(--spacing-2);
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: var(--font-size-xs); /* 12px */
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.badge--normal {
+    background-color: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+    color: var(--color-glucose-normal);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-normal) 25%, transparent);
+}
+
+.badge--warning {
+    background-color: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+    color: var(--color-glucose-warning);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-warning) 25%, transparent);
+}
+
+.badge--danger {
+    background-color: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+    color: var(--color-glucose-danger);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-danger) 25%, transparent);
+}
+
+.badge--primary {
+    background-color: color-mix(in oklab, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+
+.badge--neutral {
+    background-color: var(--color-surface-offset);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+/* --------------------------------------------------------------------------
+   8. Карточки — .card (базовый стиль)
+   Конкретные варианты — в scoped .razor.css компонентов
+   -------------------------------------------------------------------------- */
+
+.card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); /* 24px */
+    box-shadow: var(--shadow-sm);
+    padding: clamp(0.875rem, 2vw, 1.25rem);
+    transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+}
+
+.card--clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+    .card--clickable:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .card--clickable:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .card--clickable:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 3px;
+    }
+
+/* --------------------------------------------------------------------------
+   9. Формы — инпуты, лейблы
+   -------------------------------------------------------------------------- */
+
+.form-label {
+    display: block;
+    font-family: var(--font-body);
+    font-size: var(--font-size-xs); /* 12px */
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-2);
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-md); /* 18px */
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface-2);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    outline: none;
+    transition: border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+}
+
+    .form-input:focus,
+    .form-select:focus {
+        border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+        box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 12%, transparent);
+    }
+
+    .form-input:disabled,
+    .form-select:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .form-input::placeholder {
+        color: var(--color-text-faint);
+    }
+
+/* Ошибка валидации */
+.form-input--error {
+    border-color: var(--color-glucose-danger);
+}
+
+    .form-input--error:focus {
+        box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-glucose-danger) 12%, transparent);
+    }
+
+.form-error-text {
+    font-size: var(--font-size-xs);
+    color: var(--color-glucose-danger);
+    margin-top: var(--spacing-1);
+}
+
+/* --------------------------------------------------------------------------
+   10. Разделитель — .divider
+   -------------------------------------------------------------------------- */
+
+.divider {
+    border: none;
+    border-top: 1px solid var(--color-divider);
+    width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   11. Тост / уведомление — .toast (без Bootstrap зависимости)
+   -------------------------------------------------------------------------- */
+
+.toast-container {
+    position: fixed;
+    bottom: var(--spacing-6);
+    right: var(--spacing-6);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    max-width: 360px;
+    pointer-events: all;
+    animation: sg-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.toast--success {
+    border-color: color-mix(in oklab, var(--color-glucose-normal) 30%, var(--color-border));
+    background-color: color-mix(in oklab, var(--color-glucose-normal) 6%, var(--color-surface-2));
+}
+
+.toast--warning {
+    border-color: color-mix(in oklab, var(--color-glucose-warning) 30%, var(--color-border));
+    background-color: color-mix(in oklab, var(--color-glucose-warning) 6%, var(--color-surface-2));
+}
+
+.toast--danger {
+    border-color: color-mix(in oklab, var(--color-glucose-danger) 30%, var(--color-border));
+    background-color: color-mix(in oklab, var(--color-glucose-danger) 6%, var(--color-surface-2));
+}
+
+.toast--info {
+    border-color: color-mix(in oklab, var(--color-primary) 30%, var(--color-border));
+    background-color: color-mix(in oklab, var(--color-primary) 6%, var(--color-surface-2));
+}
+
+@keyframes sg-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   12. Страница загрузки — .page-loading
+   -------------------------------------------------------------------------- */
+
+.page-loading {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+}
+
+.page-loading__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid color-mix(in oklab, var(--color-primary) 20%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: sg-spin 0.8s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   13. Ошибка Blazor — #blazor-error-ui
+   -------------------------------------------------------------------------- */
+
+#blazor-error-ui {
+    background: color-mix(in oklab, var(--color-glucose-danger) 10%, var(--color-surface));
+    border: 1px solid color-mix(in oklab, var(--color-glucose-danger) 30%, transparent);
+    border-radius: var(--radius-md);
+    bottom: var(--spacing-4);
+    box-shadow: var(--shadow-lg);
+    color: var(--color-text);
+    display: none;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 480px;
+    width: calc(100% - var(--spacing-8));
+    padding: var(--spacing-4) var(--spacing-5);
+    position: fixed;
+    z-index: 10000;
+    font-size: var(--font-size-sm);
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: var(--spacing-4);
+        top: var(--spacing-3);
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        line-height: 1;
+        color: var(--color-text-muted);
+        padding: 0;
+        transition: color var(--transition-interactive);
+    }
+
+        #blazor-error-ui .dismiss:hover {
+            color: var(--color-text);
+        }
+
+/* --------------------------------------------------------------------------
+   14. Анимация вращения (спин) для nav-кнопки Refresh в Admin Dashboard
+   -------------------------------------------------------------------------- */
+
+.spin {
+    animation: sg-spin 0.8s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   15. Утилиты: overflow, flex, grid
+   (Только то, что реально используется в компонентах проекта)
+   -------------------------------------------------------------------------- */
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Numeric — для таблиц с цифрами */
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   16. Здоровье API — .health-badge (Admin Dashboard)
+   -------------------------------------------------------------------------- */
+
+.health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+    user-select: none;
+}
+
+.health-badge__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Состояния health-badge */
+.health-badge--healthy {
+    background-color: color-mix(in oklab, var(--color-glucose-normal) 12%, transparent);
+    color: var(--color-glucose-normal);
+    border-color: color-mix(in oklab, var(--color-glucose-normal) 22%, transparent);
+}
+
+    .health-badge--healthy .health-badge__dot {
+        background-color: var(--color-glucose-normal);
+    }
+
+.health-badge--degraded {
+    background-color: color-mix(in oklab, var(--color-glucose-warning) 12%, transparent);
+    color: var(--color-glucose-warning);
+    border-color: color-mix(in oklab, var(--color-glucose-warning) 22%, transparent);
+}
+
+    .health-badge--degraded .health-badge__dot {
+        background-color: var(--color-glucose-warning);
+    }
+
+.health-badge--unhealthy {
+    background-color: color-mix(in oklab, var(--color-glucose-danger) 12%, transparent);
+    color: var(--color-glucose-danger);
+    border-color: color-mix(in oklab, var(--color-glucose-danger) 22%, transparent);
+}
+
+    .health-badge--unhealthy .health-badge__dot {
+        background-color: var(--color-glucose-danger);
+    }
+
+.health-badge--unknown {
+    background-color: var(--color-surface-offset);
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+}
+
+    .health-badge--unknown .health-badge__dot {
+        background-color: var(--color-text-faint);
+    }
+
+/* --------------------------------------------------------------------------
+   17. KPI-сетка — .kpi-card (Admin Dashboard)
+   Используется в Pages/Admin/Dashboard.razor
+   -------------------------------------------------------------------------- */
+
+.admin-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+    gap: var(--spacing-4);
+}
+
+.kpi-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: clamp(0.875rem, 2vw, 1.25rem);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-interactive), background-color var(--transition-interactive);
+}
+
+/* Skeleton-вариант KPI */
+.kpi-card--skeleton {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+}
+
+.kpi-card--warn {
+    border-color: color-mix(in oklab, var(--color-glucose-warning) 30%, var(--color-border));
+    background-color: color-mix(in oklab, var(--color-glucose-warning) 5%, var(--color-surface));
+}
+
+.kpi-card__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+/* Цвета иконок KPI */
+.kpi-card__icon--blue {
+    color: var(--color-blue);
+}
+
+.kpi-card__icon--green {
+    background-color: color-mix(in oklab, var(--color-glucose-normal) 12%, transparent);
+    color: var(--color-glucose-normal);
+}
+
+.kpi-card__icon--teal {
+    background-color: color-mix(in oklab, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+}
+
+.kpi-card__icon--orange {
+    background-color: color-mix(in oklab, var(--color-glucose-warning) 12%, transparent);
+    color: var(--color-glucose-warning);
+}
+
+.kpi-card__icon--red {
+    background-color: color-mix(in oklab, var(--color-glucose-danger) 12%, transparent);
+    color: var(--color-glucose-danger);
+}
+
+.kpi-card__icon--purple {
+    color: var(--color-purple);
+}
+
+.kpi-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    flex: 1;
+    min-width: 0;
+}
+
+.kpi-card__label {
+    font-family: var(--font-body);
+    font-size: var(--font-size-xs); /* 12px */
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kpi-card__value {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 1rem + 1.5vw, 2rem);
+    font-weight: 700;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kpi-card__value--warn {
+    color: var(--color-glucose-warning);
+}
+
+.kpi-card__value--danger {
+    color: var(--color-glucose-danger);
+}
+
+.kpi-card__value--good {
+    color: var(--color-glucose-normal);
+}
+
+/* --------------------------------------------------------------------------
+   18. Admin-page layout
+   -------------------------------------------------------------------------- */
+
+.admin-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-6);
+    padding: var(--spacing-6);
+    max-width: var(--content-wide, 1200px);
+    margin-inline: auto;
+    width: 100%;
+}
+
+.admin-page__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.admin-page__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.admin-page__subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin: var(--spacing-1) 0 0;
+}
+
+.admin-page__server-time {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-faint);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-page__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-shrink: 0;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-6);
+    align-items: start;
+}
+
+.admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.admin-section__title {
+    font-family: var(--font-body);
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--spacing-2);
+}
+
+/* --------------------------------------------------------------------------
+   19. Таблица пользователей / список (Admin)
+   -------------------------------------------------------------------------- */
+
+.admin-user-list,
+.admin-sync-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.admin-user-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-interactive), box-shadow var(--transition-interactive);
+}
+
+    .admin-user-row:hover {
+        background-color: var(--color-surface-offset);
+        box-shadow: var(--shadow-sm);
+    }
+
+.admin-user-row__name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-user-row__meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   20. Страницы входа / регистрации
+   -------------------------------------------------------------------------- */
+
+.auth-page {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(circle at 18% 16%, rgba(86, 208, 191, 0.20) 0, transparent 28%),
+        radial-gradient(circle at 86% 20%, rgba(209, 153, 0, 0.10) 0, transparent 24%),
+        radial-gradient(circle at 50% 92%, rgba(27, 142, 139, 0.14) 0, transparent 32%),
+        var(--color-bg);
+    padding: clamp(var(--spacing-4), 4vh, var(--spacing-8)) var(--spacing-4);
+    overflow-y: auto;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 460px;
+    max-height: calc(100dvh - 2 * var(--spacing-4));
+    overflow-y: auto;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl); /* 32px */
+    box-shadow: 0 24px 70px rgba(22, 33, 62, 0.14);
+    padding: clamp(var(--spacing-5), 4vw, var(--spacing-8));
+    display: flex;
+    flex-direction: column;
+    gap: clamp(var(--spacing-4), 2.8vh, var(--spacing-6));
+    scrollbar-width: thin;
+}
+
+.auth-card .input-field,
+.auth-card .input-password-wrap,
+.auth-card .btn {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-logo {
+    display: grid;
+    place-items: center;
+}
+
+.sg-auth-logo-image {
+    width: 82px;
+    height: 82px;
+    border-radius: 24px;
+    object-fit: cover;
+    box-shadow: 0 16px 36px rgba(27, 142, 139, 0.22);
+}
+
+.auth-card__logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    justify-content: center;
+}
+
+.auth-card__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-text);
+    text-align: center;
+    margin: 0;
+}
+
+.auth-card__subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-align: center;
+    margin: calc(-1 * var(--spacing-4)) 0 0;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.auth-error {
+    padding: var(--spacing-3) var(--spacing-4);
+    background-color: color-mix(in oklab, var(--color-glucose-danger) 10%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-glucose-danger) 25%, transparent);
+    border-radius: var(--radius-md);
+    color: var(--color-glucose-danger);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   21. Адаптивность — breakpoints
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1024px) {
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-page {
+        padding: var(--spacing-4);
+        gap: var(--spacing-4);
+    }
+
+    .admin-kpi-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .admin-page__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .toast-container {
+        bottom: var(--spacing-4);
+        right: var(--spacing-4);
+        left: var(--spacing-4);
+        align-items: stretch;
+    }
+
+    .toast {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-card {
+        max-height: calc(100dvh - 2 * var(--spacing-3));
+        padding: var(--spacing-5);
+        border-radius: var(--radius-lg);
+    }
+
+    .sg-auth-logo-image {
+        width: 68px;
+        height: 68px;
+        border-radius: 20px;
+    }
+}

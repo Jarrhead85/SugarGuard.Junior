@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Components.SyncBanner"
+             x:Name="this">
+
+    <!--
+        Баннер состояния синхронизации для offline-first сценариев.
+
+        Три состояния (управляются из SyncBanner.xaml.cs):
+          • Pending  — «Ожидает синхронизации», синий фон
+          • Synced   — «Данные синхронизированы», зелёный фон
+          • Error    — «Нет подключения», красный фон + кнопка «Повторить»
+
+        Цвета берутся из DynamicResource (Theme.Light/Dark.xaml),
+        поэтому тема переключается без перезапуска.
+        BackgroundColor и Stroke задаются в code-behind через
+        токены SyncStatusXxxBg / SyncStatusXxx из текущего словаря.
+    -->
+
+    <Border x:Name="BannerBorder"
+            StrokeShape="RoundRectangle 18"
+            StrokeThickness="1"
+            Padding="14,12"
+            HorizontalOptions="Fill"
+            VerticalOptions="Start">
+
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+              ColumnSpacing="10"
+              RowDefinitions="Auto">
+
+            <!-- Иконка состояния (эмодзи, задаётся из code-behind) -->
+            <Label x:Name="IconLabel"
+                   Grid.Column="0"
+                   FontSize="16"
+                   VerticalOptions="Center"
+                   LineBreakMode="NoWrap" />
+
+            <!-- Заголовок и сообщение -->
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="2"
+                                 VerticalOptions="Center">
+
+                <Label x:Name="TitleLabel"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="1"
+                       TextColor="{DynamicResource TextPrimary}" />
+
+                <Label x:Name="MessageLabel"
+                       FontFamily="{StaticResource Satoshi}"
+                       FontSize="12"
+                       LineBreakMode="WordWrap"
+                       MaxLines="2"
+                       TextColor="{DynamicResource TextMuted}" />
+
+            </VerticalStackLayout>
+
+            <!--
+                Кнопка дополнительного действия («Повторить» при ошибке).
+                Скрыта по умолчанию, показывается из code-behind.
+                MinimumHeightRequest/WidthRequest = 44 — минимальный touch target.
+            -->
+            <Button x:Name="ActionButton"
+                    Grid.Column="2"
+                    FontFamily="{StaticResource Satoshi}"
+                    FontSize="12"
+                    FontAttributes="Bold"
+                    BackgroundColor="Transparent"
+                    Padding="8,4"
+                    MinimumHeightRequest="44"
+                    MinimumWidthRequest="44"
+                    VerticalOptions="Center"
+                    IsVisible="False" />
+
+            <!--
+                Кнопка закрытия баннера.
+                44×44 — минимальный touch target (Apple HIG / Material).
+                VerticalOptions="Center" — выравниваем по центру строки,
+                а не по верху, чтобы тап был удобен.
+            -->
+            <Button x:Name="CloseButton"
+                    Grid.Column="3"
+                    Text="✕"
+                    FontSize="14"
+                    TextColor="{DynamicResource TextMuted}"
+                    BackgroundColor="Transparent"
+                    Padding="4"
+                    MinimumHeightRequest="44"
+                    MinimumWidthRequest="44"
+                    VerticalOptions="Center" />
+
+        </Grid>
+    </Border>
+</ContentView>

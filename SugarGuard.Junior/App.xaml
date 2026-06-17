@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:SugarGuard.Junior.Converters"
+             x:Class="SugarGuard.Junior.App">
+
+    <Application.Resources>
+        <ResourceDictionary>
+
+            <ResourceDictionary.MergedDictionaries>
+
+                <!--
+                    ПОРЯДОК ЗАГРУЗКИ — строго соблюдать:
+
+                    1. Colors.xaml       — палитра (Palette.*, Light.*, Dark.*)
+                    2. Typography.xaml   — шрифты и размеры текста
+                    3. Spacing.xaml      — отступы
+                    4. Radii.xaml        — радиусы скругления
+                    5. Shadows.xaml      — тени
+                    6. Theme.Light.xaml  — ТОЛЬКО светлая тема (загружается как базовая)
+                                          Тёмная тема подключается программно в App.xaml.cs
+                                          через ApplySavedTheme() при старте.
+                    7. Styles.xaml       — базовые стили (legacy, пока не мигрированы)
+                    8. Buttons.xaml      — стили кнопок UI Kit
+                    9. Chips.xaml        — стили чипов и пилюль UI Kit
+                   10. States.xaml       — состояния (empty, error, sync)
+                   11. Cards.xaml        — стили карточек UI Kit, зависят от States.xaml
+                -->
+
+                <!-- 1. Цветовая палитра — источник истины для всех цветов -->
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+
+                <!-- 2. Типографика -->
+                <ResourceDictionary Source="Resources/Styles/Typography.xaml" />
+
+                <!-- 3. Система отступов -->
+                <ResourceDictionary Source="Resources/Styles/Spacing.xaml" />
+
+                <!-- 4. Радиусы -->
+                <ResourceDictionary Source="Resources/Styles/Radii.xaml" />
+
+                <!-- 5. Тени -->
+                <ResourceDictionary Source="Resources/Styles/Shadows.xaml" />
+
+                <!--
+                    6. Светлая тема — базовая, загружается статически.
+                    
+                    ВАЖНО: Theme.Dark.xaml НЕ подключается здесь.
+                    Переключение темы происходит в App.xaml.cs:
+                    метод ApplySavedTheme() заменяет этот словарь
+                    на Theme.Dark.xaml при необходимости через
+                    Application.Current.Resources.MergedDictionaries.
+                    
+                    Это единственный корректный способ переключения тем
+                    через ResourceDictionary в MAUI — оба словаря
+                    одновременно применять нельзя, побеждает последний.
+                -->
+                <ResourceDictionary Source="Resources/Styles/Theme.Light.xaml" />
+
+                <!-- 7. Базовые стили (legacy) -->
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+
+                <!-- 8–11. Компоненты UI Kit -->
+                <ResourceDictionary Source="Resources/Styles/Buttons.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Chips.xaml" />
+                <ResourceDictionary Source="Resources/Styles/States.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Cards.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ========================================================= -->
+            <!-- Глобальные конвертеры                                      -->
+            <!-- ========================================================= -->
+
+            <!-- Базовые bool/string/count-конвертеры -->
+            <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+            <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
+            <converters:StringEmptyConverter x:Key="StringEmptyConverter" />
+            <converters:DiabetesTypeConverter x:Key="DiabetesTypeConverter" />
+            <converters:CountToBoolConverter x:Key="CountToBoolConverter" />
+            <converters:CountToInverseBoolConverter x:Key="CountToInverseBoolConverter" />
+            <converters:StepEqualsConverter x:Key="StepEqualsConverter" />
+
+            <!-- Конвертеры для расписания и переключателей -->
+            <converters:StringToBoolConverter x:Key="StringToBoolConverter" />
+            <converters:BoolToActiveStatusConverter x:Key="BoolToActiveStatusConverter" />
+            <converters:BoolToActiveColorConverter x:Key="BoolToActiveColorConverter" />
+            <converters:BoolToToggleTextConverter x:Key="BoolToToggleTextConverter" />
+            <converters:BoolToToggleColorConverter x:Key="BoolToToggleColorConverter" />
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+
+            <!-- Конвертеры состояния глюкозы -->
+            <converters:GlucoseUiStateToColorConverter x:Key="GlucoseUiStateToColorConverter" />
+            <converters:GlucoseUiStateToTextConverter x:Key="GlucoseUiStateToTextConverter" />
+            <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+
+            <!-- Конвертеры масштаба и синхронизации -->
+            <converters:PendingSyncToBoolConverter x:Key="PendingSyncToBoolConverter" />
+            <converters:ScalePresetToBoolConverter x:Key="ScalePresetToBoolConverter" />
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

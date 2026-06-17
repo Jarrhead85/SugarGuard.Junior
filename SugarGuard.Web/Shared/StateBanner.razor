@@ -1,0 +1,302 @@
+@* Универсальный баннер состояния интерфейса *@
+
+@if (!_isDismissed)
+{
+    <div class="sg-banner sg-banner--@KindCssModifier @Class"
+         role="@AriaRole"
+         aria-live="@AriaLive"
+         aria-atomic="true">
+
+        @* Иконка состояния *@
+        <div class="sg-banner__icon" aria-hidden="true">
+            @if (Kind == BannerKind.Loading)
+            {
+                @* Спиннер вращающийся *@
+                <svg class="sg-banner__spinner"
+                     width="20" height="20"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     aria-hidden="true">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round" />
+                </svg>
+            }
+            else
+            {
+                <svg width="20" height="20"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     aria-hidden="true">
+                    @switch (Kind)
+                    {
+                        case BannerKind.Success:
+                            @* Галочка в круге — GlucoseNormal *@
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                            <polyline points="22 4 12 14.01 9 11.01"
+                                      stroke="currentColor" stroke-width="2"
+                                      stroke-linecap="round" stroke-linejoin="round" />
+                            break;
+
+                        case BannerKind.Warning:
+                            @* Восклицательный знак в треугольнике — GlucoseWarning *@
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                            <line x1="12" y1="9" x2="12" y2="13"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <line x1="12" y1="17" x2="12.01" y2="17"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            break;
+
+                        case BannerKind.Error:
+                            @* Крест в круге — GlucoseDanger *@
+                            <circle cx="12" cy="12" r="10"
+                                    stroke="currentColor" stroke-width="2" />
+                            <line x1="15" y1="9" x2="9" y2="15"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <line x1="9" y1="9" x2="15" y2="15"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            break;
+
+                        case BannerKind.Empty:
+                            @* Пустая папка — TextFaint *@
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                            <line x1="12" y1="11" x2="12" y2="17"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <line x1="9" y1="14" x2="15" y2="14"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            break;
+
+                        case BannerKind.SyncPending:
+                            @* Стрелки синхронизации — PrimaryAlt *@
+                            <polyline points="23 4 23 10 17 10"
+                                      stroke="currentColor" stroke-width="2"
+                                      stroke-linecap="round" stroke-linejoin="round" />
+                            <polyline points="1 20 1 14 7 14"
+                                      stroke="currentColor" stroke-width="2"
+                                      stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                            break;
+
+                        case BannerKind.Offline:
+                            @* Перечёркнутый Wi-Fi — TextSecondary *@
+                            <line x1="1" y1="1" x2="23" y2="23"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <path d="M10.71 5.05A16 16 0 0 1 22.56 9"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <line x1="12" y1="20" x2="12.01" y2="20"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            break;
+
+                        default:
+                            @* Информационная иконка — fallback *@
+                            <circle cx="12" cy="12" r="10"
+                                    stroke="currentColor" stroke-width="2" />
+                            <line x1="12" y1="8" x2="12" y2="12"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            <line x1="12" y1="16" x2="12.01" y2="16"
+                                  stroke="currentColor" stroke-width="2"
+                                  stroke-linecap="round" />
+                            break;
+                    }
+                </svg>
+            }
+        </div>
+
+        @* Основной контент *@
+        <div class="sg-banner__body">
+
+            <p class="sg-banner__title">@Title</p>
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <p class="sg-banner__message">@Message</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ActionText))
+            {
+                <button class="sg-banner__action"
+                        type="button"
+                        @onclick="HandleActionAsync">
+                    @ActionText
+                </button>
+            }
+
+        </div>
+
+        @* Кнопка закрытия *@
+        @if (Dismissible)
+        {
+            <button class="sg-banner__dismiss"
+                    type="button"
+                    aria-label="Закрыть уведомление"
+                    @onclick="DismissAsync">
+                <svg width="16" height="16"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"
+                          stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" />
+                    <line x1="6" y1="6" x2="18" y2="18"
+                          stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" />
+                </svg>
+            </button>
+        }
+
+    </div>
+}
+
+@code {
+    // Параметры    
+    [Parameter, EditorRequired]
+    public BannerKind Kind { get; set; } // Тип баннера. Определяет цвет, иконку и роль ARIA
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty; // Краткий заголовок — главный текст состояния
+
+    [Parameter]
+    public string? Message { get; set; } // Расширенное описание. Если пустое — не рендерится
+
+    [Parameter]
+    public string? ActionText { get; set; } // Текст кнопки действия. Если пустой — кнопка не рендерится
+
+    [Parameter]
+    public EventCallback OnAction { get; set; } // Обработчик клика по кнопке действия
+
+    [Parameter]
+    public EventCallback OnDismissed { get; set; } // Обработчик закрытия баннера кнопкой «Х»
+
+    [Parameter]
+    public bool Dismissible { get; set; } // Показывать кнопку «Х». По умолчанию: false
+
+    [Parameter]
+    public string? Class { get; set; } // Дополнительные CSS-классы корневого элемента
+
+    // Внутреннее состояние 
+
+    private bool _isDismissed;
+
+    // Вычисляемые свойства 
+
+    /// <summary>
+    /// CSS-модификатор BEM для текущего вида баннера
+    /// </summary>
+    private string KindCssModifier => Kind switch
+    {
+        BannerKind.Loading => "loading",
+        BannerKind.Success => "success",
+        BannerKind.Warning => "warning",
+        BannerKind.Error => "error",
+        BannerKind.Empty => "empty",
+        BannerKind.SyncPending => "sync",
+        BannerKind.Offline => "offline",
+        _ => "info"
+    };
+
+    /// <summary>
+    /// ARIA-роль
+    /// </summary>
+    private string AriaRole => Kind switch
+    {
+        BannerKind.Error => "alert",
+        BannerKind.Warning => "alert",
+        BannerKind.Offline => "alert",
+        _ => "status"
+    };
+
+    /// <summary>
+    /// Вежливость объявления для скринридеров
+    /// </summary>
+    private string AriaLive => Kind switch
+    {
+        BannerKind.Error => "assertive",
+        BannerKind.Warning => "assertive",
+        BannerKind.Offline => "assertive",
+        _ => "polite"
+    };
+
+    // Обработчики 
+    /// <summary>
+    /// Нажатие кнопки действия
+    /// </summary>
+    private async Task HandleActionAsync()
+    {
+        if (OnAction.HasDelegate)
+            await OnAction.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Закрытие баннера кнопкой «Х»
+    /// </summary>
+    private async Task DismissAsync()
+    {
+        _isDismissed = true;
+
+        if (OnDismissed.HasDelegate)
+            await OnDismissed.InvokeAsync();
+    }
+
+    // Публичные методы 
+    /// <summary>
+    /// Сбрасывает флаг закрытия и показывает баннер снова
+    /// </summary>
+    public Task ShowAsync()
+    {
+        _isDismissed = false;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    // Публичный enum 
+    /// <summary>
+    /// Тип баннера состояния
+    /// </summary>
+    public enum BannerKind
+    {       
+        Loading, // Загрузка данных
+       
+        Success, // Успешное действие
+       
+        Warning, // Предупреждение
+       
+        Error, // Ошибка
+       
+        Empty, // Пустое состояние
+       
+        SyncPending, // Ожидание синхронизации
+       
+        Offline // Нет подключения
+    }
+}

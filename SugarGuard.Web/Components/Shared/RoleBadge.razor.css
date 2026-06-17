@@ -1,0 +1,122 @@
+﻿/* База */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    user-select: none;
+    vertical-align: middle;
+    transition: opacity 180ms ease;
+}
+
+/* Иконка */
+.role-badge__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* Текст */
+.role-badge__text {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+/* Parent */
+.role-badge--parent {
+    color: var(--color-primary, #1B8E8B);
+    background: rgba(27, 142, 139, 0.12);
+    border-color: rgba(27, 142, 139, 0.22);
+}
+
+/* Doctor */
+.role-badge--doctor {
+    color: #3d5fdb;
+    background: rgba(61, 95, 219, 0.11);
+    border-color: rgba(61, 95, 219, 0.22);
+}
+
+/* Admin */
+.role-badge--admin {
+    color: var(--color-glucose-danger, #DB5967);
+    background: rgba(219, 89, 103, 0.11);
+    border-color: rgba(219, 89, 103, 0.22);
+}
+
+/* SupportAdmin */
+.role-badge--support {
+    color: #b07a00;
+    background: rgba(227, 163, 43, 0.13);
+    border-color: rgba(227, 163, 43, 0.24);
+}
+
+/* dark mode */
+:global([data-theme="dark"]) .role-badge--doctor {
+    color: #7b9fff;
+    background: rgba(76, 111, 255, 0.15);
+    border-color: rgba(76, 111, 255, 0.28);
+}
+
+:global([data-theme="dark"]) .role-badge--support {
+    color: var(--color-gold, #e8af34);
+    background: rgba(232, 175, 52, 0.13);
+    border-color: rgba(232, 175, 52, 0.24);
+}
+
+/* Unknown / fallback */
+.role-badge--unknown {
+    color: var(--color-text-muted, #667694);
+    background: rgba(150, 162, 184, 0.10);
+    border-color: rgba(150, 162, 184, 0.20);
+}
+
+/* Размерные модификаторы */
+/* Компактный вариант — для таблиц с плотной сеткой */
+.role-badge.role-badge--sm {
+    min-height: 22px;
+    padding: 3px 8px;
+    font-size: 11px;
+    gap: 4px;
+}
+
+    .role-badge.role-badge--sm .role-badge__icon {
+        font-size: 11px;
+    }
+
+/* Крупный вариант — для заголовков профиля */
+.role-badge.role-badge--lg {
+    min-height: 36px;
+    padding: 7px 14px;
+    font-size: 13px;
+    gap: 8px;
+}
+
+    .role-badge.role-badge--lg .role-badge__icon {
+        font-size: 16px;
+    }
+
+/* Responsive */
+@@media (max-width: 640px) {
+    .role-badge {
+        min-height: 26px;
+        padding: 4px 9px;
+        font-size: 11px;
+        gap: 5px;
+    }
+
+    .role-badge__icon {
+        font-size: 12px;
+    }
+}

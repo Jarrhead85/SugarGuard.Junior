@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ViewModels\TimelineItemVm.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="ViewModels\TimelineItemVm.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SugarGuard.Application\SugarGuard.Application.csproj" />
+    <ProjectReference Include="..\SugarGuard.Domain\SugarGuard.Domain.csproj" />
+    <ProjectReference Include="..\SugarGuard.Shared\SugarGuard.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+  </ItemGroup>
+
+</Project>

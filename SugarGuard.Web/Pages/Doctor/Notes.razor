@@ -1,0 +1,371 @@
+﻿@* список заметок врача к пациенту *@
+
+@page "/doctor/patients/{ChildId:guid}/notes"
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.ViewModels
+@using SugarGuard.Shared.Constants
+@using SugarGuard.Web.Components.Shared
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@attribute [Authorize(Policy = "DoctorOrAdmin")]
+
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+@inject ILogger<Notes> Logger
+
+<PageTitle>@_childName — Заметки</PageTitle>
+
+<div class="sg-page">
+
+    @* Шапка *@
+    <PageHeader Eyebrow="Пациент"
+                Title="@(_childName ?? "Заметки")"
+                Subtitle="Клинические заметки к пациенту">
+        <LeadingContent>
+            <a href="@($"doctor/patients/{ChildId}")"
+               class="sg-back-link"
+               aria-label="Назад к карточке пациента">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+            </a>
+        </LeadingContent>
+        <TrailingContent>
+            <label class="sg-toggle-label" aria-label="Показывать только важные">
+                <input type="checkbox"
+                       @bind="_onlyImportant"
+                       @bind:after="LoadNotesAsync" />
+                Только важные
+            </label>
+            <button class="btn btn--primary"
+                    type="button"
+                    @onclick="OpenCreateModal">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Добавить заметку
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @* Баннеры ошибок *@
+    @if (_errorMessage is not null)
+    {
+        <StateBanner Kind="StateBanner.BannerKind.Error"
+                     Title="Не удалось загрузить заметки"
+                     Message="@_errorMessage"
+                     OnClose="() => _errorMessage = null" />
+    }
+
+    @* Загрузка *@
+    @if (_isLoading)
+    {
+        <ul class="sg-notes-list" aria-busy="true" aria-label="Загрузка заметок">
+            @for (var i = 0; i < 3; i++)
+            {
+                <li class="sg-note-card sg-note-card--skeleton">
+                    <div class="skeleton skeleton--note-header"></div>
+                    <div class="skeleton skeleton--note-body"></div>
+                    <div class="skeleton skeleton--note-footer"></div>
+                </li>
+            }
+        </ul>
+    }
+    @* Пустое состояние *@
+    else if (_notes.Count == 0)
+    {
+        <EmptyState Title="@(_onlyImportant ? "Важных заметок нет" : "Заметок пока нет")"
+                    Description="@(_onlyImportant
+                        ? "Снимите фильтр, чтобы увидеть все заметки."
+                        : "Добавьте первую клиническую заметку к этому пациенту.")"
+                    ActionText="@(_onlyImportant ? null : "Добавить заметку")"
+                    OnAction="OpenCreateModal" />
+    }
+    @* Список карточек *@
+    else
+    {
+        <ul class="sg-notes-list" aria-label="Список заметок">
+            @foreach (var note in _notes)
+            {
+                <li>
+                    <DoctorNoteCard Note="@note"
+                                    OnEdit="OpenEditModal"
+                                    OnDelete="AskDeleteAsync" />
+                </li>
+            }
+        </ul>
+
+        @* Пагинация *@
+        @if (_totalCount > PageSize)
+        {
+            <div class="sg-pagination" role="navigation" aria-label="Навигация по страницам">
+                <button class="btn btn--ghost"
+                        type="button"
+                        disabled="@(_currentPage == 1)"
+                        @onclick="PrevPageAsync">
+                    ← Назад
+                </button>
+                <span class="sg-pagination__info" aria-live="polite">
+                    Страница <strong class="tabular-nums">@_currentPage</strong>
+                    из <strong class="tabular-nums">@TotalPages</strong>
+                </span>
+                <button class="btn btn--ghost"
+                        type="button"
+                        disabled="@(_currentPage >= TotalPages)"
+                        @onclick="NextPageAsync">
+                    Вперёд →
+                </button>
+            </div>
+        }
+    }
+
+</div>
+
+@* Модал создания / редактирования  *@
+@if (_showModal)
+{
+    <AddNoteModal IsVisible="_showModal"
+                  ChildId="ChildId"
+                  NoteToEdit="@_editingNote"
+                  MeasurementId="@null"
+                  OnSaved="OnNoteSavedAsync"
+                  OnClosed="CloseModal" />
+}
+
+@* Диалог подтверждения удаления *@
+<ConfirmationDialog @ref="_confirmDialog"
+                    Title="Удалить заметку?"
+                    Message="@_deleteConfirmMessage"
+                    ConfirmText="Удалить"
+                    ConfirmVariant="ConfirmationDialog.Variant.Danger"
+                    OnConfirmed="ExecuteDeleteAsync"
+                    OnCancelled="CancelDelete" />
+
+@code {
+    // Параметры маршрута    
+    [Parameter]
+    public Guid ChildId { get; set; } // Идентификатор ребёнка, к которому относятся заметки
+
+    // Константы 
+    private const int PageSize = 20;
+
+    // Состояние    
+    private List<DoctorNoteVm> _notes = []; // Загруженные заметки текущей страницы
+
+    private int _totalCount; // Общее кол-во заметок (для пагинации)
+
+    private int _currentPage = 1; // Текущая страница
+
+    private bool _onlyImportant; // Фильтр — показывать только важные
+
+    private string? _childName = string.Empty; // Имя пациента для заголовка страницы
+
+    private bool _isLoading = true; // Флаг загрузки
+
+    private string? _errorMessage; // Текст ошибки загрузки
+
+    // Состояние модала   
+    private bool _showModal; // Показан ли модал создания / редактирования
+
+    private DoctorNoteVm? _editingNote; // Заметка, открытая для редактирования
+
+    // Состояние диалога удаления    
+    private ConfirmationDialog? _confirmDialog; // Ссылка на компонент диалога подтверждения
+
+    private DoctorNoteVm? _noteToDelete; // Заметка, ожидающая подтверждения удаления
+
+    private string _deleteConfirmMessage = string.Empty; // Текст сообщения в диалоге подтверждения удаления
+
+    // Вычисляемые свойства    
+    private int TotalPages => (int)Math.Ceiling((double)_totalCount / PageSize); // Общее кол-во страниц пагинации
+
+    // Жизненный цикл 
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotesAsync();
+    }
+
+    // Загрузка данных 
+    /// <summary>
+    /// Загружает заметки текущей страницы с учётом фильтра
+    /// </summary>
+    private async Task LoadNotesAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+        try
+        {
+            var notesTask = ApiService.GetDoctorNotesAsync(
+                ChildId,
+                _currentPage,
+                PageSize,
+                onlyImportant: _onlyImportant,
+                cts.Token);
+
+            var patientsTask = _childName is null
+                ? ApiService.GetDoctorPatientsAsync(cancellationToken: cts.Token)
+                : Task.FromResult<List<DoctorPatientSummaryVm>>(new());
+
+            await Task.WhenAll(notesTask, patientsTask);
+
+            var result = await notesTask;
+            _notes = result.Items;
+            _totalCount = result.TotalCount;
+
+            if (_childName is null)
+            {
+                var patients = await patientsTask;
+                var patient = patients.FirstOrDefault(p => p.ChildId == ChildId);
+                _childName = patient is not null
+                    ? $"{patient.FirstName} {patient.LastName}".Trim()
+                    : "Пациент";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "Превышено время ожидания. Попробуйте обновить страницу.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка загрузки заметок для пациента {ChildId}.", ChildId);
+            _errorMessage = "Не удалось загрузить заметки. Проверьте соединение.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // Пагинация 
+    /// <summary>
+    /// Переходит на предыдущую страницу
+    /// </summary>
+    private async Task PrevPageAsync()
+    {
+        if (_currentPage <= 1) return;
+        _currentPage--;
+        await LoadNotesAsync();
+    }
+
+    /// <summary>
+    /// Переходит на следующую страницу
+    /// </summary>
+    private async Task NextPageAsync()
+    {
+        if (_currentPage >= TotalPages) return;
+        _currentPage++;
+        await LoadNotesAsync();
+    }
+
+    // Модал создания / редактирования 
+    /// <summary>
+    /// Открывает модал в режиме создания новой заметки
+    /// </summary>
+    private void OpenCreateModal()
+    {
+        _editingNote = null;
+        _showModal   = true;
+    }
+
+    /// <summary>
+    /// Открывает модал в режиме редактирования существующей заметки
+    /// </summary>
+    private void OpenEditModal(DoctorNoteVm note)
+    {
+        _editingNote = note;
+        _showModal   = true;
+    }
+
+    /// <summary>
+    /// Закрывает модал без сохранения
+    /// </summary>
+    private void CloseModal()
+    {
+        _showModal   = false;
+        _editingNote = null;
+    }
+
+    /// <summary>
+    /// Вызывается после успешного сохранения заметки 
+    /// </summary>
+    private async Task OnNoteSavedAsync()
+    {
+        CloseModal();
+        _currentPage = 1;
+        await LoadNotesAsync();
+    }
+
+    // Удаление заметки
+    /// <summary>
+    /// Вызывается при нажатии кнопки удаления
+    /// </summary>
+    private async Task AskDeleteAsync(DoctorNoteVm note)
+    {
+        _noteToDelete = note;
+
+        var preview = note.NoteText.Length > 80
+            ? $"{note.NoteText[..80]}…"
+            : note.NoteText;
+
+        _deleteConfirmMessage = $"Заметка будет удалена без возможности восстановления:\n\n«{preview}»";
+
+        if (_confirmDialog is not null)
+            await _confirmDialog.ShowAsync();
+    }
+
+    /// <summary>
+    /// Вызывается после подтверждения
+    /// </summary>
+    private async Task ExecuteDeleteAsync()
+    {
+        if (_noteToDelete is null) return;
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        try
+        {
+            await ApiService.DeleteDoctorNoteAsync(_noteToDelete.NoteId, cts.Token);
+            _notes.Remove(_noteToDelete);
+            _totalCount = Math.Max(0, _totalCount - 1);
+
+            if (_notes.Count == 0 && _currentPage > 1)
+            {
+                _currentPage--;
+                await LoadNotesAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "Не удалось удалить заметку: превышено время ожидания.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка удаления заметки {NoteId}.", _noteToDelete.NoteId);
+            _errorMessage = "Не удалось удалить заметку. Попробуйте ещё раз.";
+        }
+        finally
+        {
+            _noteToDelete = null;
+        }
+    }
+
+    /// <summary>
+    /// Вызывается при отмене удаления
+    /// </summary>
+    private void CancelDelete()
+    {
+        _noteToDelete = null;
+    }
+}

@@ -1,0 +1,178 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- =====================================================
+         SugarGuard Design System — Colors.xaml
+         Версия: 2.0  |  Соответствует UI Kit draft v1
+         
+         Структура:
+           1. Палитра (raw hex — источник истины)
+           2. Семантические токены Light
+           3. Семантические токены Dark
+           4. AppThemeBinding-токены (использовать в XAML)
+         ===================================================== -->
+
+    <!-- ─────────────────────────────────────────────────────
+         1. ПАЛИТРА — RAW COLORS
+         Не использовать напрямую в компонентах.
+         Только через семантические токены ниже.
+         ───────────────────────────────────────────────────── -->
+
+    <!-- Primary / Brand -->
+    <Color x:Key="Palette.Primary">#1B8E8B</Color>
+    <Color x:Key="Palette.PrimaryStrong">#56D0BF</Color>
+    <Color x:Key="Palette.PrimaryAlt">#2678D9</Color>
+    <Color x:Key="Palette.PrimaryAltStrong">#6DAEFF</Color>
+
+    <!-- Semantic — Success -->
+    <Color x:Key="Palette.Success">#37A563</Color>
+    <Color x:Key="Palette.SuccessDark">#62D889</Color>
+
+    <!-- Semantic — Warning -->
+    <Color x:Key="Palette.Warning">#E3A32B</Color>
+    <Color x:Key="Palette.WarningDark">#F4BC56</Color>
+
+    <!-- Semantic — Danger -->
+    <Color x:Key="Palette.Danger">#DB5967</Color>
+    <Color x:Key="Palette.DangerDark">#FF7A8B</Color>
+
+    <!-- Neutral Light -->
+    <Color x:Key="Palette.White">#FFFFFF</Color>
+    <Color x:Key="Palette.BgLight">#F4F7FB</Color>
+    <Color x:Key="Palette.SurfaceOffsetLight">#E9EFF9</Color>
+    <Color x:Key="Palette.BorderLight">#D8E1EE</Color>
+    <Color x:Key="Palette.TextLight">#16213E</Color>
+    <Color x:Key="Palette.TextMutedLight">#667694</Color>
+    <Color x:Key="Palette.TextFaintLight">#96A2B8</Color>
+
+    <!-- Neutral Dark -->
+    <Color x:Key="Palette.BgDark">#0B1018</Color>
+    <Color x:Key="Palette.SurfaceDark">#121824</Color>
+    <Color x:Key="Palette.Surface2Dark">#111825</Color>
+    <Color x:Key="Palette.SurfaceOffsetDark">#10192A</Color>
+    <Color x:Key="Palette.BorderDark">#1F2831</Color>
+    <Color x:Key="Palette.TextDark">#EDF4FF</Color>
+    <Color x:Key="Palette.TextMutedDark">#9EAED0</Color>
+    <Color x:Key="Palette.TextFaintDark">#6F7D99</Color>
+
+    <!-- Transparent -->
+    <Color x:Key="Palette.Transparent">#00FFFFFF</Color>
+
+
+    <!-- ─────────────────────────────────────────────────────
+         2. СЕМАНТИЧЕСКИЕ ТОКЕНЫ — LIGHT THEME
+         ───────────────────────────────────────────────────── -->
+
+    <Color x:Key="Light.Background">#F4F7FB</Color>
+    <Color x:Key="Light.Surface">#FFFFFFD9</Color>
+    <!-- rgba(255,255,255,0.85) -->
+    <Color x:Key="Light.Surface2">#FFFFFFF2</Color>
+    <!-- rgba(255,255,255,0.95) -->
+    <Color x:Key="Light.SurfaceOffset">#E9EFF9</Color>
+    <Color x:Key="Light.SurfacePrimarySoft">#1F1B8E8B</Color>
+    <!-- rgba(27,142,139,0.12) -->
+
+    <Color x:Key="Light.Border">#1A16213E</Color>
+    <!-- rgba(22,33,62,0.10) -->
+    <Color x:Key="Light.Divider">#1416213E</Color>
+    <!-- rgba(22,33,62,0.08) -->
+
+    <Color x:Key="Light.Text">#16213E</Color>
+    <Color x:Key="Light.TextMuted">#667694</Color>
+    <Color x:Key="Light.TextFaint">#96A2B8</Color>
+    <Color x:Key="Light.TextOnPrimary">#FFFFFF</Color>
+
+    <Color x:Key="Light.Primary">#1B8E8B</Color>
+    <Color x:Key="Light.PrimaryStrong">#56D0BF</Color>
+    <Color x:Key="Light.PrimaryAlt">#2678D9</Color>
+
+    <Color x:Key="Light.Success">#37A563</Color>
+    <Color x:Key="Light.SuccessText">#37A563</Color>
+    <Color x:Key="Light.SuccessSoft">#1F37A563</Color>
+    <!-- rgba(55,165,99,0.12) -->
+
+    <Color x:Key="Light.Warning">#E3A32B</Color>
+    <Color x:Key="Light.WarningText">#E3A32B</Color>
+    <Color x:Key="Light.WarningSoft">#1FE3A32B</Color>
+    <!-- rgba(227,163,43,0.12) -->
+
+    <Color x:Key="Light.Danger">#DB5967</Color>
+    <Color x:Key="Light.DangerText">#DB5967</Color>
+    <Color x:Key="Light.DangerSoft">#1FDB5967</Color>
+    <!-- rgba(219,89,103,0.12) -->
+
+    <!-- Состояния глюкозы — Light (для StatusToColorConverter) -->
+    <Color x:Key="Light.GlucoseNormal">#37A563</Color>
+    <Color x:Key="Light.GlucoseWarning">#E3A32B</Color>
+    <Color x:Key="Light.GlucoseDanger">#DB5967</Color>
+    <Color x:Key="Light.GlucoseCritical">#DB5967</Color>
+
+
+    <!-- ─────────────────────────────────────────────────────
+         3. СЕМАНТИЧЕСКИЕ ТОКЕНЫ — DARK THEME
+         ───────────────────────────────────────────────────── -->
+
+    <Color x:Key="Dark.Background">#0B1018</Color>
+    <Color x:Key="Dark.Surface">#BD121824</Color>
+    <!-- rgba(18,24,36,0.74) -->
+    <Color x:Key="Dark.Surface2">#EA111825</Color>
+    <!-- rgba(17,24,37,0.92) -->
+    <Color x:Key="Dark.SurfaceOffset">#10192A</Color>
+    <Color x:Key="Dark.SurfacePrimarySoft">#1F56D0BF</Color>
+    <!-- rgba(86,208,191,0.12) -->
+
+    <Color x:Key="Dark.Border">#17D5E4FF</Color>
+    <!-- rgba(213,228,255,0.09) -->
+    <Color x:Key="Dark.Divider">#14D5E4FF</Color>
+    <!-- rgba(213,228,255,0.08) -->
+
+    <Color x:Key="Dark.Text">#EDF4FF</Color>
+    <Color x:Key="Dark.TextMuted">#9EAED0</Color>
+    <Color x:Key="Dark.TextFaint">#6F7D99</Color>
+    <Color x:Key="Dark.TextOnPrimary">#FFFFFF</Color>
+
+    <Color x:Key="Dark.Primary">#56D0BF</Color>
+    <Color x:Key="Dark.PrimaryStrong">#56D0BF</Color>
+    <Color x:Key="Dark.PrimaryAlt">#6DAEFF</Color>
+
+    <Color x:Key="Dark.Success">#62D889</Color>
+    <Color x:Key="Dark.SuccessText">#62D889</Color>
+    <Color x:Key="Dark.SuccessSoft">#1F62D889</Color>
+
+    <Color x:Key="Dark.Warning">#F4BC56</Color>
+    <Color x:Key="Dark.WarningText">#F4BC56</Color>
+    <Color x:Key="Dark.WarningSoft">#1FF4BC56</Color>
+
+    <Color x:Key="Dark.Danger">#FF7A8B</Color>
+    <Color x:Key="Dark.DangerText">#FF7A8B</Color>
+    <Color x:Key="Dark.DangerSoft">#1FFF7A8B</Color>
+
+    <!-- Состояния глюкозы — Dark (для StatusToColorConverter) -->
+    <Color x:Key="Dark.GlucoseNormal">#62D889</Color>
+    <Color x:Key="Dark.GlucoseWarning">#F4BC56</Color>
+    <Color x:Key="Dark.GlucoseDanger">#FF7A8B</Color>
+    <Color x:Key="Dark.GlucoseCritical">#FF7A8B</Color> 
+
+    <!-- Baseline aliases loaded before theme dictionaries.
+         Theme.Light/Theme.Dark override these values for DynamicResource consumers. -->
+    <Color x:Key="BackgroundPage">#F4F7FB</Color>
+    <Color x:Key="Surface">#FFFFFF</Color>
+    <Color x:Key="Surface2">#FFFFFF</Color>
+    <Color x:Key="SurfaceOffset">#E9EFF9</Color>
+    <Color x:Key="Border">#D8E1EE</Color>
+    <Color x:Key="Divider">#D8E1EE</Color>
+    <Color x:Key="TextPrimary">#16213E</Color>
+    <Color x:Key="TextSecondary">#667694</Color>
+    <Color x:Key="TextMuted">#667694</Color>
+    <Color x:Key="TextFaint">#96A2B8</Color>
+    <Color x:Key="Primary">#1B8E8B</Color>
+    <Color x:Key="PrimaryStrong">#56D0BF</Color>
+    <Color x:Key="GlucoseNormalColor">#37A563</Color>
+    <Color x:Key="GlucoseWarningColor">#E3A32B</Color>
+    <Color x:Key="GlucoseDangerColor">#DB5967</Color>
+    <Color x:Key="GlucoseCriticalColor">#DB5967</Color>
+   
+</ResourceDictionary>

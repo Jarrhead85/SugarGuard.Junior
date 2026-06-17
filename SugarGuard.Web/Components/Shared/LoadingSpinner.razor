@@ -1,0 +1,206 @@
+﻿@* переиспользуемый индикатор загрузки *@
+
+@if (Overlay)
+{
+    @* Режим overlay *@
+    <div class="sg-spinner-overlay"
+         role="status"
+         aria-live="polite"
+         aria-label="@(Label ?? "Загрузка...")"
+         aria-busy="true">
+
+        <div class="sg-spinner-wrap">
+            <svg class="sg-spinner sg-spinner--@Size"
+                 viewBox="0 0 50 50"
+                 fill="none"
+                 xmlns="http://www.w3.org/2000/svg"
+                 aria-hidden="true">
+                <circle class="sg-spinner__track"
+                        cx="25" cy="25" r="20"
+                        stroke-width="4"
+                        fill="none" />
+                <circle class="sg-spinner__arc"
+                        cx="25" cy="25" r="20"
+                        stroke-width="4"
+                        fill="none"
+                        stroke-linecap="round" />
+            </svg>
+
+            @if (!string.IsNullOrWhiteSpace(Label))
+            {
+                <p class="sg-spinner-overlay__label" aria-hidden="true">@Label</p>
+            }
+        </div>
+
+    </div>
+}
+else
+{
+    @* Инлайн-режим *@
+    <span class="sg-spinner-inline"
+          role="status"
+          aria-live="polite"
+          aria-label="@(Label ?? "Загрузка...")"
+          aria-busy="true">
+
+        <svg class="sg-spinner sg-spinner--@Size"
+             viewBox="0 0 50 50"
+             fill="none"
+             xmlns="http://www.w3.org/2000/svg"
+             aria-hidden="true">
+            <circle class="sg-spinner__track"
+                    cx="25" cy="25" r="20"
+                    stroke-width="4"
+                    fill="none" />
+            <circle class="sg-spinner__arc"
+                    cx="25" cy="25" r="20"
+                    stroke-width="4"
+                    fill="none"
+                    stroke-linecap="round" />
+        </svg>
+
+        @* Подпись рядом со спиннером *@
+        @if (!string.IsNullOrWhiteSpace(Label))
+        {
+            <span class="sg-spinner-inline__label" aria-hidden="true">@Label</span>
+        }
+
+    </span>
+}
+
+<style>
+    /* Анимация вращения */
+    @@keyframes sg-spin {
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    /* Базовые стили SVG-спиннера */
+    .sg-spinner {
+        display: block;
+        flex-shrink: 0;
+        animation: sg-spin 0.75s linear infinite;
+        /* Трансформация из центра SVG */
+        transform-origin: center;
+    }
+
+    /* Трек (серая дорожка) */
+    .sg-spinner__track {
+        stroke: color-mix(in oklab, var(--color-primary, #1B8E8B) 18%, transparent);
+    }
+
+    /* Дуга (цветная, вращающаяся) */
+    .sg-spinner__arc {
+        stroke: var(--color-primary, #1B8E8B);
+        stroke-dasharray: 31 94;
+        stroke-dashoffset: 0;
+    }
+
+    /* Размеры */
+    .sg-spinner--sm {
+        width: 16px;
+        height: 16px;
+    }
+
+    .sg-spinner--md {
+        width: 28px;
+        height: 28px;
+    }
+
+    .sg-spinner--lg {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Инлайн-режим */
+    .sg-spinner-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-8, 8px);
+        vertical-align: middle;
+    }
+
+    .sg-spinner-inline__label {
+        font-family: var(--font-body, Satoshi, sans-serif);
+        font-size: var(--text-sm, 13px);
+        color: var(--color-text-muted, #667694);
+        white-space: nowrap;
+        line-height: 1;
+    }
+
+    /* Overlay-режим */
+    .sg-spinner-overlay {
+        /* Покрывает ближайший контейнер */
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Полупрозрачный фон, соответствующий поверхности карточки */
+        background: color-mix(in oklab, var(--color-surface, rgba(255,255,255,0.85)) 80%, transparent);
+        backdrop-filter: blur(2px);
+        border-radius: inherit;
+        /* Плавное появление */
+        animation: sg-overlay-appear 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @@keyframes sg-overlay-appear {
+        from
+
+    {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+
+    }
+
+    .sg-spinner-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-12, 12px);
+    }
+
+    .sg-spinner-overlay__label {
+        font-family: var(--font-body, Satoshi, sans-serif);
+        font-size: var(--text-sm, 13px);
+        color: var(--color-text-muted, #667694);
+        text-align: center;
+        margin: 0;
+        user-select: none;
+    }
+
+    /* Уважение к reduced-motion */
+    @@media (prefers-reduced-motion: reduce) {
+        .sg-spinner
+
+    {
+        animation: none;
+        opacity: 0.6;
+    }
+
+    .sg-spinner-overlay {
+        animation: none;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Size { get; set; } = "md"; // Размер спиннера
+
+    [Parameter]
+    public string? Label { get; set; } // Текстовая подпись рядом со спиннером
+
+    [Parameter]
+    public bool Overlay { get; set; } // Режим overlay: спиннер перекрывает родительский контейнер
+}

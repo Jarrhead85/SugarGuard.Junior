@@ -1,0 +1,886 @@
+﻿@* Страница подтверждения email *@
+
+@page "/verify"
+@rendermode InteractiveServer
+@layout SugarGuard.Web.Components.Layout.EmptyLayout
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using SugarGuard.Shared.Constants
+@using SugarGuard.Shared.Validation
+@using SugarGuard.Web.Services
+
+@attribute [AllowAnonymous]
+
+@inject NavigationManager Navigation
+@inject IAuthApiClient AuthApi
+
+<PageTitle>Подтверждение email — SugarGuard</PageTitle>
+
+<div class="verify-shell" role="main">
+
+    @* Логотип *@
+    <div class="login-logo" aria-label="SugarGuard">
+        <div class="login-logo__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" width="28" height="28" aria-hidden="true">
+                <path d="M12 3c3.1 0 5.5 2.4 5.5 5.6 0 4.5-5.5 12.4-5.5 12.4S6.5 13.1 6.5 8.6C6.5 5.4 8.9 3 12 3Z"/>
+                <path d="M9 9.5c1.2-1.7 4.8-1.7 6 0"/>
+            </svg>
+        </div>
+        <div class="login-logo__text">
+            <strong>SugarGuard</strong>
+            <span>Управление диабетом</span>
+        </div>
+    </div>
+
+    @* Карточка *@
+    <div class="login-card" role="region" aria-label="Подтверждение email">
+
+        @* Состояние: ожидание кода *@
+        @if (_step == VerifyStep.Input)
+        {
+            @* Иконка конверта *@
+            <div class="verify-envelope" aria-hidden="true">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="m2 7 10 7 10-7"/>
+                </svg>
+            </div>
+
+            <h1 class="login-card__title">Подтвердите email</h1>
+
+            @if (!string.IsNullOrWhiteSpace(_email))
+            {
+                <p class="login-card__subtitle">
+                    Введите код формата ABCD-1234, который мы отправили на<br/>
+                    <strong class="verify-email-highlight">@_email</strong>
+                </p>
+            }
+            else
+            {
+                <p class="login-card__subtitle">
+                    Введите ваш email и код подтверждения из письма.
+                </p>
+            }
+
+            @* Баннер ошибки *@
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <div class="state-banner state-banner--error" role="alert" aria-live="assertive">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span>@_errorMessage</span>
+                </div>
+            }
+
+            <EditForm Model="_model" OnValidSubmit="HandleVerifyAsync" FormName="verify-form" novalidate>
+                <DataAnnotationsValidator/>
+
+                @* Поле email — показываем только если не передан через query string *@
+                @if (string.IsNullOrWhiteSpace(_email))
+                {
+                    <div class="input-group">
+                        <label class="input-label" for="verify-email">Email</label>
+                        <div class="input-wrap">
+                            <input id="verify-email"
+                                   @bind="_model.Email"
+                                   @bind:event="oninput"
+                                   class="input-field"
+                                   type="email"
+                                   inputmode="email"
+                                   autocomplete="email"
+                                   placeholder="example@mail.ru"
+                                   disabled="@_isLoading"/>
+                        </div>
+                        <ValidationMessage For="@(() => _model.Email)"
+                                           class="input-helper input-helper--error"/>
+                    </div>
+                }
+
+                @* Поле кода *@
+                <div class="input-group">
+                    <label class="input-label" for="verify-code">Код подтверждения</label>
+                    <div class="input-wrap">
+                        <input id="verify-code"
+                               @bind="_model.Code"
+                               @bind:event="oninput"
+                               class="input-field input-field--code"
+                               type="text"
+                               inputmode="text"
+                               autocomplete="one-time-code"
+                               placeholder="ABCD-1234"
+                               maxlength="9"
+                               disabled="@_isLoading"/>
+                    </div>
+                    <ValidationMessage For="@(() => _model.Code)"
+                                       class="input-helper input-helper--error"/>
+                    <span class="input-helper">Код действителен 15 минут</span>
+                </div>
+
+                <button type="submit"
+                        class="btn btn--primary btn--full"
+                        disabled="@(_isLoading || !IsVerificationCodeReady(_model.Code))"
+                        aria-busy="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span>Проверяем…</span>
+                    }
+                    else
+                    {
+                        <span>Подтвердить email</span>
+                    }
+                </button>
+            </EditForm>
+
+            @* Повторная отправка кода *@
+            <div class="verify-resend">
+                <span class="link--muted-text">Не получили письмо?</span>
+                @if (_resendCooldown > 0)
+                {
+                    <span class="link--muted-text">
+                        Отправить повторно через <strong>@_resendCooldown</strong> с.
+                    </span>
+                }
+                else
+                {
+                    <button type="button"
+                            class="btn-link"
+                            @onclick="HandleResendAsync"
+                            disabled="@(_isLoading || string.IsNullOrWhiteSpace(ResolvedEmail))">
+                        Отправить повторно
+                    </button>
+                }
+            </div>
+
+            <div class="verify-back">
+                <a href="/register" class="link link--muted">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    Вернуться к регистрации
+                </a>
+            </div>
+        }
+
+        @* Состояние: код отправлен повторно *@
+        @if (_step == VerifyStep.Resent)
+        {
+            <div class="verify-info-state" role="status" aria-live="polite">
+                <div class="verify-info-state__icon" aria-hidden="true">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8">
+                        <path d="M22 2 11 13"/>
+                        <path d="M22 2 15 22 11 13 2 9l20-7z"/>
+                    </svg>
+                </div>
+                <p class="verify-info-state__text">
+                    Новый код отправлен на<br/>
+                    <strong>@ResolvedEmail</strong>
+                </p>
+                <button type="button"
+                        class="btn btn--ghost btn--full"
+                        @onclick="BackToInput">
+                    Ввести код
+                </button>
+            </div>
+        }
+
+        @* Состояние: успех *@
+        @if (_step == VerifyStep.Success)
+        {
+            <div class="success-state" role="status" aria-live="polite">
+                <div class="success-state__icon" aria-hidden="true">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </div>
+                <h1 class="login-card__title">Email подтверждён!</h1>
+                <p class="login-card__subtitle">
+                    Ваш аккаунт активирован. Теперь вы можете войти в систему.
+                </p>
+                <button type="button"
+                        class="btn btn--primary btn--full"
+                        @onclick="GoToLogin">
+                    Войти в систему
+                </button>
+            </div>
+        }
+
+        @* Состояние: ссылка недействительна / истёкла *@
+        @if (_step == VerifyStep.Expired)
+        {
+            <div class="verify-expired-state" role="alert" aria-live="assertive">
+                <div class="verify-expired-state__icon" aria-hidden="true">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <h1 class="login-card__title">Код устарел</h1>
+                <p class="login-card__subtitle">
+                    Срок действия кода истёк. Запросите новый и введите его в течение 15 минут.
+                </p>
+                <button type="button"
+                        class="btn btn--primary btn--full"
+                        @onclick="HandleResendAndReset"
+                        disabled="@_isLoading"
+                        aria-busy="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span>Отправляем…</span>
+                    }
+                    else
+                    {
+                        <span>Отправить новый код</span>
+                    }
+                </button>
+                <a href="/register" class="link link--muted" style="text-align:center;display:block;margin-top:var(--space-4)">
+                    Зарегистрироваться заново
+                </a>
+            </div>
+        }
+
+    </div>
+
+    @* Подвал *@
+    <footer class="login-footer" aria-label="Подвал">
+        <span>© 2025 SugarGuard</span>
+        <span>·</span>
+        <a href="/privacy" class="link link--faint" target="_blank" rel="noopener noreferrer">
+            Политика конфиденциальности
+        </a>
+    </footer>
+
+</div>
+
+<style>
+    /* Оболочка */
+    .verify-shell {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-24) var(--space-16);
+        background: var(--color-bg);
+        background-image:
+            radial-gradient(circle at 12% 18%, rgba(27,142,139,.18) 0, transparent 32%),
+            radial-gradient(circle at 88% 14%, rgba(38,120,217,.14) 0, transparent 26%),
+            radial-gradient(circle at 50% 100%, rgba(27,142,139,.10) 0, transparent 28%);
+        gap: var(--space-8);
+    }
+
+    /* Логотип */
+    .login-logo {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+
+    .login-logo__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt, #2678D9));
+        display: grid;
+        place-items: center;
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(27,142,139,.28), inset 0 1px 1px rgba(255,255,255,.2);
+        flex-shrink: 0;
+    }
+
+    .login-logo__text strong {
+        display: block;
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--color-text);
+        letter-spacing: -.01em;
+    }
+
+    .login-logo__text span {
+        display: block;
+        font-size: 12px;
+        color: var(--color-text-muted);
+    }
+
+    /* Карточка */
+    .login-card {
+        width: 100%;
+        max-width: 440px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-32);
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-20);
+    }
+
+    .login-card__title {
+        font-family: var(--font-display);
+        font-size: clamp(1.4rem, 3vw, 1.85rem);
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0;
+        line-height: 1.15;
+    }
+
+    .login-card__subtitle {
+        font-size: 14px;
+        color: var(--color-text-muted);
+        margin: calc(-1 * var(--space-12)) 0 0;
+        line-height: 1.55;
+    }
+
+    /* Иконка конверта */
+    .verify-envelope {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(27,142,139,.09);
+        border: 2px solid rgba(27,142,139,.18);
+        display: grid;
+        place-items: center;
+        color: var(--color-primary);
+        align-self: center;
+    }
+
+    /* Email-выделение */
+    .verify-email-highlight {
+        display: inline-block;
+        margin-top: var(--space-2);
+        color: var(--color-text);
+        font-size: 13px;
+        background: var(--color-surface-offset, #f3f0ec);
+        padding: 2px 8px;
+        border-radius: var(--radius-full);
+        font-family: monospace;
+    }
+
+    /* Баннер ошибки */
+    .state-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--space-8);
+        padding: var(--space-12) var(--space-16);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid transparent;
+    }
+
+    .state-banner--error {
+        background: rgba(219, 89, 103, .10);
+        border-color: rgba(219, 89, 103, .22);
+        color: var(--color-glucose-danger, #DB5967);
+    }
+
+    .state-banner svg { flex-shrink: 0; }
+
+    /* Поля ввода */
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .input-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        display: block;
+    }
+
+    .input-wrap { position: relative; }
+
+    .input-field {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 16px;
+        background: var(--color-surface-2, rgba(255,255,255,.95));
+        border: 1.5px solid var(--color-input-border, rgba(22,33,62,0.15));
+        border-radius: var(--radius-sm);
+        font-family: var(--font-body);
+        font-size: 15px;
+        color: var(--color-text);
+        transition: border-color var(--transition), box-shadow var(--transition);
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .input-field::placeholder { color: var(--color-text-faint); }
+
+    .input-field:focus {
+        border-color: var(--color-input-border-focus);
+        box-shadow: 0 0 0 3px var(--color-input-shadow-focus);
+    }
+
+    .input-field:disabled { opacity: .55; cursor: not-allowed; }
+
+    .input-field--code {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: .45em;
+        text-align: center;
+        padding: 14px 16px;
+    }
+
+    .input-helper {
+        font-size: 12px;
+        color: var(--color-text-faint);
+        margin: 0;
+    }
+
+    .input-helper--error {
+        font-size: 12px;
+        color: var(--color-glucose-danger, #DB5967);
+        margin: 0;
+    }
+
+    /* Кнопки */
+    .btn {
+        min-height: 44px;
+        border-radius: var(--radius-md);
+        padding: 10px 20px;
+        font-family: var(--font-body);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-8);
+        transition: all var(--transition);
+    }
+
+    .btn--primary {
+        background: var(--color-primary);
+        color: #fff;
+    }
+
+    .btn--primary:hover:not(:disabled) {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(27,142,139,.28);
+    }
+
+    .btn--primary:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    .btn--primary:disabled { opacity: .6; cursor: not-allowed; }
+
+    .btn--ghost {
+        background: transparent;
+        color: var(--color-primary);
+        border: 1.5px solid var(--color-primary);
+    }
+
+    .btn--ghost:hover:not(:disabled) {
+        background: rgba(27,142,139,.07);
+    }
+
+    .btn--full { width: 100%; }
+
+    .btn__spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: btn-spin .7s linear infinite;
+        flex-shrink: 0;
+    }
+
+    @@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+    .btn-link {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--color-primary);
+        font-weight: 600;
+        padding: 0;
+        transition: color var(--transition);
+    }
+
+    .btn-link:hover { color: var(--color-primary-hover); }
+    .btn-link:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Повторная отправка */
+    .verify-resend {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--space-4);
+        flex-wrap: wrap;
+        margin-top: calc(-1 * var(--space-8));
+    }
+
+    .link--muted-text {
+        font-size: 13px;
+        color: var(--color-text-muted);
+    }
+
+    /* Назад */
+    .verify-back {
+        display: flex;
+        justify-content: center;
+        margin-top: calc(-1 * var(--space-8));
+    }
+
+    .link--muted {
+        font-size: 13px;
+        color: var(--color-text-muted);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-4);
+        transition: color var(--transition);
+    }
+
+    .link--muted:hover { color: var(--color-text); }
+
+    .link { text-decoration: none; transition: color var(--transition); }
+    .link--faint { color: var(--color-text-faint); }
+    .link--faint:hover { color: var(--color-text-muted); }
+
+    /* Состояние «отправлен повторно» */
+    .verify-info-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-12);
+        padding: var(--space-8) 0;
+        text-align: center;
+    }
+
+    .verify-info-state__icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(27,142,139,.09);
+        border: 2px solid rgba(27,142,139,.18);
+        display: grid;
+        place-items: center;
+        color: var(--color-primary);
+    }
+
+    .verify-info-state__text {
+        font-size: 14px;
+        color: var(--color-text-muted);
+        line-height: 1.55;
+    }
+
+    /* Состояние успеха */
+    .success-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--space-12);
+        padding: var(--space-8) 0;
+    }
+
+    .success-state__icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(27,142,139,.10);
+        border: 2px solid rgba(27,142,139,.22);
+        display: grid;
+        place-items: center;
+        color: var(--color-primary);
+    }
+
+    .success-state .login-card__title { margin: 0; }
+    .success-state .login-card__subtitle { margin: 0; }
+    .success-state .btn--full { margin-top: var(--space-8); }
+
+    /* Состояние «истёк» */
+    .verify-expired-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--space-12);
+        padding: var(--space-8) 0;
+    }
+
+    .verify-expired-state__icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(219,89,103,.09);
+        border: 2px solid rgba(219,89,103,.18);
+        display: grid;
+        place-items: center;
+        color: var(--color-glucose-danger, #DB5967);
+    }
+
+    .verify-expired-state .login-card__title { margin: 0; }
+    .verify-expired-state .login-card__subtitle { margin: 0; }
+
+    /* Подвал */
+    .login-footer {
+        font-size: 12px;
+        color: var(--color-text-faint);
+        display: flex;
+        gap: var(--space-8);
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: var(--space-4);
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .btn__spinner { animation-duration: 0.01ms; }
+        .btn--primary:hover:not(:disabled) { transform: none; }
+    }
+
+    @@media (max-width: 480px) {
+        .login-card {
+            padding: var(--space-24) var(--space-20);
+            border-radius: var(--radius-md);
+        }
+
+        .verify-shell {
+            justify-content: flex-start;
+            padding-top: var(--space-32);
+        }
+
+        .input-field--code { font-size: 22px; letter-spacing: .35em; }
+    }
+</style>
+
+@code {
+    // Перечисление шагов 
+    /// <summary>
+    /// Визуальные состояния страницы
+    /// </summary>
+    private enum VerifyStep
+    {       
+        Input, // Форма ввода кода       
+        Resent, // Код успешно отправлен повторно       
+        Success, // Email подтверждён успешно       
+        Expired // Код истёк
+    }
+
+    // Модель формы 
+    private sealed class VerifyModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный формат email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите код подтверждения")]
+        [StringLength(9, MinimumLength = 8)]
+        [ConnectionCode]
+        public string Code { get; set; } = string.Empty;
+    }
+
+    // Состояние 
+    private readonly VerifyModel _model = new();
+
+    /// <summary>
+    /// Email из query string. Если передан — поле email скрыто
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "email")]
+    public string? QueryEmail { get; set; }
+
+    private string? _email;
+    private VerifyStep _step = VerifyStep.Input;
+    private string? _errorMessage;
+    private bool _isLoading;
+
+    /// <summary>
+    /// Кулдаун повторной отправки кода
+    /// </summary>
+    private int _resendCooldown;
+    private System.Threading.Timer? _cooldownTimer;
+
+    /// <summary>
+    /// Email для API-запросов: из query string или из поля формы
+    /// </summary>
+    private string ResolvedEmail =>
+        !string.IsNullOrWhiteSpace(_email) ? _email : _model.Email.Trim();
+
+    private static bool IsVerificationCodeReady(string code)
+        => ConnectionCodeFormat.IsValid(code, normalize: true);
+
+    // Lifecycle 
+    /// <summary>
+    /// Инициализирует страницу
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("email", out var emailValue)
+            && !string.IsNullOrWhiteSpace(emailValue))
+        {
+            _email = emailValue.ToString().Trim().ToLowerInvariant();
+            _model.Email = _email;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_email))
+        {
+            StartResendCooldown(60);
+        }
+    }
+
+    // Обработчики 
+    /// <summary>
+    /// Проверяет введённый 8-значный код через API
+    /// </summary>
+    private async Task HandleVerifyAsync()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var emailToVerify = ResolvedEmail;
+
+            if (string.IsNullOrWhiteSpace(emailToVerify))
+            {
+                _errorMessage = "Введите email для подтверждения.";
+                return;
+            }
+
+            var result = await AuthApi.VerifyEmailAsync(
+                emailToVerify, _model.Code.Trim());
+
+            if (!result.IsValid)
+            {
+                if (result.Message?.Contains("expired", StringComparison.OrdinalIgnoreCase) == true
+                    || result.Message?.Contains("истёк", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    StopResendCooldown();
+                    _step = VerifyStep.Expired;
+                    return;
+                }
+
+                _errorMessage = result.Message ?? "Неверный код. Проверьте и попробуйте ещё раз.";
+                return;
+            }
+
+            StopResendCooldown();
+            _step = VerifyStep.Success;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Повторно отправляет код верификации на email
+    /// </summary>
+    private async Task HandleResendAsync()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var emailToSend = ResolvedEmail;
+
+            if (string.IsNullOrWhiteSpace(emailToSend))
+            {
+                _errorMessage = "Укажите email, чтобы отправить код повторно.";
+                return;
+            }
+
+            var sent = await AuthApi.SendEmailVerificationCodeAsync(emailToSend);
+
+            if (!sent)
+            {
+                _errorMessage = "Не удалось отправить код. Попробуйте позже.";
+                return;
+            }
+
+            _step = VerifyStep.Resent;
+            StartResendCooldown(60);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Отправляет новый код и сразу возвращает на экран ввода
+    /// </summary>
+    private async Task HandleResendAndReset()
+    {
+        await HandleResendAsync();
+
+        if (_step == VerifyStep.Resent)
+        {
+            _model.Code = string.Empty;
+            _step = VerifyStep.Input;
+        }
+    }
+
+    private void BackToInput()
+    {
+        _step = VerifyStep.Input;
+    }
+
+    private void GoToLogin()
+        => Navigation.NavigateTo("/login", replace: true);
+
+    // Кулдаун 
+    /// <summary>
+    /// Запускает обратный отсчёт
+    /// </summary>
+    private void StartResendCooldown(int seconds)
+    {
+        _resendCooldown = seconds;
+        StopResendCooldown();
+
+        _cooldownTimer = new System.Threading.Timer(_ =>
+        {
+            if (_resendCooldown > 0)
+            {
+                _resendCooldown--;
+                InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                StopResendCooldown();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void StopResendCooldown()
+    {
+        _cooldownTimer?.Dispose();
+        _cooldownTimer = null;
+    }
+
+    // Освобождение ресурсов
+    public void Dispose()
+        => StopResendCooldown();
+}
