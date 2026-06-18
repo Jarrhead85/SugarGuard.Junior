@@ -144,6 +144,21 @@
 
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Родительский кабинет" Style="{StaticResource ProfileValue}" />
+                            <Label Text="Выдайте код, чтобы родитель видел измерения и рюкзак"
+                                   Style="{StaticResource ProfileLabel}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="Код"
+                                Style="{StaticResource PillButton}"
+                                Command="{Binding OpenAccessManagementCommand}"
+                                VerticalOptions="Center" />
+                    </Grid>
+
+                    <BoxView HeightRequest="1" BackgroundColor="{DynamicResource BorderDefault}" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
                             <Label Text="Telegram-бот" Style="{StaticResource ProfileValue}" />
                             <Label Text="{Binding TelegramStatus}"
                                    FontFamily="{StaticResource Satoshi}"

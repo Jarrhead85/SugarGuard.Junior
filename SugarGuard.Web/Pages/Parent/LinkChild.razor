@@ -1,0 +1,250 @@
+@page "/parent/link-child"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Parent")]
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Привязать ребёнка — SugarGuard</PageTitle>
+
+<section class="link-child-page">
+    <div class="link-child-card">
+        <div class="link-child-icon" aria-hidden="true">SG</div>
+        <p class="link-child-eyebrow">Связь с мобильным приложением</p>
+        <h1>Привязать ребёнка</h1>
+        <p class="link-child-text">
+            Откройте мобильное приложение ребёнка, перейдите в профиль и нажмите
+            <strong>Код</strong>. Введите полученный код здесь.
+        </p>
+
+        <label class="link-child-label" for="invite-code">Код привязки</label>
+        <input id="invite-code"
+               class="link-child-input @(_error is not null ? "link-child-input--error" : "")"
+               type="text"
+               maxlength="9"
+               placeholder="ABCD-1234"
+               autocomplete="off"
+               spellcheck="false"
+               @bind="Code"
+               @bind:event="oninput" />
+
+        @if (_error is not null)
+        {
+            <p class="link-child-error" role="alert">@_error</p>
+        }
+        @if (_success is not null)
+        {
+            <p class="link-child-success" role="status">@_success</p>
+        }
+
+        <div class="link-child-actions">
+            <button class="link-child-button link-child-button--primary"
+                    @onclick="ClaimAsync"
+                    disabled="@(_isLoading || string.IsNullOrWhiteSpace(_code))">
+                @(_isLoading ? "Привязываем..." : "Привязать")
+            </button>
+            <button class="link-child-button link-child-button--secondary"
+                    @onclick="@(() => Navigation.NavigateTo("/parent/dashboard"))">
+                Назад
+            </button>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string _code = string.Empty;
+    private bool _isLoading;
+    private string? _error;
+    private string? _success;
+
+    private string Code
+    {
+        get => _code;
+        set
+        {
+            _code = FormatInput(value);
+            _error = null;
+            _success = null;
+        }
+    }
+
+    private async Task ClaimAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_code))
+        {
+            _error = "Введите код.";
+            return;
+        }
+
+        _isLoading = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            var result = await ApiService.ClaimInviteCodeAsync(_code);
+            if (result is null)
+            {
+                _error = "Не удалось активировать код. Попробуйте ещё раз.";
+                return;
+            }
+
+            if (!result.Success)
+            {
+                _error = result.ErrorCode switch
+                {
+                    "code_not_found" or "codenotfound" => "Код не найден. Проверьте символы и попробуйте снова.",
+                    "code_expired" or "codeexpired" => "Срок действия кода истёк. Попросите новый код.",
+                    "code_already_used" or "codealreadyused" => "Этот код уже был использован.",
+                    "role_mismatch" or "rolemismatch" => "Этот код предназначен не для родителя.",
+                    _ => result.ErrorMessage ?? "Не удалось активировать код."
+                };
+                return;
+            }
+
+            _success = "Ребёнок успешно привязан. Открываем кабинет...";
+            await Task.Delay(700);
+            Navigation.NavigateTo("/parent/dashboard", forceLoad: true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _error = "Ошибка соединения. Проверьте интернет и попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatInput(string value)
+    {
+        var clean = new string(value
+            .Where(char.IsLetterOrDigit)
+            .Take(8)
+            .Select(char.ToUpperInvariant)
+            .ToArray());
+
+        return clean.Length <= 4 ? clean : $"{clean[..4]}-{clean[4..]}";
+    }
+}
+
+<style>
+    .link-child-page {
+        min-height: calc(100vh - 8rem);
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem;
+    }
+
+    .link-child-card {
+        width: min(100%, 34rem);
+        padding: 2rem;
+        border: 1px solid color-mix(in srgb, var(--sg-primary, #168a8a) 20%, transparent);
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top right, rgba(44, 180, 180, .16), transparent 34%),
+            var(--sg-surface, #fff);
+        box-shadow: 0 18px 50px rgba(14, 45, 58, .10);
+    }
+
+    .link-child-icon {
+        width: 3rem;
+        height: 3rem;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #0f8f8b, #49c3bd);
+        color: white;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .link-child-eyebrow {
+        margin: 0 0 .35rem;
+        color: var(--sg-primary, #168a8a);
+        font-weight: 700;
+        font-size: .85rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .link-child-card h1 {
+        margin: 0 0 .75rem;
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+    }
+
+    .link-child-text {
+        margin: 0 0 1.5rem;
+        color: var(--sg-muted, #607083);
+        line-height: 1.55;
+    }
+
+    .link-child-label {
+        display: block;
+        margin-bottom: .5rem;
+        font-weight: 700;
+    }
+
+    .link-child-input {
+        width: 100%;
+        min-height: 3.25rem;
+        padding: .8rem 1rem;
+        border: 1px solid rgba(23, 68, 86, .18);
+        border-radius: 16px;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, .8);
+    }
+
+    .link-child-input--error {
+        border-color: #d94c5c;
+    }
+
+    .link-child-error,
+    .link-child-success {
+        margin: .8rem 0 0;
+        font-weight: 700;
+    }
+
+    .link-child-error {
+        color: #b63745;
+    }
+
+    .link-child-success {
+        color: #087c61;
+    }
+
+    .link-child-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .75rem;
+        margin-top: 1.5rem;
+    }
+
+    .link-child-button {
+        min-height: 2.8rem;
+        padding: .75rem 1.1rem;
+        border: 0;
+        border-radius: 16px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .link-child-button--primary {
+        background: linear-gradient(135deg, #0f8f8b, #36b7b0);
+        color: white;
+    }
+
+    .link-child-button--secondary {
+        background: rgba(20, 80, 100, .08);
+        color: var(--sg-text, #102033);
+    }
+
+    .link-child-button:disabled {
+        opacity: .55;
+        cursor: default;
+    }
+</style>

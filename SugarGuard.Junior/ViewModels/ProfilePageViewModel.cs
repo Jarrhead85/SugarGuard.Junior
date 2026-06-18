@@ -224,6 +224,20 @@ public partial class ProfilePageViewModel : ObservableObject
     /// Команда: Подключить Telegram
     /// </summary>
     [RelayCommand]
+    private async Task OpenAccessManagement()
+    {
+        try
+        {
+            await Shell.Current.GoToAsync("accessmanagementpage");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error opening access management page");
+            await DisplayAlert("Доступ", "Не удалось открыть экран привязки. Попробуй ещё раз.", "ОК");
+        }
+    }
+
+    [RelayCommand]
     public async Task ConnectTelegram()
     {
         try

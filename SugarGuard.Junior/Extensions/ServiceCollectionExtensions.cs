@@ -39,7 +39,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBackpackService, BackpackService>();
         services.AddSingleton<IStatisticsService, StatisticsService>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
-        services.AddSingleton<ILinkService, LinkService>();
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IStorageService, StorageService>();
         services.AddSingleton<IScheduleService, ScheduleService>();
@@ -103,6 +102,13 @@ public static class ServiceCollectionExtensions
 
         // HTTP clients and external services
         services.AddHttpClient<IApiClient, RealApiClient>(client =>
+        {
+            client.BaseAddress = new Uri(AppConstants.SugarGuardApiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
+        services.AddHttpClient<ILinkService, LinkService>(client =>
         {
             client.BaseAddress = new Uri(AppConstants.SugarGuardApiBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(30);

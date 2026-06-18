@@ -1,13 +1,15 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using SugarGuard.Domain.Enums;
 using SugarGuard.Junior.Services.Interfaces;
+using SugarGuard.Shared.Constants;
 using SugarGuard.Shared.Dto;
 
 namespace SugarGuard.Junior.Services.Implementations;
 
 /// <summary>
-/// Реализация сервиса управления связками через HTTP-запросы к API.
+/// HTTP-сервис управления связками ребёнка с родителями и врачами.
 /// </summary>
 public class LinkService : ILinkService
 {
@@ -30,16 +32,21 @@ public class LinkService : ILinkService
     {
         try
         {
-            var response = await _httpClient.GetAsync($"api/links/{childId}/parents");
-            response.EnsureSuccessStatusCode();
-
-            var links = await response.Content.ReadFromJsonAsync<List<ParentChildLinkDto>>(JsonOptions);
-            return links ?? new List<ParentChildLinkDto>();
+            var links = await GetChildLinksAsync(childId);
+            return links.ParentLinks.Select(x => new ParentChildLinkDto
+            {
+                LinkId = x.LinkId,
+                ParentUserId = x.UserId,
+                ParentEmail = x.EmailForLogin,
+                ParentTelegramUsername = x.TelegramId?.ToString(),
+                ChildId = links.ChildId,
+                CreatedAt = x.LinkedAt
+            }).ToList();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка получения списка родителей для ребёнка {ChildId}", childId);
-            return new List<ParentChildLinkDto>();
+            return [];
         }
     }
 
@@ -47,78 +54,51 @@ public class LinkService : ILinkService
     {
         try
         {
-            var response = await _httpClient.GetAsync($"api/links/{childId}/doctors");
-            response.EnsureSuccessStatusCode();
-
-            var links = await response.Content.ReadFromJsonAsync<List<DoctorChildLinkDto>>(JsonOptions);
-            return links ?? new List<DoctorChildLinkDto>();
+            var links = await GetChildLinksAsync(childId);
+            return links.DoctorLinks.Select(x => new DoctorChildLinkDto
+            {
+                LinkId = x.LinkId,
+                DoctorUserId = x.UserId,
+                DoctorEmail = x.EmailForLogin,
+                ChildId = links.ChildId,
+                CreatedAt = x.LinkedAt
+            }).ToList();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка получения списка врачей для ребёнка {ChildId}", childId);
-            return new List<DoctorChildLinkDto>();
+            return [];
         }
     }
 
-    public async Task<GenerateInviteCodeResponse> GenerateParentInviteCodeAsync(Guid childId, string? note = null)
-    {
-        try
-        {
-            var request = new GenerateInviteCodeRequest
-            {
-                ChildId = childId,
-                TargetRole = "Parent",
-                Note = note
-            };
+    public Task<GenerateInviteCodeResponse> GenerateParentInviteCodeAsync(Guid childId, string? note = null) =>
+        GenerateInviteCodeAsync(childId, UserRole.Parent);
 
-            var response = await _httpClient.PostAsJsonAsync("api/links/invite", request, JsonOptions);
-            response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<GenerateInviteCodeResponse>(JsonOptions);
-            return result ?? new GenerateInviteCodeResponse { ErrorMessage = "Пустой ответ сервера" };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка генерации кода приглашения для родителя");
-            return new GenerateInviteCodeResponse { ErrorMessage = "Ошибка подключения" };
-        }
-    }
-
-    public async Task<GenerateInviteCodeResponse> GenerateDoctorInviteCodeAsync(Guid childId, string? note = null)
-    {
-        try
-        {
-            var request = new GenerateInviteCodeRequest
-            {
-                ChildId = childId,
-                TargetRole = "Doctor",
-                Note = note
-            };
-
-            var response = await _httpClient.PostAsJsonAsync("api/links/invite", request, JsonOptions);
-            response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<GenerateInviteCodeResponse>(JsonOptions);
-            return result ?? new GenerateInviteCodeResponse { ErrorMessage = "Пустой ответ сервера" };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка генерации кода приглашения для врача");
-            return new GenerateInviteCodeResponse { ErrorMessage = "Ошибка подключения" };
-        }
-    }
+    public Task<GenerateInviteCodeResponse> GenerateDoctorInviteCodeAsync(Guid childId, string? note = null) =>
+        GenerateInviteCodeAsync(childId, UserRole.Doctor);
 
     public async Task<AcceptInviteCodeResponse> AcceptInviteCodeAsync(string code)
     {
         try
         {
-            var request = new AcceptInviteCodeRequest { Code = code };
-
-            var response = await _httpClient.PostAsJsonAsync("api/links/accept", request, JsonOptions);
-            response.EnsureSuccessStatusCode();
+            using var response = await _httpClient.PostAsJsonAsync(
+                "api/invite-codes/claim",
+                new { code },
+                JsonOptions);
 
             var result = await response.Content.ReadFromJsonAsync<AcceptInviteCodeResponse>(JsonOptions);
-            return result ?? new AcceptInviteCodeResponse { Success = false, ErrorMessage = "Пустой ответ сервера" };
+            if (result is not null)
+            {
+                return result;
+            }
+
+            return new AcceptInviteCodeResponse
+            {
+                Success = false,
+                ErrorMessage = response.IsSuccessStatusCode
+                    ? "Пустой ответ сервера"
+                    : "Код не удалось активировать"
+            };
         }
         catch (Exception ex)
         {
@@ -131,17 +111,12 @@ public class LinkService : ILinkService
     {
         try
         {
-            var request = new RevokeInviteCodeRequest { InviteCodeId = inviteCodeId };
-            var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "api/links/invite")
+            using var response = await _httpClient.DeleteAsync($"api/invite-codes/{inviteCodeId}");
+            return new RevokeInviteCodeResponse
             {
-                Content = JsonContent.Create(request, options: JsonOptions)
+                Success = response.IsSuccessStatusCode,
+                ErrorMessage = response.IsSuccessStatusCode ? null : "Не удалось отозвать код"
             };
-
-            var response = await _httpClient.SendAsync(requestMessage);
-            response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<RevokeInviteCodeResponse>(JsonOptions);
-            return result ?? new RevokeInviteCodeResponse { Success = true };
         }
         catch (Exception ex)
         {
@@ -150,88 +125,114 @@ public class LinkService : ILinkService
         }
     }
 
-    public async Task<List<InviteCodeSummaryDto>> GetIncomingRequestsAsync()
+    public Task<List<InviteCodeSummaryDto>> GetIncomingRequestsAsync() =>
+        Task.FromResult(new List<InviteCodeSummaryDto>());
+
+    public Task<LinkOperationResponse> ApproveLinkRequestAsync(Guid inviteCodeId) =>
+        Task.FromResult(new LinkOperationResponse
+        {
+            Success = false,
+            ErrorMessage = "Входящие запросы не используются в текущем сценарии."
+        });
+
+    public Task<LinkOperationResponse> RejectLinkRequestAsync(Guid inviteCodeId) =>
+        Task.FromResult(new LinkOperationResponse
+        {
+            Success = false,
+            ErrorMessage = "Входящие запросы не используются в текущем сценарии."
+        });
+
+    public Task<LinkOperationResponse> RemoveParentLinkAsync(Guid linkId) =>
+        Task.FromResult(new LinkOperationResponse
+        {
+            Success = false,
+            ErrorMessage = "Отвязка родителя доступна в веб-кабинете."
+        });
+
+    public Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid linkId) =>
+        Task.FromResult(new LinkOperationResponse
+        {
+            Success = false,
+            ErrorMessage = "Отвязка врача доступна в веб-кабинете."
+        });
+
+    private async Task<GenerateInviteCodeResponse> GenerateInviteCodeAsync(Guid childId, UserRole targetRole)
     {
         try
         {
-            var response = await _httpClient.GetAsync("api/links/incoming");
-            response.EnsureSuccessStatusCode();
+            using var response = await _httpClient.PostAsJsonAsync(
+                "api/invite-codes/generate",
+                new { childId, targetRole = targetRole.ToString() },
+                JsonOptions);
 
-            var requests = await response.Content.ReadFromJsonAsync<List<InviteCodeSummaryDto>>(JsonOptions);
-            return requests ?? new List<InviteCodeSummaryDto>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning(
+                    "Ошибка генерации кода: {Status} {Body}",
+                    response.StatusCode,
+                    message);
+                return new GenerateInviteCodeResponse { ErrorMessage = "Не удалось сгенерировать код" };
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<InviteCodeApiResponse>(JsonOptions);
+            return MapInviteCodeResponse(result, targetRole.ToString());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка получения входящих запросов на связку");
-            return new List<InviteCodeSummaryDto>();
+            _logger.LogError(ex, "Ошибка генерации кода приглашения для {Role}", targetRole);
+            return new GenerateInviteCodeResponse { ErrorMessage = "Ошибка подключения" };
         }
     }
 
-    public async Task<LinkOperationResponse> ApproveLinkRequestAsync(Guid inviteCodeId)
+    private async Task<ChildAccessLinksApiResponse> GetChildLinksAsync(Guid childId)
     {
-        try
-        {
-            var response = await _httpClient.PostAsync($"api/links/incoming/{inviteCodeId}/approve", null);
-            response.EnsureSuccessStatusCode();
+        using var response = await _httpClient.GetAsync($"api/invite-codes/{childId}/links");
+        response.EnsureSuccessStatusCode();
 
-            var result = await response.Content.ReadFromJsonAsync<LinkOperationResponse>(JsonOptions);
-            return result ?? new LinkOperationResponse { Success = true };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка подтверждения запроса на связку");
-            return new LinkOperationResponse { Success = false, ErrorMessage = "Ошибка подключения" };
-        }
+        return await response.Content.ReadFromJsonAsync<ChildAccessLinksApiResponse>(JsonOptions)
+            ?? new ChildAccessLinksApiResponse { ChildId = childId };
     }
 
-    public async Task<LinkOperationResponse> RejectLinkRequestAsync(Guid inviteCodeId)
+    private static GenerateInviteCodeResponse MapInviteCodeResponse(InviteCodeApiResponse? result, string targetRole)
     {
-        try
+        if (result is null)
         {
-            var response = await _httpClient.PostAsync($"api/links/incoming/{inviteCodeId}/reject", null);
-            response.EnsureSuccessStatusCode();
+            return new GenerateInviteCodeResponse { ErrorMessage = "Пустой ответ сервера" };
+        }
 
-            var result = await response.Content.ReadFromJsonAsync<LinkOperationResponse>(JsonOptions);
-            return result ?? new LinkOperationResponse { Success = true };
-        }
-        catch (Exception ex)
+        return new GenerateInviteCodeResponse
         {
-            _logger.LogError(ex, "Ошибка отклонения запроса на связку");
-            return new LinkOperationResponse { Success = false, ErrorMessage = "Ошибка подключения" };
-        }
+            InviteCodeId = result.InviteCodeId,
+            DisplayCode = InviteCodeLimits.Format(InviteCodeLimits.Normalize(result.Code)),
+            ExpiresAt = result.ExpiresAt,
+            ActiveCodesCount = result.IsActive ? 1 : 0,
+            TargetRole = result.TargetRole ?? targetRole
+        };
     }
 
-    public async Task<LinkOperationResponse> RemoveParentLinkAsync(Guid linkId)
+    private sealed class InviteCodeApiResponse
     {
-        try
-        {
-            var response = await _httpClient.DeleteAsync($"api/links/parent/{linkId}");
-            response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<LinkOperationResponse>(JsonOptions);
-            return result ?? new LinkOperationResponse { Success = true };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка удаления связи с родителем");
-            return new LinkOperationResponse { Success = false, ErrorMessage = "Ошибка подключения" };
-        }
+        public Guid InviteCodeId { get; init; }
+        public string Code { get; init; } = string.Empty;
+        public string? TargetRole { get; init; }
+        public DateTime ExpiresAt { get; init; }
+        public bool IsActive { get; init; }
     }
 
-    public async Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid linkId)
+    private sealed class ChildAccessLinksApiResponse
     {
-        try
-        {
-            var response = await _httpClient.DeleteAsync($"api/links/doctor/{linkId}");
-            response.EnsureSuccessStatusCode();
+        public Guid ChildId { get; init; }
+        public List<LinkedAccessUserApiResponse> ParentLinks { get; init; } = [];
+        public List<LinkedAccessUserApiResponse> DoctorLinks { get; init; } = [];
+    }
 
-            var result = await response.Content.ReadFromJsonAsync<LinkOperationResponse>(JsonOptions);
-            return result ?? new LinkOperationResponse { Success = true };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка удаления связи с врачом");
-            return new LinkOperationResponse { Success = false, ErrorMessage = "Ошибка подключения" };
-        }
+    private sealed class LinkedAccessUserApiResponse
+    {
+        public Guid LinkId { get; init; }
+        public Guid UserId { get; init; }
+        public string? EmailForLogin { get; init; }
+        public long? TelegramId { get; init; }
+        public DateTime LinkedAt { get; init; }
     }
 }

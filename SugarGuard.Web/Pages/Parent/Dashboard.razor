@@ -38,7 +38,7 @@
             <span class="child-banner-name">Ребёнок ещё не привязан</span>
             <span class="child-banner-sub">Создайте код в мобильном приложении ребёнка и привяжите его здесь</span>
         </div>
-        <button class="btn btn--primary btn--sm" @onclick='() => ShowNotice("Привязка ребёнка будет доступна после генерации кода в мобильном приложении.")'>
+        <button class="btn btn--primary btn--sm" @onclick='() => Navigation.NavigateTo("/parent/link-child")'>
             Привязать ребёнка
         </button>
     }
