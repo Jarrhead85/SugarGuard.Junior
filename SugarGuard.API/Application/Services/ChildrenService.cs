@@ -147,7 +147,9 @@ public sealed class ChildrenService : IChildrenService
                 ? null
                 : request.PhotoUrl.Trim(),
             CreatedAt = now,
-            UpdatedAt = now
+            UpdatedAt = now,
+            SetupCompleted = role == UserRole.ChildDevice,
+            SetupCompletedAt = role == UserRole.ChildDevice ? now : null
         };
 
         db.Children.Add(child);
@@ -158,7 +160,7 @@ public sealed class ChildrenService : IChildrenService
             UpdatedAt = now
         });
 
-        if (role == UserRole.Parent)
+        if (role is UserRole.Parent or UserRole.ChildDevice)
         {
             parentLinkId = Guid.NewGuid();
             db.ParentChildLinks.Add(new ParentChildLink
@@ -166,7 +168,11 @@ public sealed class ChildrenService : IChildrenService
                 LinkId = parentLinkId.Value,
                 ParentUserId = userId,
                 ChildId = child.ChildId,
-                CreatedAt = now
+                CreatedAt = now,
+                LinkedByUserId = userId,
+                Notes = role == UserRole.ChildDevice
+                    ? "Self-link for child mobile account"
+                    : null
             });
         }
 

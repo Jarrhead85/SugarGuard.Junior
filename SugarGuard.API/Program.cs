@@ -251,7 +251,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentOrDoctorOrAdmin", policy =>
-        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ServiceAccount"));
+        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ServiceAccount", "ChildDevice"));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));
@@ -383,6 +383,7 @@ builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IChildrenService, ChildrenService>();
 builder.Services.AddScoped<IDiabetesSettingsService, DiabetesSettingsService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IParentDashboardService, ParentDashboardService>();
 builder.Services.AddScoped<IDoctorDashboardService, DoctorDashboardService>();

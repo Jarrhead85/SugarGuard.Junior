@@ -7,6 +7,7 @@ using SugarGuard.Junior.Models.Core;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
+using SugarGuard.Junior.Utilities;
 using SugarGuard.Junior.Views.Components;
 using SkiaSharp;
 using System.Collections.ObjectModel;
@@ -412,11 +413,10 @@ public partial class ChartPageViewModel : ObservableObject
         try
         {
             var decrypted = await _cryptoService.DecryptAsync(m.EncryptedGlucoseValue);
-            if (double.TryParse(decrypted,
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out var glucose))
+            if (DoubleParser.TryParseDecrypted(decrypted, out var glucose))
+            {
                 return glucose;
+            }
         }
         catch
         {

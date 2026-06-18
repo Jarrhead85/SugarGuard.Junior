@@ -21,6 +21,7 @@ public class AuthenticationService(
     private const string CurrentUserIdKey = "current_user_id";
     private const string CurrentUserKey = "current_user";
     private const string CurrentEmailKey = "current_email";
+    private const string EmailVerifiedKey = "email_verified";
 
     // ─────────────────────────────────────────────────────────────
     // Проверка состояния сессии
@@ -163,7 +164,8 @@ public class AuthenticationService(
                 LastName = lastName,
                 Email = email,
                 PhoneNumber = phoneNumber,
-                Password = password
+                Password = password,
+                Role = "ChildDevice"
             };
 
             var registrationResponse = await apiClient.RegisterAsync(registrationRequest);
@@ -427,8 +429,28 @@ public class AuthenticationService(
     {
         try
         {
+            var storedFlag = await storageService.GetAsync(EmailVerifiedKey);
+            if (string.Equals(storedFlag, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             var user = await GetCurrentUserAsync();
-            return user?.IsEmailVerified ?? false;
+            if (user?.IsEmailVerified == true)
+            {
+                await storageService.SaveAsync(EmailVerifiedKey, "true");
+                return true;
+            }
+
+            var accessToken = await secureStorage.GetAccessTokenAsync();
+            if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                logger.LogInformation("Локальный флаг email не найден, но есть активный токен. Считаем email подтвержденным.");
+                await storageService.SaveAsync(EmailVerifiedKey, "true");
+                return true;
+            }
+
+            return false;
         }
         catch (Exception ex)
         {
@@ -463,6 +485,7 @@ public class AuthenticationService(
                 }
 
                 await storageService.SaveAsync(CurrentEmailKey, normalizedEmail);
+                await storageService.SaveAsync(EmailVerifiedKey, "true");
                 // Обновляем флаг верификации у локального пользователя
                 var user = await GetCurrentUserAsync();
                 if (user is not null)

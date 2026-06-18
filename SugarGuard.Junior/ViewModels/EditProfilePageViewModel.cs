@@ -205,29 +205,7 @@ public partial class EditProfilePageViewModel : ObservableObject
     /// </remarks>
     private static bool TryParseLocalizedDouble(string rawValue, out double value)
     {
-        value = 0d;
-
-        if (string.IsNullOrWhiteSpace(rawValue))
-            return false;
-
-        var normalized = rawValue.Trim();
-
-        return
-            double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out value)
-            || double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.CurrentCulture,
-                out value)
-            || double.TryParse(
-                normalized.Replace(',', '.'),
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out value);
+        return DoubleParser.TryParseDecrypted(rawValue, out value);
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]

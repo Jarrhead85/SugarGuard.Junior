@@ -13,13 +13,13 @@
             VerticalOptions="Center">
         <Grid RowDefinitions="Auto,Auto,Auto"
               Padding="18"
-              RowSpacing="{StaticResource Space16}">
+              RowSpacing="16">
 
             <Grid Grid.Row="0"
                   ColumnDefinitions="*,Auto"
-                  ColumnSpacing="{StaticResource Space12}">
+                  ColumnSpacing="12">
                 <VerticalStackLayout Grid.Column="0"
-                                     Spacing="{StaticResource Space4}">
+                                     Spacing="4">
                     <Label Text="Добавить перекус"
                            Style="{StaticResource SectionHeadingText}" />
                     <Label Text="Название и хлебные единицы"
@@ -38,8 +38,42 @@
             </Grid>
 
             <VerticalStackLayout Grid.Row="1"
-                                 Spacing="{StaticResource Space12}">
-                <VerticalStackLayout Spacing="{StaticResource Space6}">
+                                 Spacing="12">
+                <FlexLayout Direction="Row"
+                            Wrap="Wrap"
+                            AlignItems="Center"
+                            JustifyContent="Start">
+                    <Button Text="Яблоко"
+                            Command="{Binding SetPresetCommand}"
+                            CommandParameter="apple"
+                            Style="{StaticResource SoftButton}"
+                            Margin="0,0,6,6"
+                            Padding="10,6"
+                            FontSize="12" />
+                    <Button Text="Сок"
+                            Command="{Binding SetPresetCommand}"
+                            CommandParameter="juice"
+                            Style="{StaticResource SoftButton}"
+                            Margin="0,0,6,6"
+                            Padding="10,6"
+                            FontSize="12" />
+                    <Button Text="Печенье"
+                            Command="{Binding SetPresetCommand}"
+                            CommandParameter="cookie"
+                            Style="{StaticResource SoftButton}"
+                            Margin="0,0,6,6"
+                            Padding="10,6"
+                            FontSize="12" />
+                    <Button Text="Батончик"
+                            Command="{Binding SetPresetCommand}"
+                            CommandParameter="bar"
+                            Style="{StaticResource SoftButton}"
+                            Margin="0,0,6,6"
+                            Padding="10,6"
+                            FontSize="12" />
+                </FlexLayout>
+
+                <VerticalStackLayout Spacing="6">
                     <Label Text="Название перекуса"
                            Style="{StaticResource CaptionText}"
                            FontAttributes="Bold" />
@@ -61,7 +95,7 @@
                            IsVisible="{Binding SnackNameError, Converter={StaticResource StringNotEmptyConverter}}" />
                 </VerticalStackLayout>
 
-                <VerticalStackLayout Spacing="{StaticResource Space6}">
+                <VerticalStackLayout Spacing="6">
                     <Label Text="Хлебные единицы (ХЕ)"
                            Style="{StaticResource CaptionText}"
                            FontAttributes="Bold" />
@@ -89,7 +123,7 @@
                 <Border StrokeThickness="0"
                         BackgroundColor="{DynamicResource DangerSoft}"
                         StrokeShape="RoundRectangle 12"
-                        Padding="{StaticResource Space12}"
+                        Padding="12"
                         IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}">
                     <Label Text="{Binding ErrorMessage}"
                            Style="{StaticResource CaptionText}"
@@ -99,7 +133,7 @@
 
             <Grid Grid.Row="2"
                   ColumnDefinitions="*,*"
-                  ColumnSpacing="{StaticResource Space10}">
+                  ColumnSpacing="10">
                 <Button Grid.Column="0"
                         Text="Отмена"
                         Command="{Binding CancelCommand}"

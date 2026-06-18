@@ -52,6 +52,12 @@ public class RegistrationRequest
     /// Пароль (только по TLS!)
     /// </summary>
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Роль создаваемой учетной записи.
+    /// Мобильное приложение ребенка регистрирует ChildDevice.
+    /// </summary>
+    public string Role { get; set; } = "ChildDevice";
 }
 
 /// <summary>

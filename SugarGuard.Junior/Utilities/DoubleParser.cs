@@ -5,12 +5,9 @@
 // на en-US — точка ("4.5"). Если данные были записаны в одной локали,
 // а читаются в другой — парсинг проваливается и возвращается 0 или default.
 //
-// Решение: пробуем три стратегии в порядке приоритета:
-//   1. InvariantCulture (точка) — данные, записанные .ToString(CultureInfo.InvariantCulture)
-//   2. CurrentCulture (точка или запятая) — данные, записанные .ToString() в текущей локали
-//   3. InvariantCulture после Replace(',', '.') — fallback для случая, когда
-//      пользователь ввёл "4,5" на en-US или когда данные были записаны
-//      с CurrentCulture, а у пользователя сменилась локаль.
+// Решение: нормализуем десятичный разделитель и парсим только как Float.
+// Важно не использовать NumberStyles.Any с CurrentCulture: на ru-RU строка "5.0"
+// может быть истолкована как "50" из-за точки как разделителя тысяч.
 //
 // Все методы — TryParse (без исключений), безопасны для hot path при чтении
 // расшифрованных значений из БД.
@@ -35,23 +32,30 @@ public static class DoubleParser
         if (string.IsNullOrWhiteSpace(rawValue))
             return false;
 
-        var normalized = rawValue.Trim();
+        var normalized = rawValue
+            .Trim()
+            .Replace("\u00A0", string.Empty)
+            .Replace(" ", string.Empty);
 
-        return
-            double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out value)
-            || double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.CurrentCulture,
-                out value)
-            || double.TryParse(
+        if (double.TryParse(
                 normalized.Replace(',', '.'),
-                NumberStyles.Any,
+                NumberStyles.Float,
                 CultureInfo.InvariantCulture,
-                out value);
+                out value))
+        {
+            return true;
+        }
+
+        if (double.TryParse(
+                normalized,
+                NumberStyles.Float,
+                CultureInfo.CurrentCulture,
+                out value))
+        {
+            return true;
+        }
+
+        value = 0d;
+        return false;
     }
 }

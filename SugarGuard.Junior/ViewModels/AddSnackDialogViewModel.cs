@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
+using SugarGuard.Junior.Utilities;
 
 namespace SugarGuard.Junior.ViewModels;
 
@@ -146,10 +147,7 @@ public partial class AddSnackDialogViewModel : ObservableObject
             _logger.LogInformation("Добавление перекуса: {SnackName}", SnackName);
 
             // Парсим хлебные единицы
-            if (!double.TryParse(BreadUnitsText.Replace(',', '.'), 
-                System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, 
-                out var breadUnits))
+            if (!DoubleParser.TryParseDecrypted(BreadUnitsText, out var breadUnits))
             {
                 ErrorMessage = "Некорректное значение ХЕ";
                 return;
@@ -197,6 +195,19 @@ public partial class AddSnackDialogViewModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    [RelayCommand]
+    public void SetPreset(string preset)
+    {
+        (SnackName, BreadUnitsText) = preset switch
+        {
+            "apple" => ("Яблоко", "1.0"),
+            "juice" => ("Сок 200 мл", "2.0"),
+            "cookie" => ("Печенье", "1.5"),
+            "bar" => ("Батончик мюсли", "2.5"),
+            _ => (SnackName, BreadUnitsText)
+        };
     }
 
     /// <summary>
@@ -248,10 +259,7 @@ public partial class AddSnackDialogViewModel : ObservableObject
         }
 
         // Пробуем распарсить значение
-        if (!double.TryParse(BreadUnitsText.Replace(',', '.'),
-            System.Globalization.NumberStyles.Any,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out var value))
+        if (!DoubleParser.TryParseDecrypted(BreadUnitsText, out var value))
         {
             return "Введите число";
         }

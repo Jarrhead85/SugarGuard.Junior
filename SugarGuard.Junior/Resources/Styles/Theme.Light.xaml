@@ -222,7 +222,7 @@
     <!-- Иконка/текст активного таба -->
     <Color x:Key="TabBarActiveColor">#1B8E8B</Color>
     <!-- Иконка/текст неактивного таба -->
-    <Color x:Key="TabBarInactiveColor">#96A2B8</Color>
+    <Color x:Key="TabBarInactiveColor">#667694</Color>
     <!-- Фон пузырька активного таба -->
     <Color x:Key="TabBarActivePillBackground">#1F1B8E8B</Color>
 
@@ -251,6 +251,6 @@
     <Color x:Key="Gray950">#16213E</Color>
     <Color x:Key="TabBarBackgroundColor">#D6FFFFFF</Color>
     <Color x:Key="TabBarSelectedColor">#1B8E8B</Color>
-    <Color x:Key="TabBarUnselectedColor">#96A2B8</Color>
+    <Color x:Key="TabBarUnselectedColor">#667694</Color>
 
 </ResourceDictionary>

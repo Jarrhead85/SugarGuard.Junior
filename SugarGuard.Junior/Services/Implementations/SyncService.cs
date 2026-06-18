@@ -535,6 +535,7 @@ public class SyncService : ISyncService
             await ctx.SaveChangesAsync();
 
             _logger.LogInformation(" Запись добавлена в очередь: {EntityId}", entityId);
+            ScheduleImmediateSyncIfPossible();
             return true;
         }
         catch (Exception ex)
@@ -542,6 +543,24 @@ public class SyncService : ISyncService
             _logger.LogError(ex, " Ошибка при добавлении в очередь: {EntityId}", entityId);
             return false;
         }
+    }
+
+    private void ScheduleImmediateSyncIfPossible()
+    {
+        if (!_isInitialized || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await SyncNowAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Не удалось выполнить немедленную синхронизацию очереди.");
+            }
+        });
     }
 
     /// <summary>

@@ -79,8 +79,8 @@ public partial class VerifyPageViewModel : ObservableObject, IQueryAttributable
     /// </summary>
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
-        var email = query.TryGetValue("email", out var e) ? e?.ToString() ?? "" : "";
-        var phone = query.TryGetValue("phone", out var p) ? p?.ToString() ?? "" : "";
+        var email = query.TryGetValue("email", out var e) ? DecodeQueryValue(e?.ToString()) : "";
+        var phone = query.TryGetValue("phone", out var p) ? DecodeQueryValue(p?.ToString()) : "";
         var useSms = query.TryGetValue("useSms", out var s) && bool.TryParse(s?.ToString(), out var sms) && sms;
         Initialize(email, phone, useSms);
     }
@@ -128,7 +128,8 @@ public partial class VerifyPageViewModel : ObservableObject, IQueryAttributable
                 return;
             }
 
-            var verification = await _authenticationService.VerifyEmailAsync(emailToVerify, normalizedCode!);
+            var verificationCode = ConnectionCodeFormat.Format(normalizedCode!);
+            var verification = await _authenticationService.VerifyEmailAsync(emailToVerify, verificationCode);
 
             if (verification.IsValid || verification.Success)
             {
@@ -231,7 +232,18 @@ public partial class VerifyPageViewModel : ObservableObject, IQueryAttributable
             Email = await _storageService.GetAsync("current_email") ?? string.Empty;
         }
 
+        Email = DecodeQueryValue(Email);
         return Email.Trim().ToLowerInvariant();
+    }
+
+    private static string DecodeQueryValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return Uri.UnescapeDataString(value).Trim();
     }
 
     /// <summary>Запускает обратный отсчёт для кнопки повторной отправки.</summary>

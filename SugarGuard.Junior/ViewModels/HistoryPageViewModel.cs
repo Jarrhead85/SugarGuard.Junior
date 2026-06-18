@@ -10,6 +10,7 @@ using SugarGuard.Junior.Models.Enums;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
+using SugarGuard.Junior.Utilities;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
 namespace SugarGuard.Junior.ViewModels;
@@ -794,24 +795,7 @@ public partial class HistoryPageViewModel : ObservableObject
             return false;
         }
 
-        var normalized = rawValue.Trim();
-
-        return
-            double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out value)
-            || double.TryParse(
-                normalized,
-                NumberStyles.Any,
-                CultureInfo.CurrentCulture,
-                out value)
-            || double.TryParse(
-                normalized.Replace(',', '.'),
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out value);
+        return DoubleParser.TryParseDecrypted(rawValue, out value);
     }
 
     /// <summary>

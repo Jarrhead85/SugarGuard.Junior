@@ -5,7 +5,6 @@
              x:Name="rangeSlider">
 
     <VerticalStackLayout Spacing="8">
-        <!-- Метки значений -->
         <Grid ColumnDefinitions="*,*">
             <VerticalStackLayout Grid.Column="0" Spacing="2">
                 <Label Text="Мин"
@@ -14,7 +13,9 @@
                        Style="{StaticResource ValueText}"
                        FontSize="18" />
             </VerticalStackLayout>
-            <VerticalStackLayout Grid.Column="1" Spacing="2"
+
+            <VerticalStackLayout Grid.Column="1"
+                                 Spacing="2"
                                  HorizontalOptions="End">
                 <Label Text="Макс"
                        Style="{StaticResource CaptionTextFaint}"
@@ -26,54 +27,54 @@
             </VerticalStackLayout>
         </Grid>
 
-        <!-- Трек и ползунки -->
         <Grid HeightRequest="40">
-            <!-- Трек фона -->
             <BoxView HeightRequest="6"
                      CornerRadius="3"
-                     BackgroundColor="{StaticResource ProgressTrackBackground}"
+                     BackgroundColor="{DynamicResource ProgressTrackBackground}"
                      VerticalOptions="Center"
                      HorizontalOptions="Fill" />
 
-            <!-- Активный трек (между ползунками) -->
             <BoxView x:Name="activeTrack"
                      HeightRequest="6"
                      CornerRadius="3"
-                     BackgroundColor="{StaticResource Primary}"
+                     BackgroundColor="{DynamicResource Primary}"
                      VerticalOptions="Center" />
 
-            <!-- Минимальный ползунок -->
             <Slider x:Name="minSlider"
                     Minimum="3.5"
                     Maximum="14.0"
                     Value="4.0"
                     VerticalOptions="Center"
-                    ThumbColor="{StaticResource Primary}"
+                    ThumbColor="{DynamicResource Primary}"
                     MinimumTrackColor="Transparent"
                     MaximumTrackColor="Transparent"
                     ValueChanged="OnMinSliderValueChanged" />
 
-            <!-- Максимальный ползунок -->
             <Slider x:Name="maxSlider"
                     Minimum="3.5"
                     Maximum="14.0"
                     Value="10.0"
                     VerticalOptions="Center"
-                    ThumbColor="{StaticResource Primary}"
+                    ThumbColor="{DynamicResource Primary}"
                     MinimumTrackColor="Transparent"
                     MaximumTrackColor="Transparent"
                     ValueChanged="OnMaxSliderValueChanged" />
         </Grid>
 
-        <!-- Шкала -->
         <Grid ColumnDefinitions="*,*,*,*,*,*,*">
-            <Label Grid.Column="0" Text="3.5"
-                   Style="{StaticResource CaptionTextFaint}" FontSize="11" />
-            <Label Grid.Column="3" Text="8.0"
-                   Style="{StaticResource CaptionTextFaint}" FontSize="11"
+            <Label Grid.Column="0"
+                   Text="3.5"
+                   Style="{StaticResource CaptionTextFaint}"
+                   FontSize="11" />
+            <Label Grid.Column="3"
+                   Text="8.0"
+                   Style="{StaticResource CaptionTextFaint}"
+                   FontSize="11"
                    HorizontalTextAlignment="Center" />
-            <Label Grid.Column="6" Text="14.0"
-                   Style="{StaticResource CaptionTextFaint}" FontSize="11"
+            <Label Grid.Column="6"
+                   Text="14.0"
+                   Style="{StaticResource CaptionTextFaint}"
+                   FontSize="11"
                    HorizontalTextAlignment="End" />
         </Grid>
     </VerticalStackLayout>

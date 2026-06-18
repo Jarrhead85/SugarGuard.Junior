@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using SugarGuard.Shared.Constants;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Models.Api;
@@ -191,7 +192,7 @@ public class MeasurementService : IMeasurementService
             {
                 MeasurementId = Guid.NewGuid().ToString(),
                 ChildId = childId,
-                EncryptedGlucoseValue = await _cryptoService.EncryptAsync(glucoseValue.ToString("F1")),
+                EncryptedGlucoseValue = await _cryptoService.EncryptAsync(glucoseValue.ToString("F1", CultureInfo.InvariantCulture)),
                 MeasurementTime = DateTime.UtcNow,
                 EncryptedChildState = await _cryptoService.EncryptAsync(state.ToString()),
                 DataSource = DataSource.ManualInput,
@@ -216,11 +217,21 @@ public class MeasurementService : IMeasurementService
                 RequestRecommendation = true,
                 LastModifiedAt = DateTime.UtcNow
             };
-            await _syncService.QueueItemAsync(
-                measurement.MeasurementId,
-                "Measurement",
-                "Insert",
-                Newtonsoft.Json.JsonConvert.SerializeObject(payload));
+            try
+            {
+                await _syncService.QueueItemAsync(
+                    measurement.MeasurementId,
+                    "Measurement",
+                    "Insert",
+                    Newtonsoft.Json.JsonConvert.SerializeObject(payload));
+            }
+            catch (Exception syncEx)
+            {
+                _logger.LogWarning(
+                    syncEx,
+                    "Измерение {MeasurementId} сохранено локально, но не поставлено в очередь синхронизации",
+                    measurement.MeasurementId);
+            }
 
             // 6⃣ ОТМЕЧАЕМ ИЗМЕРЕНИЕ КАК ВЫПОЛНЕННОЕ (останавливает повторные напоминания)
             _ = Task.Run(async () =>

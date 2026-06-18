@@ -116,9 +116,20 @@ public sealed class AuthController : ControllerBase
         [FromBody] RegisterUserRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _auth.RegisterParentAsync(
+        var role = ParseRegistrationRole(request.Role);
+        if (role is null)
+        {
+            return BadRequest(new
+            {
+                error = "role_not_allowed",
+                message = "Requested role is not allowed for self-registration."
+            });
+        }
+
+        var result = await _auth.RegisterAsync(
             request.Email,
             request.Password,
+            role.Value,
             cancellationToken);
 
         if (!result.Success)
@@ -207,6 +218,19 @@ public sealed class AuthController : ControllerBase
             message = "Registration successful. Check your email for verification code.",
             expiresAt = sendResult.ExpiresAt
         });
+    }
+
+    private static UserRole? ParseRegistrationRole(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return UserRole.Parent;
+        }
+
+        return Enum.TryParse<UserRole>(role.Trim(), ignoreCase: true, out var parsed)
+               && parsed is UserRole.Parent or UserRole.Doctor or UserRole.ChildDevice
+            ? parsed
+            : null;
     }
 
     [HttpPost("verify-email")]

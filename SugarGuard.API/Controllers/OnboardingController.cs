@@ -18,6 +18,7 @@ public sealed class OnboardingController : ControllerBase
 {
     private readonly IOnboardingService _onboarding;
     private readonly IChildrenService _childrenService;
+    private readonly IDiabetesSettingsService _diabetesSettings;
     private readonly IChildAccessService _childAccess;
     private readonly ILogger<OnboardingController> _logger;
 
@@ -27,11 +28,13 @@ public sealed class OnboardingController : ControllerBase
     public OnboardingController(
         IOnboardingService onboarding,
         IChildrenService childrenService,
+        IDiabetesSettingsService diabetesSettings,
         IChildAccessService childAccess,
         ILogger<OnboardingController> logger)
     {
         _onboarding = onboarding;
         _childrenService = childrenService;
+        _diabetesSettings = diabetesSettings;
         _childAccess = childAccess;
         _logger = logger;
     }
@@ -70,6 +73,7 @@ public sealed class OnboardingController : ControllerBase
         }
 
         if (role.Value is not (UserRole.Parent
+                               or UserRole.ChildDevice
                                or UserRole.Admin
                                or UserRole.SupportAdmin
                                or UserRole.ServiceAccount))
@@ -82,7 +86,18 @@ public sealed class OnboardingController : ControllerBase
             return StatusCode(StatusCodes.Status403Forbidden, new CreateChildOnboardingResponse
             {
                 Success = false,
-                ErrorMessage = "Создание профиля ребёнка доступно только родителю."
+                ErrorMessage = "Создание профиля ребёнка недоступно для текущей роли."
+            });
+        }
+
+        if (request.TargetRangeMin.HasValue &&
+            request.TargetRangeMax.HasValue &&
+            request.TargetRangeMin.Value >= request.TargetRangeMax.Value)
+        {
+            return BadRequest(new CreateChildOnboardingResponse
+            {
+                Success = false,
+                ErrorMessage = "Нижняя граница целевого диапазона должна быть меньше верхней."
             });
         }
 
@@ -103,6 +118,28 @@ public sealed class OnboardingController : ControllerBase
 
             var result = await _childrenService.CreateAsync(
                 userId.Value, role.Value, createRequest, cancellationToken);
+
+            if (request.TargetRangeMin.HasValue && request.TargetRangeMax.HasValue)
+            {
+                await _diabetesSettings.UpsertAsync(
+                    result.Child.ChildId,
+                    new UpdateDiabetesSettingsRequest
+                    {
+                        TargetRangeMin = request.TargetRangeMin.Value,
+                        TargetRangeMax = request.TargetRangeMax.Value,
+                        InsulinSensitivity = 3.0m,
+                        CarbInsulinRatio = 12.0m
+                    },
+                    cancellationToken);
+            }
+
+            if (role.Value == UserRole.ChildDevice)
+            {
+                await _onboarding.CompleteStepAsync(
+                    userId.Value,
+                    _onboarding.GetTotalSteps(role.Value),
+                    cancellationToken);
+            }
 
             return Ok(new CreateChildOnboardingResponse
             {

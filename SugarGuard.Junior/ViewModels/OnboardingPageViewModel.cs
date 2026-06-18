@@ -1,9 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using SugarGuard.Junior.Models.Core;
+using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
 using SugarGuard.Shared.Dto;
+using MobileDiabetesType = SugarGuard.Junior.Models.Enums.DiabetesType;
 
 namespace SugarGuard.Junior.ViewModels;
 
@@ -16,6 +19,7 @@ public partial class OnboardingPageViewModel : ObservableObject
     private readonly IStorageService _storageService;
     private readonly IApiClient _apiClient;
     private readonly ILogger<OnboardingPageViewModel> _logger;
+    private readonly IChildRepository _childRepository;
 
     [ObservableProperty]
     private int currentStep;
@@ -48,11 +52,13 @@ public partial class OnboardingPageViewModel : ObservableObject
     public OnboardingPageViewModel(
         IStorageService storageService,
         IApiClient apiClient,
-        ILogger<OnboardingPageViewModel> logger)
+        ILogger<OnboardingPageViewModel> logger,
+        IChildRepository childRepository)
     {
         _storageService = storageService;
         _apiClient = apiClient;
         _logger = logger;
+        _childRepository = childRepository;
         ValidateStep();
     }
 
@@ -143,8 +149,10 @@ public partial class OnboardingPageViewModel : ObservableObject
                 FirstName = firstName,
                 LastName = lastName,
                 DateOfBirth = dateOfBirth,
-                DiabetesType = DiabetesTypes[DiabetesTypeIndex],
-                TimeZoneId = TimeZoneInfo.Local.Id
+                DiabetesType = MapDiabetesType(DiabetesTypeIndex),
+                TimeZoneId = TimeZoneInfo.Local.Id,
+                TargetRangeMin = Convert.ToDecimal(TargetRangeMin),
+                TargetRangeMax = Convert.ToDecimal(TargetRangeMax)
             });
 
             if (!response.Success || response.ChildId is null)
@@ -154,7 +162,10 @@ public partial class OnboardingPageViewModel : ObservableObject
                 return;
             }
 
-            await _storageService.SaveAsync(Constants.StorageKeyCurrentChildId, response.ChildId.Value.ToString());
+            var childId = response.ChildId.Value.ToString();
+            await SaveLocalChildProfileAsync(childId, firstName, lastName, dateOfBirth);
+
+            await _storageService.SaveAsync(Constants.StorageKeyCurrentChildId, childId);
             await _storageService.SaveAsync("onboarding_completed", "true");
             await _storageService.SaveAsync("child_nickname", NickName);
             await _storageService.SaveAsync("diabetes_type", DiabetesTypeIndex.ToString());
@@ -167,6 +178,56 @@ public partial class OnboardingPageViewModel : ObservableObject
         {
             ErrorMessage = "Не удалось сохранить настройки. Попробуйте позже.";
             _logger.LogError(ex, "Ошибка при завершении онбординга");
+        }
+    }
+
+    private static string MapDiabetesType(int index) => index switch
+    {
+        0 => DiabetesType.Type1,
+        1 => DiabetesType.Type2,
+        _ => DiabetesType.Other
+    };
+
+    private async Task SaveLocalChildProfileAsync(
+        string childId,
+        string firstName,
+        string lastName,
+        DateOnly dateOfBirth)
+    {
+        var existing = await _childRepository.GetByIdAsync(childId);
+        var now = DateTime.UtcNow;
+        var localDiabetesType = DiabetesTypeIndex switch
+        {
+            0 => MobileDiabetesType.Type1,
+            1 => MobileDiabetesType.Type2,
+            _ => MobileDiabetesType.Other
+        };
+
+        var child = new Child
+        {
+            ChildId = childId,
+            ParentUserId = await _storageService.GetAsync(Constants.StorageKeyCurrentUserId) ?? "self",
+            EncryptedFirstName = firstName.Trim(),
+            EncryptedLastName = lastName.Trim(),
+            DateOfBirth = dateOfBirth.ToDateTime(TimeOnly.MinValue),
+            Weight = 30,
+            Height = 130,
+            DiabetesType = localDiabetesType,
+            DiagnosisDate = DateTime.Today,
+            InsulinScheme = string.Empty,
+            CurrentInsulins = "[]",
+            CreatedAt = existing?.CreatedAt ?? now,
+            UpdatedAt = now,
+            PhotoUrl = existing?.PhotoUrl
+        };
+
+        if (existing is null)
+        {
+            await _childRepository.AddChildWithEncryptionAsync(child);
+        }
+        else
+        {
+            await _childRepository.UpdateChildWithEncryptionAsync(child);
         }
     }
 

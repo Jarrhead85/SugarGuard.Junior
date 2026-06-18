@@ -184,7 +184,7 @@ namespace SugarGuard.API.Services
                                    && l.ChildId == childId
                                    && l.IsActive,
                               cancellationToken),
-                UserRole.Parent => await _context.ParentChildLinks
+                UserRole.Parent or UserRole.ChildDevice => await _context.ParentChildLinks
                     .AsNoTracking()
                     .AnyAsync(l => l.ParentUserId == userId.Value
                                    && l.ChildId == childId,
@@ -227,7 +227,7 @@ namespace SugarGuard.API.Services
                     .Select(l => l.ChildId)
                     .ToListAsync(cancellationToken);
 
-            // Parent
+            // Parent and ChildDevice use the same link table; ChildDevice links only to its own profile.
             return await _context.ParentChildLinks
                 .AsNoTracking()
                 .Where(l => l.ParentUserId == userId.Value)

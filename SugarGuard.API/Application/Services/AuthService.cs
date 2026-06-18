@@ -43,7 +43,24 @@ public class AuthService : IAuthService
         string email,
         string password,
         CancellationToken cancellationToken = default)
+        => await RegisterAsync(email, password, UserRole.Parent, cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<AuthRegistrationResult> RegisterAsync(
+        string email,
+        string password,
+        UserRole role,
+        CancellationToken cancellationToken = default)
     {
+        if (role is UserRole.Admin or UserRole.SupportAdmin or UserRole.ServiceAccount)
+        {
+            return new AuthRegistrationResult(
+                null,
+                false,
+                "role_not_allowed",
+                "Registration for this role is not allowed.");
+        }
+
         var emailForLogin = email.Trim().ToLowerInvariant();
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -58,6 +75,7 @@ public class AuthService : IAuthService
                 var retryCredentials = HashPassword(password);
                 existingUser.PasswordHash = retryCredentials.HashBase64;
                 existingUser.PasswordSalt = retryCredentials.SaltBase64;
+                existingUser.Role = role;
                 existingUser.OnboardingCompleted = false;
                 existingUser.OnboardingCurrentStep = Math.Max(existingUser.OnboardingCurrentStep, 1);
 
@@ -100,7 +118,7 @@ public class AuthService : IAuthService
             EncryptedEmail = _crypto.Encrypt(emailForLogin),
             PasswordHash = credentials.HashBase64,
             PasswordSalt = credentials.SaltBase64,
-            Role = UserRole.Parent,
+            Role = role,
             IsActive = true,
             IsEmailVerified = false,
             OnboardingCompleted = false,
@@ -116,10 +134,10 @@ public class AuthService : IAuthService
             "auth.register.success",
             "User",
             user.UserId.ToString(),
-            "role=Parent",
+            $"role={role}",
             CancellationToken.None);
 
-        _logger.LogInformation("Parent user registered. UserId={UserId}", user.UserId);
+        _logger.LogInformation("User registered. UserId={UserId} Role={Role}", user.UserId, role);
 
         return new AuthRegistrationResult(user, true, null, null);
     }

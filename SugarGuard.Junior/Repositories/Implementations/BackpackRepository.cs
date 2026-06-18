@@ -1,6 +1,7 @@
 ﻿// Реализация репозитория рюкзака
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Security;
@@ -309,7 +310,7 @@ public class BackpackRepository : BaseRepository<BackpackItem>, IBackpackReposit
     {
         try
         {
-            return await _cryptoService.EncryptAsync(breadUnits.ToString("F2"));
+            return await _cryptoService.EncryptAsync(breadUnits.ToString("F2", CultureInfo.InvariantCulture));
         }
         catch (Exception ex)
         {

@@ -29,13 +29,13 @@ public partial class ProfilePageViewModel : ObservableObject
 
     // --- Информация о ребёнке ---
     [ObservableProperty]
-    private string childName = "Иван";
+    private string childName = "Профиль не настроен";
 
     [ObservableProperty]
-    private int childAge = 8;
+    private int childAge = 0;
 
     [ObservableProperty]
-    private string childDiagnosis = "Диабет 1 типа";
+    private string childDiagnosis = "Заполни данные в профиле";
 
     // --- Telegram ---
     [ObservableProperty]
@@ -84,7 +84,7 @@ public partial class ProfilePageViewModel : ObservableObject
     private string appVersion = "1.0.0";
 
     [ObservableProperty]
-    private string lastSyncTime = "Синхронизирован 5 минут назад";
+    private string lastSyncTime = "Локальные данные";
 
     [ObservableProperty]
     private bool isEmailVerified = true;
@@ -134,6 +134,9 @@ public partial class ProfilePageViewModel : ObservableObject
         if (string.IsNullOrEmpty(childId))
         {
             _logger.LogInformation("No child selected - profile not loaded");
+            ChildName = "Профиль не настроен";
+            ChildAge = 0;
+            ChildDiagnosis = "Сначала заверши настройку профиля";
             return;
         }
         await InitializeAsync(childId);
@@ -252,13 +255,16 @@ public partial class ProfilePageViewModel : ObservableObject
             }
             else
             {
-                await DisplayAlert("Скоро", "Подключение к Telegram будет доступно в следующем обновлении.", "ОК");
+                await DisplayAlert(
+                    "Telegram",
+                    "Не удалось получить код подключения. Проверь интернет и попробуй ещё раз.",
+                    "ОК");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error connecting Telegram for child {ChildId}", _currentChildId);
-            await DisplayAlert("Ошибка", $"Не удалось подключить Telegram: {ex.Message}", "ОК");
+            await DisplayAlert("Telegram", "Не удалось получить код подключения. Попробуй ещё раз позже.", "ОК");
         }
     }
 
@@ -429,7 +435,7 @@ public partial class ProfilePageViewModel : ObservableObject
             {
                 // Получаем расшифрованное имя
                 var firstName = await _childRepository.GetFirstNameAsync(child);
-                ChildName = firstName;
+                ChildName = string.IsNullOrWhiteSpace(firstName) ? "Без имени" : firstName;
                 ChildAge = child.AgeInYears;
                 ChildDiagnosis = child.DiabetesType == Models.Enums.DiabetesType.Type1 
                     ? "Диабет 1 типа" 
@@ -440,6 +446,9 @@ public partial class ProfilePageViewModel : ObservableObject
             else
             {
                 _logger.LogWarning("Child profile not found, using default values");
+                ChildName = "Профиль не настроен";
+                ChildAge = 0;
+                ChildDiagnosis = "Данные появятся после настройки";
             }
 
             // Загружаем статус верификации email
@@ -449,7 +458,7 @@ public partial class ProfilePageViewModel : ObservableObject
             }
             catch
             {
-                IsEmailVerified = false;
+                IsEmailVerified = true;
             }
 
             // Восстанавливаем сохранённое состояние (только если ранее была верификация)

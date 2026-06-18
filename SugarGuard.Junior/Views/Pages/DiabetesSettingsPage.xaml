@@ -20,7 +20,7 @@
                    Margin="0,0,0,10">
                 <Label Text="Настройте параметры диабета для получения персонализированных рекомендаций от ИИ. Обязательно проконсультируйтесь с эндокринологом перед изменением этих значений."
                        FontSize="14"
-                       TextColor="{StaticResource Gray900}" />
+                       TextColor="{DynamicResource Gray900}" />
             </Frame>
 
             <!-- Целевой диапазон глюкозы -->
@@ -45,7 +45,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="Обычно 4.0 ммоль/л для детей" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Максимальный целевой уровень -->
@@ -57,7 +57,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="Обычно 10.0 ммоль/л для детей" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Параметры инсулина -->
@@ -75,7 +75,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="На сколько ммоль/л снижает 1 единица инсулина" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Коэффициент углеводов-инсулина -->
@@ -87,7 +87,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="Сколько граммов углеводов покрывает 1 единица инсулина" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Длительность действия инсулинов -->
@@ -105,7 +105,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="Обычно 24 часа (Лантус, Левемир)" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Быстрый инсулин -->
@@ -117,7 +117,7 @@
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 <Label Text="Обычно 4 часа (Новорапид, Хумалог)" 
                        FontSize="12" 
-                       TextColor="{StaticResource Gray600}" />
+                       TextColor="{DynamicResource Gray600}" />
             </StackLayout>
 
             <!-- Ошибки валидации -->
@@ -136,8 +136,8 @@
                 <!-- Сброс к умолчаниям -->
                 <Button Text="Сбросить к умолчаниям" 
                         Command="{Binding ResetToDefaultsCommand}"
-                        BackgroundColor="{StaticResource Gray300}"
-                        TextColor="{StaticResource Gray900}" />
+                        BackgroundColor="{DynamicResource Gray300}"
+                        TextColor="{DynamicResource Gray900}" />
                 
                 <!-- Основные кнопки -->
                 <StackLayout Orientation="Horizontal" 
@@ -146,8 +146,8 @@
                     
                     <Button Text="Отмена" 
                             Command="{Binding CancelCommand}"
-                            BackgroundColor="{StaticResource Gray300}"
-                            TextColor="{StaticResource Gray900}"
+                            BackgroundColor="{DynamicResource Gray300}"
+                            TextColor="{DynamicResource Gray900}"
                             HorizontalOptions="FillAndExpand" />
                     
                     <Button Text="Сохранить" 
@@ -165,10 +165,10 @@
                 <StackLayout>
                     <Label Text="⚠️ ВАЖНО" 
                            FontAttributes="Bold" 
-                           TextColor="{StaticResource Gray900}" />
+                           TextColor="{DynamicResource Gray900}" />
                     <Label Text="Эти настройки влияют на рекомендации ИИ. Изменяйте их только после консультации с эндокринологом. Неправильные значения могут привести к некорректным советам."
                            FontSize="12"
-                           TextColor="{StaticResource Gray900}" />
+                           TextColor="{DynamicResource Gray900}" />
                 </StackLayout>
             </Frame>
 

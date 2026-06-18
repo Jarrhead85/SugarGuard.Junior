@@ -3,591 +3,309 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
-    xmlns:controls="clr-namespace:SugarGuard.Junior.Views.Controls"
     xmlns:models="clr-namespace:SugarGuard.Junior.Models.Enums"
     x:Class="SugarGuard.Junior.Views.Pages.ProfilePage"
-    Title="Профиль">
+    Title="Профиль"
+    BackgroundColor="{DynamicResource BackgroundPage}">
 
-    <ContentPage.Resources>
+    <pages:SwipeablePage.Resources>
         <ResourceDictionary>
-
-            <!-- Локальные стили страницы. -->
-
-            <Style x:Key="PageSectionTitleStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="14" />
-                <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#626C71, Dark=#A7A9A9}" />
+            <Style x:Key="ProfileCard" TargetType="Border">
+                <Setter Property="Padding" Value="16" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+                <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 20" />
             </Style>
 
-            <Style x:Key="HeroTitleStyle" TargetType="Label">
+            <Style x:Key="ProfileTitle" TargetType="Label">
                 <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="28" />
+                <Setter Property="FontSize" Value="17" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#1F2121, Dark=#FFFFFF}" />
+                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+            </Style>
+
+            <Style x:Key="ProfileLabel" TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
                 <Setter Property="LineBreakMode" Value="WordWrap" />
             </Style>
 
-            <Style x:Key="HeroSubtitleStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="14" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#626C71, Dark=#A7A9A9}" />
-                <Setter Property="LineBreakMode" Value="WordWrap" />
-            </Style>
-
-            <Style x:Key="FieldCaptionStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#A7A9A9, Dark=#626C71}" />
-            </Style>
-
-            <Style x:Key="FieldValueStyle" TargetType="Label">
+            <Style x:Key="ProfileValue" TargetType="Label">
                 <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
                 <Setter Property="FontSize" Value="16" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#1F2121, Dark=#FFFFFF}" />
+                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
                 <Setter Property="LineBreakMode" Value="WordWrap" />
             </Style>
 
-            <Style x:Key="SettingTitleStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="15" />
-                <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#1F2121, Dark=#FFFFFF}" />
+            <Style x:Key="PillButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Padding" Value="12,8" />
+                <Setter Property="MinimumHeightRequest" Value="40" />
+                <Setter Property="CornerRadius" Value="16" />
             </Style>
-
-            <Style x:Key="SettingSubtitleStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#A7A9A9, Dark=#626C71}" />
-                <Setter Property="LineBreakMode" Value="WordWrap" />
-            </Style>
-
-            <Style x:Key="InfoValueStyle" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="14" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#1F2121, Dark=#FFFFFF}" />
-                <Setter Property="LineBreakMode" Value="WordWrap" />
-            </Style>
-
         </ResourceDictionary>
-    </ContentPage.Resources>
+    </pages:SwipeablePage.Resources>
 
-    <ScrollView
-        VerticalOptions="FillAndExpand"
-        VerticalScrollBarVisibility="Never">
+    <ScrollView VerticalOptions="FillAndExpand"
+                VerticalScrollBarVisibility="Default">
+        <VerticalStackLayout Padding="16,12,16,24" Spacing="14">
 
-        <VerticalStackLayout
-            x:Name="RootContent"
-            Padding="16,12,16,24"
-            Spacing="16">
-
-            <!-- БАННЕР ОГРАНИЧЕННОГО РЕЖИМА -->
-            <controls:LimitedModeBanner
-                IsEmailVerified="{Binding IsEmailVerified}" />
-
-            <!-- HERO-БЛОК ПРОФИЛЯ -->
-            <Border
-                Padding="20"
-                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A1A}"
-                Stroke="{AppThemeBinding Light=#ECECEC, Dark=#3A3A3A}"
-                StrokeThickness="1"
-                StrokeShape="RoundRectangle 24">
-
-                <Border.Shadow>
-                    <Shadow
-                        Brush="{AppThemeBinding Light=Black, Dark=Black}"
-                        Offset="0,12"
-                        Radius="28"
-                        Opacity="0.08" />
-                </Border.Shadow>
-
-                <VerticalStackLayout Spacing="16">
-
+            <Border Style="{StaticResource ProfileCard}">
+                <VerticalStackLayout Spacing="14">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <VerticalStackLayout Spacing="6">
-                            <Label
-                                Text="Профиль и настройки"
-                                Style="{StaticResource HeroTitleStyle}" />
-
-                            <Label
-                                Text="Управляй профилем ребёнка, подключениями и интерфейсом приложения в одном месте."
-                                Style="{StaticResource HeroSubtitleStyle}" />
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Мои данные"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="26"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimary}" />
+                            <Label Text="Имя, цели, подключения и настройки приложения"
+                                   Style="{StaticResource ProfileLabel}" />
                         </VerticalStackLayout>
 
-                        <Border
-                            Grid.Column="1"
-                            Padding="0"
-                            BackgroundColor="Transparent"
-                            StrokeThickness="0"
-                            Shadow="{x:Null}"
-                            VerticalOptions="Start">
-                            <Label
-                                Text="Профиль"
-                                Style="{StaticResource StatusChip}"
-                                BackgroundColor="{StaticResource Primary}" />
+                        <Border Grid.Column="1"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource SurfacePrimarySoft}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 18"
+                                VerticalOptions="Start">
+                            <Label Text="SG"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource Primary}" />
                         </Border>
                     </Grid>
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                        <Button
-                            Grid.Column="0"
-                            Text="Добавить ребёнка"
-                            Command="{Binding AddChildCommand}"
-                            SemanticProperties.Description="Открыть форму добавления нового ребёнка"
-                            AutomationProperties.Name="AddChildButton" />
-
-                        <Button
-                            Grid.Column="1"
-                            Text="Редактировать"
+                    <Button Text="Изменить"
                             Style="{StaticResource SecondaryButton}"
-                            Command="{Binding EditProfileCommand}"
-                            SemanticProperties.Description="Редактировать профиль текущего ребёнка"
-                            AutomationProperties.Name="EditChildProfileButton" />
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                        <Button
-                            Grid.Column="0"
-                            Text="График"
-                            Style="{StaticResource SecondaryButton}"
-                            Clicked="OnOpenChartClicked"
-                            SemanticProperties.Description="Открыть страницу графика сахара" />
-                        <Button
-                            Grid.Column="1"
-                            Text="Расписание"
-                            Style="{StaticResource SecondaryButton}"
-                            Clicked="OnOpenScheduleClicked"
-                            SemanticProperties.Description="Открыть страницу расписания измерений" />
-                    </Grid>
+                            Command="{Binding EditProfileCommand}" />
                 </VerticalStackLayout>
             </Border>
 
-            <!-- ИНФОРМАЦИЯ О РЕБЁНКЕ -->
-            <Border>
-                <VerticalStackLayout Spacing="16">
+            <Border Style="{StaticResource ProfileCard}">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Диабет и цели" Style="{StaticResource ProfileTitle}" />
 
-                    <Label
-                        Text="Информация о ребёнке"
-                        Style="{StaticResource PageSectionTitleStyle}" />
-
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                        <Border
-                            Grid.Column="0"
-                            Padding="12"
-                            BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                            StrokeThickness="0"
-                            Shadow="{x:Null}"
-                            StrokeShape="RoundRectangle 18">
-                            <VerticalStackLayout Spacing="6">
-                                <Label
-                                    Text="Имя"
-                                    Style="{StaticResource FieldCaptionStyle}" />
-                                <Label
-                                    Text="{Binding ChildName}"
-                                    Style="{StaticResource FieldValueStyle}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Grid.Column="0"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 16">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Имя" Style="{StaticResource ProfileLabel}" />
+                                <Label Text="{Binding ChildName}" Style="{StaticResource ProfileValue}" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <Border
-                            Grid.Column="1"
-                            Padding="12"
-                            BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                            StrokeThickness="0"
-                            Shadow="{x:Null}"
-                            StrokeShape="RoundRectangle 18">
-                            <VerticalStackLayout Spacing="6">
-                                <Label
-                                    Text="Возраст"
-                                    Style="{StaticResource FieldCaptionStyle}" />
-                                <Label
-                                    Text="{Binding ChildAge, StringFormat='{0} лет'}"
-                                    Style="{StaticResource FieldValueStyle}" />
+                        <Border Grid.Column="1"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 16">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Возраст" Style="{StaticResource ProfileLabel}" />
+                                <Label Text="{Binding ChildAge, StringFormat='{0} лет'}" Style="{StaticResource ProfileValue}" />
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
 
-                    <Border
-                        Padding="12"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
-                        <VerticalStackLayout Spacing="6">
-                            <Label
-                                Text="Диагноз"
-                                Style="{StaticResource FieldCaptionStyle}" />
-                            <Label
-                                Text="{Binding ChildDiagnosis}"
-                                Style="{StaticResource FieldValueStyle}" />
+                    <Border Padding="12"
+                            BackgroundColor="{DynamicResource SurfaceOffset}"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 16">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Диагноз" Style="{StaticResource ProfileLabel}" />
+                            <Label Text="{Binding ChildDiagnosis}" Style="{StaticResource ProfileValue}" />
                         </VerticalStackLayout>
                     </Border>
 
-                    <Label
-                        Text="Здесь собраны основные данные ребёнка. Позже сюда можно вынести дополнительные медицинские параметры и фото профиля."
-                        Style="{StaticResource SettingSubtitleStyle}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Целевой диапазон" Style="{StaticResource ProfileValue}" />
+                            <Label Text="{Binding TargetRangeText}" Style="{StaticResource ProfileLabel}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="Изменить"
+                                Style="{StaticResource PillButton}"
+                                Command="{Binding EditTargetRangeCommand}"
+                                VerticalOptions="Center" />
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
 
-            <!-- ПОДКЛЮЧЕНИЯ -->
-            <Border>
-                <VerticalStackLayout Spacing="16">
+            <Border Style="{StaticResource ProfileCard}">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Подключения" Style="{StaticResource ProfileTitle}" />
 
-                    <Label
-                        Text="Подключения"
-                        Style="{StaticResource PageSectionTitleStyle}" />
-
-                    <!-- Telegram -->
-                    <Border
-                        Padding="14"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <Label
-                                Grid.Column="0"
-                                Text="📱"
-                                FontSize="22"
-                                VerticalOptions="Center" />
-
-                            <VerticalStackLayout
-                                Grid.Column="1"
-                                Spacing="4"
-                                VerticalOptions="Center">
-                                <Label
-                                    Text="Telegram-бот"
-                                    Style="{StaticResource SettingTitleStyle}" />
-                                <Label
-                                    Text="{Binding TelegramStatus}"
-                                    FontFamily="{StaticResource Satoshi}"
-                                    FontSize="12"
-                                    TextColor="{Binding TelegramStatusColor}" />
-                            </VerticalStackLayout>
-
-                            <Button
-                                Grid.Column="2"
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Telegram-бот" Style="{StaticResource ProfileValue}" />
+                            <Label Text="{Binding TelegramStatus}"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="13"
+                                   TextColor="{Binding TelegramStatusColor}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
                                 Text="{Binding TelegramButtonText}"
                                 Command="{Binding ConnectTelegramCommand}"
                                 BackgroundColor="{Binding TelegramButtonColor}"
-                                TextColor="White"
-                                SemanticProperties.Description="Подключение уведомлений Telegram"
+                                TextColor="{DynamicResource TextOnPrimary}"
                                 FontFamily="{StaticResource Satoshi}"
                                 FontSize="13"
                                 FontAttributes="Bold"
-                                CornerRadius="18"
-                                Padding="14,10"
-                                MinimumHeightRequest="44"
+                                CornerRadius="16"
+                                Padding="12,8"
+                                MinimumHeightRequest="40"
                                 VerticalOptions="Center" />
-                        </Grid>
-                    </Border>
+                    </Grid>
 
-                    <!-- Apple Health -->
-                    <Border
-                        Padding="14"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
+                    <BoxView HeightRequest="1" BackgroundColor="{DynamicResource BorderDefault}" />
 
-                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <Label
-                                Grid.Column="0"
-                                Text="🏥"
-                                FontSize="22"
-                                VerticalOptions="Center" />
-
-                            <VerticalStackLayout
-                                Grid.Column="1"
-                                Spacing="4"
-                                VerticalOptions="Center">
-                                <Label
-                                    Text="Apple Health"
-                                    Style="{StaticResource SettingTitleStyle}" />
-                                <Label
-                                    Text="{Binding HealthKitStatus}"
-                                    FontFamily="{StaticResource Satoshi}"
-                                    FontSize="12"
-                                    TextColor="{Binding HealthKitStatusColor}" />
-                            </VerticalStackLayout>
-
-                            <Button
-                                Grid.Column="2"
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Apple Health" Style="{StaticResource ProfileValue}" />
+                            <Label Text="{Binding HealthKitStatus}"
+                                   FontFamily="{StaticResource Satoshi}"
+                                   FontSize="13"
+                                   TextColor="{Binding HealthKitStatusColor}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
                                 Text="{Binding HealthKitButtonText}"
                                 Command="{Binding ConnectHealthKitCommand}"
                                 BackgroundColor="{Binding HealthKitButtonColor}"
-                                TextColor="White"
-                                SemanticProperties.Description="Подключение Apple Health"
+                                TextColor="{DynamicResource TextOnPrimary}"
                                 FontFamily="{StaticResource Satoshi}"
                                 FontSize="13"
                                 FontAttributes="Bold"
-                                CornerRadius="18"
-                                Padding="14,10"
-                                MinimumHeightRequest="44"
+                                CornerRadius="16"
+                                Padding="12,8"
+                                MinimumHeightRequest="40"
                                 VerticalOptions="Center" />
-                        </Grid>
-                    </Border>
-
-                    <Label
-                        Text="В будущем здесь удобно добавить и другие интеграции: часы, облачные сервисы, экспорт или синхронизацию с родительским кабинетом."
-                        Style="{StaticResource SettingSubtitleStyle}" />
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
 
-            <!-- НАСТРОЙКИ -->
-            <Border>
-                <VerticalStackLayout Spacing="16">
+            <Border Style="{StaticResource ProfileCard}">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Приложение" Style="{StaticResource ProfileTitle}" />
 
-                    <Label
-                        Text="Настройки"
-                        Style="{StaticResource PageSectionTitleStyle}" />
-
-                    <!-- Целевой диапазон -->
-                    <Border
-                        Padding="14"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
-                        <VerticalStackLayout Spacing="10">
-                            <Label
-                                Text="Целевой диапазон"
-                                Style="{StaticResource SettingTitleStyle}" />
-                            <Label
-                                Text="{Binding TargetRangeText}"
-                                Style="{StaticResource SettingSubtitleStyle}" />
-                            <Button
-                                Text="Изменить диапазон"
-                                Style="{StaticResource SecondaryButton}"
-                                Command="{Binding EditTargetRangeCommand}"
-                                SemanticProperties.Description="Изменить целевой диапазон глюкозы" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Уведомления" Style="{StaticResource ProfileValue}" />
+                            <Label Text="Напоминания и важные события" Style="{StaticResource ProfileLabel}" />
                         </VerticalStackLayout>
-                    </Border>
-
-                    <!-- Уведомления -->
-                    <Border
-                        Padding="14"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <VerticalStackLayout
-                                Grid.Column="0"
-                                Spacing="4">
-                                <Label
-                                    Text="Уведомления"
-                                    Style="{StaticResource SettingTitleStyle}" />
-                                <Label
-                                    Text="Получать оповещения о критических значениях и важных событиях."
-                                    Style="{StaticResource SettingSubtitleStyle}" />
-                            </VerticalStackLayout>
-
-                            <Switch
-                                Grid.Column="1"
+                        <Switch Grid.Column="1"
                                 IsToggled="{Binding NotificationsEnabled}"
                                 VerticalOptions="Center" />
-                        </Grid>
-                    </Border>
+                    </Grid>
 
-                    <!-- НАСТРОЙКИ ИНТЕРФЕЙСА -->
-                    <Border
-                        Padding="14"
-                        BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                        StrokeThickness="0"
-                        Shadow="{x:Null}"
-                        StrokeShape="RoundRectangle 18">
-                        <VerticalStackLayout Spacing="14">
-
-                            <Label
-                                Text="Интерфейс"
-                                Style="{StaticResource SettingTitleStyle}" />
-
-                            <!-- Тёмная тема -->
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <VerticalStackLayout
-                                    Grid.Column="0"
-                                    Spacing="4">
-                                    <Label
-                                        Text="Тёмная тема"
-                                        Style="{StaticResource SettingTitleStyle}" />
-                                    <Label
-                                        Text="Переключение между светлым и тёмным оформлением."
-                                        Style="{StaticResource SettingSubtitleStyle}" />
-                                </VerticalStackLayout>
-
-                                <Switch
-                                    x:Name="ThemeSwitch"
-                                    Grid.Column="1"
-                                    IsToggled="{Binding DarkThemeEnabled}"
-                                    VerticalOptions="Center"
-                                    Toggled="OnThemeToggled" />
-                            </Grid>
-
-                            <!-- Масштаб интерфейса (Child Mode) -->
-                            <VerticalStackLayout Spacing="6">
-                                <Label
-                                    Text="Размер интерфейса"
-                                    Style="{StaticResource SettingTitleStyle}" />
-                                <Label
-                                    Text="Выбери удобный размер: мелкий (больше данных), стандартный или крупный (child-friendly)."
-                                    Style="{StaticResource SettingSubtitleStyle}" />
-                                <HorizontalStackLayout
-                                    Spacing="8"
-                                    HorizontalOptions="Start">
-                                    <Button
-                                        Text="Мелкий"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="{x:Static models:ScalePreset.Small}"
-                                        BackgroundColor="{Binding CurrentScale, Converter={x:Null}}"
-                                        SemanticProperties.Description="Мелкий масштаб интерфейса"
-                                        AutomationProperties.Name="ScaleSmallButton" />
-                                    <Button
-                                        Text="Стандартный"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="{x:Static models:ScalePreset.Default}"
-                                        SemanticProperties.Description="Стандартный масштаб интерфейса"
-                                        AutomationProperties.Name="ScaleDefaultButton" />
-                                    <Button
-                                        Text="Крупный"
-                                        Command="{Binding SetScaleCommand}"
-                                        CommandParameter="{x:Static models:ScalePreset.Large}"
-                                        SemanticProperties.Description="Крупный масштаб интерфейса"
-                                        AutomationProperties.Name="ScaleLargeButton" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-
-                            <!-- Компактный режим -->
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <VerticalStackLayout
-                                    Grid.Column="0"
-                                    Spacing="4">
-                                    <Label
-                                        Text="Компактный режим"
-                                        Style="{StaticResource SettingTitleStyle}" />
-                                    <Label
-                                        Text="В будущем поможет уместить больше данных на одном экране."
-                                        Style="{StaticResource SettingSubtitleStyle}" />
-                                </VerticalStackLayout>
-
-                                <Switch
-                                    x:Name="CompactModeSwitch"
-                                    Grid.Column="1"
-                                    VerticalOptions="Center"
-                                    Toggled="OnCompactModeToggled" />
-                            </Grid>
-
-                            <!-- Снижение анимаций -->
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <VerticalStackLayout
-                                    Grid.Column="0"
-                                    Spacing="4">
-                                    <Label
-                                        Text="Снизить анимации"
-                                        Style="{StaticResource SettingTitleStyle}" />
-                                    <Label
-                                        Text="Будущий accessibility-параметр для более спокойного интерфейса."
-                                        Style="{StaticResource SettingSubtitleStyle}" />
-                                </VerticalStackLayout>
-
-                                <Switch
-                                    x:Name="ReduceMotionSwitch"
-                                    Grid.Column="1"
-                                    VerticalOptions="Center"
-                                    Toggled="OnReduceMotionToggled" />
-                            </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Тёмная тема" Style="{StaticResource ProfileValue}" />
+                            <Label Text="Переключает оформление приложения" Style="{StaticResource ProfileLabel}" />
                         </VerticalStackLayout>
-                    </Border>
-                </VerticalStackLayout>
-            </Border>
+                        <Switch x:Name="ThemeSwitch"
+                                Grid.Column="1"
+                                IsToggled="{Binding DarkThemeEnabled}"
+                                Toggled="OnThemeToggled"
+                                VerticalOptions="Center" />
+                    </Grid>
 
-            <!-- ИНФОРМАЦИЯ И СИНХРОНИЗАЦИЯ -->
-            <Border>
-                <VerticalStackLayout Spacing="16">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Размер интерфейса" Style="{StaticResource ProfileValue}" />
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <Button Grid.Column="0"
+                                    Text="Мелкий"
+                                    Style="{StaticResource PillButton}"
+                                    Command="{Binding SetScaleCommand}"
+                                    CommandParameter="{x:Static models:ScalePreset.Small}" />
+                            <Button Grid.Column="1"
+                                    Text="Обычный"
+                                    Style="{StaticResource PillButton}"
+                                    Command="{Binding SetScaleCommand}"
+                                    CommandParameter="{x:Static models:ScalePreset.Default}" />
+                            <Button Grid.Column="2"
+                                    Text="Крупный"
+                                    Style="{StaticResource PillButton}"
+                                    Command="{Binding SetScaleCommand}"
+                                    CommandParameter="{x:Static models:ScalePreset.Large}" />
+                        </Grid>
+                    </VerticalStackLayout>
 
-                    <Label
-                        Text="Информация"
-                        Style="{StaticResource PageSectionTitleStyle}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Компактный режим" Style="{StaticResource ProfileValue}" />
+                            <Label Text="Больше данных на одном экране" Style="{StaticResource ProfileLabel}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="CompactModeSwitch"
+                                Grid.Column="1"
+                                Toggled="OnCompactModeToggled"
+                                VerticalOptions="Center" />
+                    </Grid>
 
-                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*" RowSpacing="12">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Grid.Column="0" Spacing="4">
+                            <Label Text="Меньше анимаций" Style="{StaticResource ProfileValue}" />
+                            <Label Text="Спокойнее и быстрее на слабых устройствах" Style="{StaticResource ProfileLabel}" />
+                        </VerticalStackLayout>
+                        <Switch x:Name="ReduceMotionSwitch"
+                                Grid.Column="1"
+                                Toggled="OnReduceMotionToggled"
+                                VerticalOptions="Center" />
+                    </Grid>
 
-                        <Border
-                            Grid.Row="0"
-                            Padding="12"
-                            BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                            StrokeThickness="0"
-                            Shadow="{x:Null}"
-                            StrokeShape="RoundRectangle 18">
-                            <VerticalStackLayout Spacing="6">
-                                <Label
-                                    Text="Версия приложения"
-                                    Style="{StaticResource FieldCaptionStyle}" />
-                                <Label
-                                    Text="{Binding AppVersion}"
-                                    Style="{StaticResource InfoValueStyle}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Grid.Column="0"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 16">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Версия" Style="{StaticResource ProfileLabel}" />
+                                <Label Text="{Binding AppVersion}" Style="{StaticResource ProfileValue}" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <Border
-                            Grid.Row="1"
-                            Padding="12"
-                            BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#242424}"
-                            StrokeThickness="0"
-                            Shadow="{x:Null}"
-                            StrokeShape="RoundRectangle 18">
-                            <VerticalStackLayout Spacing="6">
-                                <Label
-                                    Text="Последняя синхронизация"
-                                    Style="{StaticResource FieldCaptionStyle}" />
-                                <Label
-                                    Text="{Binding LastSyncTime}"
-                                    Style="{StaticResource InfoValueStyle}" />
+                        <Border Grid.Column="1"
+                                Padding="12"
+                                BackgroundColor="{DynamicResource SurfaceOffset}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 16">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Статус" Style="{StaticResource ProfileLabel}" />
+                                <Label Text="{Binding LastSyncTime}" Style="{StaticResource ProfileValue}" />
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
 
-                    <Button
-                        Text="Синхронизировать сейчас"
-                        Style="{StaticResource SecondaryButton}"
-                        Command="{Binding SyncNowCommand}"
-                        SemanticProperties.Description="Запустить синхронизацию с сервером" />
+                    <Button Text="Синхронизировать сейчас"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding SyncNowCommand}" />
                 </VerticalStackLayout>
             </Border>
 
-            <!-- ВЫХОД -->
-            <Border
-                Padding="16"
-                BackgroundColor="{AppThemeBinding Light=#FFFFFF, Dark=#1A1A1A}"
-                Stroke="{AppThemeBinding Light=#ECECEC, Dark=#3A3A3A}"
-                StrokeThickness="1"
-                StrokeShape="RoundRectangle 24">
-
+            <Border Style="{StaticResource ProfileCard}">
                 <VerticalStackLayout Spacing="12">
-                    <Label
-                        Text="Аккаунт"
-                        Style="{StaticResource PageSectionTitleStyle}" />
-
-                    <Label
-                        Text="Выход завершит текущую сессию на устройстве."
-                        Style="{StaticResource SettingSubtitleStyle}" />
-
-                    <Button
-                        Text="Выйти"
-                        Command="{Binding LogoutCommand}"
-                        BackgroundColor="{StaticResource Danger}"
-                        TextColor="White"
-                        SemanticProperties.Description="Выйти из приложения"
-                        FontFamily="{StaticResource Satoshi}"
-                        FontSize="15"
-                        FontAttributes="Bold"
-                        CornerRadius="18"
-                        Padding="16,12"
-                        MinimumHeightRequest="48" />
+                    <Label Text="Аккаунт" Style="{StaticResource ProfileTitle}" />
+                    <Label Text="Выход завершит текущую сессию на устройстве."
+                           Style="{StaticResource ProfileLabel}" />
+                    <Button Text="Выйти"
+                            Command="{Binding LogoutCommand}"
+                            BackgroundColor="{DynamicResource Danger}"
+                            TextColor="{DynamicResource TextOnPrimary}"
+                            FontFamily="{StaticResource Satoshi}"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            CornerRadius="18"
+                            Padding="16,12"
+                            MinimumHeightRequest="48" />
                 </VerticalStackLayout>
             </Border>
-
         </VerticalStackLayout>
     </ScrollView>
-
 </pages:SwipeablePage>

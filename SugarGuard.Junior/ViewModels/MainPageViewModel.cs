@@ -34,6 +34,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private readonly ICryptoService _cryptoService;
     private readonly IStorageService _storageService;
     private readonly IBackpackRepository _backpackRepository;
+    private readonly IChildRepository _childRepository;
 
     /// <summary>
     /// Таймер для периодического обновления статуса синхронизации (каждые 5 секунд).
@@ -89,7 +90,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     // ========== ПРИВЯЗАННЫЕ СВОЙСТВА: ПРОФИЛЬ И ДАТА ==========
 
     [ObservableProperty]
-    private string childName = "Мой ребёнок";
+    private string childName = "Привет!";
 
     [ObservableProperty]
     private string currentDate = DateTime.Now.ToString("dd MMMM yyyy");
@@ -267,7 +268,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         ILogger<MainPageViewModel> logger,
         ICryptoService cryptoService,
         IStorageService storageService,
-        IBackpackRepository backpackRepository)
+        IBackpackRepository backpackRepository,
+        IChildRepository childRepository)
     {
         _measurementService = measurementService;
         _syncService = syncService;
@@ -277,6 +279,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _cryptoService = cryptoService;
         _storageService = storageService;
         _backpackRepository = backpackRepository;
+        _childRepository = childRepository;
 
         SendMeasurementCommand = new AsyncRelayCommand(OnSubmitMeasurementAsync);
         CloseModalCommand = new AsyncRelayCommand(OnCloseModalAsync);
@@ -392,6 +395,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             }
 
             CurrentRecommendation = recommendation;
+            ApplyInlineRecommendation(recommendation);
             await OpenRecommendationModalAsync(recommendation);
 
             NewGlucoseValue = string.Empty;
@@ -447,11 +451,17 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         try
         {
             if (Shell.Current != null)
+            {
                 await Shell.Current.GoToAsync("helpalertpage");
+                return;
+            }
+
+            await ShowHelpFallbackAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, " Ошибка перехода на страницу помощи");
+            await ShowHelpFallbackAsync();
         }
     }
 
@@ -505,6 +515,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation(" Загрузка данных главного экрана для ChildId={ChildId}", _currentChildId);
             IsLoading = true;
+
+            // --- Последние два измерения для тренда и мини-графика ---
+            await UpdateChildHeaderAsync();
 
             // --- Последние два измерения для тренда и мини-графика ---
             var measurements = await _measurementService.GetLastTwoMeasurementsAsync(_currentChildId);
@@ -755,6 +768,64 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, " Ошибка при загрузке ХЕ рюкзака");
             TotalBreadUnits = 0.0;
         }
+    }
+
+    private async Task UpdateChildHeaderAsync()
+    {
+        try
+        {
+            var child = await _childRepository.GetByIdAsync(_currentChildId!);
+            if (child is null)
+            {
+                var nickname = await _storageService.GetAsync("child_nickname");
+                ChildName = string.IsNullOrWhiteSpace(nickname)
+                    ? "Привет!"
+                    : $"Привет, {nickname.Trim()}";
+                return;
+            }
+
+            var firstName = await _childRepository.GetFirstNameAsync(child);
+            ChildName = string.IsNullOrWhiteSpace(firstName)
+                ? "Привет!"
+                : $"Привет, {firstName.Trim()}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось загрузить имя ребёнка для главной");
+            ChildName = "Привет!";
+        }
+    }
+
+    private void ApplyInlineRecommendation(RecommendationResponse recommendation)
+    {
+        RecommendationText = string.IsNullOrWhiteSpace(recommendation.RecommendationText)
+            ? "Измерение сохранено. Следи за самочувствием и держи взрослого в курсе."
+            : recommendation.RecommendationText;
+
+        RecommendationUrgency = string.IsNullOrWhiteSpace(recommendation.Urgency)
+            ? "Совет готов"
+            : recommendation.Urgency;
+
+        var urgency = recommendation.Urgency ?? string.Empty;
+        UrgencyKey = urgency.Contains("крит", StringComparison.OrdinalIgnoreCase) ||
+                     urgency.Contains("critical", StringComparison.OrdinalIgnoreCase)
+            ? "Danger"
+            : urgency.Contains("вним", StringComparison.OrdinalIgnoreCase) ||
+              urgency.Contains("warning", StringComparison.OrdinalIgnoreCase)
+                ? "Warning"
+                : "Primary";
+
+        RecommendationUrgencyAccessibilityText = RecommendationUrgency;
+        ShowRecommendation = true;
+    }
+
+    private static Task ShowHelpFallbackAsync()
+    {
+        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        return page?.DisplayAlert(
+            "Помощь",
+            "Если сахар низкий: сядь, съешь быстрые углеводы и сообщи взрослому. Если сахар высокий: выпей воды, проверь самочувствие и попроси взрослого помочь. При плохом самочувствии сразу звони родителю.",
+            "Понятно") ?? Task.CompletedTask;
     }
 
     // ========== ОТКРЫТИЕ МОДАЛЬНОГО ОКНА РЕКОМЕНДАЦИИ ==========

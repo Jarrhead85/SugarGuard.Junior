@@ -287,14 +287,32 @@ public partial class App : Application
         {
             _logger.LogInformation("Инициализация локальной базы данных...");
             await using var ctx = await _dbContextFactory.CreateDbContextAsync();
-            await ctx.Database.MigrateAsync();
+
+            if (!await HasRequiredLocalTablesAsync(ctx))
+            {
+                _logger.LogWarning("Локальная база данных имеет неполную схему. Выполняется пересоздание локальных таблиц.");
+                await RecreateLocalDatabaseAsync(ctx);
+            }
+            else if (await HasAppliedMigrationsAsync(ctx))
+            {
+                await ctx.Database.MigrateAsync();
+            }
+            else
+            {
+                _logger.LogInformation("Локальная база создана через EnsureCreated; EF migrations пропущены.");
+            }
+
             _logger.LogInformation("Локальная база данных готова к работе.");
 
 #if DEBUG
-            var seedEnabled = Preferences.Get("SeedEnabled", true);
+            var seedEnabled = Preferences.Get("SeedEnabled", false);
             if (seedEnabled)
             {
                 await SeedTestDataAsync();
+            }
+            else
+            {
+                await RemoveDebugSeedDataAsync();
             }
 #endif
         }
@@ -303,6 +321,78 @@ public partial class App : Application
             _logger.LogError(ex, "Ошибка при инициализации локальной базы данных.");
             throw;
         }
+    }
+
+    private async Task RecreateLocalDatabaseAsync(AppDbContext currentContext)
+    {
+        currentContext.Database.GetDbConnection().Close();
+        await currentContext.Database.EnsureDeletedAsync();
+
+        await using var freshContext = await _dbContextFactory.CreateDbContextAsync();
+        await freshContext.Database.EnsureCreatedAsync();
+
+        if (await HasRequiredLocalTablesAsync(freshContext))
+            return;
+
+        _logger.LogWarning("EnsureCreated не создал ожидаемую схему. Выполняется прямой schema bootstrap.");
+        var createScript = freshContext.Database.GenerateCreateScript();
+        var connection = freshContext.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = createScript;
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<bool> HasRequiredLocalTablesAsync(AppDbContext ctx)
+    {
+        var requiredTables = new[]
+        {
+            "Children",
+            "Measurements",
+            "BackpackItems",
+            "BackpackHistory",
+            "SyncQueue",
+            "SnackConsumptionLogs"
+        };
+
+        var connection = ctx.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync();
+
+        foreach (var table in requiredTables)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $tableName;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "$tableName";
+            parameter.Value = table;
+            command.Parameters.Add(parameter);
+
+            var result = await command.ExecuteScalarAsync();
+            if (Convert.ToInt32(result) == 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<bool> HasAppliedMigrationsAsync(AppDbContext ctx)
+    {
+        var connection = ctx.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync();
+
+        await using var tableCommand = connection.CreateCommand();
+        tableCommand.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '__EFMigrationsHistory';";
+        if (Convert.ToInt32(await tableCommand.ExecuteScalarAsync()) == 0)
+            return false;
+
+        await using var rowsCommand = connection.CreateCommand();
+        rowsCommand.CommandText = "SELECT COUNT(*) FROM __EFMigrationsHistory;";
+        return Convert.ToInt32(await rowsCommand.ExecuteScalarAsync()) > 0;
     }
 
     /// <summary>Выполняет инициализацию сессии авторизованного пользователя.</summary>
@@ -511,6 +601,41 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при добавлении тестовых данных.");
+        }
+    }
+
+    private async Task RemoveDebugSeedDataAsync()
+    {
+        const string testChildId = "child-001";
+
+        try
+        {
+            await using var ctx = await _dbContextFactory.CreateDbContextAsync();
+
+            var hasSeedChild = await ctx.Children.AnyAsync(c => c.ChildId == testChildId);
+            if (!hasSeedChild)
+                return;
+
+            ctx.Measurements.RemoveRange(ctx.Measurements.Where(m => m.ChildId == testChildId));
+            ctx.BackpackItems.RemoveRange(ctx.BackpackItems.Where(b => b.ChildId == testChildId));
+            ctx.BackpackHistory.RemoveRange(ctx.BackpackHistory.Where(b => b.ChildId == testChildId));
+            ctx.SnackConsumptionLogs.RemoveRange(ctx.SnackConsumptionLogs.Where(s => s.ChildId == testChildId));
+            ctx.AIRecommendations.RemoveRange(ctx.AIRecommendations.Where(r => r.ChildId == testChildId));
+            ctx.Children.RemoveRange(ctx.Children.Where(c => c.ChildId == testChildId));
+            await ctx.SaveChangesAsync();
+
+            var currentChildId = await _storageService.GetAsync(AppConstants.StorageKeyCurrentChildId);
+            if (string.Equals(currentChildId, testChildId, StringComparison.OrdinalIgnoreCase))
+            {
+                await _storageService.DeleteAsync(AppConstants.StorageKeyCurrentChildId);
+                await _storageService.DeleteAsync("onboarding_completed");
+            }
+
+            _logger.LogInformation("DEBUG seed data removed.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось удалить DEBUG seed data.");
         }
     }
 }

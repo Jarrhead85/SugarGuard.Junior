@@ -1,5 +1,7 @@
 ﻿using SugarGuard.Domain.Entities;
 
+using SugarGuard.Domain.Enums;
+
 namespace SugarGuard.API.Application.Interfaces;
 
 /// <summary>
@@ -18,6 +20,12 @@ public interface IAuthService
     Task<AuthRegistrationResult> RegisterParentAsync(
         string email,
         string password,
+        CancellationToken cancellationToken = default);
+
+    Task<AuthRegistrationResult> RegisterAsync(
+        string email,
+        string password,
+        UserRole role,
         CancellationToken cancellationToken = default);
 
     Task<AuthEmailVerificationResult> ConfirmEmailAsync(

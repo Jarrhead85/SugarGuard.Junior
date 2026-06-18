@@ -78,11 +78,21 @@ public class BackpackService : IBackpackService
                 AddedBy = "child"
             };
 
-            await _syncService.QueueItemAsync(
-                item.BackpackItemId,
-                "BackpackItem",
-                "Insert",
-                JsonConvert.SerializeObject(request));
+            try
+            {
+                await _syncService.QueueItemAsync(
+                    item.BackpackItemId,
+                    "BackpackItem",
+                    "Insert",
+                    JsonConvert.SerializeObject(request));
+            }
+            catch (Exception syncEx)
+            {
+                _logger.LogWarning(
+                    syncEx,
+                    "Перекус {BackpackItemId} сохранён локально, но не поставлен в очередь синхронизации",
+                    item.BackpackItemId);
+            }
 
             _logger.LogInformation(" Перекус добавлен: {SnackName}", snackName);
             return item;
@@ -114,8 +124,18 @@ public class BackpackService : IBackpackService
                     ChildId = childId,
                     RemovedBy = removedBy
                 };
-                await _syncService.QueueItemAsync(backpackItemId, "BackpackItem", "Delete",
-                    JsonConvert.SerializeObject(removeRequest));
+                try
+                {
+                    await _syncService.QueueItemAsync(backpackItemId, "BackpackItem", "Delete",
+                        JsonConvert.SerializeObject(removeRequest));
+                }
+                catch (Exception syncEx)
+                {
+                    _logger.LogWarning(
+                        syncEx,
+                        "Удаление перекуса {BackpackItemId} сохранено локально, но не поставлено в очередь синхронизации",
+                        backpackItemId);
+                }
             }
 
             return result;
@@ -138,17 +158,27 @@ public class BackpackService : IBackpackService
 
             var items = await _backpackRepository.GetByChildIdAsync(childId);
 
-            await Task.WhenAll(items.Select(item =>
+            foreach (var item in items)
             {
-                var removeRequest = new RemoveSnackRequest
+                try
                 {
-                    SnackId = item.BackpackItemId,
-                    ChildId = item.ChildId,
-                    RemovedBy = "child"
-                };
-                return _syncService.QueueItemAsync(item.BackpackItemId, "BackpackItem", "Delete",
-                    JsonConvert.SerializeObject(removeRequest));
-            }));
+                    var removeRequest = new RemoveSnackRequest
+                    {
+                        SnackId = item.BackpackItemId,
+                        ChildId = item.ChildId,
+                        RemovedBy = "child"
+                    };
+                    await _syncService.QueueItemAsync(item.BackpackItemId, "BackpackItem", "Delete",
+                        JsonConvert.SerializeObject(removeRequest));
+                }
+                catch (Exception syncEx)
+                {
+                    _logger.LogWarning(
+                        syncEx,
+                        "Очистка рюкзака: удаление {BackpackItemId} не поставлено в очередь синхронизации",
+                        item.BackpackItemId);
+                }
+            }
 
             var count = await _backpackRepository.ClearBackpackAsync(childId);
             _logger.LogInformation(" Рюкзак очищен ({Count} перекусов удалено)", count);

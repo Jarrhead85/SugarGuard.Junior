@@ -96,7 +96,6 @@ public partial class MainPage : SwipeablePage
         drawable.InvalidateCallback = InvalidateMiniChart;
 
         GlucoseGraphicsMini.Drawable = drawable;
-        GlucoseHero.ChartDrawable = drawable;
         drawable.AttachHost(GlucoseGraphicsMini);
 
         _logger.LogInformation("Мини-график подключён к GlucoseGraphicsMini");

@@ -20,7 +20,6 @@
         <VerticalStackLayout Padding="{StaticResource PaddingPage}"
                              Spacing="{StaticResource Spacing24}">
 
-            <!-- Progress bar -->
             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="{StaticResource Spacing8}" HeightRequest="4">
                 <BoxView Grid.Column="0" CornerRadius="2"
                          BackgroundColor="{DynamicResource SurfaceOffset}">
@@ -30,6 +29,7 @@
                         </DataTrigger>
                     </BoxView.Triggers>
                 </BoxView>
+
                 <BoxView Grid.Column="1" CornerRadius="2"
                          BackgroundColor="{DynamicResource SurfaceOffset}">
                     <BoxView.Triggers>
@@ -38,6 +38,7 @@
                         </DataTrigger>
                     </BoxView.Triggers>
                 </BoxView>
+
                 <BoxView Grid.Column="2" CornerRadius="2"
                          BackgroundColor="{DynamicResource SurfaceOffset}">
                     <BoxView.Triggers>
@@ -48,7 +49,6 @@
                 </BoxView>
             </Grid>
 
-            <!-- Шаг 1: Имя / никнейм -->
             <VerticalStackLayout Spacing="{StaticResource Spacing20}"
                                  IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=0}">
                 <Label Text="Как к вам обращаться?"
@@ -62,9 +62,11 @@
                         <Border StrokeShape="RoundRectangle 12"
                                 BackgroundColor="{DynamicResource SurfaceOffset}"
                                 Stroke="{DynamicResource InputBorderColor}"
-                                StrokeThickness="1" Padding="{StaticResource PaddingInput}">
+                                StrokeThickness="1"
+                                Padding="{StaticResource PaddingInput}">
                             <Entry Text="{Binding NickName}"
                                    Placeholder="Имя или никнейм"
+                                   ReturnType="Next"
                                    Style="{StaticResource EntryText}"
                                    HeightRequest="48" />
                         </Border>
@@ -77,7 +79,6 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- Шаг 2: Тип диабета -->
             <VerticalStackLayout Spacing="{StaticResource Spacing20}"
                                  IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=1}">
                 <Label Text="Тип диабета"
@@ -114,7 +115,6 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- Шаг 3: Целевой диапазон -->
             <VerticalStackLayout Spacing="{StaticResource Spacing20}"
                                  IsVisible="{Binding CurrentStep, Converter={StaticResource StepEqualsConverter}, ConverterParameter=2}">
                 <Label Text="Целевой диапазон"
@@ -143,7 +143,6 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- Ошибка -->
             <Label Text="{Binding ErrorMessage}"
                    Style="{StaticResource CaptionText}"
                    TextColor="{StaticResource GlucoseDangerColor}"

@@ -92,6 +92,12 @@ public sealed class CreateChildOnboardingRequest
    
     [MaxLength(500)]
     public string? InsulinScheme { get; init; } // Описание схемы инсулинотерапии в произвольной форме
+
+    [Range(2.0, 15.0, ErrorMessage = "Нижняя граница целевого диапазона должна быть от 2 до 15 ммоль/л.")]
+    public decimal? TargetRangeMin { get; init; }
+
+    [Range(2.0, 20.0, ErrorMessage = "Верхняя граница целевого диапазона должна быть от 2 до 20 ммоль/л.")]
+    public decimal? TargetRangeMax { get; init; }
 }
 
 /// <summary>
