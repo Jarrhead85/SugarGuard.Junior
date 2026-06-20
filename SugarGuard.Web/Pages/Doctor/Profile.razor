@@ -1,0 +1,125 @@
+@page "/doctor/profile"
+@attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@rendermode InteractiveServer
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SugarGuard.Web.Services
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject SugarGuardApiService ApiService
+@inject ILogger<Profile> Logger
+
+<PageTitle>Профиль врача — SugarGuard</PageTitle>
+
+<div class="sg-page">
+    <PageHeader Title="Профиль врача"
+                Subtitle="Данные текущей учётной записи и рабочая сводка по прикреплённым пациентам." />
+
+    @if (_isLoading)
+    {
+        <div class="sg-panel">Загружаем профиль...</div>
+    }
+    else
+    {
+        <section class="sg-panel sg-doctor-profile">
+            <div class="sg-doctor-profile__avatar">@Initials</div>
+            <div>
+                <h2>@DisplayName</h2>
+                <p>@Email</p>
+                <p>Роль: @Role</p>
+            </div>
+        </section>
+
+        <section class="sg-profile-grid">
+            <article class="sg-panel">
+                <h2>Пациенты</h2>
+                <strong>@_patientsCount</strong>
+                <p>Прикреплено к вашей учётной записи.</p>
+            </article>
+            <article class="sg-panel">
+                <h2>Критические сегодня</h2>
+                <strong>@_criticalToday</strong>
+                <p>Пациентов с критическими эпизодами.</p>
+            </article>
+            <article class="sg-panel">
+                <h2>Средний TIR</h2>
+                <strong>@(_averageTir?.ToString("F1") ?? "—")%</strong>
+                <p>По доступным данным за 7 дней.</p>
+            </article>
+        </section>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string DisplayName = "Врач SugarGuard";
+    private string Email = "—";
+    private string Role = "Doctor";
+    private int _patientsCount;
+    private int _criticalToday;
+    private double? _averageTir;
+
+    private string Initials => string.IsNullOrWhiteSpace(Email)
+        ? "DR"
+        : Email[0].ToString().ToUpperInvariant();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            Email = user.FindFirst(ClaimTypes.Email)?.Value
+                ?? user.FindFirst("email")?.Value
+                ?? user.Identity?.Name
+                ?? "—";
+            Role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Doctor";
+            DisplayName = user.Identity?.Name is { Length: > 0 } name && !name.Contains('@')
+                ? name
+                : Email;
+
+            var cohort = await ApiService.GetDoctorCohortSummaryAsync();
+            if (cohort is not null)
+            {
+                _patientsCount = cohort.TotalPatients;
+                _criticalToday = cohort.PatientsWithCriticalToday;
+                _averageTir = cohort.AverageTimeInTargetRange;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить профиль врача.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}
+
+<style>
+    .sg-doctor-profile {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+    }
+
+    .sg-doctor-profile__avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: color-mix(in oklab, var(--color-primary) 15%, var(--color-surface));
+        color: var(--color-primary);
+        font-weight: 800;
+    }
+
+    .sg-profile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+    }
+</style>

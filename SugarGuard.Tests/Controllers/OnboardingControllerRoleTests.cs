@@ -9,6 +9,7 @@ using SugarGuard.Shared.Dto;
 using IChildAccessService = SugarGuard.API.Services.IChildAccessService;
 using IOnboardingService = SugarGuard.API.Application.Interfaces.IOnboardingService;
 using IChildrenService = SugarGuard.API.Application.Interfaces.IChildrenService;
+using IDiabetesSettingsService = SugarGuard.API.Application.Interfaces.IDiabetesSettingsService;
 
 namespace SugarGuard.Tests.Controllers;
 
@@ -24,6 +25,7 @@ public class OnboardingControllerRoleTests
 {
     private readonly Mock<IOnboardingService> _onboarding = new();
     private readonly Mock<IChildrenService> _childrenService = new();
+    private readonly Mock<IDiabetesSettingsService> _diabetesSettings = new();
     private readonly Mock<IChildAccessService> _childAccess = new();
     private readonly OnboardingController _sut;
 
@@ -32,6 +34,7 @@ public class OnboardingControllerRoleTests
         _sut = new OnboardingController(
             _onboarding.Object,
             _childrenService.Object,
+            _diabetesSettings.Object,
             _childAccess.Object,
             NullLogger<OnboardingController>.Instance);
     }
@@ -71,15 +74,37 @@ public class OnboardingControllerRoleTests
     }
 
     /// <summary>
-    /// H-1: ChildDevice не может создать профиль ребёнка.
-    /// Роль для устройств-детей, не для людей.
+    /// ChildDevice создаёт собственный профиль ребёнка из мобильного onboarding.
     /// </summary>
     [Fact]
-    public async Task CreateChildOnboarding_ChildDeviceRole_Returns403Forbidden()
+    public async Task CreateChildOnboarding_ChildDeviceRole_CreatesProfile_WhenNoProfileExists()
     {
         var userId = Guid.NewGuid();
+        var newChildId = Guid.NewGuid();
+
         _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
         _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.ChildDevice);
+        _childAccess
+            .Setup(x => x.GetAccessibleChildIdsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Guid>());
+        _childrenService
+            .Setup(x => x.CreateAsync(
+                userId,
+                UserRole.ChildDevice,
+                It.IsAny<CreateChildRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CreateChildResult
+            {
+                Child = new ChildResponse
+                {
+                    ChildId = newChildId,
+                    FirstName = "Мария",
+                    LastName = "Сидорова"
+                }
+            });
+        _onboarding
+            .Setup(x => x.GetTotalSteps(UserRole.ChildDevice))
+            .Returns(3);
 
         var request = new CreateChildOnboardingRequest
         {
@@ -91,16 +116,93 @@ public class OnboardingControllerRoleTests
 
         var result = await _sut.CreateChildOnboardingAsync(request, CancellationToken.None);
 
-        var statusResult = Assert.IsType<ObjectResult>(result.Result);
-        Assert.Equal(StatusCodes.Status403Forbidden, statusResult.StatusCode);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var body = Assert.IsType<CreateChildOnboardingResponse>(okResult.Value);
+        Assert.True(body.Success);
+        Assert.Equal(newChildId, body.ChildId);
 
-        _childrenService.Verify(
-            x => x.CreateAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<UserRole>(),
-                It.IsAny<CreateChildRequest>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
+        _childrenService.Verify(x => x.CreateAsync(
+            userId,
+            UserRole.ChildDevice,
+            It.IsAny<CreateChildRequest>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _childrenService.Verify(x => x.UpdateAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<UpdateChildRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _onboarding.Verify(x => x.CompleteStepAsync(userId, 3, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Повторный мобильный onboarding ChildDevice обновляет существующий профиль, а не создаёт дубль.
+    /// </summary>
+    [Fact]
+    public async Task CreateChildOnboarding_ChildDeviceRole_UpdatesExistingProfile_WhenProfileExists()
+    {
+        var userId = Guid.NewGuid();
+        var existingChildId = Guid.NewGuid();
+
+        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.ChildDevice);
+        _childAccess
+            .Setup(x => x.GetAccessibleChildIdsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { existingChildId });
+        _childrenService
+            .Setup(x => x.GetByIdAsync(existingChildId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChildResponse
+            {
+                ChildId = existingChildId,
+                FirstName = "Мария",
+                LastName = "Сидорова",
+                DateOfBirth = new DateOnly(2014, 1, 1),
+                DiabetesType = "Type1",
+                Weight = 35m,
+                Height = 145m
+            });
+        _childrenService
+            .Setup(x => x.UpdateAsync(
+                existingChildId,
+                It.IsAny<UpdateChildRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChildResponse
+            {
+                ChildId = existingChildId,
+                FirstName = "Мария",
+                LastName = "Петрова",
+                DateOfBirth = new DateOnly(2014, 1, 1),
+                DiabetesType = "Type1",
+                Weight = 35m,
+                Height = 145m
+            });
+        _onboarding
+            .Setup(x => x.GetTotalSteps(UserRole.ChildDevice))
+            .Returns(3);
+
+        var request = new CreateChildOnboardingRequest
+        {
+            FirstName = "Мария",
+            LastName = "Петрова",
+            DateOfBirth = new DateOnly(2014, 1, 1),
+            DiabetesType = "Type1"
+        };
+
+        var result = await _sut.CreateChildOnboardingAsync(request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var body = Assert.IsType<CreateChildOnboardingResponse>(okResult.Value);
+        Assert.True(body.Success);
+        Assert.Equal(existingChildId, body.ChildId);
+
+        _childrenService.Verify(x => x.CreateAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<UserRole>(),
+            It.IsAny<CreateChildRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _childrenService.Verify(x => x.UpdateAsync(
+            existingChildId,
+            It.Is<UpdateChildRequest>(r => r.LastName == "Петрова"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _onboarding.Verify(x => x.CompleteStepAsync(userId, 3, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

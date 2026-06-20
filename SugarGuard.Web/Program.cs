@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using SugarGuard.Web;
 using SugarGuard.Web.Components;
@@ -17,6 +18,17 @@ builder.Services.AddRazorComponents()
 // HTTP-контекст (middleware, IP, security-заголовки)
 // -----------------------------------------------------------------------
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // -----------------------------------------------------------------------
 // Аутентификация и авторизация (JWT)
@@ -81,6 +93,11 @@ builder.Services.AddHttpClient("SugarGuardApi", client =>
     return handler;
 });
 
+// Backward-compatible scoped HttpClient for older admin pages. It uses the
+// same base address and JWT handler as SugarGuardApiService.
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("SugarGuardApi"));
+
 // -----------------------------------------------------------------------
 // Локализация (ru-RU)
 // -----------------------------------------------------------------------
@@ -137,6 +154,8 @@ app.Use(async (context, next) =>
 // HTTP-пайплайн
 // -----------------------------------------------------------------------
 
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     // Страница ошибок в Production
@@ -182,8 +201,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// Перенаправление HTTP → HTTPS
-app.UseHttpsRedirection();
+// HTTPS termination and HTTP -> HTTPS redirects are handled by nginx on VDS.
 
 app.UseAuthentication();
 app.UseAuthorization();

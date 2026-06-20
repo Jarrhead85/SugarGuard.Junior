@@ -1,0 +1,168 @@
+@page "/doctor/alerts"
+@attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+@inject ILogger<Alerts> Logger
+
+<PageTitle>Оповещения врача — SugarGuard</PageTitle>
+
+<div class="sg-page">
+    <PageHeader Title="Оповещения"
+                Subtitle="Пациенты, которым сейчас нужно внимание: критические значения, редкие измерения и низкий TIR.">
+        <TrailingContent>
+            <button class="sg-btn sg-btn--primary" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновляем..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="sg-alert sg-alert--error" role="alert">@_error</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="sg-panel">Загружаем оповещения...</div>
+    }
+    else if (AlertPatients.Count == 0)
+    {
+        <div class="sg-empty-state">
+            <h2 class="sg-empty-state__title">Срочных оповещений нет</h2>
+            <p class="sg-empty-state__message">Все прикреплённые пациенты сейчас без критических признаков по доступным данным.</p>
+        </div>
+    }
+    else
+    {
+        <div class="sg-alert-grid">
+            @foreach (var patient in AlertPatients)
+            {
+                <article class="sg-panel sg-alert-card @GetSeverityClass(patient)">
+                    <div>
+                        <h2>@GetFullName(patient)</h2>
+                        <p>@GetReason(patient)</p>
+                    </div>
+                    <dl class="sg-alert-card__metrics">
+                        <div>
+                            <dt>Глюкоза</dt>
+                            <dd>@(patient.LatestGlucose?.ToString("F1") ?? "—") ммоль/л</dd>
+                        </div>
+                        <div>
+                            <dt>TIR 7 дней</dt>
+                            <dd>@patient.TimeInTargetRange.ToString("F1")%</dd>
+                        </div>
+                        <div>
+                            <dt>Измерений</dt>
+                            <dd>@patient.MeasurementsLast7Days</dd>
+                        </div>
+                    </dl>
+                    <button class="sg-btn sg-btn--secondary"
+                            @onclick="() => NavigateToPatient(patient.ChildId)">
+                        Открыть пациента
+                    </button>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private List<DoctorPatientSummaryVm> _patients = [];
+
+    private List<DoctorPatientSummaryVm> AlertPatients => _patients
+        .Where(p => p.CriticalEventsLast7Days > 0
+            || p.LatestGlucoseUiState is "Critical" or "Danger"
+            || p.TimeInTargetRange < 50
+            || p.MeasurementsLast7Days == 0)
+        .OrderByDescending(p => p.CriticalEventsLast7Days)
+        .ThenBy(p => p.TimeInTargetRange)
+        .ThenBy(p => p.LatestMeasurementTime ?? DateTime.MinValue)
+        .ToList();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _patients = await ApiService.GetDoctorPatientsAsync("lastMeasurement");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить врачебные оповещения.");
+            _error = "Не удалось загрузить оповещения. Проверьте доступ к API и попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetFullName(DoctorPatientSummaryVm patient)
+        => string.Join(' ', new[] { patient.FirstName, patient.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string GetReason(DoctorPatientSummaryVm patient)
+    {
+        if (patient.CriticalEventsLast7Days > 0)
+            return $"Критических эпизодов за 7 дней: {patient.CriticalEventsLast7Days}.";
+        if (patient.LatestGlucoseUiState is "Critical" or "Danger")
+            return "Последнее измерение в критическом диапазоне.";
+        if (patient.MeasurementsLast7Days == 0)
+            return "Нет измерений за последние 7 дней.";
+        return "TIR ниже 50%, стоит проверить дневник измерений.";
+    }
+
+    private static string GetSeverityClass(DoctorPatientSummaryVm patient)
+        => patient.CriticalEventsLast7Days > 0 || patient.LatestGlucoseUiState is "Critical" or "Danger"
+            ? "sg-alert-card--danger"
+            : "sg-alert-card--warning";
+
+    private void NavigateToPatient(Guid childId)
+        => Navigation.NavigateTo($"/doctor/patients/{childId}");
+}
+
+<style>
+    .sg-alert-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .sg-alert-card {
+        display: grid;
+        gap: 16px;
+        border-left: 4px solid var(--color-warning, #e3a32b);
+    }
+
+    .sg-alert-card--danger {
+        border-left-color: var(--color-error, #db5967);
+    }
+
+    .sg-alert-card__metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0;
+    }
+
+    .sg-alert-card__metrics dt {
+        color: var(--color-text-muted);
+        font-size: 12px;
+    }
+
+    .sg-alert-card__metrics dd {
+        margin: 0;
+        font-weight: 700;
+    }
+</style>

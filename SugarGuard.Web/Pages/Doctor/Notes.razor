@@ -61,7 +61,8 @@
         <StateBanner Kind="StateBanner.BannerKind.Error"
                      Title="Не удалось загрузить заметки"
                      Message="@_errorMessage"
-                     OnClose="() => _errorMessage = null" />
+                     IsDismissible="true"
+                     OnDismissed="() => _errorMessage = null" />
     }
 
     @* Загрузка *@

@@ -46,17 +46,17 @@ public sealed class DashboardService : IDashboardService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
-        var latestTask = db.Measurements
+        var latest = await db.Measurements
             .AsNoTracking()
             .Where(m => m.ChildId == childId)
             .OrderByDescending(m => m.MeasurementTime)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var totalTask = db.Measurements
+        var total = await db.Measurements
             .AsNoTracking()
             .CountAsync(m => m.ChildId == childId, cancellationToken);
 
-        var criticalTask = db.Measurements
+        var critical = await db.Measurements
             .AsNoTracking()
             .CountAsync(
                 m => m.ChildId == childId
@@ -64,27 +64,17 @@ public sealed class DashboardService : IDashboardService
                    || m.GlucoseValue > (decimal)GlucoseLevels.CriticallyHighThreshold),
                 cancellationToken);
 
-        var recommendationsTask = db.AIRecommendations
+        var recommendations = await db.AIRecommendations
             .AsNoTracking()
             .CountAsync(r => r.ChildId == childId, cancellationToken);
 
-        var pendingExportTask = db.ExportJobs
+        var pendingExport = await db.ExportJobs
             .AsNoTracking()
             .CountAsync(j => j.ChildId == childId && j.Status == "queued", cancellationToken);
 
-        var pendingSyncTask = db.SyncLogs
+        var pendingSync = await db.SyncLogs
             .AsNoTracking()
             .CountAsync(s => s.ChildId == childId && s.IsConflict, cancellationToken);
-
-        await Task.WhenAll(
-            latestTask,
-            totalTask,
-            criticalTask,
-            recommendationsTask,
-            pendingExportTask,
-            pendingSyncTask);
-
-        var latest = await latestTask;
 
         return new DashboardSummaryResponse
         {
@@ -97,11 +87,11 @@ public sealed class DashboardService : IDashboardService
             LatestGlucoseUiState = latest is null
                 ? null
                 : _glucoseUiStateService.Resolve(latest.GlucoseValue).ToString(),
-            TotalMeasurements = await totalTask,
-            CriticalEvents = await criticalTask,
-            RecommendationsCount = await recommendationsTask,
-            PendingExportJobs = await pendingExportTask,
-            PendingSyncConflicts = await pendingSyncTask
+            TotalMeasurements = total,
+            CriticalEvents = critical,
+            RecommendationsCount = recommendations,
+            PendingExportJobs = pendingExport,
+            PendingSyncConflicts = pendingSync
         };
     }
 

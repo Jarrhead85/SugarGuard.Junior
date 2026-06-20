@@ -184,11 +184,12 @@ namespace SugarGuard.API.Services
                                    && l.ChildId == childId
                                    && l.IsActive,
                               cancellationToken),
-                UserRole.Parent or UserRole.ChildDevice => await _context.ParentChildLinks
+                UserRole.Parent => await _context.ParentChildLinks
                     .AsNoTracking()
                     .AnyAsync(l => l.ParentUserId == userId.Value
                                    && l.ChildId == childId,
                               cancellationToken),
+                UserRole.ChildDevice => await HasChildDeviceAccessAsync(userId.Value, childId, cancellationToken),
                 _ => false
             };
 
@@ -227,12 +228,77 @@ namespace SugarGuard.API.Services
                     .Select(l => l.ChildId)
                     .ToListAsync(cancellationToken);
 
-            // Parent and ChildDevice use the same link table; ChildDevice links only to its own profile.
+            if (role.Value == UserRole.ChildDevice)
+                return await GetChildDeviceChildIdsAsync(userId.Value, cancellationToken);
+
+            // Parent links are real caregiver links. ChildDevice access is handled above.
             return await _context.ParentChildLinks
                 .AsNoTracking()
                 .Where(l => l.ParentUserId == userId.Value)
                 .Select(l => l.ChildId)
                 .ToListAsync(cancellationToken);
+        }
+
+        private async Task<bool> HasChildDeviceAccessAsync(
+            Guid userId,
+            Guid childId,
+            CancellationToken cancellationToken)
+        {
+            var hasSelfLink = await _context.ParentChildLinks
+                .AsNoTracking()
+                .AnyAsync(l => l.ParentUserId == userId
+                               && l.ChildId == childId
+                               && l.Notes == "Self-link for child mobile account",
+                    cancellationToken);
+
+            if (hasSelfLink)
+                return true;
+
+            var childIdText = childId.ToString();
+            var userIdText = userId.ToString();
+
+            return await _context.AuditLogs
+                .AsNoTracking()
+                .AnyAsync(l => l.Action == "child.created"
+                               && l.TargetType == "Child"
+                               && l.TargetId == childIdText
+                               && l.Details != null
+                               && l.Details.Contains($"Parent={userIdText}")
+                               && l.Details.Contains("Role=ChildDevice"),
+                    cancellationToken);
+        }
+
+        private async Task<IReadOnlyList<Guid>> GetChildDeviceChildIdsAsync(
+            Guid userId,
+            CancellationToken cancellationToken)
+        {
+            var linkedIds = await _context.ParentChildLinks
+                .AsNoTracking()
+                .Where(l => l.ParentUserId == userId
+                            && l.Notes == "Self-link for child mobile account")
+                .Select(l => l.ChildId)
+                .ToListAsync(cancellationToken);
+
+            var userIdText = userId.ToString();
+
+            var auditIds = await _context.AuditLogs
+                .AsNoTracking()
+                .Where(l => l.Action == "child.created"
+                            && l.TargetType == "Child"
+                            && l.TargetId != null
+                            && l.Details != null
+                            && l.Details.Contains($"Parent={userIdText}")
+                            && l.Details.Contains("Role=ChildDevice"))
+                .Select(l => l.TargetId!)
+                .ToListAsync(cancellationToken);
+
+            foreach (var raw in auditIds)
+            {
+                if (Guid.TryParse(raw, out var childId))
+                    linkedIds.Add(childId);
+            }
+
+            return linkedIds.Distinct().ToList();
         }
     }
 }

@@ -2,6 +2,7 @@
 using SugarGuard.Bot.Keyboards;
 using SugarGuard.Bot.Services;
 using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace SugarGuard.Bot.Handlers;
 
@@ -67,6 +68,10 @@ public class CallbackHandler
                 callbackData.StartsWith("snack_info_"))
             {
                 await HandleSnackCallbackAsync(chatId, userId, callbackData, cancellationToken);
+            }
+            else if (callbackData.StartsWith("select_child_") || callbackData == "clear_child_context")
+            {
+                await HandleChildContextCallbackAsync(chatId, userId, callbackData, cancellationToken);
             }
             else if (callbackData.StartsWith("stats_") || callbackData.StartsWith("refresh_stats_") || 
                      callbackData.StartsWith("export_pdf_") || callbackData.StartsWith("nav_"))
@@ -331,11 +336,13 @@ public class CallbackHandler
             }
             else if (callbackData.StartsWith("nav_"))
             {
-                // Навигация по периодам (nav_prev_day, nav_next_week, etc.)
-                // Навигация будет реализована в следующей версии
+                // Навигация по периодам в компактном варианте возвращает актуальную статистику
+                // выбранного периода. Callback оставлен совместимым со старой клавиатурой.
+                var period = callbackData.Split('_').LastOrDefault() ?? "week";
+                await _statisticsBotService.ShowPeriodStatisticsAsync(chatId, userId, childId.Value, period, null, cancellationToken);
                 await _botClient.SendTextMessageAsync(
                     chatId: chatId,
-                    text: "🚧 Навигация по периодам будет реализована в следующих обновлениях.",
+                    text: "Показаны актуальные данные за выбранный период.",
                     cancellationToken: cancellationToken
                 );
             }
@@ -357,20 +364,118 @@ public class CallbackHandler
     /// </summary>
     private async Task HandleSettingsCallbackAsync(long chatId, long userId, CancellationToken cancellationToken)
     {
-        var message = """
-            ⚙️ **Настройки**
-            
-            Здесь будут настройки уведомлений и расписания.
-            Функционал будет реализован в следующих задачах.
-            """;
+        var children = await _contextService.GetLinkedChildrenAsync(userId, cancellationToken);
+        var currentChildId = await _contextService.GetCurrentChildIdAsync(userId, cancellationToken);
+
+        if (children.Count == 0)
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: """
+                    ⚙️ **Настройки**
+
+                    К Telegram пока не привязан ни один ребёнок.
+                    Получите код в веб-кабинете родителя или в мобильном приложении ребёнка и отправьте команду:
+
+                    `/connect ABCD-1234`
+                    """,
+                parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+                cancellationToken: cancellationToken
+            );
+
+            return;
+        }
+
+        var lines = new List<string>
+        {
+            "⚙️ **Настройки**",
+            string.Empty,
+            "Выберите активного ребёнка для рюкзака, статистики и уведомлений.",
+            string.Empty,
+            "Дети:"
+        };
+
+        foreach (var child in children)
+        {
+            var marker = child.ChildId == currentChildId ? "✅" : "▫️";
+            lines.Add($"{marker} {FormatChildName(child)}");
+        }
+
+        var buttons = children
+            .Select(child => new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    child.ChildId == currentChildId
+                        ? $"✅ {FormatChildName(child)}"
+                        : $"Выбрать {FormatChildName(child)}",
+                    $"select_child_{child.ChildId:N}")
+            })
+            .ToList();
+
+        buttons.Add([InlineKeyboardButton.WithCallbackData("Сбросить выбор", "clear_child_context")]);
+        buttons.Add([InlineKeyboardButton.WithCallbackData("Главное меню", "main_menu")]);
 
         await _botClient.SendTextMessageAsync(
             chatId: chatId,
-            text: message,
+            text: string.Join(Environment.NewLine, lines),
             parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
+            replyMarkup: new InlineKeyboardMarkup(buttons),
             cancellationToken: cancellationToken
         );
 
         _logger.LogInformation("Отправлено сообщение о настройках пользователю {UserId}", userId);
+    }
+
+    private async Task HandleChildContextCallbackAsync(long chatId, long userId, string callbackData, CancellationToken cancellationToken)
+    {
+        if (callbackData == "clear_child_context")
+        {
+            var cleared = await _contextService.ClearContextAsync(userId, cancellationToken);
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: cleared
+                    ? "Выбор ребёнка сброшен. Откройте настройки, чтобы выбрать ребёнка заново."
+                    : "Не удалось сбросить выбор ребёнка. Попробуйте ещё раз.",
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var rawId = callbackData["select_child_".Length..];
+        if (!Guid.TryParseExact(rawId, "N", out var childId))
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "Некорректный идентификатор ребёнка.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var children = await _contextService.GetLinkedChildrenAsync(userId, cancellationToken);
+        var child = children.FirstOrDefault(x => x.ChildId == childId);
+        if (child is null)
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "У вас нет доступа к этому профилю ребёнка.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var saved = await _contextService.SetCurrentChildIdAsync(userId, childId, cancellationToken);
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: saved
+                ? $"Активный ребёнок: {FormatChildName(child)}. Теперь рюкзак и статистика будут открываться для этого профиля."
+                : "Не удалось сохранить выбор ребёнка. Попробуйте ещё раз.",
+            replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+            cancellationToken: cancellationToken);
+    }
+
+    private static string FormatChildName(ChildSummaryBot child)
+    {
+        var name = string.Join(' ', new[] { child.FirstName, child.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        return string.IsNullOrWhiteSpace(name) ? child.ChildId.ToString("N")[..8] : name;
     }
 }

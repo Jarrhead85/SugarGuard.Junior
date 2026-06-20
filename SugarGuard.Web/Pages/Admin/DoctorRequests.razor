@@ -13,7 +13,7 @@
 <div class="doctor-requests-page">
     <PageHeader Eyebrow="Admin / Doctor Requests"
                 Title="Заявки врачей"
-                Subtitle="Проверка пользователей со статусом DoctorPending, ручное подтверждение роли врача и быстрый просмотр прогресса doctor-onboarding.">
+                Subtitle="Ручная проверка заявок на роль врача, подтверждение доступа и обзор прогресса врачебного onboarding.">
         <TrailingContent>
             <button class="sg-btn sg-btn-soft"
                     type="button"
@@ -43,7 +43,7 @@
         <section class="sg-stats-grid">
             <StatCard Label="Ожидают одобрения"
                       Value="@_requests.Count.ToString()"
-                      Subtitle="Роль DoctorPending"
+                      Subtitle="Ручное подтверждение"
                       Status="warning" />
 
             <StatCard Label="Активные заявки"
@@ -66,7 +66,7 @@
             <div class="sg-main-column">
                 <section class="sg-panel">
                     <SectionHeader Title="Список заявок"
-                                   Description="Подтверждение переводит пользователя из DoctorPending в Doctor.">
+                                   Description="Подтверждение переводит пользователя в роль Doctor и открывает кабинет врача.">
                         <TrailingContent>
                             <span class="sg-pill sg-pill-neutral">
                                 Показано: @FilteredRequests.Count()
@@ -103,7 +103,7 @@
                         <div class="sg-empty-state">
                             <div class="sg-empty-icon">✓</div>
                             <h3>Нет заявок на подтверждение</h3>
-                            <p>Сейчас в списке нет пользователей со статусом DoctorPending.</p>
+                            <p>Сейчас нет пользователей, ожидающих ручного подтверждения врача.</p>
                         </div>
                     }
                     else
@@ -223,7 +223,7 @@
 
                     <ul class="sg-hints-list">
                         <li>Подтверждение меняет роль пользователя на <strong>Doctor</strong>.</li>
-                        <li>В списке должны находиться только пользователи со статусом <strong>DoctorPending</strong>.</li>
+                        <li>В списке отображаются только заявки, ожидающие ручной проверки.</li>
                         <li>Поиск работает по email, Telegram ID и GUID пользователя.</li>
                         <li>После подтверждения запись сразу исчезает из списка pending-заявок.</li>
                     </ul>

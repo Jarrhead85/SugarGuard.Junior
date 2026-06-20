@@ -16,9 +16,8 @@ public class LinkService : ILinkService
     private readonly HttpClient _httpClient;
     private readonly ILogger<LinkService> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true
     };
 
@@ -43,7 +42,7 @@ public class LinkService : ILinkService
                 CreatedAt = x.LinkedAt
             }).ToList();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка получения списка родителей для ребёнка {ChildId}", childId);
             return [];
@@ -64,7 +63,7 @@ public class LinkService : ILinkService
                 CreatedAt = x.LinkedAt
             }).ToList();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка получения списка врачей для ребёнка {ChildId}", childId);
             return [];
@@ -72,10 +71,10 @@ public class LinkService : ILinkService
     }
 
     public Task<GenerateInviteCodeResponse> GenerateParentInviteCodeAsync(Guid childId, string? note = null) =>
-        GenerateInviteCodeAsync(childId, UserRole.Parent);
+        GenerateInviteCodeAsync(childId, UserRole.Parent, note);
 
     public Task<GenerateInviteCodeResponse> GenerateDoctorInviteCodeAsync(Guid childId, string? note = null) =>
-        GenerateInviteCodeAsync(childId, UserRole.Doctor);
+        GenerateInviteCodeAsync(childId, UserRole.Doctor, note);
 
     public async Task<AcceptInviteCodeResponse> AcceptInviteCodeAsync(string code)
     {
@@ -96,14 +95,18 @@ public class LinkService : ILinkService
             {
                 Success = false,
                 ErrorMessage = response.IsSuccessStatusCode
-                    ? "Пустой ответ сервера"
-                    : "Код не удалось активировать"
+                    ? "Сервер вернул пустой ответ."
+                    : "Код не удалось активировать."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка принятия кода приглашения");
-            return new AcceptInviteCodeResponse { Success = false, ErrorMessage = "Ошибка подключения" };
+            return new AcceptInviteCodeResponse
+            {
+                Success = false,
+                ErrorMessage = "Ошибка подключения."
+            };
         }
     }
 
@@ -115,13 +118,17 @@ public class LinkService : ILinkService
             return new RevokeInviteCodeResponse
             {
                 Success = response.IsSuccessStatusCode,
-                ErrorMessage = response.IsSuccessStatusCode ? null : "Не удалось отозвать код"
+                ErrorMessage = response.IsSuccessStatusCode ? null : "Не удалось отозвать код."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _logger.LogError(ex, "Ошибка отзыва кода приглашения");
-            return new RevokeInviteCodeResponse { Success = false, ErrorMessage = "Ошибка подключения" };
+            _logger.LogError(ex, "Ошибка отзыва кода приглашения {InviteCodeId}", inviteCodeId);
+            return new RevokeInviteCodeResponse
+            {
+                Success = false,
+                ErrorMessage = "Ошибка подключения."
+            };
         }
     }
 
@@ -132,37 +139,32 @@ public class LinkService : ILinkService
         Task.FromResult(new LinkOperationResponse
         {
             Success = false,
-            ErrorMessage = "Входящие запросы не используются в текущем сценарии."
+            ErrorMessage = "Входящие запросы не используются: родитель вводит код в веб-кабинете."
         });
 
     public Task<LinkOperationResponse> RejectLinkRequestAsync(Guid inviteCodeId) =>
         Task.FromResult(new LinkOperationResponse
         {
             Success = false,
-            ErrorMessage = "Входящие запросы не используются в текущем сценарии."
+            ErrorMessage = "Входящие запросы не используются: родитель вводит код в веб-кабинете."
         });
 
-    public Task<LinkOperationResponse> RemoveParentLinkAsync(Guid linkId) =>
-        Task.FromResult(new LinkOperationResponse
-        {
-            Success = false,
-            ErrorMessage = "Отвязка родителя доступна в веб-кабинете."
-        });
+    public Task<LinkOperationResponse> RemoveParentLinkAsync(Guid childId, Guid linkId) =>
+        RemoveLinkAsync(childId, "parent", linkId);
 
-    public Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid linkId) =>
-        Task.FromResult(new LinkOperationResponse
-        {
-            Success = false,
-            ErrorMessage = "Отвязка врача доступна в веб-кабинете."
-        });
+    public Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid childId, Guid linkId) =>
+        RemoveLinkAsync(childId, "doctor", linkId);
 
-    private async Task<GenerateInviteCodeResponse> GenerateInviteCodeAsync(Guid childId, UserRole targetRole)
+    private async Task<GenerateInviteCodeResponse> GenerateInviteCodeAsync(
+        Guid childId,
+        UserRole targetRole,
+        string? note)
     {
         try
         {
             using var response = await _httpClient.PostAsJsonAsync(
                 "api/invite-codes/generate",
-                new { childId, targetRole = targetRole.ToString() },
+                new { childId, targetRole = (int)targetRole, note },
                 JsonOptions);
 
             if (!response.IsSuccessStatusCode)
@@ -172,16 +174,63 @@ public class LinkService : ILinkService
                     "Ошибка генерации кода: {Status} {Body}",
                     response.StatusCode,
                     message);
-                return new GenerateInviteCodeResponse { ErrorMessage = "Не удалось сгенерировать код" };
+
+                return new GenerateInviteCodeResponse
+                {
+                    ErrorMessage = ExtractErrorMessage(message, response.StatusCode)
+                };
             }
 
             var result = await response.Content.ReadFromJsonAsync<InviteCodeApiResponse>(JsonOptions);
             return MapInviteCodeResponse(result, targetRole.ToString());
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка генерации кода приглашения для {Role}", targetRole);
-            return new GenerateInviteCodeResponse { ErrorMessage = "Ошибка подключения" };
+            return new GenerateInviteCodeResponse
+            {
+                ErrorMessage = "Ошибка подключения. Проверьте интернет и попробуйте ещё раз."
+            };
+        }
+    }
+
+    private async Task<LinkOperationResponse> RemoveLinkAsync(Guid childId, string linkType, Guid linkId)
+    {
+        try
+        {
+            using var response = await _httpClient.DeleteAsync(
+                $"api/invite-codes/{childId}/links/{linkType}/{linkId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                return new LinkOperationResponse { Success = true };
+            }
+
+            var message = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning(
+                "Не удалось удалить связь {LinkType}. ChildId={ChildId} LinkId={LinkId} Status={Status} Body={Body}",
+                linkType,
+                childId,
+                linkId,
+                response.StatusCode,
+                message);
+
+            return new LinkOperationResponse
+            {
+                Success = false,
+                ErrorMessage = response.StatusCode == System.Net.HttpStatusCode.NotFound
+                    ? "Связь уже удалена или не найдена."
+                    : "Не удалось удалить связь."
+            };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "Ошибка удаления связи {LinkType}. ChildId={ChildId} LinkId={LinkId}", linkType, childId, linkId);
+            return new LinkOperationResponse
+            {
+                Success = false,
+                ErrorMessage = "Ошибка подключения."
+            };
         }
     }
 
@@ -198,24 +247,101 @@ public class LinkService : ILinkService
     {
         if (result is null)
         {
-            return new GenerateInviteCodeResponse { ErrorMessage = "Пустой ответ сервера" };
+            return new GenerateInviteCodeResponse { ErrorMessage = "Сервер вернул пустой ответ." };
         }
 
         return new GenerateInviteCodeResponse
         {
             InviteCodeId = result.InviteCodeId,
-            DisplayCode = InviteCodeLimits.Format(InviteCodeLimits.Normalize(result.Code)),
+            DisplayCode = FormatInviteCode(result.Code),
             ExpiresAt = result.ExpiresAt,
             ActiveCodesCount = result.IsActive ? 1 : 0,
-            TargetRole = result.TargetRole ?? targetRole
+            TargetRole = GetTargetRoleName(result.TargetRole, targetRole)
         };
+    }
+
+    private static string FormatInviteCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return string.Empty;
+        }
+
+        var normalized = InviteCodeLimits.Normalize(code);
+        return normalized.Length == InviteCodeLimits.CodeLength
+            ? InviteCodeLimits.Format(normalized)
+            : code.Trim();
+    }
+
+    private static string GetTargetRoleName(JsonElement? targetRole, string fallback)
+    {
+        if (targetRole is null)
+        {
+            return fallback;
+        }
+
+        return targetRole.Value.ValueKind switch
+        {
+            JsonValueKind.String => targetRole.Value.GetString() ?? fallback,
+            JsonValueKind.Number when targetRole.Value.TryGetInt32(out var value)
+                && Enum.IsDefined(typeof(UserRole), value) => ((UserRole)value).ToString(),
+            _ => fallback
+        };
+    }
+
+    private static string ExtractErrorMessage(string body, System.Net.HttpStatusCode statusCode)
+    {
+        if (statusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            return "Нет доступа к этому профилю ребёнка. Выйдите из приложения и войдите заново.";
+        }
+
+        if (statusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return "Сессия истекла. Войдите в приложение ещё раз.";
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return "Не удалось сгенерировать код.";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+
+            if (root.TryGetProperty("message", out var message)
+                && message.ValueKind == JsonValueKind.String)
+            {
+                return message.GetString() ?? "Не удалось сгенерировать код.";
+            }
+
+            if (root.TryGetProperty("errorMessage", out var errorMessage)
+                && errorMessage.ValueKind == JsonValueKind.String)
+            {
+                return errorMessage.GetString() ?? "Не удалось сгенерировать код.";
+            }
+
+            if (root.TryGetProperty("title", out var title)
+                && title.ValueKind == JsonValueKind.String)
+            {
+                return title.GetString() ?? "Не удалось сгенерировать код.";
+            }
+        }
+        catch (JsonException)
+        {
+            // Сервер иногда может вернуть простой текст или HTML вместо JSON.
+        }
+
+        return "Не удалось сгенерировать код.";
     }
 
     private sealed class InviteCodeApiResponse
     {
         public Guid InviteCodeId { get; init; }
         public string Code { get; init; } = string.Empty;
-        public string? TargetRole { get; init; }
+        public JsonElement? TargetRole { get; init; }
         public DateTime ExpiresAt { get; init; }
         public bool IsActive { get; init; }
     }

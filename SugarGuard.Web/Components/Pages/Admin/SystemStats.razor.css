@@ -275,6 +275,32 @@
         font-size: 16px;
     }
 
+.section-card ::deep .sg-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-12, 12px);
+    padding: var(--space-20, 20px) var(--space-20, 20px) var(--space-16, 16px);
+    border-bottom: 1px solid var(--color-divider, rgba(22, 33, 62, 0.08));
+}
+
+.section-card ::deep .sg-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--color-text, #16213E);
+}
+
+.section-card ::deep .sg-section-header p {
+    margin: 6px 0 0;
+    color: var(--color-text-muted, #667694);
+}
+
+.section-card ::deep .sg-section-header__trailing {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
 .health-skeleton {
     padding: var(--space-20, 20px);
 }

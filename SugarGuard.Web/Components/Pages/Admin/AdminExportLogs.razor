@@ -1,53 +1,256 @@
 @page "/admin/export-logs"
 @attribute [Authorize(Roles = "Admin,SupportAdmin")]
-@layout Layout.AdminLayout
+@layout DashboardLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using System.Globalization
+
 @inject SugarGuardApiService Api
 
-<h1>Export Logs</h1>
-@if (!string.IsNullOrWhiteSpace(_errorMessage))
-{
-    <div class="error-message">@_errorMessage</div>
-}
-<div class="panel">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Job</th>
-                <th>Status</th>
-                <th>Format</th>
-                <th>Created</th>
-                <th>Completed</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var job in _jobs)
+<PageTitle>Экспорт — SugarGuard Admin</PageTitle>
+
+<div class="admin-ops-page">
+    <PageHeader Eyebrow="Администрирование"
+                Title="Журнал экспорта"
+                Subtitle="Просмотр заданий экспорта данных: очередь, выполнение, ошибки и готовые выгрузки.">
+        <TrailingContent>
+            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="admin-alert admin-alert--@_messageTone">@_message</div>
+    }
+
+    <section class="admin-kpi-grid" aria-label="Сводка экспорта">
+        <StatCard Label="Заданий"
+                  Value="@FilteredJobs.Count().ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="С учётом фильтра"
+                  Status="neutral" />
+        <StatCard Label="В очереди"
+                  Value="@_jobs.Count(x => IsQueued(x.Status)).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Ожидают фоновой обработки"
+                  Status="@(_jobs.Any(x => IsQueued(x.Status)) ? "warning" : "safe")" />
+        <StatCard Label="Готово"
+                  Value="@_jobs.Count(x => IsCompleted(x.Status)).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Можно скачать"
+                  Status="safe" />
+        <StatCard Label="Ошибок"
+                  Value="@_jobs.Count(x => IsFailed(x.Status)).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Требуют проверки"
+                  Status="@(_jobs.Any(x => IsFailed(x.Status)) ? "danger" : "safe")" />
+    </section>
+
+    <section class="admin-panel">
+        <SectionHeader Title="Фильтр"
+                       Description="Фильтрация выполняется на странице. Список обновляется из API." />
+
+        <div class="admin-toolbar">
+            <label class="admin-field">
+                <span>Статус</span>
+                <select class="admin-select" @bind="_statusFilter">
+                    <option value="">Все статусы</option>
+                    <option value="queued">Queued</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </label>
+
+            <label class="admin-field admin-field--grow">
+                <span>Поиск</span>
+                <input class="admin-input"
+                       type="search"
+                       placeholder="JobId, ChildId, формат"
+                       @bind="_search"
+                       @bind:event="oninput" />
+            </label>
+        </div>
+    </section>
+
+    <section class="admin-panel">
+        <SectionHeader Title="Задания экспорта"
+                       Description="Последние задания, доступные текущему администратору.">
+            <TrailingContent>
+                <span class="admin-pill">Показано: @FilteredJobs.Count()</span>
+            </TrailingContent>
+        </SectionHeader>
+
+        @if (_isLoading)
         {
-            <tr>
-                <td>@job.ExportJobId.ToString()[..8]</td>
-                <td><span class="chip">@job.Status</span></td>
-                <td>@job.Format</td>
-                <td>@job.CreatedAt.ToLocalTime()</td>
-                <td>@(job.CompletedAt?.ToLocalTime().ToString("g") ?? "-")</td>
-            </tr>
+            <div class="admin-empty">Загружаем задания...</div>
         }
-        </tbody>
-    </table>
+        else if (!FilteredJobs.Any())
+        {
+            <div class="admin-empty">
+                <strong>Заданий нет</strong>
+                <span>Пока нет экспортов для текущего фильтра.</span>
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Задание</th>
+                            <th>ChildId</th>
+                            <th>Период</th>
+                            <th>Формат</th>
+                            <th>Статус</th>
+                            <th>Создано</th>
+                            <th>Завершено</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var job in FilteredJobs)
+                        {
+                            <tr @key="job.ExportJobId">
+                                <td><code>@ShortId(job.ExportJobId)</code></td>
+                                <td><code>@ShortId(job.ChildId)</code></td>
+                                <td>@FormatDate(job.PeriodFrom) — @FormatDate(job.PeriodTo)</td>
+                                <td>@job.Format.ToUpperInvariant()</td>
+                                <td><span class="admin-pill admin-pill--@GetStatusTone(job.Status)">@job.Status</span></td>
+                                <td>@FormatDateTime(job.CreatedAt)</td>
+                                <td>@(job.CompletedAt.HasValue ? FormatDateTime(job.CompletedAt.Value) : "—")</td>
+                                <td class="admin-actions-cell">
+                                    @if (!string.IsNullOrWhiteSpace(job.DownloadUrl))
+                                    {
+                                        <a class="admin-link" href="@job.DownloadUrl" target="_blank" rel="noopener">Скачать</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>
 
 @code {
-    private IReadOnlyList<ExportJobVm> _jobs = [];
-    private string? _errorMessage;
+    private List<ExportJobVm> _jobs = [];
+    private bool _isLoading = true;
+    private string _statusFilter = string.Empty;
+    private string _search = string.Empty;
+    private string? _message;
+    private string _messageTone = "info";
+
+    private IEnumerable<ExportJobVm> FilteredJobs =>
+        _jobs
+            .Where(job => string.IsNullOrWhiteSpace(_statusFilter)
+                || string.Equals(job.Status, _statusFilter, StringComparison.OrdinalIgnoreCase))
+            .Where(MatchesSearch)
+            .OrderByDescending(job => job.CreatedAt);
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
         try
         {
-            _jobs = await Api.GetExportJobsAsync();
+            _isLoading = true;
+            _message = null;
+            var items = await Api.GetExportJobsAsync();
+            _jobs = items.OrderByDescending(x => x.CreatedAt).ToList();
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
             _jobs = [];
+            ShowMessage($"Не удалось загрузить задания экспорта: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
+
+    private bool MatchesSearch(ExportJobVm job)
+    {
+        if (string.IsNullOrWhiteSpace(_search))
+        {
+            return true;
+        }
+
+        var term = _search.Trim();
+        return job.ExportJobId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase)
+            || job.ChildId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase)
+            || job.Format.Contains(term, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ShowMessage(string message, string tone)
+    {
+        _message = message;
+        _messageTone = tone;
+    }
+
+    private static bool IsQueued(string? status) =>
+        string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCompleted(string? status) =>
+        string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsFailed(string? status) =>
+        string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetStatusTone(string? status)
+    {
+        var normalized = status?.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "completed" => "success",
+            "queued" or "processing" => "warning",
+            "failed" => "danger",
+            _ => "neutral"
+        };
+    }
+
+    private static string ShortId(Guid value) => value.ToString("N")[..8];
+
+    private static string FormatDate(DateTime value) =>
+        value.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+
+    private static string FormatDateTime(DateTime value) =>
+        value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
 }
+
+<style>
+    .admin-ops-page { display: grid; gap: 22px; }
+    .admin-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .admin-panel { background: var(--color-surface, rgba(255,255,255,.88)); border: 1px solid var(--color-border, rgba(22,33,62,.10)); border-radius: 24px; padding: 22px; box-shadow: var(--shadow-sm, 0 14px 36px rgba(22,33,62,.08)); }
+    .sg-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .sg-section-header h2 { margin: 0; font-size: 22px; color: var(--color-text, #16213E); }
+    .sg-section-header p { margin: 6px 0 0; color: var(--color-text-muted, #667694); font-size: 14px; }
+    .admin-toolbar { display: grid; grid-template-columns: 220px minmax(260px, 1fr); gap: 14px; align-items: end; }
+    .admin-field { display: grid; gap: 7px; color: var(--color-text-faint, #96A2B8); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .admin-select, .admin-input { min-height: 42px; padding: 0 14px; border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 14px; background: #fff; color: var(--color-text, #16213E); font: inherit; }
+    .admin-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 18px; border: 1px solid transparent; border-radius: 16px; font: inherit; font-weight: 800; cursor: pointer; }
+    .admin-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .admin-btn--soft { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-alert { padding: 14px 18px; border-radius: 18px; font-weight: 700; border: 1px solid transparent; }
+    .admin-alert--danger { color: #DB5967; background: rgba(219,89,103,.12); border-color: rgba(219,89,103,.24); }
+    .admin-alert--info { color: var(--color-text-muted, #667694); background: rgba(102,118,148,.10); border-color: rgba(102,118,148,.18); }
+    .admin-table-wrap { overflow-x: auto; }
+    .admin-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
+    .admin-table th, .admin-table td { padding: 14px 16px; border-bottom: 1px solid var(--color-divider, rgba(22,33,62,.08)); text-align: left; vertical-align: top; }
+    .admin-table th { color: var(--color-text-faint, #96A2B8); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+    .admin-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(102,118,148,.11); color: var(--color-text-muted, #667694); font-size: 12px; font-weight: 800; }
+    .admin-pill--success { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-pill--warning { background: rgba(227,163,43,.16); color: #9A6A00; }
+    .admin-pill--danger { background: rgba(219,89,103,.13); color: #DB5967; }
+    .admin-pill--neutral { background: rgba(102,118,148,.11); color: var(--color-text-muted, #667694); }
+    .admin-empty { min-height: 180px; display: grid; place-items: center; gap: 8px; text-align: center; color: var(--color-text-muted, #667694); border: 1px dashed var(--color-border, rgba(22,33,62,.14)); border-radius: 20px; }
+    .admin-empty strong { color: var(--color-text, #16213E); font-size: 18px; }
+    .admin-actions-cell { text-align: right; white-space: nowrap; }
+    .admin-link { color: var(--color-primary, #1B8E8B); font-weight: 800; text-decoration: none; }
+    @@media (max-width: 1100px) { .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @@media (max-width: 700px) { .admin-kpi-grid, .admin-toolbar { grid-template-columns: 1fr; } .admin-panel { padding: 18px; } }
+</style>

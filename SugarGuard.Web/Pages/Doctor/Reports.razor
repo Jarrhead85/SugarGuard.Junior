@@ -1,0 +1,156 @@
+@page "/doctor/reports"
+@attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using static SugarGuard.Web.Services.SugarGuardApiService
+
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+@inject ILogger<Reports> Logger
+
+<PageTitle>Отчёты врача — SugarGuard</PageTitle>
+
+<div class="sg-page">
+    <PageHeader Title="Отчёты"
+                Subtitle="Рабочий список пациентов для быстрого анализа, сортировки и перехода к деталям.">
+        <TrailingContent>
+            <button class="sg-btn sg-btn--primary" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновляем..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    <div class="sg-panel sg-report-toolbar">
+        <input class="sg-input"
+               placeholder="Поиск пациента"
+               @bind="_search"
+               @bind:event="oninput" />
+        <select class="sg-select" @bind="_sortBy" @bind:after="LoadAsync">
+            <option value="lastMeasurement">По последнему измерению</option>
+            <option value="tir">По TIR</option>
+            <option value="name">По имени</option>
+        </select>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="sg-alert sg-alert--error" role="alert">@_error</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="sg-panel">Загружаем отчёт...</div>
+    }
+    else
+    {
+        <div class="sg-table-wrap">
+            <table class="sg-table">
+                <thead>
+                    <tr>
+                        <th>Пациент</th>
+                        <th>Возраст</th>
+                        <th>Последняя глюкоза</th>
+                        <th>TIR</th>
+                        <th>Критические</th>
+                        <th>Измерений</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var patient in FilteredPatients)
+                    {
+                        <tr>
+                            <td>@GetFullName(patient)</td>
+                            <td>@GetAge(patient.DateOfBirth)</td>
+                            <td>@(patient.LatestGlucose?.ToString("F1") ?? "—") ммоль/л</td>
+                            <td>@patient.TimeInTargetRange.ToString("F1")%</td>
+                            <td>@patient.CriticalEventsLast7Days</td>
+                            <td>@patient.MeasurementsLast7Days</td>
+                            <td>
+                                <button class="sg-btn sg-btn--secondary sg-btn--sm"
+                                        @onclick="() => NavigateToPatient(patient.ChildId)">
+                                    Детали
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private string _search = string.Empty;
+    private string _sortBy = "lastMeasurement";
+    private List<DoctorPatientSummaryVm> _patients = [];
+
+    private IEnumerable<DoctorPatientSummaryVm> FilteredPatients
+    {
+        get
+        {
+            var query = _search.Trim();
+            return string.IsNullOrWhiteSpace(query)
+                ? _patients
+                : _patients.Where(p => GetFullName(p).Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _patients = await ApiService.GetDoctorPatientsAsync(_sortBy);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить врачебный отчёт.");
+            _error = "Не удалось загрузить отчёт. Попробуйте обновить страницу.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetFullName(DoctorPatientSummaryVm patient)
+        => string.Join(' ', new[] { patient.FirstName, patient.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private static string GetAge(DateOnly dateOfBirth)
+    {
+        if (dateOfBirth == default)
+            return "—";
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+            age--;
+
+        return $"{age} лет";
+    }
+
+    private void NavigateToPatient(Guid childId)
+        => Navigation.NavigateTo($"/doctor/patients/{childId}");
+}
+
+<style>
+    .sg-report-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .sg-report-toolbar .sg-input {
+        min-width: min(360px, 100%);
+    }
+</style>

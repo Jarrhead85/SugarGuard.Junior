@@ -17,16 +17,17 @@
                 Title="Управление связями"
                 Subtitle="Создание и удаление связей между родителями, врачами и детьми. Все действия записываются в журнал аудита." />
 
-    {{! Глобальный баннер ошибок/успеха }}
+    @* Глобальный баннер ошибок/успеха *@
     @if (_notification is not null)
     {
         <AlertBanner Type="@_notification.Type"
                      Title="@_notification.Title"
                      Message="@_notification.Message"
-                     OnClose="() => _notification = null" />
+                     IsDismissible="true"
+                     OnDismissed="() => _notification = null" />
     }
 
-    {{! Вкладки }}
+    @* Вкладки *@
     <div class="tabs" role="tablist" aria-label="Тип связи">
         <button class="tab @(_activeTab == Tab.ParentChild ? "tab--active" : string.Empty)"
                 type="button"
@@ -46,12 +47,12 @@
         </button>
     </div>
 
-    {{! ВКЛАДКА: Родитель — Ребёнок }}
+    @* ВКЛАДКА: Родитель — Ребёнок *@
     @if (_activeTab == Tab.ParentChild)
     {
         <div class="tab-content">
 
-            {{! Форма создания связи Parent–Child }}
+            @* Форма создания связи Parent–Child *@
             <section class="section-card">
                 <SectionHeader Title="Создать связь Parent → Child"
                                Description="Привязать родителя (userId) к ребёнку (childId)." />
@@ -102,7 +103,7 @@
                 </div>
             </section>
 
-            {{! Таблица существующих Parent–Child связей }}
+            @* Таблица существующих Parent–Child связей *@
             <section class="section-card">
                 <SectionHeader Title="Существующие связи Parent → Child"
                                Description="Показаны последние 200 записей. Для удаления нажмите кнопку в строке.">
@@ -184,12 +185,12 @@
         </div>
     }
 
-    {{! ВКЛАДКА: Врач — Ребёнок }}
+    @* ВКЛАДКА: Врач — Ребёнок *@
     @if (_activeTab == Tab.DoctorChild)
     {
         <div class="tab-content">
 
-            {{!-- Форма создания связи Doctor–Child --}}
+            @* Форма создания связи Doctor–Child *@
             <section class="section-card">
                 <SectionHeader Title="Создать связь Doctor → Child"
                                Description="Привязать врача (userId) к ребёнку (childId)." />
@@ -240,7 +241,7 @@
                 </div>
             </section>
 
-            {{! Таблица существующих Doctor–Child связей }}
+            @* Таблица существующих Doctor–Child связей *@
             <section class="section-card">
                 <SectionHeader Title="Существующие связи Doctor → Child"
                                Description="Показаны последние 200 записей.">
@@ -323,7 +324,7 @@
     }
 </div>
 
-{{! Диалог подтверждения удаления }}
+@* Диалог подтверждения удаления *@
 @if (_isConfirmDialogOpen)
 {
     <div class="dialog-backdrop" @onclick="CloseConfirmDialog">

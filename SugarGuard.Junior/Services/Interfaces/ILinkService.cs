@@ -35,8 +35,8 @@ public interface ILinkService
     Task<LinkOperationResponse> RejectLinkRequestAsync(Guid inviteCodeId);
 
     /// <summary>Разрывает связь с родителем.</summary>
-    Task<LinkOperationResponse> RemoveParentLinkAsync(Guid linkId);
+    Task<LinkOperationResponse> RemoveParentLinkAsync(Guid childId, Guid linkId);
 
     /// <summary>Разрывает связь с врачом.</summary>
-    Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid linkId);
+    Task<LinkOperationResponse> RemoveDoctorLinkAsync(Guid childId, Guid linkId);
 }

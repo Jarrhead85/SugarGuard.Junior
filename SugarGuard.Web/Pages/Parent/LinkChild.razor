@@ -14,8 +14,8 @@
         <p class="link-child-eyebrow">Связь с мобильным приложением</p>
         <h1>Привязать ребёнка</h1>
         <p class="link-child-text">
-            Откройте мобильное приложение ребёнка, перейдите в профиль и нажмите
-            <strong>Код</strong>. Введите полученный код здесь.
+            Откройте мобильное приложение ребёнка: <strong>Профиль → Родительский кабинет → Код</strong>.
+            Введите полученный код здесь. Формат кода: <strong>ABCD-1234</strong>.
         </p>
 
         <label class="link-child-label" for="invite-code">Код привязки</label>
@@ -24,7 +24,7 @@
                type="text"
                maxlength="9"
                placeholder="ABCD-1234"
-               autocomplete="off"
+               autocomplete="one-time-code"
                spellcheck="false"
                @bind="Code"
                @bind:event="oninput" />
@@ -95,8 +95,8 @@
                 _error = result.ErrorCode switch
                 {
                     "code_not_found" or "codenotfound" => "Код не найден. Проверьте символы и попробуйте снова.",
-                    "code_expired" or "codeexpired" => "Срок действия кода истёк. Попросите новый код.",
-                    "code_already_used" or "codealreadyused" => "Этот код уже был использован.",
+                    "code_expired" or "codeexpired" or "expired" => "Срок действия кода истёк. Попросите новый код.",
+                    "code_already_used" or "codealreadyused" or "alreadyused" => "Этот код уже был использован.",
                     "role_mismatch" or "rolemismatch" => "Этот код предназначен не для родителя.",
                     _ => result.ErrorMessage ?? "Не удалось активировать код."
                 };
@@ -105,7 +105,11 @@
 
             _success = "Ребёнок успешно привязан. Открываем кабинет...";
             await Task.Delay(700);
-            Navigation.NavigateTo("/parent/dashboard", forceLoad: true);
+            var dashboardUrl = result.ChildId == Guid.Empty
+                ? "/parent/dashboard"
+                : $"/parent/dashboard?childId={result.ChildId:D}";
+
+            Navigation.NavigateTo(dashboardUrl, forceLoad: true);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -140,10 +144,10 @@
     .link-child-card {
         width: min(100%, 34rem);
         padding: 2rem;
-        border: 1px solid color-mix(in srgb, var(--sg-primary, #168a8a) 20%, transparent);
+        border: 1px solid color-mix(in srgb, var(--sg-primary, #168a8a) 22%, transparent);
         border-radius: 24px;
         background:
-            radial-gradient(circle at top right, rgba(44, 180, 180, .16), transparent 34%),
+            radial-gradient(circle at top right, rgba(44, 180, 180, .18), transparent 34%),
             var(--sg-surface, #fff);
         box-shadow: 0 18px 50px rgba(14, 45, 58, .10);
     }
@@ -197,6 +201,12 @@
         letter-spacing: .08em;
         text-transform: uppercase;
         background: rgba(255, 255, 255, .8);
+        color: var(--sg-text, #14313d);
+    }
+
+    .link-child-input:focus {
+        outline: 3px solid rgba(22, 138, 138, .18);
+        border-color: #168a8a;
     }
 
     .link-child-input--error {
@@ -239,12 +249,24 @@
     }
 
     .link-child-button--secondary {
-        background: rgba(20, 80, 100, .08);
-        color: var(--sg-text, #102033);
+        background: rgba(22, 138, 138, .09);
+        color: #126f70;
     }
 
     .link-child-button:disabled {
-        opacity: .55;
         cursor: default;
+        opacity: .58;
+    }
+
+    @@media (max-width: 520px) {
+        .link-child-card {
+            padding: 1.4rem;
+            border-radius: 18px;
+        }
+
+        .link-child-button {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>

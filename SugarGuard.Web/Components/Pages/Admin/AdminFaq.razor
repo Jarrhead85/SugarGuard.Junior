@@ -1,38 +1,426 @@
 @page "/admin/faq"
-@using static SugarGuard.Web.Services.SugarGuardApiService
 @attribute [Authorize(Roles = "Admin,SupportAdmin")]
-@layout Layout.AdminLayout
+@layout DashboardLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using System.Globalization
+
 @inject SugarGuardApiService Api
 
-<h1>FAQ Content</h1>
-@if (!string.IsNullOrWhiteSpace(_errorMessage))
-{
-    <div class="error-message">@_errorMessage</div>
-}
-<div class="stack">
-    @foreach (var article in _faq)
+<PageTitle>FAQ — SugarGuard Admin</PageTitle>
+
+<div class="admin-faq-page">
+    <PageHeader Eyebrow="Администрирование"
+                Title="FAQ"
+                Subtitle="Управление справочными материалами, которые видят родители и врачи в кабинетах SugarGuard.">
+        <TrailingContent>
+            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
     {
-        <article class="panel">
-            <h3>@article.Title</h3>
-            <p class="muted-text">@article.Content</p>
-        </article>
+        <div class="admin-alert admin-alert--@_messageTone">@_message</div>
     }
+
+    <section class="admin-kpi-grid" aria-label="Сводка FAQ">
+        <StatCard Label="Всего статей"
+                  Value="@_articles.Count.ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Включая черновики"
+                  Status="neutral" />
+        <StatCard Label="Опубликовано"
+                  Value="@_articles.Count(x => x.IsPublished).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Доступны пользователям"
+                  Status="safe" />
+        <StatCard Label="Черновиков"
+                  Value="@_articles.Count(x => !x.IsPublished).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Скрыты из FAQ"
+                  Status="@(_articles.Any(x => !x.IsPublished) ? "warning" : "safe")" />
+        <StatCard Label="Обновлено"
+                  Value="@GetLatestUpdateLabel()"
+                  Subtitle="Последняя правка"
+                  Status="neutral" />
+    </section>
+
+    <section class="admin-main-layout">
+        <div class="admin-main-column">
+            <section class="admin-panel">
+                <SectionHeader Title="Список статей"
+                               Description="Фильтрация выполняется на странице. Изменения сохраняются через API.">
+                    <TrailingContent>
+                        <span class="admin-pill">Показано: @FilteredArticles.Count()</span>
+                    </TrailingContent>
+                </SectionHeader>
+
+                <div class="admin-toolbar">
+                    <label class="admin-field admin-field--grow">
+                        <span>Поиск</span>
+                        <input class="admin-input"
+                               type="search"
+                               placeholder="Название или текст статьи"
+                               @bind="_search"
+                               @bind:event="oninput" />
+                    </label>
+
+                    <label class="admin-field">
+                        <span>Статус</span>
+                        <select class="admin-select" @bind="_publishedFilter">
+                            <option value="all">Все</option>
+                            <option value="published">Опубликованные</option>
+                            <option value="draft">Черновики</option>
+                        </select>
+                    </label>
+                </div>
+
+                @if (_isLoading)
+                {
+                    <div class="admin-empty">Загружаем FAQ...</div>
+                }
+                else if (!FilteredArticles.Any())
+                {
+                    <div class="admin-empty">
+                        <strong>Статей не найдено</strong>
+                        <span>Измените строку поиска или создайте новую статью.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="faq-list">
+                        @foreach (var article in FilteredArticles)
+                        {
+                            <article class="faq-card" @key="article.FaqId">
+                                <div class="faq-card__header">
+                                    <div>
+                                        <h3>@article.Title</h3>
+                                        <p>@ShortText(article.Content)</p>
+                                    </div>
+
+                                    <span class="admin-pill admin-pill--@(article.IsPublished ? "success" : "warning")">
+                                        @(article.IsPublished ? "Опубликовано" : "Черновик")
+                                    </span>
+                                </div>
+
+                                <div class="faq-card__meta">
+                                    <span>Создано: @FormatDate(article.CreatedAt)</span>
+                                    <span>Обновлено: @FormatDate(article.UpdatedAt)</span>
+                                </div>
+
+                                <div class="faq-card__actions">
+                                    <button class="admin-btn admin-btn--soft admin-btn--sm"
+                                            type="button"
+                                            @onclick="() => BeginEdit(article)">
+                                        Редактировать
+                                    </button>
+                                    <button class="admin-btn admin-btn--danger admin-btn--sm"
+                                            type="button"
+                                            @onclick="() => DeleteAsync(article.FaqId)"
+                                            disabled="@_isSaving">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <aside class="admin-side-column">
+            <section class="admin-panel">
+                <SectionHeader Title="@(_editingId.HasValue ? "Редактировать статью" : "Новая статья")"
+                               Description="Заполните понятный заголовок и короткий ответ. Черновики не показываются пользователям." />
+
+                <EditForm Model="@_form" OnValidSubmit="SaveAsync">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-grid">
+                        <label class="admin-field">
+                            <span>Заголовок</span>
+                            <InputText class="admin-input" @bind-Value="_form.Title" />
+                            <ValidationMessage For="@(() => _form.Title)" />
+                        </label>
+
+                        <label class="admin-field">
+                            <span>Содержание</span>
+                            <InputTextArea class="admin-textarea" @bind-Value="_form.Content" />
+                            <ValidationMessage For="@(() => _form.Content)" />
+                        </label>
+
+                        <label class="admin-check">
+                            <InputCheckbox @bind-Value="_form.IsPublished" />
+                            Опубликовать статью
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="admin-btn admin-btn--primary" type="submit" disabled="@_isSaving">
+                            @(_isSaving ? "Сохраняем..." : _editingId.HasValue ? "Сохранить" : "Создать")
+                        </button>
+
+                        @if (_editingId.HasValue)
+                        {
+                            <button class="admin-btn admin-btn--ghost" type="button" @onclick="BeginCreate" disabled="@_isSaving">
+                                Отмена
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </section>
+
+            <section class="admin-panel admin-panel--hint">
+                <SectionHeader Title="Правила качества"
+                               Description="FAQ должен быть коротким, практичным и безопасным для пользователя." />
+
+                <ul class="admin-note-list">
+                    <li>Не публикуйте медицинские назначения без явного указания обратиться к врачу.</li>
+                    <li>Пишите простым языком: один вопрос — один ответ.</li>
+                    <li>Черновик можно подготовить заранее и опубликовать позже.</li>
+                </ul>
+            </section>
+        </aside>
+    </section>
 </div>
 
 @code {
-    private IReadOnlyList<FaqVm> _faq = [];
-    private string? _errorMessage;
+    private readonly FaqForm _form = new();
+    private List<FaqVm> _articles = [];
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private Guid? _editingId;
+    private string _search = string.Empty;
+    private string _publishedFilter = "all";
+    private string? _message;
+    private string _messageTone = "info";
+
+    private IEnumerable<FaqVm> FilteredArticles =>
+        _articles
+            .Where(MatchesSearch)
+            .Where(MatchesStatus)
+            .OrderByDescending(x => x.IsPublished)
+            .ThenByDescending(x => x.UpdatedAt);
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
         try
         {
-            _faq = await Api.GetFaqAsync();
+            _isLoading = true;
+            _message = null;
+            var items = await Api.GetAdminFaqAsync();
+            _articles = items.OrderByDescending(x => x.UpdatedAt).ToList();
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
-            _faq = [];
+            _articles = [];
+            ShowMessage($"Не удалось загрузить FAQ: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Title) || string.IsNullOrWhiteSpace(_form.Content))
+        {
+            ShowMessage("Заполните заголовок и содержание статьи.", "danger");
+            return;
+        }
+
+        try
+        {
+            _isSaving = true;
+            var request = new FaqArticleRequestVm
+            {
+                Title = _form.Title.Trim(),
+                Content = _form.Content.Trim(),
+                IsPublished = _form.IsPublished
+            };
+
+            if (_editingId.HasValue)
+            {
+                var updated = await Api.UpdateFaqAsync(_editingId.Value, request);
+                var index = _articles.FindIndex(x => x.FaqId == updated.FaqId);
+                if (index >= 0)
+                {
+                    _articles[index] = updated;
+                }
+
+                ShowMessage("Статья обновлена.", "success");
+            }
+            else
+            {
+                var created = await Api.CreateFaqAsync(request);
+                _articles.Insert(0, created);
+                ShowMessage("Статья создана.", "success");
+            }
+
+            BeginCreate();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Не удалось сохранить статью: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync(Guid faqId)
+    {
+        try
+        {
+            _isSaving = true;
+            await Api.DeleteFaqAsync(faqId);
+            _articles.RemoveAll(x => x.FaqId == faqId);
+            if (_editingId == faqId)
+            {
+                BeginCreate();
+            }
+
+            ShowMessage("Статья удалена.", "success");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Не удалось удалить статью: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void BeginCreate()
+    {
+        _editingId = null;
+        _form.Title = string.Empty;
+        _form.Content = string.Empty;
+        _form.IsPublished = true;
+    }
+
+    private void BeginEdit(FaqVm article)
+    {
+        _editingId = article.FaqId;
+        _form.Title = article.Title;
+        _form.Content = article.Content;
+        _form.IsPublished = article.IsPublished;
+    }
+
+    private bool MatchesSearch(FaqVm article)
+    {
+        if (string.IsNullOrWhiteSpace(_search))
+        {
+            return true;
+        }
+
+        var term = _search.Trim();
+        return article.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || article.Content.Contains(term, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesStatus(FaqVm article)
+    {
+        return _publishedFilter switch
+        {
+            "published" => article.IsPublished,
+            "draft" => !article.IsPublished,
+            _ => true
+        };
+    }
+
+    private string GetLatestUpdateLabel()
+    {
+        if (_articles.Count == 0)
+        {
+            return "—";
+        }
+
+        return _articles.Max(x => x.UpdatedAt).ToLocalTime().ToString("dd.MM", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatDate(DateTime value) =>
+        value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+
+    private static string ShortText(string value)
+    {
+        var normalized = value.ReplaceLineEndings(" ").Trim();
+        return normalized.Length <= 180 ? normalized : $"{normalized[..180]}...";
+    }
+
+    private void ShowMessage(string message, string tone)
+    {
+        _message = message;
+        _messageTone = tone;
+    }
+
+    private sealed class FaqForm
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите заголовок.")]
+        [System.ComponentModel.DataAnnotations.MaxLength(512, ErrorMessage = "Максимум 512 символов.")]
+        public string Title { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите содержание.")]
+        [System.ComponentModel.DataAnnotations.MaxLength(8000, ErrorMessage = "Максимум 8000 символов.")]
+        public string Content { get; set; } = string.Empty;
+
+        public bool IsPublished { get; set; } = true;
+    }
 }
+
+<style>
+    .admin-faq-page { display: grid; gap: 22px; }
+    .admin-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .admin-main-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 430px); gap: 20px; align-items: start; }
+    .admin-main-column, .admin-side-column { display: grid; gap: 20px; min-width: 0; }
+    .admin-panel { background: var(--color-surface, rgba(255,255,255,.88)); border: 1px solid var(--color-border, rgba(22,33,62,.10)); border-radius: 24px; padding: 22px; box-shadow: var(--shadow-sm, 0 14px 36px rgba(22,33,62,.08)); }
+    .admin-panel--hint { background: color-mix(in oklab, var(--color-primary, #1B8E8B) 6%, var(--color-surface, #fff)); }
+    .sg-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .sg-section-header h2 { margin: 0; font-size: 22px; color: var(--color-text, #16213E); }
+    .sg-section-header p { margin: 6px 0 0; color: var(--color-text-muted, #667694); font-size: 14px; line-height: 1.55; }
+    .admin-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 220px; gap: 14px; align-items: end; margin-bottom: 18px; }
+    .admin-field { display: grid; gap: 7px; color: var(--color-text-faint, #96A2B8); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .admin-field--grow { min-width: 0; }
+    .admin-input, .admin-select, .admin-textarea { width: 100%; border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 16px; background: #fff; color: var(--color-text, #16213E); font: inherit; outline: none; }
+    .admin-input, .admin-select { min-height: 46px; padding: 0 14px; }
+    .admin-textarea { min-height: 170px; resize: vertical; padding: 13px 14px; line-height: 1.55; }
+    .admin-input:focus, .admin-select:focus, .admin-textarea:focus { border-color: rgba(27,142,139,.42); box-shadow: 0 0 0 4px rgba(27,142,139,.10); }
+    .admin-check { display: inline-flex; align-items: center; gap: 10px; color: var(--color-text, #16213E); font-weight: 700; }
+    .admin-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 18px; border: 1px solid transparent; border-radius: 16px; font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; }
+    .admin-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .admin-btn--primary { background: linear-gradient(135deg, var(--color-primary, #1B8E8B), #2D7EE2); color: #fff; }
+    .admin-btn--soft { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-btn--ghost { background: transparent; color: var(--color-text-muted, #667694); border-color: var(--color-border, rgba(22,33,62,.12)); }
+    .admin-btn--danger { background: rgba(219,89,103,.12); color: #DB5967; }
+    .admin-btn--sm { min-height: 34px; padding: 0 12px; border-radius: 12px; font-size: 13px; }
+    .admin-alert { padding: 14px 18px; border-radius: 18px; font-weight: 700; border: 1px solid transparent; }
+    .admin-alert--success { color: #1B8E8B; background: rgba(27,142,139,.12); border-color: rgba(27,142,139,.2); }
+    .admin-alert--danger { color: #DB5967; background: rgba(219,89,103,.12); border-color: rgba(219,89,103,.24); }
+    .admin-alert--info { color: var(--color-text-muted, #667694); background: rgba(102,118,148,.10); border-color: rgba(102,118,148,.18); }
+    .admin-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(102,118,148,.11); color: var(--color-text-muted, #667694); font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .admin-pill--success { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-pill--warning { background: rgba(227,163,43,.16); color: #9A6A00; }
+    .admin-empty { min-height: 220px; display: grid; place-items: center; gap: 8px; text-align: center; color: var(--color-text-muted, #667694); border: 1px dashed var(--color-border, rgba(22,33,62,.14)); border-radius: 20px; padding: 20px; }
+    .admin-empty strong { color: var(--color-text, #16213E); font-size: 18px; }
+    .faq-list { display: grid; gap: 14px; }
+    .faq-card { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--color-border, rgba(22,33,62,.10)); border-radius: 20px; background: rgba(255,255,255,.78); }
+    .faq-card__header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    .faq-card h3 { margin: 0 0 8px; font-size: 18px; color: var(--color-text, #16213E); }
+    .faq-card p { margin: 0; color: var(--color-text-muted, #667694); line-height: 1.55; }
+    .faq-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--color-text-faint, #96A2B8); font-size: 12px; }
+    .faq-card__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .form-grid { display: grid; gap: 16px; }
+    .form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .validation-message { color: #DB5967; font-size: 12px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+    .admin-note-list { margin: 0; padding-left: 20px; color: var(--color-text-muted, #667694); line-height: 1.7; }
+    @@media (max-width: 1180px) { .admin-main-layout { grid-template-columns: 1fr; } .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @@media (max-width: 720px) { .admin-kpi-grid, .admin-toolbar { grid-template-columns: 1fr; } .admin-panel { padding: 18px; } .faq-card__header, .sg-section-header { flex-direction: column; align-items: flex-start; } .admin-btn { width: 100%; } }
+</style>

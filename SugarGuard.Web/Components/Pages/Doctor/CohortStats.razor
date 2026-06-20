@@ -1,4 +1,8 @@
 ﻿@* Shared-компонент сводной статистики группы врача *@
+@page "/doctor/cohort-stats"
+@page "/dashboard/doctor/cohort"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@rendermode InteractiveServer
 @using SugarGuard.Web.ViewModels
 @using SugarGuard.Web.Services
 @using CohortVm = SugarGuard.Web.ViewModels.DoctorCohortSummaryVm

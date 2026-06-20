@@ -116,13 +116,53 @@ public sealed class OnboardingController : ControllerBase
                 InsulinScheme = request.InsulinScheme
             };
 
-            var result = await _childrenService.CreateAsync(
-                userId.Value, role.Value, createRequest, cancellationToken);
+            ChildResponse child;
+            Guid? linkId;
+
+            if (role.Value == UserRole.ChildDevice)
+            {
+                var existingChildId = (await _childAccess.GetAccessibleChildIdsAsync(cancellationToken))
+                    .FirstOrDefault();
+
+                var existingChild = existingChildId == Guid.Empty
+                    ? null
+                    : await _childrenService.GetByIdAsync(existingChildId, cancellationToken);
+
+                child = existingChild is null
+                    ? (await _childrenService.CreateAsync(userId.Value, role.Value, createRequest, cancellationToken)).Child
+                    : await _childrenService.UpdateAsync(
+                          existingChild.ChildId,
+                          new UpdateChildRequest
+                          {
+                              FirstName = createRequest.FirstName,
+                              LastName = createRequest.LastName,
+                              DateOfBirth = createRequest.DateOfBirth,
+                              DiabetesType = createRequest.DiabetesType,
+                              DiagnosisDate = createRequest.DiagnosisDate,
+                              Weight = createRequest.Weight ?? existingChild.Weight,
+                              Height = createRequest.Height ?? existingChild.Height,
+                              InsulinScheme = createRequest.InsulinScheme,
+                              TimeZoneId = createRequest.TimeZoneId,
+                              PhotoUrl = createRequest.PhotoUrl
+                          },
+                          cancellationToken)
+                      ?? throw new InvalidOperationException("Не удалось обновить существующий профиль ребёнка.");
+
+                linkId = null;
+            }
+            else
+            {
+                var result = await _childrenService.CreateAsync(
+                    userId.Value, role.Value, createRequest, cancellationToken);
+
+                child = result.Child;
+                linkId = result.ParentLinkId;
+            }
 
             if (request.TargetRangeMin.HasValue && request.TargetRangeMax.HasValue)
             {
                 await _diabetesSettings.UpsertAsync(
-                    result.Child.ChildId,
+                    child.ChildId,
                     new UpdateDiabetesSettingsRequest
                     {
                         TargetRangeMin = request.TargetRangeMin.Value,
@@ -144,8 +184,8 @@ public sealed class OnboardingController : ControllerBase
             return Ok(new CreateChildOnboardingResponse
             {
                 Success = true,
-                ChildId = result.Child.ChildId,
-                LinkId = result.ParentLinkId,
+                ChildId = child.ChildId,
+                LinkId = linkId,
                 NextStep = OnboardingStep.DiabetesSettings
             });
         }

@@ -91,6 +91,7 @@ public sealed class AdminService : IAdminService
                 EmailForLogin = u.EmailForLogin,
                 TelegramId = u.TelegramId,
                 Role = u.Role.ToString(),
+                IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt
             })
             .ToListAsync(cancellationToken);
@@ -340,9 +341,9 @@ public sealed class AdminService : IAdminService
                     ? $"{child.FirstName} {child.LastName}".Trim()
                     : null,
                 LinkedAt = link.CreatedAt,
-                CreatedBy = link.LinkedByUserId.HasValue
-                    ? link.LinkedByUserId.Value.ToString()
-                    : null
+                CreatedBy = link.LinkedByUserId == null
+                    ? null
+                    : link.LinkedByUserId.ToString()
             };
 
         return await query.ToListAsync(cancellationToken);
@@ -367,9 +368,9 @@ public sealed class AdminService : IAdminService
                     ? $"{child.FirstName} {child.LastName}".Trim()
                     : null,
                 LinkedAt = link.CreatedAt,
-                CreatedBy = link.LinkedByUserId.HasValue
-                    ? link.LinkedByUserId.Value.ToString()
-                    : null
+                CreatedBy = link.LinkedByUserId == null
+                    ? null
+                    : link.LinkedByUserId.ToString()
             };
 
         return await query.ToListAsync(cancellationToken);
@@ -382,30 +383,16 @@ public sealed class AdminService : IAdminService
         var hangfireActiveJobs = (int)(monitoring.EnqueuedCount("default")
                                      + monitoring.ProcessingCount());
 
-        var totalUsersTask = _users.CountAsync(cancellationToken: cancellationToken);
-        var totalChildrenTask = _children.CountAsync(cancellationToken: cancellationToken);
-        var totalMeasurementsTask = _measurements.LongCountAsync(cancellationToken: cancellationToken);
-        var pendingSyncItemsTask = _syncLogs.CountByStatusAsync("pending", cancellationToken);
-        var unresolvedConflictsTask = _syncLogs.CountUnresolvedConflictsAsync(cancellationToken);
-        var pendingExportJobsTask = _exportJobs.CountByStatusAsync("queued", cancellationToken);
-        var completedExportJobsTodayTask = _exportJobs.CountCompletedTodayAsync(cancellationToken);
-
-        await Task.WhenAll(
-            totalUsersTask,
-            totalChildrenTask,
-            totalMeasurementsTask,
-            pendingSyncItemsTask,
-            unresolvedConflictsTask,
-            pendingExportJobsTask,
-            completedExportJobsTodayTask);
-
-        var totalUsers         = await totalUsersTask;
-        var totalChildren      = await totalChildrenTask;
-        var totalMeasurements  = await totalMeasurementsTask;
-        var pendingSyncItems   = await pendingSyncItemsTask;
-        var unresolvedConflicts = await unresolvedConflictsTask;
-        var pendingExportJobs  = await pendingExportJobsTask;
-        var completedToday     = await completedExportJobsTodayTask;
+        // Repositories in this service share the same scoped DbContext. EF Core
+        // forbids parallel operations on one context instance, so keep these
+        // inexpensive aggregate queries sequential.
+        var totalUsers = await _users.CountAsync(cancellationToken: cancellationToken);
+        var totalChildren = await _children.CountAsync(cancellationToken: cancellationToken);
+        var totalMeasurements = await _measurements.LongCountAsync(cancellationToken: cancellationToken);
+        var pendingSyncItems = await _syncLogs.CountByStatusAsync("pending", cancellationToken);
+        var unresolvedConflicts = await _syncLogs.CountUnresolvedConflictsAsync(cancellationToken);
+        var pendingExportJobs = await _exportJobs.CountByStatusAsync("queued", cancellationToken);
+        var completedToday = await _exportJobs.CountCompletedTodayAsync(cancellationToken);
 
         _logger.LogInformation(
             "SystemStats: Users={Users}, Children={Children}, Measurements={Measurements}, Hangfire={Hangfire}.",

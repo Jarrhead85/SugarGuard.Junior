@@ -25,6 +25,7 @@ namespace SugarGuard.Web.Services
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly ITokenStore _tokenStore;
 
         static SugarGuardApiService()
         {
@@ -36,10 +37,12 @@ namespace SugarGuard.Web.Services
         /// </summary>
         public SugarGuardApiService(
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ITokenStore tokenStore)
         {
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _tokenStore = tokenStore;
         }
 
         // Вспомогательные свойства 
@@ -52,6 +55,20 @@ namespace SugarGuard.Web.Services
         // Фабричные методы
         private HttpClient CreateClient() =>
             _httpClientFactory.CreateClient("SugarGuardApi");
+
+        private async Task<HttpClient> CreateAuthorizedClientAsync(CancellationToken cancellationToken = default)
+        {
+            var client = CreateClient();
+            var token = await _tokenStore.GetTokenAsync();
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token);
+            }
+
+            return client;
+        }
 
         // Разрешение ChildId
         /// <summary>
@@ -93,7 +110,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = $"api/dashboard/{childId}/summary";
             var raw = await GetRequiredAsync<DashboardSummaryApiDto>(client, url, cancellationToken);
             return MapDashboardSummary(raw);
@@ -109,7 +126,7 @@ namespace SugarGuard.Web.Services
             DateTime to,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl($"api/measurements/{childId}", ("from", from.ToString("o")), ("to", to.ToString("o")));
             return await GetRequiredAsync<List<MeasurementVm>>(client, url, cancellationToken);
         }
@@ -124,7 +141,7 @@ namespace SugarGuard.Web.Services
             DateTime to,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl(
                 $"api/parentdashboard/{childId}/timeline",
                 ("from", from.ToString("o")),
@@ -145,7 +162,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 var url = BuildUrl($"api/measurements/{childId}/statistics", ("period", period));
                 using var response = await client.GetAsync(url, cancellationToken);
 
@@ -176,7 +193,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 var url = BuildUrl($"api/parentdashboard/{childId}/comparison", ("period", period));
                 using var response = await client.GetAsync(url, cancellationToken);
 
@@ -217,7 +234,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
                     $"api/parentdashboard/{childId}/patterns", cancellationToken);
 
@@ -255,7 +272,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             return await GetRequiredAsync<List<BackpackItemVm>>(
                 client, $"api/parentdashboard/{childId}/backpack", cancellationToken);
         }
@@ -267,7 +284,7 @@ namespace SugarGuard.Web.Services
             AddBackpackItemRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 $"api/parentdashboard/{request.ChildId}/backpack", request, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -284,7 +301,7 @@ namespace SugarGuard.Web.Services
             Guid itemId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.DeleteAsync(
                 $"api/parentdashboard/{childId}/backpack/{itemId}", cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -305,7 +322,7 @@ namespace SugarGuard.Web.Services
             if (onlyConflicts == true) qs.Add("onlyConflicts=true");
             var url = "api/sync-logs?" + string.Join("&", qs);
 
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             return await GetRequiredAsync<List<SyncLogVm>>(client, url, cancellationToken);
         }
 
@@ -317,7 +334,7 @@ namespace SugarGuard.Web.Services
             string resolution = "useServer",
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 $"api/sync-logs/{syncLogId}/resolve",
                 new { resolution },
@@ -332,7 +349,7 @@ namespace SugarGuard.Web.Services
         public async Task<int> ResolveAllSyncConflictsAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PostAsync(
                 "api/sync-logs/resolve-all",
                 content: null,
@@ -361,24 +378,24 @@ namespace SugarGuard.Web.Services
 
         // EXPORT JOBS
         /// <summary>
-        /// GET api/export/jobs
+        /// GET api/export-jobs
         /// </summary>
         public async Task<IReadOnlyList<ExportJobVm>> GetExportJobsAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
-            return await GetRequiredAsync<List<ExportJobVm>>(client, "api/export/jobs", cancellationToken);
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await GetRequiredAsync<List<ExportJobVm>>(client, "api/export-jobs", cancellationToken);
         }
 
         /// <summary>
-        /// POST api/export/jobs
+        /// POST api/export-jobs
         /// </summary>
         public async Task<ExportJobVm> CreateExportJobAsync(
             CreateExportJobRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
-            var response = await client.PostAsJsonAsync("api/export/jobs", request, cancellationToken);
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var response = await client.PostAsJsonAsync("api/export-jobs", request, cancellationToken);
             response.EnsureSuccessStatusCode();
             return await response.Content
                 .ReadFromJsonAsync<ExportJobVm>(_jsonOptions, cancellationToken)
@@ -394,7 +411,7 @@ namespace SugarGuard.Web.Services
             bool detailed = false,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = $"api/measurements/{childId}/export-pdf" +
                 $"?period={Uri.EscapeDataString(period)}&detailed={(detailed ? "true" : "false")}";
 
@@ -415,7 +432,7 @@ namespace SugarGuard.Web.Services
             UpdateDiabetesSettingsRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PutAsJsonAsync(
                 $"api/dashboard/{childId}/settings", request, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -430,7 +447,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
                     $"api/dashboard/{childId}/settings", cancellationToken);
                 if (!response.IsSuccessStatusCode)
@@ -458,11 +475,11 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
-                var items = await GetRequiredAsync<List<ChildSummaryApiDto>>(
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                var page = await GetRequiredAsync<PagedResult<ChildSummaryApiDto>>(
                     client, "api/children", cancellationToken);
 
-                return items
+                return page.Items
                     .Select(c => new ChildProfileVm
                     {
                         ChildId = c.ChildId,
@@ -492,7 +509,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
                     $"api/children/{childId}", cancellationToken);
 
@@ -522,7 +539,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
                     $"api/parentdashboard/{childId}/profile", cancellationToken);
                 if (!response.IsSuccessStatusCode)
@@ -554,7 +571,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var content = new MultipartFormDataContent();
                 var streamContent = new StreamContent(fileStream);
                 streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
@@ -588,7 +605,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.DeleteAsync(
                     $"api/children/{childId:D}/photo", cancellationToken);
                 return response.IsSuccessStatusCode;
@@ -610,7 +627,7 @@ namespace SugarGuard.Web.Services
 
         // CHILD ACCESS LINKS
         /// <summary>
-        /// GET api/admin/children/{childId}/access-links
+        /// GET api/invite-codes/{childId}/links
         /// </summary>
         public async Task<ChildAccessLinksVm?> GetChildAccessLinksAsync(
             Guid childId,
@@ -618,9 +635,9 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
-                    $"api/admin/children/{childId}/access-links", cancellationToken);
+                    $"api/invite-codes/{childId}/links", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return null;
 
@@ -645,7 +662,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             return await GetRequiredAsync<List<InviteCodeVm>>(
                 client, $"api/invite-codes/{childId}/active", cancellationToken);
         }
@@ -658,10 +675,10 @@ namespace SugarGuard.Web.Services
             UserRole targetRole,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 "api/invite-codes/generate",
-                new { childId, targetRole = targetRole.ToString() },
+                new { childId, targetRole = (int)targetRole },
                 cancellationToken);
             response.EnsureSuccessStatusCode();
             return await response.Content
@@ -676,11 +693,33 @@ namespace SugarGuard.Web.Services
             string code,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var token = await _tokenStore.GetTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return new ClaimInviteCodeVm
+                {
+                    Success = false,
+                    ErrorCode = "unauthorized"
+                };
+            }
+
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+
             using var response = await client.PostAsJsonAsync(
                 "api/invite-codes/claim",
                 new { code },
                 cancellationToken);
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                return new ClaimInviteCodeVm
+                {
+                    Success = false,
+                    ErrorCode = "unauthorized"
+                };
+            }
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(body))
@@ -718,10 +757,10 @@ namespace SugarGuard.Web.Services
             UserRole targetRole,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 "api/invite-codes/generate",
-                new { childId, targetRole = targetRole.ToString() },
+                new { childId, targetRole = (int)targetRole },
                 cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -737,7 +776,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             return await GetRequiredAsync<List<InviteCodeVm>>(
                 client, $"api/invite-codes/{childId}/active", cancellationToken);
         }
@@ -749,7 +788,7 @@ namespace SugarGuard.Web.Services
             Guid inviteCodeId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.DeleteAsync(
                 $"api/invite-codes/{inviteCodeId}", cancellationToken);
             return response.IsSuccessStatusCode;
@@ -764,7 +803,7 @@ namespace SugarGuard.Web.Services
             Guid linkId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.DeleteAsync(
                 $"api/invite-codes/{childId}/links/{linkType}/{linkId}", cancellationToken);
             return response.IsSuccessStatusCode;
@@ -777,7 +816,7 @@ namespace SugarGuard.Web.Services
         public async Task<List<DoctorPatientSummaryVm>> GetDoctorPatientsAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var raw = await GetRequiredAsync<List<DoctorPatientSummaryApiDto>>(
                 client, "api/doctor/patients", cancellationToken);
             return raw.Select(MapDoctorPatient).ToList();
@@ -790,7 +829,7 @@ namespace SugarGuard.Web.Services
             string? sortBy,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = string.IsNullOrWhiteSpace(sortBy)
                 ? "api/doctor/patients"
                 : $"api/doctor/patients?sortBy={Uri.EscapeDataString(sortBy)}";
@@ -800,15 +839,15 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
-        /// GET api/doctor/cohort-summary
+        /// GET api/doctor/cohort/summary
         /// </summary>
         public async Task<DoctorCohortSummaryVm?> GetDoctorCohortSummaryAsync(
             CancellationToken cancellationToken = default)
         {
             try
             {
-                var client = CreateClient();
-                using var response = await client.GetAsync("api/doctor/cohort-summary", cancellationToken);
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/doctor/cohort/summary", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return null;
 
@@ -843,7 +882,7 @@ namespace SugarGuard.Web.Services
             bool onlyImportant = false,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var urlParams = new List<(string, string)>
             {
                 ("page",     page.ToString()),
@@ -873,7 +912,7 @@ namespace SugarGuard.Web.Services
             Guid? measurementId = null,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 "api/doctor/notes",
                 new { childId, noteText, isImportant, measurementId },
@@ -908,7 +947,7 @@ namespace SugarGuard.Web.Services
             UpdateDoctorNoteVmRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PutAsJsonAsync(
                 $"api/doctor/notes/{noteId}",
                 new { noteText = request.NoteText, isImportant = request.IsImportant },
@@ -928,22 +967,70 @@ namespace SugarGuard.Web.Services
             Guid noteId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.DeleteAsync($"api/doctor/notes/{noteId}", cancellationToken);
             response.EnsureSuccessStatusCode();
         }
 
         // ADMIN — пользователи, системная статистика, здоровье
         /// <summary>
-        /// GET api/admin/users?role={role}
+        /// GET api/admin/users-roles/users?role={role}
         /// </summary>
         public async Task<List<AdminUserVm>> GetAdminUsersAsync(
             string? role = null,
+            int limit = 500,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
-            var url = role is null ? "api/admin/users" : BuildUrl("api/admin/users", ("role", role));
-            return await GetRequiredAsync<List<AdminUserVm>>(client, url, cancellationToken);
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var safeLimit = Math.Clamp(limit, 1, 1000);
+            var url = string.IsNullOrWhiteSpace(role)
+                ? BuildUrl("api/admin/users-roles/users", ("limit", safeLimit.ToString()))
+                : BuildUrl("api/admin/users-roles/users",
+                    ("role", role),
+                    ("limit", safeLimit.ToString()));
+
+            var users = await GetRequiredAsync<List<AdminUserResponseDto>>(client, url, cancellationToken);
+            return users.Select(AdminUserVm.FromDto).ToList();
+        }
+
+        public async Task<List<AuditLogVm>> GetAdminAuditLogsAsync(
+            Guid? actorUserId = null,
+            string? action = null,
+            DateTime? from = null,
+            DateTime? to = null,
+            int limit = 200,
+            CancellationToken cancellationToken = default)
+        {
+            var queryParams = new List<(string Key, string Value)>
+            {
+                ("limit", Math.Clamp(limit, 1, 1000).ToString())
+            };
+
+            if (actorUserId.HasValue)
+            {
+                queryParams.Add(("actorUserId", actorUserId.Value.ToString()));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action))
+            {
+                queryParams.Add(("action", action.Trim()));
+            }
+
+            if (from.HasValue)
+            {
+                queryParams.Add(("from", from.Value.ToUniversalTime().ToString("O")));
+            }
+
+            if (to.HasValue)
+            {
+                queryParams.Add(("to", to.Value.ToUniversalTime().ToString("O")));
+            }
+
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await GetRequiredAsync<List<AuditLogVm>>(
+                client,
+                BuildUrl("api/admin/audit-logs", queryParams.ToArray()),
+                cancellationToken);
         }
 
         /// <summary>
@@ -954,7 +1041,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync("api/admin/system/stats", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return null;
@@ -973,15 +1060,15 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
-        /// GET api/admin/health
+        /// GET api/admin/system/health
         /// </summary>
         public async Task<AdminHealthVm?> GetAdminHealthAsync(
             CancellationToken cancellationToken = default)
         {
             try
             {
-                var client = CreateClient();
-                using var response = await client.GetAsync("api/admin/health", cancellationToken);
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/admin/system/health", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return null;
 
@@ -999,17 +1086,17 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
-        /// PUT api/admin/users/{userId}/role
+        /// PUT api/admin/users-roles/users/{userId}/role
         /// </summary>
         public async Task UpdateUserRoleAsync(
             Guid userId,
             string role,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PutAsJsonAsync(
-                $"api/admin/users/{userId}/role",
-                new UpdateUserRoleApiRequest { Role = role },
+                $"api/admin/users-roles/users/{userId}/role",
+                new UpdateUserRoleApiRequest { NewRole = role },
                 cancellationToken);
             response.EnsureSuccessStatusCode();
         }
@@ -1022,7 +1109,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 "api/admin/users-roles/links/parent-child",
                 new { parentUserId, childId },
@@ -1038,7 +1125,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 "api/admin/users-roles/links/doctor-child",
                 new { doctorUserId, childId },
@@ -1056,7 +1143,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 "api/admin/users-roles/links/parent-child",
                 new { parentUserId, childId },
@@ -1072,7 +1159,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 "api/admin/users-roles/links/doctor-child",
                 new { doctorUserId, childId },
@@ -1088,7 +1175,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl("api/admin/users-roles/links/parent-child",
                 ("parentUserId", parentUserId.ToString()),
                 ("childId", childId.ToString()));
@@ -1104,7 +1191,7 @@ namespace SugarGuard.Web.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl("api/admin/users-roles/links/doctor-child",
                 ("doctorUserId", doctorUserId.ToString()),
                 ("childId", childId.ToString()));
@@ -1118,7 +1205,7 @@ namespace SugarGuard.Web.Services
         public async Task<IReadOnlyList<AdminParentChildLinkDto>?> GetAdminParentChildLinksAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.GetAsync(
                 "api/admin/users-roles/links/parent-child", cancellationToken);
             if (!response.IsSuccessStatusCode) return null;
@@ -1132,7 +1219,7 @@ namespace SugarGuard.Web.Services
         public async Task<IReadOnlyList<AdminDoctorChildLinkDto>?> GetAdminDoctorChildLinksAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             using var response = await client.GetAsync(
                 "api/admin/users-roles/links/doctor-child", cancellationToken);
             if (!response.IsSuccessStatusCode) return null;
@@ -1142,15 +1229,14 @@ namespace SugarGuard.Web.Services
 
         // ADMIN — Doctor Requests (users-roles + onboarding funnel)
         /// <summary>
-        /// GET api/admin/users-roles/users?role=DoctorPending&amp;limit={limit}
+        /// GET api/admin/users-roles/users?limit={limit}. Pending-фильтр выполняет страница.
         /// </summary>
         public async Task<HttpResponseMessage> GetDoctorPendingUsersAsync(
             int limit = 500,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl("api/admin/users-roles/users",
-                ("role", "DoctorPending"),
                 ("limit", limit.ToString()));
             return await client.GetAsync(url, cancellationToken);
         }
@@ -1162,7 +1248,7 @@ namespace SugarGuard.Web.Services
             string role,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var url = BuildUrl("api/admin/onboarding/funnel", ("role", role));
             return await client.GetAsync(url, cancellationToken);
         }
@@ -1175,10 +1261,10 @@ namespace SugarGuard.Web.Services
             string role,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             return await client.PutAsJsonAsync(
                 $"api/admin/users-roles/users/{userId}/role",
-                new UpdateDoctorUserRoleRequest { Role = role },
+                new UpdateDoctorUserRoleRequest { NewRole = role },
                 cancellationToken);
         }
 
@@ -1191,7 +1277,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync("api/health", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
@@ -1230,15 +1316,15 @@ namespace SugarGuard.Web.Services
 
         // FAQ
         /// <summary>
-        /// GET api/faq
+        /// GET api/faq-content
         /// </summary>
         public async Task<IReadOnlyList<FaqVm>> GetFaqAsync(
             CancellationToken cancellationToken = default)
         {
             try
             {
-                var client = CreateClient();
-                using var response = await client.GetAsync("api/faq", cancellationToken);
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/faq-content", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return [];
 
@@ -1255,6 +1341,65 @@ namespace SugarGuard.Web.Services
             }
         }
 
+        /// <summary>
+        /// GET api/faq-content/admin
+        /// </summary>
+        public async Task<IReadOnlyList<FaqVm>> GetAdminFaqAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.GetAsync("api/faq-content/admin", cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var raw = await ReadOptionalAsync<List<FaqArticleApiDto>>(response.Content, cancellationToken);
+            return raw?.Select(MapFaq).ToList() ?? [];
+        }
+
+        /// <summary>
+        /// POST api/faq-content
+        /// </summary>
+        public async Task<FaqVm> CreateFaqAsync(
+            FaqArticleRequestVm request,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PostAsJsonAsync("api/faq-content", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var raw = await response.Content.ReadFromJsonAsync<FaqArticleApiDto>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустое тело для CreateFaq.");
+            return MapFaq(raw);
+        }
+
+        /// <summary>
+        /// PUT api/faq-content/{id}
+        /// </summary>
+        public async Task<FaqVm> UpdateFaqAsync(
+            Guid faqId,
+            FaqArticleRequestVm request,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PutAsJsonAsync($"api/faq-content/{faqId}", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var raw = await response.Content.ReadFromJsonAsync<FaqArticleApiDto>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустое тело для UpdateFaq.");
+            return MapFaq(raw);
+        }
+
+        /// <summary>
+        /// DELETE api/faq-content/{id}
+        /// </summary>
+        public async Task DeleteFaqAsync(
+            Guid faqId,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.DeleteAsync($"api/faq-content/{faqId}", cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+
         // ONBOARDING
         /// <summary>
         /// GET api/onboarding/status
@@ -1262,7 +1407,7 @@ namespace SugarGuard.Web.Services
         public async Task<OnboardingStatusResponse> GetOnboardingStatusAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.GetAsync("api/onboarding/status", cancellationToken);
             response.EnsureSuccessStatusCode();
             return await response.Content
@@ -1277,7 +1422,7 @@ namespace SugarGuard.Web.Services
             string code,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
                 "api/verification/verify-email", new { code }, cancellationToken);
 
@@ -1303,7 +1448,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 var response = await client.PostAsync(
                     "api/verification/send-email", content: null, cancellationToken);
                 return response.IsSuccessStatusCode;
@@ -1322,7 +1467,7 @@ namespace SugarGuard.Web.Services
             CreateChildOnboardingRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync("api/onboarding/child", request, cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -1346,7 +1491,7 @@ namespace SugarGuard.Web.Services
             int step,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsync(
                 $"api/onboarding/steps/{step}/complete", content: null, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -1363,7 +1508,7 @@ namespace SugarGuard.Web.Services
             CompleteOnboardingRequest request,
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync("api/onboarding/complete", request, cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -1386,7 +1531,7 @@ namespace SugarGuard.Web.Services
         public async Task SkipOnboardingAsync(
             CancellationToken cancellationToken = default)
         {
-            var client = CreateClient();
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
             await client.PostAsync("api/onboarding/skip", content: null, cancellationToken);
 
         }
@@ -1438,7 +1583,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 var url = "api/notifications";
                 var dtos = await GetRequiredAsync<List<UserNotificationItemDto>>(client, url, cancellationToken);
                 return dtos.Select(d => new UserNotificationItem(
@@ -1475,7 +1620,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 return await GetRequiredAsync<UserPreferencesVm>(client, "api/user-preferences", cancellationToken);
             }
             catch
@@ -1493,7 +1638,7 @@ namespace SugarGuard.Web.Services
         {
             try
             {
-                var client = CreateClient();
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.PutAsJsonAsync("api/user-preferences", prefs, cancellationToken);
                 return response.IsSuccessStatusCode;
             }
@@ -1643,6 +1788,8 @@ namespace SugarGuard.Web.Services
             Content = dto.Content,
             Category = string.Empty,
             SortOrder = 0,
+            IsPublished = dto.IsPublished,
+            CreatedAt = dto.CreatedAt,
             UpdatedAt = dto.UpdatedAt
         };
 
@@ -1897,12 +2044,12 @@ namespace SugarGuard.Web.Services
 
         private sealed class UpdateUserRoleApiRequest
         {
-            public string Role { get; init; } = string.Empty;
+            public string NewRole { get; init; } = string.Empty;
         }
 
         private sealed class UpdateDoctorUserRoleRequest
         {
-            public string Role { get; init; } = string.Empty;
+            public string NewRole { get; init; } = string.Empty;
         }
 
         private sealed class CreateParentChildLinkApiRequest
@@ -1918,3 +2065,4 @@ namespace SugarGuard.Web.Services
         }
     }
 }
+

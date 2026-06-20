@@ -164,6 +164,7 @@ public static class ServiceCollectionExtensions
         // Page factories (for navigation with childId)
         services.AddSingleton<IEditProfilePageFactory, EditProfilePageFactory>();
         services.AddSingleton<IDiabetesSettingsPageFactory, DiabetesSettingsPageFactory>();
+        services.AddSingleton<IAccessManagementPageFactory, AccessManagementPageFactory>();
 
         // Shell
         services.AddSingleton<AppShell>();

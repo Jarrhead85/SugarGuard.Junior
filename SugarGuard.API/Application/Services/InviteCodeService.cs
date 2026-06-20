@@ -72,7 +72,7 @@ namespace SugarGuard.API.Services
             {
                 ChildId = childId,
                 TargetRole = targetRole,
-                Code = GenerateCode(),
+                Code = await GenerateUniqueCodeAsync(cancellationToken),
                 Status = "Pending",
                 ExpiresAt = DateTime.UtcNow.AddHours(CodeTtlHours),
                 CreatedAt = DateTime.UtcNow
@@ -190,9 +190,11 @@ namespace SugarGuard.API.Services
 
                 var parentLink = new ParentChildLink
                 {
+                    LinkId = Guid.NewGuid(),
                     ParentUserId = claimedByUserId,
                     ChildId = invite.ChildId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    LinkedByUserId = claimedByUserId
                 };
 
                 _context.ParentChildLinks.Add(parentLink);
@@ -340,6 +342,7 @@ namespace SugarGuard.API.Services
             var parentLinks = await _context.ParentChildLinks
                 .AsNoTracking()
                 .Where(l => l.ChildId == childId)
+                .Where(l => l.ParentUser.Role == UserRole.Parent)
                 .Select(l => new LinkedAccessUserResponse
                 {
                     LinkId = l.LinkId,
@@ -387,13 +390,14 @@ namespace SugarGuard.API.Services
             if (normalizedType == "parent")
             {
                 var link = await _context.ParentChildLinks
+                    .Include(l => l.ParentUser)
                     .FirstOrDefaultAsync(l => l.LinkId == linkId && l.ChildId == childId,
                         cancellationToken);
 
-                if (link is null)
+                if (link is null || link.ParentUser.Role != UserRole.Parent)
                 {
                     _logger.LogWarning(
-                        "UnlinkAsync: parent-связка не найдена. ChildId={ChildId} LinkId={LinkId}.",
+                        "UnlinkAsync: parent-связка не найдена или не является реальным родителем. ChildId={ChildId} LinkId={LinkId}.",
                         childId, linkId);
                     return UnlinkResult.NotFound;
                 }
@@ -454,6 +458,26 @@ namespace SugarGuard.API.Services
         /// <summary>
         /// Генерирует криптографически случайный 8-символьный код
         /// </summary>
+        private async Task<string> GenerateUniqueCodeAsync(CancellationToken cancellationToken)
+        {
+            const int maxAttempts = 8;
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var code = GenerateCode();
+                var exists = await _context.InviteCodes
+                    .AsNoTracking()
+                    .AnyAsync(x => x.Code == code, cancellationToken);
+
+                if (!exists)
+                {
+                    return code;
+                }
+            }
+
+            throw new InvalidOperationException("Не удалось сгенерировать уникальный код приглашения.");
+        }
+
         private static string GenerateCode()
         {
             var result = new char[CodeLength];

@@ -31,16 +31,17 @@
         </TrailingContent>
     </PageHeader>
 
-    {{! Ошибка загрузки }}
+    @* Ошибка загрузки *@
     @if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
         <AlertBanner Type="error"
                      Title="Не удалось загрузить данные"
                      Message="@_errorMessage"
-                     OnClose="ClearError" />
+                     IsDismissible="true"
+                     OnDismissed="ClearError" />
     }
 
-    {{! KPI-карточки когорты }}
+    @* KPI-карточки когорты *@
     <section class="kpi-grid">
         @if (_isLoadingCohort)
         {
@@ -87,7 +88,7 @@
         }
     </section>
 
-    {{! Список пациентов }}
+    @* Список пациентов *@
     <section class="patients-section card">
         <div class="patients-section__header">
             <div>
@@ -186,9 +187,8 @@
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(
-            LoadCohortAsync(CancellationToken.None),
-            LoadPatientsAsync(CancellationToken.None));
+        await LoadCohortAsync(CancellationToken.None);
+        await LoadPatientsAsync(CancellationToken.None);
     }
 
     // Загрузка данных 
@@ -257,9 +257,8 @@
     {
         _errorMessage = null;
 
-        await Task.WhenAll(
-            LoadCohortAsync(CancellationToken.None),
-            LoadPatientsAsync(CancellationToken.None));
+        await LoadCohortAsync(CancellationToken.None);
+        await LoadPatientsAsync(CancellationToken.None);
     }
 
     /// <summary>
@@ -279,15 +278,12 @@
         Navigation.NavigateTo($"/doctor/patients/{childId}");
     }
 
-    // Вспомогательные методы
-    /// <summary>
-    /// Очищает сообщение ошибки
-    /// </summary>
     private void ClearError()
     {
         _errorMessage = null;
     }
 
+    // Вспомогательные методы
     /// <summary>
     /// Форматирует процент TIR для KPI-карточки
     /// </summary>

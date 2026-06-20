@@ -44,7 +44,15 @@ public partial class AccessManagementPageViewModel : ObservableObject
     private string errorMessage = string.Empty;
 
     [ObservableProperty]
+    private string successMessage = string.Empty;
+
+    [ObservableProperty]
     private bool hasIncomingRequests;
+
+    public string InviteCodeExpiresText =>
+        InviteCodeExpiresAt == default
+            ? string.Empty
+            : $"Действует до {InviteCodeExpiresAt.ToLocalTime():dd.MM.yyyy HH:mm}";
 
     public AccessManagementPageViewModel(
         ILinkService linkService,
@@ -70,6 +78,27 @@ public partial class AccessManagementPageViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task CloseAsync()
+    {
+        try
+        {
+            var navigation = Shell.Current?.Navigation;
+            if (navigation?.ModalStack.Count > 0)
+            {
+                await navigation.PopModalAsync();
+            }
+            else
+            {
+                await (Shell.Current?.GoToAsync("..") ?? Task.CompletedTask);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка закрытия экрана управления доступом");
+        }
+    }
+
+    [RelayCommand]
     private async Task LoadAsync()
     {
         if (IsLoading)
@@ -81,6 +110,7 @@ public partial class AccessManagementPageViewModel : ObservableObject
         {
             IsLoading = true;
             ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
 
             var childId = await GetCurrentChildIdAsync();
 
@@ -125,6 +155,7 @@ public partial class AccessManagementPageViewModel : ObservableObject
         {
             IsLoading = true;
             ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
             ShowInviteCode = false;
 
             var childId = await GetCurrentChildIdAsync();
@@ -136,6 +167,7 @@ public partial class AccessManagementPageViewModel : ObservableObject
                 InviteCodeExpiresAt = result.ExpiresAt;
                 InviteCodeTargetRole = "Parent";
                 ShowInviteCode = true;
+                SuccessMessage = "Код готов. Передайте его родителю или скопируйте.";
 
                 _logger.LogInformation("Сгенерирован код приглашения для родителя: {Code}", result.DisplayCode);
             }
@@ -171,6 +203,7 @@ public partial class AccessManagementPageViewModel : ObservableObject
         {
             IsLoading = true;
             ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
             ShowInviteCode = false;
 
             var childId = await GetCurrentChildIdAsync();
@@ -182,6 +215,7 @@ public partial class AccessManagementPageViewModel : ObservableObject
                 InviteCodeExpiresAt = result.ExpiresAt;
                 InviteCodeTargetRole = "Doctor";
                 ShowInviteCode = true;
+                SuccessMessage = "Код готов. Передайте его врачу или скопируйте.";
 
                 _logger.LogInformation("Сгенерирован код приглашения для врача: {Code}", result.DisplayCode);
             }
@@ -210,11 +244,15 @@ public partial class AccessManagementPageViewModel : ObservableObject
     {
         try
         {
-            var result = await _linkService.RemoveParentLinkAsync(linkId);
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            var childId = await GetCurrentChildIdAsync();
+            var result = await _linkService.RemoveParentLinkAsync(childId, linkId);
 
             if (result.Success)
             {
                 ParentLinks = ParentLinks.Where(l => l.LinkId != linkId).ToList();
+                SuccessMessage = "Связь с родителем удалена.";
                 _logger.LogInformation("Связь с родителем {LinkId} удалена", linkId);
             }
             else
@@ -234,11 +272,15 @@ public partial class AccessManagementPageViewModel : ObservableObject
     {
         try
         {
-            var result = await _linkService.RemoveDoctorLinkAsync(linkId);
+            ErrorMessage = string.Empty;
+            SuccessMessage = string.Empty;
+            var childId = await GetCurrentChildIdAsync();
+            var result = await _linkService.RemoveDoctorLinkAsync(childId, linkId);
 
             if (result.Success)
             {
                 DoctorLinks = DoctorLinks.Where(l => l.LinkId != linkId).ToList();
+                SuccessMessage = "Связь с врачом удалена.";
                 _logger.LogInformation("Связь с врачом {LinkId} удалена", linkId);
             }
             else
@@ -304,11 +346,12 @@ public partial class AccessManagementPageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopyInviteCode()
+    private async Task CopyInviteCode()
     {
         if (!string.IsNullOrEmpty(InviteCode))
         {
-            Clipboard.Default.SetTextAsync(InviteCode);
+            await Clipboard.Default.SetTextAsync(InviteCode);
+            SuccessMessage = "Код скопирован.";
             _logger.LogInformation("Код приглашения скопирован в буфер обмена");
         }
     }
@@ -318,5 +361,11 @@ public partial class AccessManagementPageViewModel : ObservableObject
     {
         ShowInviteCode = false;
         InviteCode = string.Empty;
+        SuccessMessage = string.Empty;
+    }
+
+    partial void OnInviteCodeExpiresAtChanged(DateTime value)
+    {
+        OnPropertyChanged(nameof(InviteCodeExpiresText));
     }
 }

@@ -261,24 +261,22 @@ namespace SugarGuard.Application.Dashboard
         {
             var safeLimit = Math.Clamp(limit, 1, 500);
 
-            // Четыре источника запрашиваются параллельно
-            var measurementsTask = _db.Measurements
-    .AsNoTracking()
-    .Where(m => m.ChildId == childId
-             && m.MeasurementTime >= from
-             && m.MeasurementTime <= to)
-    // Проецируем в анонимный тип
-    .Select(m => new
-    {
-        m.MeasurementId,
-        m.MeasurementTime,
-        m.GlucoseValue,
-        m.DataSource,
-        m.Notes
-    })
-    .ToListAsync(cancellationToken);
+            var measurements = await _db.Measurements
+                .AsNoTracking()
+                .Where(m => m.ChildId == childId
+                         && m.MeasurementTime >= from
+                         && m.MeasurementTime <= to)
+                .Select(m => new
+                {
+                    m.MeasurementId,
+                    m.MeasurementTime,
+                    m.GlucoseValue,
+                    m.DataSource,
+                    m.Notes
+                })
+                .ToListAsync(cancellationToken);
 
-            var snacksTask = _db.SnackConsumptionLogs
+            var snacks = await _db.SnackConsumptionLogs
                 .AsNoTracking()
                 .Where(s => s.ChildId == childId
                          && s.ConsumedAt >= from
@@ -294,8 +292,7 @@ namespace SugarGuard.Application.Dashboard
                 })
                 .ToListAsync(cancellationToken);
 
-            // Критические алерты
-            var alertsTask = _db.Measurements
+            var alerts = await _db.Measurements
                 .AsNoTracking()
                 .Where(m => m.ChildId == childId
                          && m.MeasurementTime >= from
@@ -315,16 +312,7 @@ namespace SugarGuard.Application.Dashboard
                 })
                 .ToListAsync(cancellationToken);
 
-            await Task.WhenAll(measurementsTask, snacksTask, alertsTask);
-
-            var measurements = await measurementsTask;
-            var snacks = await snacksTask;
-            var alerts = await alertsTask;
-
-            // Обогащаем измерения в памяти
-            var rawMeasurements = await measurementsTask; 
-
-            var enrichedMeasurements = rawMeasurements.Select(m => new TimelineEventDto
+            var enrichedMeasurements = measurements.Select(m => new TimelineEventDto
             {
                 EventId = m.MeasurementId, 
                 EventType = TimelineEventType.Measurement,

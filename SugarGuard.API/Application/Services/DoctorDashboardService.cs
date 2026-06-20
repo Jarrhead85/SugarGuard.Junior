@@ -74,12 +74,11 @@ public sealed class DoctorDashboardService : IDoctorDashboardService
             })
             .ToListAsync(cancellationToken);
 
-        // Последний замер на каждого пациента
-        var latestMeasurements = await db.Measurements
+        // Последний замер на каждого пациента. Не используем GroupBy + First()
+        // в SQL-проекции: в EF Core/Npgsql это может падать с EmptyProjectionMember.
+        var measurementSnapshots = await db.Measurements
             .AsNoTracking()
             .Where(m => linkedChildIds.Contains(m.ChildId))
-            .GroupBy(m => m.ChildId)
-            .Select(g => g.OrderByDescending(m => m.MeasurementTime).First())
             .Select(m => new
             {
                 m.ChildId,
@@ -87,6 +86,12 @@ public sealed class DoctorDashboardService : IDoctorDashboardService
                 m.MeasurementTime
             })
             .ToListAsync(cancellationToken);
+
+        var latestByChild = measurementSnapshots
+            .GroupBy(m => m.ChildId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(m => m.MeasurementTime).First());
 
         // Замеры за последние 7 дней для расчёта TIR и критических событий
         var recentMeasurements = await db.Measurements
@@ -116,9 +121,6 @@ public sealed class DoctorDashboardService : IDoctorDashboardService
         var recentByChild = recentMeasurements
             .GroupBy(m => m.ChildId)
             .ToDictionary(g => g.Key, g => g.ToList());
-
-        var latestByChild = latestMeasurements
-            .ToDictionary(m => m.ChildId);
 
         var result = children.Select(child =>
         {

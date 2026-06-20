@@ -21,6 +21,7 @@ public partial class ProfilePageViewModel : ObservableObject
     private readonly ISyncService _syncService;
     private readonly IEditProfilePageFactory _editProfilePageFactory;
     private readonly IDiabetesSettingsPageFactory _diabetesSettingsPageFactory;
+    private readonly IAccessManagementPageFactory _accessManagementPageFactory;
     private readonly IApiClient _apiClient;
     private readonly IAuthenticationService _authenticationService;
     private readonly IThemeService _themeService;
@@ -102,6 +103,7 @@ public partial class ProfilePageViewModel : ObservableObject
         ISyncService syncService,
         IEditProfilePageFactory editProfilePageFactory,
         IDiabetesSettingsPageFactory diabetesSettingsPageFactory,
+        IAccessManagementPageFactory accessManagementPageFactory,
         IApiClient apiClient,
         IAuthenticationService authenticationService,
         IThemeService themeService)
@@ -112,6 +114,7 @@ public partial class ProfilePageViewModel : ObservableObject
         _syncService = syncService;
         _editProfilePageFactory = editProfilePageFactory;
         _diabetesSettingsPageFactory = diabetesSettingsPageFactory;
+        _accessManagementPageFactory = accessManagementPageFactory;
         _apiClient = apiClient;
         _authenticationService = authenticationService;
         _themeService = themeService;
@@ -228,7 +231,8 @@ public partial class ProfilePageViewModel : ObservableObject
     {
         try
         {
-            await Shell.Current.GoToAsync("accessmanagementpage");
+            var page = _accessManagementPageFactory.Create();
+            await Shell.Current.Navigation.PushModalAsync(page);
         }
         catch (Exception ex)
         {

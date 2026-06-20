@@ -22,8 +22,7 @@ public sealed partial class SugarGuardApiService
         int     limit                         = 50,
         CancellationToken cancellationToken   = default)
     {
-        var users = await GetAdminUsersAsync(role, cancellationToken);
-        return users.Take(Math.Max(0, limit)).ToList();
+        return await GetAdminUsersAsync(role, limit, cancellationToken);
     }
 
     private static SystemStatsVm MapAdminSystemStats(AdminSystemStatsDto dto) => new()

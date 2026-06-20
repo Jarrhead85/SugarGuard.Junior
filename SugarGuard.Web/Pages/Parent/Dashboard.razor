@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Parent")]
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using SugarGuard.Shared.Enums
 @using SugarGuard.Web.Services
@@ -30,6 +31,9 @@
             <span class="child-banner-glucose-val">@_currentGlucose.ToString("F1")</span>
             <span class="child-banner-glucose-unit">ммоль/л</span>
         </div>
+        <button class="btn btn--ghost btn--sm" @onclick='() => Navigation.NavigateTo("/parent/link-child")'>
+            Привязать ещё
+        </button>
     }
     else
     {
@@ -302,7 +306,7 @@
                 </div>
             </div>
             <button class="btn btn--soft btn--sm" style="margin-top:var(--spacing-3);width:100%"
-                    @onclick='() => ShowNotice("Целевые параметры будут редактироваться после привязки ребёнка. Сейчас показаны безопасные базовые значения.")'>
+                    @onclick='() => ShowNotice("Редактирование целевых параметров будет доступно в следующем обновлении. Сейчас показаны сохранённые или базовые значения.")'>
                 Изменить цели
             </button>
         </div>
@@ -717,7 +721,7 @@
             </div>
         </div>
         <button class="btn btn--ghost btn--sm" style="align-self:flex-start"
-                @onclick='() => ShowNotice("Редактирование профиля ребёнка появится после привязки мобильного приложения.")'>Редактировать</button>
+                @onclick='() => ShowNotice("Редактирование профиля ребёнка будет доступно в следующем обновлении. Основные данные уже загружаются из профиля ребёнка.")'>Редактировать</button>
     </div>
 
     <div class="grid-2">
@@ -988,7 +992,13 @@
         try
         {
             var children = await Api.GetMyChildrenAsync(CancellationToken.None);
-            var childId = children.FirstOrDefault()?.ChildId ?? Guid.Empty;
+            var requestedChildId = GetRequestedChildId();
+            var selectedChild = requestedChildId.HasValue
+                ? children.FirstOrDefault(c => c.ChildId == requestedChildId.Value)
+                : null;
+
+            selectedChild ??= children.FirstOrDefault();
+            var childId = selectedChild?.ChildId ?? Guid.Empty;
 
             if (childId == Guid.Empty)
             {
@@ -998,20 +1008,14 @@
             }
 
             _hasChild = true;
+            ApplyChildProfile(selectedChild!);
 
-            var summaryTask = Api.GetDashboardSummaryAsync(childId, CancellationToken.None);
-            var profileTask = Api.GetChildProfileAsync(childId, CancellationToken.None);
-            var statsTask = Api.GetStatisticsVmAsync(childId, "7d", CancellationToken.None);
-            var timelineTask = Api.GetTimelineAsync(childId, DateTime.UtcNow.AddDays(-7), DateTime.UtcNow, CancellationToken.None);
-            var measurementsTask = Api.GetMeasurementsAsync(childId, DateTime.UtcNow.AddDays(-1), DateTime.UtcNow, CancellationToken.None);
+            // Профиль ребёнка: грузим первым, чтобы шапка не оставалась с дефолтным текстом.
+            var profile = await Api.GetChildProfileAsync(childId, CancellationToken.None);
+            if (profile is not null)
+                ApplyChildProfile(profile);
 
-            await Task.WhenAll(summaryTask, profileTask, statsTask, timelineTask, measurementsTask);
-
-            var summary = summaryTask.Result;
-            var profile = profileTask.Result;
-            var stats = statsTask.Result;
-
-            // Метрики из сводки
+            var summary = await Api.GetDashboardSummaryAsync(childId, CancellationToken.None);
             if (summary.LatestGlucose.HasValue)
             {
                 _currentGlucose = (double)summary.LatestGlucose.Value;
@@ -1025,7 +1029,7 @@
 
             _totalMeas = summary.TotalMeasurements;
 
-            // Метрики из статистики
+            var stats = await Api.GetStatisticsVmAsync(childId, "7d", CancellationToken.None);
             if (stats is not null)
             {
                 _tirNormal = (int)Math.Round(stats.TimeInTargetRange);
@@ -1035,19 +1039,11 @@
                 _totalMeas = stats.TotalMeasurements;
             }
 
-            // Профиль ребёнка
-            if (profile is not null)
-            {
-                var age = DateTime.Today.Year - profile.DateOfBirth.Year;
-                if (profile.DateOfBirth > DateOnly.FromDateTime(DateTime.Today).AddYears(-age)) age--;
-
-                _childProfile.Name = profile.FullName;
-                _childProfile.Age = age.ToString();
-                _childProfile.DiabetesType = profile.DiabetesType;
-            }
-
-            // Уведомления из таймлайна
-            var alerts = timelineTask.Result;
+            var alerts = await Api.GetTimelineAsync(
+                childId,
+                DateTime.UtcNow.AddDays(-7),
+                DateTime.UtcNow,
+                CancellationToken.None);
             if (alerts.Count > 0)
             {
                 _allAlerts = alerts
@@ -1071,7 +1067,13 @@
             }
 
             _measurements.Clear();
-            _measurements.AddRange(measurementsTask.Result
+            var measurements = await Api.GetMeasurementsAsync(
+                childId,
+                DateTime.UtcNow.AddDays(-1),
+                DateTime.UtcNow,
+                CancellationToken.None);
+
+            _measurements.AddRange(measurements
                 .OrderByDescending(m => m.MeasurementTime)
                 .Select(m => new MeasurementItem(
                     m.MeasurementTime.ToLocalTime().ToString("HH:mm"),
@@ -1086,6 +1088,32 @@
         {
             Logger.LogWarning(ex, "Ошибка загрузки данных дашборда");
         }
+    }
+
+    private Guid? GetRequestedChildId()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        return query.TryGetValue("childId", out var value)
+               && Guid.TryParse(value.FirstOrDefault(), out var childId)
+            ? childId
+            : null;
+    }
+
+    private void ApplyChildProfile(ChildProfileVm profile)
+    {
+        var age = DateTime.Today.Year - profile.DateOfBirth.Year;
+        if (profile.DateOfBirth > DateOnly.FromDateTime(DateTime.Today).AddYears(-age))
+            age--;
+
+        _childProfile.Name = string.IsNullOrWhiteSpace(profile.FullName)
+            ? "Ребёнок"
+            : profile.FullName;
+        _childProfile.Age = age >= 0 ? age.ToString() : "—";
+        _childProfile.DiabetesType = string.IsNullOrWhiteSpace(profile.DiabetesType)
+            ? "—"
+            : profile.DiabetesType;
     }
 
     private static string GetRelativeTime(DateTime utcTime)

@@ -1,54 +1,308 @@
 @page "/admin/sync-logs"
-@using static SugarGuard.Web.Services.SugarGuardApiService
 @attribute [Authorize(Roles = "Admin,SupportAdmin")]
-@layout Layout.AdminLayout
+@layout DashboardLayout
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using System.Globalization
+
 @inject SugarGuardApiService Api
 
-<h1>Sync Logs</h1>
-@if (!string.IsNullOrWhiteSpace(_errorMessage))
-{
-    <div class="error-message">@_errorMessage</div>
-}
-<div class="panel">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Entity</th>
-                <th>Status</th>
-                <th>Conflict</th>
-                <th>Error</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var item in _logs)
+<PageTitle>Sync Logs — SugarGuard Admin</PageTitle>
+
+<div class="admin-ops-page">
+    <PageHeader Eyebrow="Администрирование"
+                Title="Журнал синхронизации"
+                Subtitle="Контроль очереди синхронизации MAUI-клиента, конфликтов и ошибок обмена данными.">
+        <TrailingContent>
+            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="admin-alert admin-alert--@_messageTone">@_message</div>
+    }
+
+    <section class="admin-kpi-grid" aria-label="Сводка синхронизации">
+        <StatCard Label="Записей"
+                  Value="@_logs.Count.ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="В текущей выборке"
+                  Status="neutral" />
+        <StatCard Label="Конфликтов"
+                  Value="@_logs.Count(x => x.IsConflict).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Требуют внимания"
+                  Status="@(_logs.Any(x => x.IsConflict) ? "warning" : "safe")" />
+        <StatCard Label="Ошибок"
+                  Value="@_logs.Count(x => !string.IsNullOrWhiteSpace(x.Error)).ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Есть текст ошибки"
+                  Status="@(_logs.Any(x => !string.IsNullOrWhiteSpace(x.Error)) ? "danger" : "safe")" />
+        <StatCard Label="Последняя запись"
+                  Value="@GetLatestLabel()"
+                  Subtitle="Локальное время"
+                  Status="neutral" />
+    </section>
+
+    <section class="admin-panel">
+        <SectionHeader Title="Фильтр и действия"
+                       Description="Показываем только доступные администратору записи. Конфликты можно разрешить вручную." />
+
+        <div class="admin-toolbar">
+            <label class="admin-check">
+                <input type="checkbox" @bind="_onlyConflicts" />
+                Только конфликты
+            </label>
+
+            <label class="admin-field admin-field--compact">
+                <span>Лимит</span>
+                <select class="admin-select" @bind="_limit">
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+            </label>
+
+            <button class="admin-btn admin-btn--primary" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                Применить
+            </button>
+
+            <button class="admin-btn admin-btn--ghost"
+                    type="button"
+                    @onclick="ResolveAllAsync"
+                    disabled="@(_isResolving || !_logs.Any(x => x.IsConflict))">
+                @(_isResolving ? "Разрешаем..." : "Разрешить все конфликты")
+            </button>
+        </div>
+    </section>
+
+    <section class="admin-panel">
+        <SectionHeader Title="Записи синхронизации"
+                       Description="Последние операции обмена данными между мобильным приложением и сервером.">
+            <TrailingContent>
+                <span class="admin-pill">Показано: @_logs.Count</span>
+            </TrailingContent>
+        </SectionHeader>
+
+        @if (_isLoading)
         {
-            <tr>
-                <td>@item.CreatedAt.ToLocalTime()</td>
-                <td>@item.EntityType</td>
-                <td><span class="chip">@item.Status</span></td>
-                <td>@(item.IsConflict ? "Yes" : "No")</td>
-                <td>@(item.Error ?? "-")</td>
-            </tr>
+            <div class="admin-empty">Загружаем журнал...</div>
         }
-        </tbody>
-    </table>
+        else if (_logs.Count == 0)
+        {
+            <div class="admin-empty">
+                <strong>Записей нет</strong>
+                <span>Для выбранного фильтра ничего не найдено.</span>
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Время</th>
+                            <th>ChildId</th>
+                            <th>Сущность</th>
+                            <th>Статус</th>
+                            <th>Конфликт</th>
+                            <th>Ошибка</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _logs)
+                        {
+                            <tr @key="item.SyncLogId">
+                                <td>@FormatDate(item.CreatedAt)</td>
+                                <td><code>@ShortId(item.ChildId)</code></td>
+                                <td>
+                                    <strong>@item.EntityType</strong>
+                                    <span class="admin-muted">@ShortText(item.EntityId)</span>
+                                </td>
+                                <td><span class="admin-pill admin-pill--@GetStatusTone(item.Status)">@item.Status</span></td>
+                                <td>@(item.IsConflict ? "Да" : "Нет")</td>
+                                <td class="admin-error-cell">@(string.IsNullOrWhiteSpace(item.Error) ? "—" : item.Error)</td>
+                                <td class="admin-actions-cell">
+                                    @if (item.IsConflict)
+                                    {
+                                        <button class="admin-btn admin-btn--sm admin-btn--soft"
+                                                type="button"
+                                                @onclick="() => ResolveOneAsync(item.SyncLogId)"
+                                                disabled="@_isResolving">
+                                            Разрешить
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>
 
 @code {
-    private IReadOnlyList<SyncLogVm> _logs = [];
-    private string? _errorMessage;
+    private List<SyncLogVm> _logs = [];
+    private bool _isLoading = true;
+    private bool _isResolving;
+    private bool _onlyConflicts;
+    private int _limit = 200;
+    private string? _message;
+    private string _messageTone = "info";
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
         try
         {
-            _logs = await Api.GetSyncLogsAsync();
+            _isLoading = true;
+            _message = null;
+            var items = await Api.GetSyncLogsAsync(onlyConflicts: _onlyConflicts, limit: _limit);
+            _logs = items?.OrderByDescending(x => x.CreatedAt).ToList() ?? [];
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
             _logs = [];
+            ShowMessage($"Не удалось загрузить журнал синхронизации: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
+
+    private async Task ResolveOneAsync(Guid syncLogId)
+    {
+        try
+        {
+            _isResolving = true;
+            var resolved = await Api.ResolveSyncConflictAsync(syncLogId);
+            if (resolved is null)
+            {
+                ShowMessage("Конфликт не удалось разрешить. Возможно, запись уже обработана.", "danger");
+                return;
+            }
+
+            ShowMessage("Конфликт разрешён.", "success");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Не удалось разрешить конфликт: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isResolving = false;
+        }
+    }
+
+    private async Task ResolveAllAsync()
+    {
+        try
+        {
+            _isResolving = true;
+            var count = await Api.ResolveAllSyncConflictsAsync();
+            ShowMessage($"Разрешено конфликтов: {count}.", "success");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"Не удалось разрешить конфликты: {ex.Message}", "danger");
+        }
+        finally
+        {
+            _isResolving = false;
+        }
+    }
+
+    private void ShowMessage(string message, string tone)
+    {
+        _message = message;
+        _messageTone = tone;
+    }
+
+    private string GetLatestLabel()
+    {
+        if (_logs.Count == 0)
+        {
+            return "—";
+        }
+
+        return _logs.Max(x => x.CreatedAt).ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatDate(DateTime value) =>
+        value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+
+    private static string ShortId(Guid value) => value.ToString("N")[..8];
+
+    private static string ShortText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+
+        return value.Length <= 18 ? value : $"{value[..18]}...";
+    }
+
+    private static string GetStatusTone(string? status)
+    {
+        var normalized = status?.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "completed" or "synced" or "success" => "success",
+            "failed" or "error" or "conflict" => "danger",
+            "pending" or "queued" => "warning",
+            _ => "neutral"
+        };
+    }
 }
+
+<style>
+    .admin-ops-page { display: grid; gap: 22px; }
+    .admin-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+    .admin-panel { background: var(--color-surface, rgba(255,255,255,.88)); border: 1px solid var(--color-border, rgba(22,33,62,.10)); border-radius: 24px; padding: 22px; box-shadow: var(--shadow-sm, 0 14px 36px rgba(22,33,62,.08)); }
+    .sg-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .sg-section-header h2 { margin: 0; font-size: 22px; color: var(--color-text, #16213E); }
+    .sg-section-header p { margin: 6px 0 0; color: var(--color-text-muted, #667694); font-size: 14px; }
+    .admin-toolbar { display: flex; align-items: end; gap: 14px; flex-wrap: wrap; }
+    .admin-field { display: grid; gap: 7px; color: var(--color-text-faint, #96A2B8); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .admin-field--compact { min-width: 140px; }
+    .admin-select { min-height: 42px; padding: 0 14px; border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 14px; background: #fff; color: var(--color-text, #16213E); font: inherit; }
+    .admin-check { min-height: 42px; display: inline-flex; align-items: center; gap: 10px; color: var(--color-text, #16213E); font-weight: 700; }
+    .admin-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 18px; border: 1px solid transparent; border-radius: 16px; font: inherit; font-weight: 800; cursor: pointer; }
+    .admin-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .admin-btn--primary { background: linear-gradient(135deg, var(--color-primary, #1B8E8B), #2D7EE2); color: #fff; }
+    .admin-btn--soft { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-btn--ghost { background: transparent; color: var(--color-text-muted, #667694); border-color: var(--color-border, rgba(22,33,62,.12)); }
+    .admin-btn--sm { min-height: 32px; padding: 0 12px; border-radius: 12px; font-size: 13px; }
+    .admin-alert { padding: 14px 18px; border-radius: 18px; font-weight: 700; border: 1px solid transparent; }
+    .admin-alert--success { color: #1B8E8B; background: rgba(27,142,139,.12); border-color: rgba(27,142,139,.2); }
+    .admin-alert--danger { color: #DB5967; background: rgba(219,89,103,.12); border-color: rgba(219,89,103,.24); }
+    .admin-alert--info { color: var(--color-text-muted, #667694); background: rgba(102,118,148,.10); border-color: rgba(102,118,148,.18); }
+    .admin-table-wrap { overflow-x: auto; }
+    .admin-table { width: 100%; min-width: 1040px; border-collapse: collapse; }
+    .admin-table th, .admin-table td { padding: 14px 16px; border-bottom: 1px solid var(--color-divider, rgba(22,33,62,.08)); text-align: left; vertical-align: top; }
+    .admin-table th { color: var(--color-text-faint, #96A2B8); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+    .admin-muted { display: block; margin-top: 4px; color: var(--color-text-faint, #96A2B8); font-size: 12px; }
+    .admin-error-cell { max-width: 360px; color: var(--color-text-muted, #667694); }
+    .admin-actions-cell { text-align: right; white-space: nowrap; }
+    .admin-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(102,118,148,.11); color: var(--color-text-muted, #667694); font-size: 12px; font-weight: 800; }
+    .admin-pill--success { background: rgba(27,142,139,.12); color: var(--color-primary, #1B8E8B); }
+    .admin-pill--warning { background: rgba(227,163,43,.16); color: #9A6A00; }
+    .admin-pill--danger { background: rgba(219,89,103,.13); color: #DB5967; }
+    .admin-pill--neutral { background: rgba(102,118,148,.11); color: var(--color-text-muted, #667694); }
+    .admin-empty { min-height: 180px; display: grid; place-items: center; gap: 8px; text-align: center; color: var(--color-text-muted, #667694); border: 1px dashed var(--color-border, rgba(22,33,62,.14)); border-radius: 20px; }
+    .admin-empty strong { color: var(--color-text, #16213E); font-size: 18px; }
+    @@media (max-width: 1100px) { .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @@media (max-width: 700px) { .admin-kpi-grid { grid-template-columns: 1fr; } .admin-panel { padding: 18px; } .admin-toolbar { align-items: stretch; } .admin-btn, .admin-field { width: 100%; } }
+</style>

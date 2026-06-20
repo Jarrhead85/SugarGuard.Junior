@@ -389,6 +389,7 @@ builder.Services.AddScoped<IParentDashboardService, ParentDashboardService>();
 builder.Services.AddScoped<IDoctorDashboardService, DoctorDashboardService>();
 builder.Services.AddScoped<IGlucoseStatusService, GlucoseStatusService>();
 builder.Services.AddScoped<IGlucoseUiStateService, GlucoseUiStateService>();
+builder.Services.AddScoped<IStatisticsCalculationService, StatisticsCalculationService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IExportJobService, ExportJobService>();
 builder.Services.AddScoped<IPdfExportService, PdfExportService>();
