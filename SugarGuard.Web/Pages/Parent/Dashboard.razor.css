@@ -48,6 +48,25 @@
     display: block;
 }
 
+.child-banner-select {
+    width: fit-content;
+    max-width: 240px;
+    margin-top: 6px;
+    padding: 6px 28px 6px 10px;
+    border: 1px solid var(--color-divider);
+    border-radius: 999px;
+    background: var(--color-surface-2, #f6fbfb);
+    color: var(--color-text);
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+}
+
+.child-banner-select:focus-visible {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(27, 142, 139, 0.18);
+}
+
 .child-banner-glucose {
     display: inline-flex;
     align-items: center;
@@ -1293,7 +1312,21 @@
     }
 
     .child-banner {
+        flex-wrap: wrap;
         padding: 10px 12px;
+    }
+
+    .child-banner-info {
+        min-width: 0;
+        flex: 1 1 180px;
+    }
+
+    .child-banner-glucose {
+        margin-left: 0;
+    }
+
+    .child-banner-select {
+        max-width: 100%;
     }
 }
 

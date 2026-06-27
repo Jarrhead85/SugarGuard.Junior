@@ -92,6 +92,117 @@ public class BackpackRepository : BaseRepository<BackpackItem>, IBackpackReposit
         }
     }
 
+    public async Task UpsertSyncedSnackAsync(
+        string backpackItemId,
+        string childId,
+        string snackName,
+        double breadUnits,
+        DateTime createdAt)
+    {
+        if (string.IsNullOrWhiteSpace(backpackItemId))
+            return;
+
+        var encryptedSnackName = await _cryptoService.EncryptAsync(snackName);
+        var encryptedBreadUnits = await EncryptBreadUnitsAsync(breadUnits);
+
+        await using var ctx = await CreateDbContextAsync();
+        var existing = await ctx.Set<BackpackItem>()
+            .FirstOrDefaultAsync(x => x.BackpackItemId == backpackItemId);
+
+        if (existing is null)
+        {
+            await ctx.Set<BackpackItem>().AddAsync(new BackpackItem
+            {
+                BackpackItemId = backpackItemId,
+                ChildId = childId,
+                EncryptedSnackName = encryptedSnackName,
+                EncryptedBreadUnits = encryptedBreadUnits,
+                CreatedAt = createdAt == default ? DateTime.UtcNow : createdAt,
+                IsSynced = true
+            });
+        }
+        else
+        {
+            existing.ChildId = childId;
+            existing.EncryptedSnackName = encryptedSnackName;
+            existing.EncryptedBreadUnits = encryptedBreadUnits;
+            existing.IsSynced = true;
+        }
+
+        await ctx.SaveChangesAsync();
+    }
+
+    public async Task<bool> MarkAsSyncedAsync(string backpackItemId)
+    {
+        await using var ctx = await CreateDbContextAsync();
+        var item = await ctx.Set<BackpackItem>()
+            .FirstOrDefaultAsync(x => x.BackpackItemId == backpackItemId);
+
+        if (item is null)
+            return false;
+
+        item.IsSynced = true;
+        await ctx.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<int> RemoveSyncedItemsMissingFromServerAsync(string childId, IReadOnlySet<string> serverItemIds)
+    {
+        await using var ctx = await CreateDbContextAsync();
+        var staleItems = await ctx.Set<BackpackItem>()
+            .Where(x => x.ChildId == childId && x.IsSynced && !serverItemIds.Contains(x.BackpackItemId))
+            .ToListAsync();
+
+        if (staleItems.Count == 0)
+            return 0;
+
+        ctx.Set<BackpackItem>().RemoveRange(staleItems);
+        await ctx.SaveChangesAsync();
+        return staleItems.Count;
+    }
+
+    public async Task<bool> RemoveOrphanedUnsyncedDuplicateAsync(
+        string childId,
+        string snackName,
+        double breadUnits)
+    {
+        await using var ctx = await CreateDbContextAsync();
+        var pendingInsertIds = await ctx.Set<SyncQueueItem>()
+            .AsNoTracking()
+            .Where(item => !item.IsSynced &&
+                           item.EntityType == "BackpackItem" &&
+                           item.OperationType == SyncOperationType.Insert)
+            .Select(item => item.EntityId)
+            .ToListAsync();
+
+        var candidates = await ctx.Set<BackpackItem>()
+            .Where(item => item.ChildId == childId &&
+                           !item.IsSynced &&
+                           !pendingInsertIds.Contains(item.BackpackItemId))
+            .OrderBy(item => item.CreatedAt)
+            .ToListAsync();
+
+        foreach (var candidate in candidates)
+        {
+            var candidateName = await GetDecryptedSnackNameAsync(candidate);
+            var candidateBreadUnits = await GetDecryptedBreadUnitsAsync(candidate);
+            if (!string.Equals(candidateName.Trim(), snackName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                Math.Abs(candidateBreadUnits - breadUnits) > 0.001)
+            {
+                continue;
+            }
+
+            ctx.Set<BackpackItem>().Remove(candidate);
+            await ctx.SaveChangesAsync();
+            Logger.LogInformation(
+                "Удалён устаревший локальный дубль перекуса {BackpackItemId}",
+                candidate.BackpackItemId);
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Удаляет перекус из рюкзака и добавляет в историю
     /// </summary>
@@ -136,6 +247,42 @@ public class BackpackRepository : BaseRepository<BackpackItem>, IBackpackReposit
             Logger.LogError(ex, " Ошибка при удалении перекуса: {Message}", ex.Message);
             throw;
         }
+    }
+
+    public async Task<bool> ConsumeSnackAsync(string backpackItemId, string childId, DateTime consumedAt)
+    {
+        await using var ctx = await CreateDbContextAsync();
+        var item = await ctx.Set<BackpackItem>()
+            .FirstOrDefaultAsync(x => x.BackpackItemId == backpackItemId && x.ChildId == childId);
+
+        if (item is null)
+            return false;
+
+        ctx.Set<SnackConsumptionLog>().Add(new SnackConsumptionLog
+        {
+            LogId = Guid.NewGuid().ToString(),
+            ChildId = childId,
+            EncryptedSnackName = item.EncryptedSnackName,
+            EncryptedBreadUnits = item.EncryptedBreadUnits,
+            ConsumedAt = consumedAt,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        ctx.Set<BackpackHistory>().Add(new BackpackHistory
+        {
+            HistoryId = Guid.NewGuid().ToString(),
+            ChildId = childId,
+            EncryptedSnackName = item.EncryptedSnackName,
+            EncryptedBreadUnits = item.EncryptedBreadUnits,
+            AddedAt = item.CreatedAt,
+            DeletedAt = consumedAt,
+            DeletedBy = "consumed_by_child",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        ctx.Set<BackpackItem>().Remove(item);
+        await ctx.SaveChangesAsync();
+        return true;
     }
 
     /// <summary>

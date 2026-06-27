@@ -25,10 +25,20 @@ public partial class HistoryPage : SwipeablePage
         {
             // Загружаем или обновляем историю при появлении страницы.
             await _viewModel.InitializeAsync();
+            _viewModel.ChartDrawable.InvalidateCallback = () =>
+                MainThread.BeginInvokeOnMainThread(() => HistoryChart?.Invalidate());
+            _viewModel.ChartDrawable.AttachHost(HistoryChart);
+            HistoryChart.Invalidate();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"HistoryPage OnAppearing error: {ex}");
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _viewModel.ChartDrawable.StopAnimation();
     }
 }

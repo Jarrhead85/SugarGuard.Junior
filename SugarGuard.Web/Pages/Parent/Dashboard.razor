@@ -1,12 +1,15 @@
 ﻿@page "/parent/dashboard"
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Parent")]
+@implements IDisposable
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using SugarGuard.Shared.Enums
 @using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
 @using SugarGuard.Web.Components.Shared
+@using System.Globalization
 @using System.Text.Json
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -14,6 +17,9 @@
 @inject ITokenStore TokenStore
 @inject ILogger<Dashboard> Logger
 @inject SugarGuardApiService Api
+@inject ICurrentUserService CurrentUser
+
+<PageTitle>Кабинет родителя — SugarGuard</PageTitle>
 
 @* Dashboard родителя *@
 
@@ -25,6 +31,18 @@
         <div class="child-banner-info">
             <span class="child-banner-name">@_childProfile.Name</span>
             <span class="child-banner-sub">@_childProfile.Age лет · @_childProfile.DiabetesType</span>
+            @if (_availableChildren.Count > 1)
+            {
+                <select class="child-banner-select"
+                        value="@_selectedChildId"
+                        aria-label="Выбрать ребёнка"
+                        @onchange="OnSelectedChildChangedAsync">
+                    @foreach (var child in _availableChildren)
+                    {
+                        <option value="@child.ChildId">@GetChildDisplayName(child)</option>
+                    }
+                </select>
+            }
         </div>
         <div class="child-banner-glucose @_currentGlucoseClass" aria-label="Текущий уровень глюкозы">
             <span class="pulse-dot" aria-hidden="true"></span>
@@ -120,8 +138,9 @@
         <StatCard Label="Глюкоза сейчас"
                   Value="@_currentGlucose.ToString("F1")"
                   Unit="ммоль/л"
-                  Subtitle="цель: 4.0–10.0"
-                  Delta="+0.4"
+                  Subtitle="@($"цель: {_targetMin:0.0}–{_targetMax:0.0}")"
+                  Delta="@_glucoseDeltaText"
+                  DeltaLabel="к предыдущему"
                   Variant="glucose" />
     </div>
 
@@ -149,11 +168,15 @@
             <div class="chart-legend" aria-hidden="true">
                 <span class="legend-item">
                     <span class="legend-dot" style="background:var(--color-glucose-normal)"></span>
-                    4.0–10.0
+                    @_targetMin.ToString("0.0")–@_targetMax.ToString("0.0")
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background:var(--color-glucose-warning)"></span>
                     Выше нормы
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot" style="background:var(--color-glucose-low, #3b82f6)"></span>
+                    Ниже нормы
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background:var(--color-glucose-danger)"></span>
@@ -290,7 +313,7 @@
             <div class="stats-list">
                 <div class="stats-row">
                     <span class="stats-label">Целевой диапазон</span>
-                    <strong>4.0–10.0</strong>
+                    <strong>@_targetMin.ToString("0.0")–@_targetMax.ToString("0.0")</strong>
                 </div>
                 <div class="stats-row">
                     <span class="stats-label">HbA1c (оценка)</span>
@@ -298,17 +321,56 @@
                 </div>
                 <div class="stats-row">
                     <span class="stats-label">Гипо порог</span>
-                    <strong style="color:var(--color-glucose-danger)">&lt;3.9</strong>
+                    <strong style="color:var(--color-glucose-danger)">&lt;@_targetMin.ToString("0.0")</strong>
                 </div>
                 <div class="stats-row">
                     <span class="stats-label">Гипер порог</span>
-                    <strong style="color:var(--color-glucose-warning)">&gt;13.9</strong>
+                    <strong style="color:var(--color-glucose-warning)">&gt;@_targetMax.ToString("0.0")</strong>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Коэффициент углеводов</span>
+                    <strong>1:@_carbRatio.ToString("0.#")</strong>
                 </div>
             </div>
             <button class="btn btn--soft btn--sm" style="margin-top:var(--spacing-3);width:100%"
-                    @onclick='() => ShowNotice("Редактирование целевых параметров будет доступно в следующем обновлении. Сейчас показаны сохранённые или базовые значения.")'>
+                    @onclick="OpenTargetEditor">
                 Изменить цели
             </button>
+            @if (_isTargetEditorOpen)
+            {
+                <div class="inline-editor inline-editor--compact" role="region" aria-label="Редактор целевых параметров">
+                    <div class="editor-grid">
+                        <div class="input-wrap">
+                            <label class="form-label" for="targetMin">Нижняя граница</label>
+                            <input id="targetMin" class="form-input" type="number" min="2" max="15" step="0.1"
+                                   @bind="_targetForm.Min" />
+                        </div>
+                        <div class="input-wrap">
+                            <label class="form-label" for="targetMax">Верхняя граница</label>
+                            <input id="targetMax" class="form-input" type="number" min="2" max="20" step="0.1"
+                                   @bind="_targetForm.Max" />
+                        </div>
+                        <div class="input-wrap">
+                            <label class="form-label" for="targetSensitivity">Чувствительность</label>
+                            <input id="targetSensitivity" class="form-input" type="number" min="0.1" max="20" step="0.1"
+                                   @bind="_targetForm.InsulinSensitivity" />
+                        </div>
+                        <div class="input-wrap">
+                            <label class="form-label" for="targetCarb">Углеводный коэффициент</label>
+                            <input id="targetCarb" class="form-input" type="number" min="0.1" max="50" step="0.1"
+                                   @bind="_targetForm.CarbRatio" />
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_targetFormError))
+                    {
+                        <div class="form-error">@_targetFormError</div>
+                    }
+                    <div class="editor-actions">
+                        <button class="btn btn--primary btn--sm" @onclick="SaveTargetSettingsAsync">Сохранить</button>
+                        <button class="btn btn--ghost btn--sm" @onclick="CancelTargetEdit">Отмена</button>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -338,10 +400,10 @@
             </div>
             <div style="display:flex;gap:var(--spacing-2);align-items:flex-end;padding-top:var(--spacing-5)">
                 <button class="btn btn--primary btn--sm"
-                        @onclick="ApplyMeasFilter"
+                        @onclick="ApplyMeasFilterAsync"
                         aria-label="Применить фильтры">Применить</button>
                 <button class="btn btn--ghost btn--sm"
-                        @onclick="ResetMeasFilter"
+                        @onclick="ResetMeasFilterAsync"
                         aria-label="Сбросить фильтры">Сегодня</button>
                 <button class="btn btn--ghost btn--sm"
                         @onclick="ExportCsvAsync"
@@ -633,72 +695,78 @@
                     <div class="card-sub">Рекомендации и назначения</div>
                 </div>
                 <button class="btn btn--primary btn--sm"
-                        @onclick='() => ShowNotice("Запрос врачу пока в разработке. Сейчас можно вести наблюдение, измерения и рюкзак ребёнка.")'>+ Запрос</button>
+                        @onclick="NavigateToAccessLinks">Управлять доступом</button>
             </div>
             <div class="note-list" role="list">
-                @foreach (var note in _doctorNotes)
+                @if (_doctorNotes.Count == 0)
                 {
-                    <div class="note" role="listitem">
-                        <div class="note-head">
-                            <span class="note-doctor">@note.Doctor</span>
-                            <time class="note-date">@note.Date</time>
-                        </div>
-                        <p class="note-text">@note.Text</p>
-                        <div class="note-tags" aria-label="Теги записки">
-                            @foreach (var tag in note.Tags)
-                            {
-                                <span class="note-tag">@tag</span>
-                            }
-                        </div>
+                    <div class="empty-state empty-state--compact" role="status">
+                        Назначения появятся здесь после записей врача в кабинете SugarGuard.
                     </div>
+                }
+                else
+                {
+                    @foreach (var note in _doctorNotes)
+                    {
+                        <div class="note" role="listitem">
+                            <div class="note-head">
+                                <span class="note-doctor">@note.Doctor</span>
+                                <time class="note-date">@note.Date</time>
+                            </div>
+                            <p class="note-text">@note.Text</p>
+                            <div class="note-tags" aria-label="Теги записки">
+                                @foreach (var tag in note.Tags)
+                                {
+                                    <span class="note-tag">@tag</span>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
             </div>
         </div>
 
-        @* Ближайший приём *@
+        @* Связанные врачи *@
         <div>
             <div class="card" style="margin-bottom:var(--spacing-4)">
-                <div class="card-title" style="margin-bottom:var(--spacing-3)">Ближайший приём</div>
-                <div class="appointment-card">
-                    <div class="appointment-date">
-                        <span class="appointment-day">15</span>
-                        <span class="appointment-month">июн</span>
+                <div class="card-head">
+                    <div>
+                        <div class="card-title">Доступ врачей</div>
+                        <div class="card-sub">Кто видит профиль ребёнка</div>
                     </div>
-                    <div class="appointment-info">
-                        <div class="appointment-doctor">Иванова М.С.</div>
-                        <div class="appointment-type"
-                             style="color:var(--color-text-muted);font-size:var(--font-size-xs)">
-                            Эндокринолог · 10:00
-                        </div>
-                    </div>
-                    <div style="display:flex;flex-direction:column;gap:var(--spacing-2)">
-                        <button class="btn btn--soft btn--sm"
-                                @onclick='() => ShowNotice("Перенос приёма пока в разработке.")'>Перенести</button>
-                        <button class="btn btn--ghost btn--sm"
-                                @onclick='() => ShowNotice("Отмена приёма пока в разработке.")'>Отменить</button>
-                    </div>
+                    <button class="btn btn--soft btn--sm" @onclick="NavigateToAccessLinks">Коды доступа</button>
                 </div>
+                @if (_linkedDoctors.Count == 0)
+                {
+                    <div class="empty-state empty-state--compact" role="status">
+                        Врач пока не привязан. Выдайте код врачу в разделе доступа.
+                    </div>
+                }
+                else
+                {
+                    <div class="settings-group" role="list">
+                        @foreach (var doctor in _linkedDoctors)
+                        {
+                            <div class="setting-row" role="listitem">
+                                <div class="doctor-avatar" aria-hidden="true">@GetInitials(doctor.EmailForLogin)</div>
+                                <div class="setting-text">
+                                    <div class="setting-label">@GetDisplayName(doctor.EmailForLogin, doctor.TelegramId)</div>
+                                    <div class="setting-desc">Подключён @doctor.LinkedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
 
             <div class="card">
-                <div class="card-title" style="margin-bottom:var(--spacing-3)">Мой врач</div>
-                <div style="display:flex;align-items:center;gap:var(--spacing-3);margin-bottom:var(--spacing-4)">
-                    <div class="doctor-avatar" aria-hidden="true">ИМ</div>
-                    <div>
-                        <div style="font-weight:600;font-size:var(--font-size-sm)">
-                            @_childProfile.Endocrinologist
-                        </div>
-                        <div style="font-size:var(--font-size-xs);color:var(--color-text-muted)">
-                            Эндокринолог, ГБУЗ №12
-                        </div>
-                    </div>
-                </div>
-                <div style="display:flex;gap:var(--spacing-2);flex-wrap:wrap">
-                    <button class="btn btn--primary btn--sm"
-                            @onclick='() => ShowNotice("Чат с врачом пока в разработке.")'>Написать</button>
-                    <button class="btn btn--ghost btn--sm"
-                            @onclick='() => ShowNotice("История обращений пока в разработке.")'>История обращений</button>
-                </div>
+                <div class="card-title" style="margin-bottom:var(--spacing-3)">Как подключить врача</div>
+                <p class="card-sub" style="line-height:1.55">
+                    Откройте раздел доступа, создайте код для роли «Врач» и передайте его специалисту.
+                    После активации врач увидит измерения, рюкзак и сможет оставлять рекомендации.
+                </p>
+                <button class="btn btn--primary btn--sm" style="margin-top:var(--spacing-4)"
+                        @onclick="NavigateToAccessLinks">Открыть доступы</button>
             </div>
         </div>
     </div>
@@ -714,15 +782,13 @@
             <p class="profile-sub">
                 @_childProfile.Age лет · @_childProfile.DiabetesType · Диагноз: @_childProfile.DiagnosisDate
             </p>
-            <div class="profile-chips">
-                <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
-                <span class="pchip">📞 @_childProfile.Contact</span>
-                <span class="pchip">📧 @_childProfile.Email</span>
-            </div>
+        <div class="profile-chips">
+            <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
+            <span class="pchip">📞 @_childProfile.Contact</span>
+            <span class="pchip">📧 @_childProfile.Email</span>
         </div>
-        <button class="btn btn--ghost btn--sm" style="align-self:flex-start"
-                @onclick='() => ShowNotice("Редактирование профиля ребёнка будет доступно в следующем обновлении. Основные данные уже загружаются из профиля ребёнка.")'>Редактировать</button>
     </div>
+</div>
 
     <div class="grid-2">
         @* Журнал инсулина *@
@@ -767,7 +833,7 @@
                 <tbody>
                     <tr>
                         <td>Целевой диапазон</td>
-                        <td style="font-weight:600;text-align:right">3.9–10.0 ммоль/л</td>
+                        <td style="font-weight:600;text-align:right">@_targetMin.ToString("0.0")–@_targetMax.ToString("0.0") ммоль/л</td>
                     </tr>
                     <tr>
                         <td>Средняя глюкоза (7 дней)</td>
@@ -783,11 +849,11 @@
                     </tr>
                     <tr>
                         <td>Коэффициент чувствительности</td>
-                        <td style="font-weight:600;text-align:right">1:2.5</td>
+                        <td style="font-weight:600;text-align:right">1:@_insulinSensitivity.ToString("0.#")</td>
                     </tr>
                     <tr>
                         <td>Углеводный коэффициент</td>
-                        <td style="font-weight:600;text-align:right">1:10 г/ед</td>
+                        <td style="font-weight:600;text-align:right">1:@_carbRatio.ToString("0.#") г/ед</td>
                     </tr>
                     <tr>
                         <td>TIR за 7 дней</td>
@@ -894,18 +960,18 @@
                     <div class="setting-row">
                         <div class="setting-text">
                             <div class="setting-label">Доступ другим</div>
-                            <div class="setting-desc">Пригласить второго родителя или врача</div>
+                            <div class="setting-desc">Коды привязки для второго родителя или врача</div>
                         </div>
                         <button class="btn btn--ghost btn--sm"
-                                @onclick='() => ShowNotice("Приглашение второго родителя или врача пока в разработке.")'>+ Пригласить</button>
+                                @onclick="NavigateToAccessLinks">Открыть</button>
                     </div>
                     <div class="setting-row">
                         <div class="setting-text">
                             <div class="setting-label">Смена пароля</div>
-                            <div class="setting-desc">Последнее изменение: 3 месяца назад</div>
+                            <div class="setting-desc">Отправить письмо для восстановления доступа</div>
                         </div>
                         <button class="btn btn--ghost btn--sm"
-                                @onclick='() => ShowNotice("Смена пароля пока в разработке.")'>Изменить</button>
+                                @onclick='() => Navigation.NavigateTo("/forgot-password")'>Изменить</button>
                     </div>
                 </div>
             </div>
@@ -916,9 +982,11 @@
 @code {
     // Состояние навигации
     private string _activeTab = "overview";
-    private int _chartRange = 12;
+    private int _chartRange = 24;
     private bool _hasChild;
+    private Guid _selectedChildId;
     private string? _noticeMessage;
+    private List<ChildProfileVm> _availableChildren = new();
 
     // Состояние фильтров
     private string _alertFilter = "";
@@ -926,11 +994,11 @@
     private DateTime _measFilterDate = DateTime.Today;
     private int _measPage = 1;
     private const int MeasPageSize = 10;
-    private const string BackpackStorageKey = "sg-parent-backpack-v1";
     private const string ParentProfileStorageKey = "sg-parent-profile-v1";
 
     // Живые данные
     private double _currentGlucose;
+    private string? _glucoseDeltaText;
     private string _currentGlucoseClass = "normal";
     private int _tirNormal;
     private int _tirHigh;
@@ -949,6 +1017,14 @@
     private string? _parentProfileError;
     private ParentProfileForm _parentProfileForm = new();
     private ParentProfile _parentProfile = new();
+    private bool _isTargetEditorOpen;
+    private string? _targetFormError;
+    private TargetSettingsForm _targetForm = new();
+    private decimal _targetMin = 4.0m;
+    private decimal _targetMax = 10.0m;
+    private decimal _insulinSensitivity = 2.5m;
+    private decimal _carbRatio = 10.0m;
+    private readonly List<LinkedAccessUserVm> _linkedDoctors = new();
 
     // Вкладки / панели
     private string TabClass(string tab) => _activeTab == tab ? "active" : "";
@@ -957,15 +1033,27 @@
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
-        var url = tab == "overview"
+        var query = new List<string>();
+        if (_selectedChildId != Guid.Empty)
+        {
+            query.Add($"childId={_selectedChildId}");
+        }
+
+        if (tab != "overview")
+        {
+            query.Add($"tab={Uri.EscapeDataString(tab)}");
+        }
+
+        var url = query.Count == 0
             ? "/parent/dashboard"
-            : $"/parent/dashboard?tab={tab}";
+            : $"/parent/dashboard?{string.Join('&', query)}";
         Navigation.NavigateTo(url, forceLoad: false);
     }
 
     // Инициализация
     protected override void OnInitialized()
     {
+        Navigation.LocationChanged += OnLocationChanged;
         SyncTabFromUri();
     }
 
@@ -982,6 +1070,17 @@
         _activeTab = string.IsNullOrEmpty(tab) ? "overview" : tab;
     }
 
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        SyncTabFromUri();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadDashboardDataAsync();
@@ -992,6 +1091,7 @@
         try
         {
             var children = await Api.GetMyChildrenAsync(CancellationToken.None);
+            _availableChildren = children;
             var requestedChildId = GetRequestedChildId();
             var selectedChild = requestedChildId.HasValue
                 ? children.FirstOrDefault(c => c.ChildId == requestedChildId.Value)
@@ -1008,12 +1108,21 @@
             }
 
             _hasChild = true;
+            _selectedChildId = childId;
             ApplyChildProfile(selectedChild!);
+
+            await LoadParentProfileFromClaimsAsync();
 
             // Профиль ребёнка: грузим первым, чтобы шапка не оставалась с дефолтным текстом.
             var profile = await Api.GetChildProfileAsync(childId, CancellationToken.None);
             if (profile is not null)
                 ApplyChildProfile(profile);
+
+            var diabetesSettings = await Api.GetDiabetesSettingsAsync(childId, CancellationToken.None);
+            if (diabetesSettings is not null)
+            {
+                ApplyDiabetesSettings(diabetesSettings);
+            }
 
             var summary = await Api.GetDashboardSummaryAsync(childId, CancellationToken.None);
             if (summary.LatestGlucose.HasValue)
@@ -1044,51 +1153,186 @@
                 DateTime.UtcNow.AddDays(-7),
                 DateTime.UtcNow,
                 CancellationToken.None);
-            if (alerts.Count > 0)
-            {
-                _allAlerts = alerts
-                    .Where(e => e.EventType == TimelineEventType.Alert)
-                    .Select(e => new AlertItem(
-                        e.Title ?? "Событие",
-                        e.Description ?? $"Глюкоза: {e.GlucoseValue?.ToString("F1") ?? "—"} ммоль/л",
-                        GetRelativeTime(e.OccurredAt),
-                        e.GlucoseUiState switch
-                        {
-                            "Critical" or "Danger" => "danger",
-                            "Warning" => "warn",
-                            _ => "info"
-                        },
-                        e.GlucoseUiState == "Critical" ? "!" : "•",
-                        e.IsImportant
-                    ))
-                    .ToList();
+            _allAlerts = alerts.Select(MapTimelineEvent).ToList();
+            _recentAlerts = _allAlerts.Take(5).ToList();
 
-                _recentAlerts = _allAlerts.Take(5).ToList();
-            }
-
-            _measurements.Clear();
-            var measurements = await Api.GetMeasurementsAsync(
+            await LoadMeasurementsAsync(
                 childId,
-                DateTime.UtcNow.AddDays(-1),
+                DateTime.UtcNow.AddHours(-_chartRange),
                 DateTime.UtcNow,
-                CancellationToken.None);
+                resetPage: true);
 
-            _measurements.AddRange(measurements
-                .OrderByDescending(m => m.MeasurementTime)
-                .Select(m => new MeasurementItem(
-                    m.MeasurementTime.ToLocalTime().ToString("HH:mm"),
-                    m.GlucoseValue.ToString("F1"),
-                    GetTrendIcon(m.GlucoseUiState),
-                    string.IsNullOrWhiteSpace(m.Notes) ? "Без заметки" : m.Notes,
-                    GetMeasurementStatus(m.GlucoseUiState),
-                    GetMeasurementStatusClass(m.GlucoseUiState),
-                    m.MeasurementTime > DateTime.UtcNow.AddHours(-1))));
+            await LoadBackpackFromApiAsync(childId);
+            await LoadAccessLinksAsync(childId);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Ошибка загрузки данных дашборда");
         }
     }
+
+    private async Task LoadParentProfileFromClaimsAsync()
+    {
+        var snapshot = await CurrentUser.GetSnapshotAsync(CancellationToken.None);
+        if (snapshot is null)
+        {
+            return;
+        }
+
+        _parentProfile = new ParentProfile
+        {
+            DisplayName = string.IsNullOrWhiteSpace(snapshot.Email) ? "Родитель" : snapshot.Email,
+            Email = snapshot.Email ?? "email не указан",
+            Phone = "телефон не указан"
+        };
+    }
+
+    private Task OnSelectedChildChangedAsync(ChangeEventArgs args)
+    {
+        if (!Guid.TryParse(args.Value?.ToString(), out var childId) || childId == _selectedChildId)
+        {
+            return Task.CompletedTask;
+        }
+
+        var tabQuery = _activeTab == "overview" ? "" : $"&tab={Uri.EscapeDataString(_activeTab)}";
+        Navigation.NavigateTo($"/parent/dashboard?childId={childId}{tabQuery}", forceLoad: true);
+        return Task.CompletedTask;
+    }
+
+    private static string GetChildDisplayName(ChildProfileVm child)
+        => string.IsNullOrWhiteSpace(child.FullName) ? "Ребёнок" : child.FullName;
+
+    private void ApplyDiabetesSettings(DiabetesSettingsVm settings)
+    {
+        _targetMin = settings.TargetGlucoseMin;
+        _targetMax = settings.TargetGlucoseMax;
+        _insulinSensitivity = settings.InsulinSensitivity;
+        _carbRatio = settings.InsulinToCarbRatio;
+    }
+
+    private async Task LoadBackpackFromApiAsync(Guid childId)
+    {
+        try
+        {
+            var apiItems = await Api.GetBackpackAsync(childId, CancellationToken.None);
+            _backpackItems.Clear();
+            _backpackItems.AddRange(apiItems
+                .GroupBy(
+                    item => $"{NormalizeBackpackName(item.SnackName)}|{item.BreadUnits:0.###}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(BackpackItem.FromApiGroup));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить рюкзак ребёнка из API. ChildId={ChildId}", childId);
+        }
+    }
+
+    private static string NormalizeBackpackName(string value) =>
+        string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
+
+    private async Task LoadAccessLinksAsync(Guid childId)
+    {
+        try
+        {
+            var links = await Api.GetChildAccessLinksAsync(childId, CancellationToken.None);
+            _linkedDoctors.Clear();
+            if (links is not null)
+            {
+                _linkedDoctors.AddRange(links.DoctorLinks);
+                var firstDoctor = _linkedDoctors.FirstOrDefault();
+                _childProfile.Endocrinologist = firstDoctor is null
+                    ? "Врач не привязан"
+                    : GetDisplayName(firstDoctor.EmailForLogin, firstDoctor.TelegramId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить связи ребёнка. ChildId={ChildId}", childId);
+        }
+    }
+
+    private async Task LoadMeasurementsAsync(Guid childId, DateTime fromUtc, DateTime toUtc, bool resetPage)
+    {
+        var measurements = await Api.GetMeasurementsAsync(childId, fromUtc, toUtc, CancellationToken.None);
+
+        _measurements.Clear();
+        _measurements.AddRange(measurements
+            .OrderByDescending(m => m.MeasurementTime)
+            .Select(MapMeasurement));
+
+        var latestValues = measurements
+            .OrderByDescending(m => m.MeasurementTime)
+            .Take(2)
+            .Select(m => m.GlucoseValue)
+            .ToArray();
+
+        _glucoseDeltaText = latestValues.Length < 2
+            ? null
+            : FormatGlucoseDelta(latestValues[0] - latestValues[1]);
+
+        if (resetPage)
+        {
+            _measPage = 1;
+        }
+    }
+
+    private static string FormatGlucoseDelta(decimal delta) =>
+        delta > 0 ? $"+{delta:0.0}" : delta.ToString("0.0");
+
+    private static AlertItem MapTimelineEvent(TimelineEventDto entry)
+    {
+        var statusType = entry.GlucoseUiState switch
+        {
+            "Critical" or "Danger" => "danger",
+            "Warning" or "Elevated" => "warn",
+            _ => "info"
+        };
+
+        return entry.EventType switch
+        {
+            TimelineEventType.SnackConsumed => new AlertItem(
+                "Съеден перекус",
+                $"{entry.SnackName ?? "Перекус"}, {entry.BreadUnits?.ToString("0.0") ?? "—"} ХЕ" +
+                (entry.GlucoseValue.HasValue ? $" · сахар {entry.GlucoseValue:0.0} ммоль/л" : string.Empty),
+                GetRelativeTime(entry.OccurredAt),
+                "info",
+                "✓",
+                true),
+            TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement => new AlertItem(
+                "Новое измерение",
+                $"Глюкоза {entry.GlucoseValue?.ToString("0.0") ?? "—"} ммоль/л",
+                GetRelativeTime(entry.OccurredAt),
+                statusType,
+                statusType == "danger" ? "!" : "•",
+                true),
+            TimelineEventType.CriticalAlert or TimelineEventType.Alert => new AlertItem(
+                "Критический уровень глюкозы",
+                entry.Notes ?? $"Глюкоза {entry.GlucoseValue?.ToString("0.0") ?? "—"} ммоль/л",
+                GetRelativeTime(entry.OccurredAt),
+                "danger",
+                "!",
+                true),
+            _ => new AlertItem(
+                entry.Title ?? "Событие",
+                entry.Description ?? entry.Notes ?? "Обновлены данные ребёнка",
+                GetRelativeTime(entry.OccurredAt),
+                statusType,
+                "•",
+                entry.IsImportant)
+        };
+    }
+
+    private static MeasurementItem MapMeasurement(MeasurementVm measurement)
+        => new(
+            measurement.MeasurementTime.ToLocalTime().ToString("dd.MM HH:mm"),
+            measurement.GlucoseValue.ToString("F1"),
+            GetTrendIcon(measurement.GlucoseUiState),
+            string.IsNullOrWhiteSpace(measurement.Notes) ? "Без заметки" : measurement.Notes,
+            GetMeasurementStatus(measurement.GlucoseUiState),
+            GetMeasurementStatusClass(measurement.GlucoseUiState),
+            measurement.MeasurementTime > DateTime.UtcNow.AddHours(-1));
 
     private Guid? GetRequestedChildId()
     {
@@ -1188,17 +1432,6 @@
 
         try
         {
-            var storedBackpack = await JS.InvokeAsync<string?>("localStorage.getItem", BackpackStorageKey);
-            var backpackItems = string.IsNullOrWhiteSpace(storedBackpack)
-                ? null
-                : JsonSerializer.Deserialize<List<BackpackItem>>(storedBackpack);
-
-            _backpackItems.Clear();
-            if (backpackItems is { Count: > 0 })
-            {
-                _backpackItems.AddRange(backpackItems);
-            }
-
             var storedProfile = await JS.InvokeAsync<string?>("localStorage.getItem", ParentProfileStorageKey);
             var profile = string.IsNullOrWhiteSpace(storedProfile)
                 ? null
@@ -1221,10 +1454,12 @@
         try
         {
             var points = _measurements
+                .AsEnumerable()
+                .Reverse()
                 .Select(m => new
                 {
                     Label = m.Time,
-                    Value = double.TryParse(m.Value, out var value) ? value : 0d
+                    Value = TryParseGlucose(m.Value)
                 })
                 .ToList();
 
@@ -1240,10 +1475,29 @@
         }
     }
 
+    private static double TryParseGlucose(string value)
+    {
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var parsed))
+            return parsed;
+
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed)
+            ? parsed
+            : 0d;
+    }
+
     // График
     private async Task SetChartRange(int hours)
     {
         _chartRange = hours;
+        if (_selectedChildId != Guid.Empty)
+        {
+            await LoadMeasurementsAsync(
+                _selectedChildId,
+                DateTime.UtcNow.AddHours(-hours),
+                DateTime.UtcNow,
+                resetPage: true);
+        }
+
         await RenderChartAsync();
     }
 
@@ -1255,13 +1509,34 @@
             .Take(MeasPageSize)
             .ToList();
 
-    private void ApplyMeasFilter() => _measPage = 1;
+    private async Task ApplyMeasFilterAsync()
+    {
+        _measPage = 1;
 
-    private void ResetMeasFilter()
+        if (_selectedChildId == Guid.Empty)
+        {
+            return;
+        }
+
+        var localFrom = DateTime.SpecifyKind(_measFilterDate.Date, DateTimeKind.Local);
+        var localTo = localFrom.AddDays(1);
+        await LoadMeasurementsAsync(
+            _selectedChildId,
+            localFrom.ToUniversalTime(),
+            localTo.ToUniversalTime(),
+            resetPage: true);
+
+        if (_activeTab == "overview")
+        {
+            await RenderChartAsync();
+        }
+    }
+
+    private async Task ResetMeasFilterAsync()
     {
         _measFilterDate = DateTime.Today;
         _measStatusFilter = "";
-        _measPage = 1;
+        await ApplyMeasFilterAsync();
     }
 
     private void PrevMeasPage() { if (_measPage > 1) _measPage--; }
@@ -1347,24 +1622,86 @@
             return;
         }
 
-        var item = _backpackForm.ToItem(_editingBackpackItemId);
-        var index = _editingBackpackItemId is null
-            ? -1
-            : _backpackItems.FindIndex(i => i.Id == _editingBackpackItemId);
-
-        if (index >= 0)
+        if (_selectedChildId == Guid.Empty)
         {
-            _backpackItems[index] = item;
-            ShowNotice("Позиция рюкзака обновлена.");
-        }
-        else
-        {
-            _backpackItems.Insert(0, item);
-            ShowNotice("Позиция добавлена в рюкзак.");
+            _backpackFormError = "Сначала привяжите ребёнка к кабинету.";
+            return;
         }
 
-        await SaveBackpackAsync();
-        CancelBackpackEdit();
+        try
+        {
+            if (_editingBackpackItemId is not null && Guid.TryParse(_editingBackpackItemId, out var itemId))
+            {
+                var existing = _backpackItems.FirstOrDefault(item => item.Id == _editingBackpackItemId);
+                if (existing is null)
+                {
+                    _backpackFormError = "Позиция уже была изменена. Обновите страницу.";
+                    return;
+                }
+
+                var update = new UpdateBackpackItemRequest
+                {
+                    SnackName = _backpackForm.Name.Trim(),
+                    BreadUnits = _backpackForm.BreadUnits
+                };
+
+                foreach (var existingId in existing.ItemIds)
+                    await Api.UpdateBackpackItemAsync(existingId, update, CancellationToken.None);
+
+                var desiredQuantity = Math.Max(1, _backpackForm.Quantity);
+                if (desiredQuantity > existing.ItemIds.Count)
+                {
+                    for (var i = existing.ItemIds.Count; i < desiredQuantity; i++)
+                    {
+                        await Api.AddBackpackItemAsync(new AddBackpackItemRequest
+                        {
+                            ChildId = _selectedChildId,
+                            SnackName = update.SnackName,
+                            BreadUnits = update.BreadUnits
+                        }, CancellationToken.None);
+                    }
+                }
+                else if (desiredQuantity < existing.ItemIds.Count)
+                {
+                    foreach (var excessId in existing.ItemIds.Skip(desiredQuantity))
+                        await Api.DeleteBackpackItemAsync(excessId, CancellationToken.None);
+                }
+
+                await LoadBackpackFromApiAsync(_selectedChildId);
+
+                ShowNotice("Позиция рюкзака обновлена.");
+            }
+            else
+            {
+                var count = Math.Max(1, _backpackForm.Quantity);
+                var createdItems = new List<BackpackItem>();
+                for (var i = 0; i < count; i++)
+                {
+                    var created = await Api.AddBackpackItemAsync(
+                        new AddBackpackItemRequest
+                        {
+                            ChildId = _selectedChildId,
+                            SnackName = _backpackForm.Name.Trim(),
+                            BreadUnits = _backpackForm.BreadUnits
+                        },
+                        CancellationToken.None);
+
+                    createdItems.Add(BackpackItem.FromApi(created));
+                }
+
+                _backpackItems.InsertRange(0, createdItems);
+                ShowNotice(count == 1
+                    ? "Позиция добавлена в рюкзак."
+                    : $"Добавлено позиций: {count}.");
+            }
+
+            CancelBackpackEdit();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось сохранить позицию рюкзака.");
+            _backpackFormError = "Не удалось сохранить позицию. Проверьте данные и попробуйте ещё раз.";
+        }
     }
 
     private async Task RemoveBackpackItemAsync(string itemId)
@@ -1375,24 +1712,77 @@
             return;
         }
 
-        _backpackItems.Remove(item);
-        await SaveBackpackAsync();
-        ShowNotice($"Позиция «{item.Name}» удалена из рюкзака.");
-    }
-
-    private async Task SaveBackpackAsync()
-    {
         try
         {
-            await JS.InvokeVoidAsync(
-                "localStorage.setItem",
-                BackpackStorageKey,
-                JsonSerializer.Serialize(_backpackItems));
+            foreach (var existingId in item.ItemIds)
+                await Api.DeleteBackpackItemAsync(existingId, CancellationToken.None);
+            _backpackItems.Remove(item);
+            ShowNotice($"Позиция «{item.Name}» удалена из рюкзака.");
         }
-        catch (JSException ex)
+        catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Не удалось сохранить рюкзак в localStorage.");
-            ShowNotice("Позиция изменена, но браузер не разрешил сохранить её локально.");
+            Logger.LogWarning(ex, "Не удалось удалить позицию рюкзака. ItemId={ItemId}", item.Id);
+            ShowNotice("Не удалось удалить позицию. Обновите страницу и попробуйте ещё раз.");
+        }
+    }
+
+    private void OpenTargetEditor()
+    {
+        _targetForm = new TargetSettingsForm
+        {
+            Min = _targetMin,
+            Max = _targetMax,
+            InsulinSensitivity = _insulinSensitivity,
+            CarbRatio = _carbRatio
+        };
+        _targetFormError = null;
+        _isTargetEditorOpen = true;
+    }
+
+    private void CancelTargetEdit()
+    {
+        _isTargetEditorOpen = false;
+        _targetFormError = null;
+    }
+
+    private async Task SaveTargetSettingsAsync()
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            _targetFormError = "Сначала привяжите ребёнка к кабинету.";
+            return;
+        }
+
+        if (_targetForm.Min >= _targetForm.Max)
+        {
+            _targetFormError = "Нижняя граница должна быть меньше верхней.";
+            return;
+        }
+
+        try
+        {
+            await Api.UpdateDiabetesSettingsAsync(
+                _selectedChildId,
+                new UpdateDiabetesSettingsRequest
+                {
+                    TargetGlucoseMin = _targetForm.Min,
+                    TargetGlucoseMax = _targetForm.Max,
+                    InsulinSensitivity = _targetForm.InsulinSensitivity,
+                    InsulinToCarbRatio = _targetForm.CarbRatio
+                },
+                CancellationToken.None);
+
+            _targetMin = _targetForm.Min;
+            _targetMax = _targetForm.Max;
+            _insulinSensitivity = _targetForm.InsulinSensitivity;
+            _carbRatio = _targetForm.CarbRatio;
+            CancelTargetEdit();
+            ShowNotice("Целевые параметры сохранены.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось сохранить целевые параметры. ChildId={ChildId}", _selectedChildId);
+            _targetFormError = "Не удалось сохранить параметры. Проверьте значения и попробуйте ещё раз.";
         }
     }
 
@@ -1418,6 +1808,17 @@
         };
 
         ShowNotice($"{device.Name}: подключение сохранено.");
+    }
+
+    private void NavigateToAccessLinks()
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            ShowNotice("Сначала привяжите ребёнка к кабинету.");
+            return;
+        }
+
+        Navigation.NavigateTo($"/parent/children/{_selectedChildId:D}/links");
     }
 
     private void OpenParentProfileEditor()
@@ -1477,7 +1878,9 @@
 
     private void ResetChildData()
     {
+        _selectedChildId = Guid.Empty;
         _currentGlucose = 0;
+        _glucoseDeltaText = null;
         _currentGlucoseClass = "normal";
         _tirNormal = 0;
         _tirHigh = 0;
@@ -1489,6 +1892,7 @@
         _measurements.Clear();
         _backpackItems.Clear();
         _doctorNotes.Clear();
+        _linkedDoctors.Clear();
         _insulinLog.Clear();
         _childProfile = new ChildProfile
         {
@@ -1510,6 +1914,25 @@
         2 or 3 or 4 => "позиции",
         _ => "позиций"
     };
+
+    private static string GetDisplayName(string? email, long? telegramId)
+        => !string.IsNullOrWhiteSpace(email)
+            ? email
+            : telegramId.HasValue ? $"Telegram {telegramId.Value}" : "Пользователь";
+
+    private static string GetInitials(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "?";
+
+        if (value.Contains('@'))
+            return value[0].ToString().ToUpperInvariant();
+
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant()
+            : parts[0][0].ToString().ToUpperInvariant();
+    }
 
     // Данные — загружаются из API
     private List<AlertItem> _recentAlerts = new();
@@ -1603,6 +2026,7 @@
     private sealed class BackpackItem
     {
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public List<Guid> ItemIds { get; set; } = [];
         public string Name { get; set; } = string.Empty;
         public string Category { get; set; } = "Другое";
         public string Icon { get; set; } = "+";
@@ -1610,6 +2034,43 @@
         public int Quantity { get; set; }
         public string Unit { get; set; } = "шт.";
         public decimal BreadUnits { get; set; }
+
+        public static BackpackItem FromApi(BackpackItemVm item)
+        {
+            var template = BackpackTemplates.FirstOrDefault(t =>
+                item.SnackName.Contains(t.Name, StringComparison.OrdinalIgnoreCase));
+
+            return new BackpackItem
+            {
+                Id = item.BackpackItemId.ToString("D"),
+                ItemIds = [item.BackpackItemId],
+                Name = item.SnackName,
+                Category = template?.Category ?? "Другое",
+                Icon = template?.Icon ?? "+",
+                Description = GetBackpackItemDescription(item),
+                Quantity = 1,
+                Unit = "шт.",
+                BreadUnits = item.BreadUnits
+            };
+        }
+
+        public static BackpackItem FromApiGroup(IGrouping<string, BackpackItemVm> group)
+        {
+            var first = FromApi(group.First());
+            first.ItemIds = group.Select(item => item.BackpackItemId).ToList();
+            first.Id = first.ItemIds[0].ToString("D");
+            first.Quantity = first.ItemIds.Count;
+            return first;
+        }
+
+        private static string GetBackpackItemDescription(BackpackItemVm item)
+        {
+            var addedBy = item.AddedBy?.StartsWith("userId:", StringComparison.OrdinalIgnoreCase) == true
+                ? "Добавлено пользователем"
+                : item.AddedBy ?? "Добавлено в рюкзак";
+
+            return $"{addedBy} · {item.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}";
+        }
 
         public string Status => Quantity switch
         {
@@ -1737,6 +2198,14 @@
             Email = Email.Trim(),
             Phone = string.IsNullOrWhiteSpace(Phone) ? "телефон не указан" : Phone.Trim()
         };
+    }
+
+    private sealed class TargetSettingsForm
+    {
+        public decimal Min { get; set; } = 4.0m;
+        public decimal Max { get; set; } = 10.0m;
+        public decimal InsulinSensitivity { get; set; } = 2.5m;
+        public decimal CarbRatio { get; set; } = 10.0m;
     }
 
     /// <summary>

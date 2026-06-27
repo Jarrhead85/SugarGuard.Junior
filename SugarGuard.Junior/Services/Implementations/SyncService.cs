@@ -27,6 +27,7 @@ public class SyncService : ISyncService
     private readonly IApiClient _apiClient;
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly IMeasurementRepository _measurementRepository;
+    private readonly IBackpackRepository _backpackRepository;
     private readonly ISyncConflictResolver _conflictResolver;
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _isInitialized;
@@ -52,12 +53,14 @@ public class SyncService : ISyncService
         IApiClient apiClient,
         IDbContextFactory<AppDbContext> factory,
         IMeasurementRepository measurementRepository,
+        IBackpackRepository backpackRepository,
         ISyncConflictResolver conflictResolver)
     {
         _logger = logger;
         _apiClient = apiClient;
         _factory = factory;
         _measurementRepository = measurementRepository;
+        _backpackRepository = backpackRepository;
         _conflictResolver = conflictResolver;
         _lastConnectivityStatus = false;
     }
@@ -239,6 +242,8 @@ public class SyncService : ISyncService
 
                 case "BackpackItem":
                     return await SyncBackpackItemAsync(item);
+                case "SnackConsumption":
+                    return await SyncSnackConsumptionAsync(item);
 
                 case "MeasurementSchedule":
                     return await SyncScheduleItemAsync(item);
@@ -379,7 +384,14 @@ public class SyncService : ISyncService
             return false;
 
         snackRequest.LastModifiedAt = item.LastModifiedAt;
-        return await _apiClient.AddSnackAsync(snackRequest);
+        if (string.IsNullOrWhiteSpace(snackRequest.BackpackItemId))
+            snackRequest.BackpackItemId = item.EntityId;
+
+        var synced = await _apiClient.AddSnackAsync(snackRequest);
+        if (synced)
+            await _backpackRepository.MarkAsSyncedAsync(item.EntityId);
+
+        return synced;
     }
 
     private async Task<bool> SyncBackpackDeleteAsync(SyncQueueItem item)
@@ -389,6 +401,19 @@ public class SyncService : ISyncService
             return false;
 
         return await _apiClient.RemoveSnackAsync(removeRequest);
+    }
+
+    private async Task<bool> SyncSnackConsumptionAsync(SyncQueueItem item)
+    {
+        var request = JsonConvert.DeserializeObject<ConsumeBackpackSnackRequest>(item.Payload);
+        if (request is null || !await _apiClient.ConsumeSnackAsync(request))
+            return false;
+
+        await _backpackRepository.RemoveOrphanedUnsyncedDuplicateAsync(
+            request.ChildId,
+            request.SnackName,
+            request.BreadUnits);
+        return true;
     }
 
     /// <summary>

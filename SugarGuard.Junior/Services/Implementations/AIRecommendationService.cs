@@ -46,13 +46,17 @@ public class AIRecommendationService : IAIRecommendationService
         double currentGlucose,
         List<double> recentGlucoseValues,
         string childState,
-        List<string> availableSnacks)
+        List<string> availableSnacks,
+        string? measurementId = null,
+        bool forceNew = false)
     {
         try
         {
             _logger.LogInformation(" Получение рекомендации: глюкоза={Glucose}, состояние={State}", currentGlucose, childState);
 
-            var cached = await _cacheService.FindNearestRecommendation(childId, currentGlucose);
+            var cached = forceNew
+                ? null
+                : await _cacheService.FindNearestRecommendation(childId, currentGlucose);
             if (cached != null)
             {
                 _logger.LogInformation(" Рекомендация из кэша");
@@ -65,7 +69,8 @@ public class AIRecommendationService : IAIRecommendationService
                 currentGlucose,
                 recentGlucoseValues,
                 childState,
-                availableSnacks);
+                availableSnacks,
+                measurementId);
 
             // Пытаемся получить рекомендацию от API (если интернет есть)
             try
@@ -73,16 +78,19 @@ public class AIRecommendationService : IAIRecommendationService
                 var apiResponse = await _apiClient.GetRecommendationAsync(
                     new RecommendationRequest
                     {
+                        MeasurementId = measurementId,
                         ChildId = childId,
                         CurrentGlucose = currentGlucose,
                         RecentGlucoseValues = recentGlucoseValues,
                         ChildState = childState,
-                        AvailableSnacks = availableSnacks
+                        AvailableSnacks = availableSnacks,
+                        ForceNew = forceNew
                     });
 
                  if (apiResponse != null)
                 {
                     recommendation = ConvertResponseToRecommendation(apiResponse, childId);
+                    recommendation.MeasurementId = measurementId;
                     _logger.LogInformation("Рекомендация получена от API");
                 }
             }
@@ -131,11 +139,12 @@ public class AIRecommendationService : IAIRecommendationService
     /// Локальный анализ (без интернета)
     /// </summary>
     private AIRecommendation AnalyzeLocally(
-    string childId,
-    double currentGlucose,
-    List<double> recentGlucoseValues,
-    string childState,
-    List<string> availableSnacks)
+        string childId,
+        double currentGlucose,
+        List<double> recentGlucoseValues,
+        string childState,
+        List<string> availableSnacks,
+        string? measurementId)
     {
         try
         {
@@ -146,6 +155,7 @@ public class AIRecommendationService : IAIRecommendationService
             {
                 RecommendationId = Guid.NewGuid().ToString(),
                 ChildId = childId,
+                MeasurementId = measurementId,
                 GlucoseValueAtRequest = currentGlucose,
                 CreatedAt = DateTime.UtcNow,
                 ModelUsed = "Local",  // Указываем модель
@@ -261,7 +271,11 @@ public class AIRecommendationService : IAIRecommendationService
             .ToList();
 
         if (fastCarbs.Count == 0)
-            return "- Сок (1.5 ХЕ / 200мл)\n- Сахар (1 ХЕ / 3-5 кусков)\n- Конфета (0.5 ХЕ)";
+        {
+            return availableSnacks.Count == 0
+                ? "Рюкзак пуст. Позови взрослого и используй аварийный запас быстрых углеводов."
+                : "В рюкзаке нет подходящего быстрого углевода. Позови взрослого и используй аварийный запас.";
+        }
 
         return string.Join("\n", fastCarbs.Select(s => $"- {s}"));
     }

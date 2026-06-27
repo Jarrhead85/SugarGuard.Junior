@@ -2,11 +2,11 @@
 @attribute [Authorize(Roles = Roles.Admin + "," + Roles.SupportAdmin)]
 @implements IDisposable
 
-@using System.Net.Http.Json
 @using Microsoft.AspNetCore.Authorization
 @using SugarGuard.Shared.Constants
+@using SugarGuard.Web.ViewModels
 
-@inject HttpClient Http
+@inject SugarGuardApiService Api
 
 <PageTitle>Пользователи — SugarGuard Admin</PageTitle>
 
@@ -861,18 +861,10 @@
 
             ClearStatus();
 
-            using var response = await Http.GetAsync("api/admin/users-roles/users?limit=500", cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
-                return;
-            }
-
-            var users = await response.Content.ReadFromJsonAsync<List<AdminUserItem>>(cancellationToken: cancellationToken) ?? [];
+            var users = await Api.GetAdminUsersAsync(limit: 500, cancellationToken: cancellationToken);
 
             _users.Clear();
-            _users.AddRange(users.OrderByDescending(x => x.CreatedAt));
+            _users.AddRange(users.Select(AdminUserItem.FromVm).OrderByDescending(x => x.CreatedAt));
 
             _roleDrafts.Clear();
 
@@ -919,28 +911,10 @@
             _roleSavingUserId = user.UserId;
             ClearStatus();
 
-            using var response = await Http.PutAsJsonAsync(
-                $"api/admin/users-roles/users/{user.UserId:guid}/role",
-                new UpdateUserRoleRequest { NewRole = newRole },
-                cancellationToken);
+            await Api.UpdateUserRoleAsync(user.UserId, newRole, cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
-                return;
-            }
-
-            var updatedUser = await response.Content.ReadFromJsonAsync<AdminUserItem>(cancellationToken: cancellationToken);
-
-            if (updatedUser is not null)
-            {
-                ReplaceUser(updatedUser);
-            }
-            else
-            {
-                user.Role = newRole;
-                _roleDrafts[user.UserId] = newRole;
-            }
+            user.Role = newRole;
+            _roleDrafts[user.UserId] = newRole;
 
             NormalizeForms();
             SetStatus("Роль пользователя обновлена.", StatusTone.Success);
@@ -987,20 +961,7 @@
             _isParentLinkSubmitting = true;
             ClearStatus();
 
-            using var response = await Http.PostAsJsonAsync(
-                "api/admin/users-roles/links/parent-child",
-                new CreateParentChildLinkRequest
-                {
-                    ParentUserId = parentUserId,
-                    ChildId = childId
-                },
-                cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
-                return;
-            }
+            await Api.CreateAdminParentChildLinkAsync(parentUserId, childId, cancellationToken);
 
             _parentLinkForm.ChildId = string.Empty;
             SetStatus("Связь parent-child успешно создана.", StatusTone.Success);
@@ -1047,20 +1008,7 @@
             _isDoctorLinkSubmitting = true;
             ClearStatus();
 
-            using var response = await Http.PostAsJsonAsync(
-                "api/admin/users-roles/links/doctor-child",
-                new CreateDoctorChildLinkRequest
-                {
-                    DoctorUserId = doctorUserId,
-                    ChildId = childId
-                },
-                cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
-                return;
-            }
+            await Api.CreateAdminDoctorChildLinkAsync(doctorUserId, childId, cancellationToken);
 
             _doctorLinkForm.ChildId = string.Empty;
             SetStatus("Связь doctor-child успешно создана.", StatusTone.Success);
@@ -1216,29 +1164,6 @@
         };
     }
 
-    private async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(cancellationToken: cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(payload?.Message))
-            {
-                return payload.Message;
-            }
-
-            if (!string.IsNullOrWhiteSpace(payload?.Error))
-            {
-                return payload.Error;
-            }
-        }
-        catch
-        {
-        }
-
-        return $"Ошибка API: {(int)response.StatusCode} {response.ReasonPhrase}";
-    }
-
     private void ReplaceUser(AdminUserItem updatedUser)
     {
         var index = _users.FindIndex(x => x.UserId == updatedUser.UserId);
@@ -1301,23 +1226,16 @@
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
-    }
 
-    private sealed class UpdateUserRoleRequest
-    {
-        public string NewRole { get; set; } = string.Empty;
-    }
-
-    private sealed class CreateParentChildLinkRequest
-    {
-        public Guid ParentUserId { get; set; }
-        public Guid ChildId { get; set; }
-    }
-
-    private sealed class CreateDoctorChildLinkRequest
-    {
-        public Guid DoctorUserId { get; set; }
-        public Guid ChildId { get; set; }
+        public static AdminUserItem FromVm(AdminUserVm vm) => new()
+        {
+            UserId = vm.UserId,
+            EmailForLogin = vm.EmailForLogin,
+            TelegramId = vm.TelegramId,
+            Role = vm.Role,
+            IsActive = vm.IsActive,
+            CreatedAt = vm.CreatedAt
+        };
     }
 
     private sealed class ParentChildLinkFormModel
@@ -1330,12 +1248,6 @@
     {
         public string DoctorUserId { get; set; } = string.Empty;
         public string ChildId { get; set; } = string.Empty;
-    }
-
-    private sealed class ApiErrorResponse
-    {
-        public string? Error { get; set; }
-        public string? Message { get; set; }
     }
 
     private enum StatusTone

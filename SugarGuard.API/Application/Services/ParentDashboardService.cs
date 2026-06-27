@@ -276,21 +276,41 @@ namespace SugarGuard.Application.Dashboard
                 })
                 .ToListAsync(cancellationToken);
 
-            var snacks = await _db.SnackConsumptionLogs
+            var consumedSnacks = await _db.SnackConsumptionLogs
                 .AsNoTracking()
                 .Where(s => s.ChildId == childId
                          && s.ConsumedAt >= from
                          && s.ConsumedAt <= to)
-                .Select(s => new TimelineEventDto
+                .Select(s => new
                 {
-                    EventId = s.LogId,
-                    EventType = TimelineEventType.SnackConsumed,
-                    OccurredAt = s.ConsumedAt,
-                    SnackName = s.SnackName,
-                    BreadUnits = s.BreadUnits,
-                    IsImportant = false
+                    s.LogId,
+                    s.ConsumedAt,
+                    s.SnackName,
+                    s.BreadUnits
                 })
                 .ToListAsync(cancellationToken);
+
+            var snacks = consumedSnacks.Select(snack =>
+            {
+                var nearestMeasurement = measurements
+                    .Where(measurement => measurement.MeasurementTime <= snack.ConsumedAt)
+                    .OrderByDescending(measurement => measurement.MeasurementTime)
+                    .FirstOrDefault();
+
+                return new TimelineEventDto
+                {
+                    EventId = snack.LogId,
+                    EventType = TimelineEventType.SnackConsumed,
+                    OccurredAt = snack.ConsumedAt,
+                    SnackName = snack.SnackName,
+                    BreadUnits = snack.BreadUnits,
+                    GlucoseValue = nearestMeasurement?.GlucoseValue,
+                    GlucoseUiState = nearestMeasurement is null
+                        ? null
+                        : _glucoseUiState.Resolve(nearestMeasurement.GlucoseValue).ToString(),
+                    IsImportant = false
+                };
+            }).ToList();
 
             var alerts = await _db.Measurements
                 .AsNoTracking()

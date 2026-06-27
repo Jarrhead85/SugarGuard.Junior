@@ -184,13 +184,19 @@ public class MeasurementService : IMeasurementService
                 }
             }
 
+            var measurementId = Guid.NewGuid().ToString();
+
             // 3⃣ ПОЛУЧАЕМ РЕКОМЕНДАЦИЮ ОТ ИИ (сначала пытаемся из кэша, потом от GigaChat)
-            var aiRecommendation = await GetAIRecommendationAsync(childId, glucoseValue, childState);
+            var aiRecommendation = await GetAIRecommendationAsync(
+                childId,
+                glucoseValue,
+                childState,
+                measurementId);
             
             // 4⃣ СОЗДАЁМ СУЩНОСТЬ ИЗМЕРЕНИЯ (все PHI данные зашифрованы)
             var measurement = new MeasurementEntity
             {
-                MeasurementId = Guid.NewGuid().ToString(),
+                MeasurementId = measurementId,
                 ChildId = childId,
                 EncryptedGlucoseValue = await _cryptoService.EncryptAsync(glucoseValue.ToString("F1", CultureInfo.InvariantCulture)),
                 MeasurementTime = DateTime.UtcNow,
@@ -209,6 +215,7 @@ public class MeasurementService : IMeasurementService
 
             var payload = new SendMeasurementRequest
             {
+                MeasurementId = measurement.MeasurementId,
                 ChildId = childId,
                 GlucoseValue = glucoseValue,
                 MeasurementTime = measurement.MeasurementTime,
@@ -381,7 +388,11 @@ public class MeasurementService : IMeasurementService
     /// <summary>
     /// Получает рекомендацию от ИИ через API-прокси.
     /// </summary>
-    private async Task<AIRecommendation?> GetAIRecommendationAsync(string childId, double glucoseValue, string childState)
+    private async Task<AIRecommendation?> GetAIRecommendationAsync(
+        string childId,
+        double glucoseValue,
+        string childState,
+        string measurementId)
     {
         try
         {
@@ -389,7 +400,13 @@ public class MeasurementService : IMeasurementService
             var availableSnacks = await GetAvailableSnacksAsync(childId);
 
             return await _aiRecommendationService.GetRecommendationAsync(
-                childId, glucoseValue, recentGlucoseValues, childState, availableSnacks);
+                childId,
+                glucoseValue,
+                recentGlucoseValues,
+                childState,
+                availableSnacks,
+                measurementId,
+                forceNew: true);
         }
         catch (Exception ex)
         {
@@ -485,18 +502,21 @@ public class MeasurementService : IMeasurementService
             var decrypted = await Task.WhenAll(
                 backpackItems.Select(item => SafeDecryptSnackAsync(item)));
 
-            var result = new List<string>(decrypted.Length);
-            foreach (var snack in decrypted)
-            {
-                if (snack is not { } value)
+            return decrypted
+                .Where(snack => snack.HasValue && !string.IsNullOrWhiteSpace(snack.Value.Name))
+                .Select(snack => snack!.Value)
+                .GroupBy(
+                    snack => $"{NormalizeSnackName(snack.Name)}|{snack.BreadUnits:F3}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group =>
                 {
-                    continue;
-                }
-
-                result.Add($"{value.Name} ({value.BreadUnits:F1} ХЕ)");
-            }
-
-            return result;
+                    var snack = group.First();
+                    var quantity = group.Count();
+                    return quantity == 1
+                        ? $"{snack.Name} ({snack.BreadUnits:F1} ХЕ)"
+                        : $"{snack.Name}: {quantity} шт. по {snack.BreadUnits:F1} ХЕ";
+                })
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -504,6 +524,10 @@ public class MeasurementService : IMeasurementService
             return [];
         }
     }
+
+    private static string NormalizeSnackName(string value) =>
+        string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
 
     /// <summary>
     /// Безопасная расшифровка перекуса (имя + ХЕ). Возвращает null при неудаче.

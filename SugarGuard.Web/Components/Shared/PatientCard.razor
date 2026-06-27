@@ -113,7 +113,7 @@
 
         <button class="sg-btn sg-btn--soft sg-btn--sm"
                 type="button"
-                onclick="@NavigateToDetail"
+                @onclick="NavigateToDetailAsync"
                 aria-label="Открыть карточку пациента @FullName">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
                  stroke-width="1.8" aria-hidden="true">
@@ -413,6 +413,9 @@
     [Parameter]
     public bool IsHighlighted { get; set; } // Выделяет карточку тревожным стилем (критические события за сутки)
 
+    [Parameter]
+    public EventCallback OnViewDetail { get; set; } // Внешняя навигация из страницы, если нужна
+
     // Вычисляемые свойства
     /// <summary>
     /// Полное имя пациента для отображения
@@ -512,8 +515,14 @@
     /// <summary>
     /// Переходит на страницу детального просмотра пациента
     /// </summary>
-    private void NavigateToDetail()
+    private async Task NavigateToDetailAsync()
     {
+        if (OnViewDetail.HasDelegate)
+        {
+            await OnViewDetail.InvokeAsync();
+            return;
+        }
+
         NavigationManager.NavigateTo($"/doctor/patients/{Patient.ChildId}");
     }
 

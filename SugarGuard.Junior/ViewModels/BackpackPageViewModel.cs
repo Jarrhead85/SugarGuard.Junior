@@ -6,6 +6,7 @@ using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.ViewModels;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
 namespace SugarGuard.Junior.Views.Pages;
@@ -91,6 +92,7 @@ public partial class BackpackPageViewModel : ObservableObject
     // Состояния UI
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddSnackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConsumeSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryLoadCommand))]
@@ -106,6 +108,7 @@ public partial class BackpackPageViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddSnackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConsumeSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryLoadCommand))]
@@ -120,6 +123,7 @@ public partial class BackpackPageViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddSnackCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConsumeSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveSnackCommand))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryLoadCommand))]
@@ -378,6 +382,86 @@ public partial class BackpackPageViewModel : ObservableObject
         }
     }
 
+    private bool CanConsumeSnack(BackpackItemViewModel? item) =>
+        item is not null && HasSelectedChild && !IsBusy && !IsDialogOpen;
+
+    [RelayCommand(CanExecute = nameof(CanConsumeSnack))]
+    public async Task ConsumeSnack(BackpackItemViewModel? item)
+    {
+        if (item is null || string.IsNullOrWhiteSpace(_currentChildId))
+            return;
+
+        var confirmed = await DisplayConfirmAsync(
+            "Съесть перекус",
+            $"Отметить «{item.SnackName}» ({item.BreadUnits:F1} ХЕ) как съеденный?",
+            "Съесть",
+            "Отмена");
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            ClearErrorState();
+
+            var glucoseText = await _storageService.GetAsync(AppConstants.StorageKeyLastGlucoseValue);
+            var currentGlucose = double.TryParse(
+                glucoseText,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var parsedGlucose)
+                ? parsedGlucose
+                : 0d;
+
+            var consumed = await _backpackService.ConsumeSnackAsync(
+                item.BackpackItemId,
+                _currentChildId,
+                item.SnackName,
+                item.BreadUnits,
+                currentGlucose);
+
+            if (!consumed)
+            {
+                await DisplayAlert("Не удалось отметить перекус", "Обнови рюкзак и попробуй ещё раз.", "ОК");
+                return;
+            }
+
+            if (item.BackpackItemIds.Count > 0)
+            {
+                item.BackpackItemIds.Remove(item.BackpackItemId);
+            }
+
+            if (item.Quantity > 1 && item.BackpackItemIds.Count > 0)
+            {
+                item.Quantity--;
+                item.BackpackItemId = item.BackpackItemIds[0];
+                BackpackItems = new ObservableCollection<BackpackItemViewModel>(BackpackItems);
+            }
+            else
+            {
+                BackpackItems.Remove(item);
+            }
+
+            SnackCount = BackpackItems.Sum(entry => entry.Quantity);
+            IsBackpackEmpty = SnackCount == 0;
+            TotalBreadUnits = BackpackItems.Sum(entry => entry.TotalBreadUnits);
+            TotalBreadUnitsText = $"{TotalBreadUnits:F1} ХЕ";
+            await LoadStatisticsAsync();
+            await DisplayAlert("Готово", $"{item.SnackName} отмечен как съеденный.", "ОК");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при учёте съеденного перекуса {BackpackItemId}", item.BackpackItemId);
+            await DisplayAlert("Не удалось сохранить", "Проверь подключение и попробуй ещё раз.", "ОК");
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdatePresentationState();
+        }
+    }
+
     private bool CanRefresh() => !IsBusy && !IsDialogOpen;
 
     /// <summary>
@@ -492,17 +576,28 @@ public partial class BackpackPageViewModel : ObservableObject
         var mappedItems = (await Task.WhenAll(mapTasks))
             .Where(x => x is not null)
             .Cast<BackpackItemViewModel>()
+            .GroupBy(
+                x => $"{NormalizeSnackName(x.SnackName)}|{x.BreadUnits:F3}",
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var first = group.First();
+                first.BackpackItemIds = group.Select(item => item.BackpackItemId).ToList();
+                first.BackpackItemId = first.BackpackItemIds[0];
+                first.Quantity = first.BackpackItemIds.Count;
+                return first;
+            })
             // Сначала перекусы с бо́льшим числом ХЕ, затем по алфавиту
-            .OrderByDescending(x => x.BreadUnits)
+            .OrderByDescending(x => x.TotalBreadUnits)
             .ThenBy(x => x.SnackName)
             .ToList();
 
         BackpackItems = new ObservableCollection<BackpackItemViewModel>(mappedItems);
 
         IsBackpackEmpty = BackpackItems.Count == 0;
-        SnackCount = BackpackItems.Count;
+        SnackCount = BackpackItems.Sum(item => item.Quantity);
 
-        TotalBreadUnits = BackpackItems.Sum(x => x.BreadUnits);
+        TotalBreadUnits = BackpackItems.Sum(x => x.TotalBreadUnits);
         TotalBreadUnitsText = $"{TotalBreadUnits:F1} ХЕ";
 
         _logger.LogInformation("Загружено {Count} перекусов", BackpackItems.Count);
@@ -553,8 +648,10 @@ public partial class BackpackPageViewModel : ObservableObject
             return new BackpackItemViewModel
             {
                 BackpackItemId = item.BackpackItemId,
+                BackpackItemIds = [item.BackpackItemId],
                 SnackName = decryptedName,
                 BreadUnits = decryptedBreadUnits,
+                Quantity = 1,
                 SnackIcon = GetSnackIcon(decryptedName)
             };
         }
@@ -568,6 +665,10 @@ public partial class BackpackPageViewModel : ObservableObject
             return null;
         }
     }
+
+    private static string NormalizeSnackName(string value) =>
+        string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
 
     // Презентационный слой
 

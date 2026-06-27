@@ -66,6 +66,11 @@ public class RegistrationRequest
 public class SendMeasurementRequest
 {
     /// <summary>
+    /// Локальный ID измерения. Сервер использует его для идемпотентной синхронизации.
+    /// </summary>
+    public string MeasurementId { get; set; } = string.Empty;
+
+    /// <summary>
     /// ID ребёнка
     /// </summary>
     public string ChildId { get; set; } = string.Empty;
@@ -112,6 +117,11 @@ public class SendMeasurementRequest
 public class RecommendationRequest
 {
     /// <summary>
+    /// ID измерения, для которого запрашивается рекомендация.
+    /// </summary>
+    public string? MeasurementId { get; set; }
+
+    /// <summary>
     /// ID ребёнка
     /// </summary>
     public string ChildId { get; set; } = string.Empty;
@@ -136,6 +146,11 @@ public class RecommendationRequest
     /// Формат: "Яблоко (1 ХЕ)", "Сок (1.5 ХЕ)", и т.д.
     /// </summary>
     public List<string> AvailableSnacks { get; set; } = new();
+
+    /// <summary>
+    /// Принудительно создать новую рекомендацию вместо ближайшей кэшированной.
+    /// </summary>
+    public bool ForceNew { get; set; }
 }
 
 /// <summary>
@@ -197,6 +212,11 @@ public class VerifyTelegramCodeRequest
 public class AddSnackRequest
 {
     /// <summary>
+    /// ID локального элемента рюкзака. Сервер сохраняет его, чтобы не плодить дубликаты при синхронизации.
+    /// </summary>
+    public string BackpackItemId { get; set; } = string.Empty;
+
+    /// <summary>
     /// ID ребёнка
     /// </summary>
     public string ChildId { get; set; } = string.Empty;
@@ -242,6 +262,19 @@ public class RemoveSnackRequest
     /// Кто удалил
     /// </summary>
     public string RemovedBy { get; set; } = "child";
+}
+
+/// <summary>
+/// Запрос на фиксацию съеденного перекуса из рюкзака.
+/// </summary>
+public sealed class ConsumeBackpackSnackRequest
+{
+    public string BackpackItemId { get; set; } = string.Empty;
+    public string ChildId { get; set; } = string.Empty;
+    public string SnackName { get; set; } = string.Empty;
+    public double BreadUnits { get; set; }
+    public double CurrentGlucose { get; set; }
+    public DateTime ConsumedAt { get; set; } = DateTime.UtcNow;
 }
 /// <summary>
 /// Запрос на отправку измерения и получение рекомендации

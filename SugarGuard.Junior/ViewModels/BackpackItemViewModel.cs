@@ -6,7 +6,13 @@
 public class BackpackItemViewModel
 {
     public string BackpackItemId { get; set; } = string.Empty;
+    public List<string> BackpackItemIds { get; set; } = [];
     public string SnackName { get; set; } = string.Empty;
     public double BreadUnits { get; set; }
+    public int Quantity { get; set; } = 1;
     public string SnackIcon { get; set; } = "�";
+
+    public string QuantityText => Quantity == 1 ? "1 шт." : $"{Quantity} шт.";
+
+    public double TotalBreadUnits => BreadUnits * Quantity;
 }

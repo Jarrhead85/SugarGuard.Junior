@@ -1,0 +1,408 @@
+@page "/admin/tokens"
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.ViewModels
+
+@inject SugarGuardApiService Api
+
+<PageTitle>JWT / Токены — SugarGuard Admin</PageTitle>
+
+<div class="admin-security-page">
+    <PageHeader Eyebrow="Безопасность"
+                Title="JWT / Токены"
+                Subtitle="Контроль сессий, refresh-token событий и признаков подозрительной активности. Секреты и подписи не отображаются в UI.">
+        <TrailingContent>
+            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="admin-alert admin-alert--danger">@_message</div>
+    }
+
+    <section class="admin-kpi-grid">
+        <StatCard Label="Auth-событий"
+                  Value="@_authEvents.Count.ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Последние записи audit"
+                  Status="neutral" />
+        <StatCard Label="Ошибок входа"
+                  Value="@FailedAuthEvents.ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="По журналу аудита"
+                  Status="@(FailedAuthEvents > 0 ? "warning" : "safe")" />
+        <StatCard Label="Refresh events"
+                  Value="@RefreshEvents.ToString(CultureInfo.InvariantCulture)"
+                  Subtitle="Обновление сессий"
+                  Status="neutral" />
+        <StatCard Label="Секреты"
+                  Value="Скрыты"
+                  Subtitle="Не выводятся в браузер"
+                  Status="safe" />
+    </section>
+
+    <section class="admin-main-layout">
+        <div class="admin-main-column">
+            <section class="admin-panel">
+                <SectionHeader Title="Последние события авторизации"
+                               Description="Показываются только метаданные audit log: действие, цель и время. Токены и секреты не раскрываются.">
+                    <TrailingContent>
+                        <span class="admin-pill">Показано: @_authEvents.Count</span>
+                    </TrailingContent>
+                </SectionHeader>
+
+                @if (_isLoading)
+                {
+                    <div class="admin-empty">Загружаем события безопасности...</div>
+                }
+                else if (_authEvents.Count == 0)
+                {
+                    <div class="admin-empty">
+                        <strong>Событий авторизации нет</strong>
+                        <span>В audit log пока нет записей, связанных с входом или refresh token.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Действие</th>
+                                    <th>Actor</th>
+                                    <th>Target</th>
+                                    <th>Детали</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in _authEvents)
+                                {
+                                    <tr @key="item.AuditLogId">
+                                        <td>@FormatDateTime(item.CreatedAt)</td>
+                                        <td>
+                                            <span class="admin-pill admin-pill--@GetActionTone(item.Action)">
+                                                @FormatAction(item.Action)
+                                            </span>
+                                        </td>
+                                        <td><code>@ShortId(item.ActorUserId?.ToString())</code></td>
+                                        <td>@(item.TargetType ?? "—") <code>@ShortId(item.TargetId)</code></td>
+                                        <td class="admin-muted">@ShortText(item.Details)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+
+        <aside class="admin-side-column">
+            <section class="admin-panel">
+                <SectionHeader Title="Правила безопасности"
+                               Description="Что контролирует эта страница." />
+                <ul class="admin-note-list">
+                    <li>JWT используется только как bearer-token, refresh token обновляется через API.</li>
+                    <li>Секреты подписи и содержимое токенов не отправляются в браузер.</li>
+                    <li>Подозрительные auth-события ищите по ошибкам входа, refresh-failed и частым сменам IP.</li>
+                    <li>Отзыв конкретных сессий лучше реализовать отдельным endpoint-ом refresh-token revocation.</li>
+                </ul>
+            </section>
+        </aside>
+    </section>
+</div>
+
+@code {
+    private List<AuditLogVm> _authEvents = [];
+    private bool _isLoading = true;
+    private string? _message;
+
+    private int FailedAuthEvents => _authEvents.Count(x =>
+        x.Action.Contains("failed", StringComparison.OrdinalIgnoreCase)
+        || x.Action.Contains("error", StringComparison.OrdinalIgnoreCase));
+
+    private int RefreshEvents => _authEvents.Count(x =>
+        x.Action.Contains("refresh", StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _message = null;
+
+            var logs = await Api.GetAdminAuditLogsAsync(limit: 200);
+            _authEvents = logs
+                .Where(IsAuthEvent)
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(80)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _authEvents = [];
+            _message = $"Не удалось загрузить события авторизации: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static bool IsAuthEvent(AuditLogVm item)
+    {
+        var action = item.Action ?? string.Empty;
+        var target = item.TargetType ?? string.Empty;
+        return action.Contains("auth", StringComparison.OrdinalIgnoreCase)
+            || action.Contains("login", StringComparison.OrdinalIgnoreCase)
+            || action.Contains("logout", StringComparison.OrdinalIgnoreCase)
+            || action.Contains("refresh", StringComparison.OrdinalIgnoreCase)
+            || target.Contains("token", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetActionTone(string action)
+    {
+        if (action.Contains("failed", StringComparison.OrdinalIgnoreCase)
+            || action.Contains("error", StringComparison.OrdinalIgnoreCase))
+        {
+            return "danger";
+        }
+
+        if (action.Contains("refresh", StringComparison.OrdinalIgnoreCase))
+        {
+            return "warning";
+        }
+
+        return "success";
+    }
+
+    private static string FormatAction(string action) =>
+        string.IsNullOrWhiteSpace(action) ? "Событие" : action.Replace('_', ' ');
+
+    private static string FormatDateTime(DateTime value) =>
+        value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("ru-RU"));
+
+    private static string ShortId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+
+        return value.Length <= 12 ? value : $"{value[..8]}…{value[^4..]}";
+    }
+
+    private static string ShortText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+
+        return value.Length <= 120 ? value : $"{value[..120]}…";
+    }
+}
+
+<style>
+    .admin-security-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .admin-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .admin-main-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, .85fr);
+        gap: 20px;
+        align-items: start;
+    }
+
+    .admin-main-column,
+    .admin-side-column {
+        display: grid;
+        gap: 20px;
+    }
+
+    .admin-panel {
+        border: 1px solid var(--color-border, rgba(22,33,62,.10));
+        border-radius: 24px;
+        padding: 22px;
+        background: var(--color-surface, rgba(255,255,255,.88));
+        box-shadow: var(--shadow-sm, 0 14px 36px rgba(22,33,62,.08));
+    }
+
+    .sg-section-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .sg-section-header h2 {
+        margin: 0;
+        color: var(--color-text, #16213e);
+        font-size: 22px;
+    }
+
+    .sg-section-header p {
+        margin: 6px 0 0;
+        color: var(--color-text-muted, #667694);
+        line-height: 1.55;
+    }
+
+    .admin-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 0 18px;
+        font: inherit;
+        font-weight: 850;
+        cursor: pointer;
+    }
+
+    .admin-btn:disabled {
+        opacity: .56;
+        cursor: wait;
+    }
+
+    .admin-btn--soft {
+        color: var(--color-primary, #1b8e8b);
+        background: rgba(27,142,139,.12);
+    }
+
+    .admin-alert {
+        padding: 14px 18px;
+        border-radius: 18px;
+        font-weight: 750;
+    }
+
+    .admin-alert--danger {
+        color: #db5967;
+        border: 1px solid rgba(219,89,103,.24);
+        background: rgba(219,89,103,.12);
+    }
+
+    .admin-table-wrap {
+        overflow-x: auto;
+    }
+
+    .admin-table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--color-divider, rgba(22,33,62,.08));
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .admin-table th {
+        color: var(--color-text-faint, #96a2b8);
+        font-size: 12px;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+    }
+
+    .admin-table td {
+        color: var(--color-text, #16213e);
+        line-height: 1.45;
+    }
+
+    .admin-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 0 10px;
+        color: var(--color-text-muted, #667694);
+        background: rgba(102,118,148,.11);
+        font-size: 12px;
+        font-weight: 850;
+    }
+
+    .admin-pill--success {
+        color: var(--color-primary, #1b8e8b);
+        background: rgba(27,142,139,.12);
+    }
+
+    .admin-pill--warning {
+        color: #9a6a00;
+        background: rgba(227,163,43,.16);
+    }
+
+    .admin-pill--danger {
+        color: #db5967;
+        background: rgba(219,89,103,.13);
+    }
+
+    .admin-empty {
+        min-height: 180px;
+        display: grid;
+        place-items: center;
+        gap: 8px;
+        border: 1px dashed var(--color-border, rgba(22,33,62,.14));
+        border-radius: 20px;
+        color: var(--color-text-muted, #667694);
+        text-align: center;
+    }
+
+    .admin-empty strong {
+        color: var(--color-text, #16213e);
+        font-size: 18px;
+    }
+
+    .admin-muted {
+        color: var(--color-text-muted, #667694);
+    }
+
+    .admin-note-list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--color-text-muted, #667694);
+        line-height: 1.65;
+    }
+
+    @@media (max-width: 1100px) {
+        .admin-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .admin-main-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .admin-kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-panel {
+            padding: 18px;
+        }
+    }
+</style>

@@ -1,5 +1,6 @@
 ﻿// Реализация сервиса рюкзака
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Repositories.Interfaces;
@@ -16,15 +17,21 @@ public class BackpackService : IBackpackService
     private readonly ILogger<BackpackService> _logger;
     private readonly IBackpackRepository _backpackRepository;
     private readonly ISyncService _syncService;
+    private readonly IApiClient _apiClient;
+    private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
     public BackpackService(
         ILogger<BackpackService> logger,
         IBackpackRepository backpackRepository,
-        ISyncService syncService)
+        ISyncService syncService,
+        IApiClient apiClient,
+        IDbContextFactory<AppDbContext> dbContextFactory)
     {
         _logger = logger;
         _backpackRepository = backpackRepository;
         _syncService = syncService;
+        _apiClient = apiClient;
+        _dbContextFactory = dbContextFactory;
     }
 
     /// <summary>
@@ -34,6 +41,8 @@ public class BackpackService : IBackpackService
     {
         try
         {
+            await PullServerBackpackAsync(childId);
+
             var items = await _backpackRepository.GetByChildIdAsync(childId);
             _logger.LogInformation(" Получен рюкзак: {ItemsCount} перекусов", items.Count);
             return items;
@@ -72,6 +81,7 @@ public class BackpackService : IBackpackService
             // Добавляем в очередь синхронизации
             var request = new Models.Api.AddSnackRequest
             {
+                BackpackItemId = item.BackpackItemId,
                 ChildId = childId,
                 SnackName = snackName,
                 Carbs = breadUnits,
@@ -102,6 +112,61 @@ public class BackpackService : IBackpackService
             _logger.LogError(ex, " Ошибка при добавлении перекуса: {Message}", ex.Message);
             throw;
         }
+    }
+
+    private async Task PullServerBackpackAsync(string childId)
+    {
+        try
+        {
+            var serverItems = await _apiClient.GetBackpackItemsAsync(childId);
+            var serverIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var pendingRemovalIds = await GetPendingRemovalIdsAsync(childId);
+
+            foreach (var item in serverItems)
+            {
+                if (string.IsNullOrWhiteSpace(item.BackpackItemId))
+                    continue;
+
+                // Не возвращаем в UI запись, которую ребёнок уже удалил или съел
+                // локально, пока соответствующая операция ожидает отправки.
+                if (pendingRemovalIds.Contains(item.BackpackItemId))
+                    continue;
+
+                serverIds.Add(item.BackpackItemId);
+                await _backpackRepository.UpsertSyncedSnackAsync(
+                    item.BackpackItemId,
+                    string.IsNullOrWhiteSpace(item.ChildId) ? childId : item.ChildId,
+                    item.SnackName,
+                    item.BreadUnits,
+                    item.CreatedAt);
+            }
+
+            var removed = await _backpackRepository.RemoveSyncedItemsMissingFromServerAsync(childId, serverIds);
+
+            _logger.LogInformation(
+                "Рюкзак синхронизирован с сервером: {ServerCount} элементов, удалено устаревших {RemovedCount}",
+                serverIds.Count,
+                removed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось подтянуть рюкзак с сервера, показываем локальные данные");
+        }
+    }
+
+    private async Task<HashSet<string>> GetPendingRemovalIdsAsync(string childId)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync();
+
+        var ids = await db.Set<SyncQueueItem>()
+            .AsNoTracking()
+            .Where(item => !item.IsSynced &&
+                ((item.EntityType == "SnackConsumption") ||
+                 (item.EntityType == "BackpackItem" && item.OperationType == SyncOperationType.Delete)))
+            .Select(item => item.EntityId)
+            .ToListAsync();
+
+        return ids.ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -145,6 +210,51 @@ public class BackpackService : IBackpackService
             _logger.LogError(ex, "Ошибка при удалении перекуса: {Message}", ex.Message);
             throw;
         }
+    }
+
+    public async Task<bool> ConsumeSnackAsync(
+        string backpackItemId,
+        string childId,
+        string snackName,
+        double breadUnits,
+        double currentGlucose)
+    {
+        var consumedAt = DateTime.UtcNow;
+        var consumed = await _backpackRepository.ConsumeSnackAsync(
+            backpackItemId,
+            childId,
+            consumedAt);
+
+        if (!consumed)
+            return false;
+
+        var request = new ConsumeBackpackSnackRequest
+        {
+            BackpackItemId = backpackItemId,
+            ChildId = childId,
+            SnackName = snackName,
+            BreadUnits = breadUnits,
+            CurrentGlucose = currentGlucose,
+            ConsumedAt = consumedAt
+        };
+
+        var queued = await _syncService.QueueItemAsync(
+            backpackItemId,
+            "SnackConsumption",
+            "Insert",
+            JsonConvert.SerializeObject(request));
+
+        if (!queued)
+        {
+            _logger.LogError("Не удалось поставить употребление перекуса {BackpackItemId} в очередь", backpackItemId);
+            return false;
+        }
+
+        // Очередь упорядочена по CreatedAt: если перекус ещё не успел попасть
+        // на сервер, сначала выполнится Insert, затем Consume.
+        await _syncService.SyncNowAsync();
+
+        return true;
     }
 
     /// <summary>

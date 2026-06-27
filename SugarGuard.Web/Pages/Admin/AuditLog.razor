@@ -4,11 +4,12 @@
 @implements IDisposable
 
 @using System.Globalization
-@using System.Net.Http.Json
 @using Microsoft.AspNetCore.Authorization
 @using SugarGuard.Shared.Constants
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
 
-@inject HttpClient Http
+@inject SugarGuardApiService Api
 
 <PageTitle>Audit Log — SugarGuard Admin</PageTitle>
 
@@ -60,7 +61,7 @@
 
             <StatCard Label="Последнее событие"
                       Value="@GetLatestTimestamp()"
-                      Subtitle="UTC"
+                      Subtitle="Московское время"
                       Status="neutral" />
         </section>
 
@@ -98,7 +99,7 @@
                         </div>
 
                         <div class="sg-field">
-                            <label class="sg-label" for="audit-from">From (UTC)</label>
+                            <label class="sg-label" for="audit-from">С (МСК)</label>
                             <input id="audit-from"
                                    class="sg-input"
                                    type="datetime-local"
@@ -107,7 +108,7 @@
                         </div>
 
                         <div class="sg-field">
-                            <label class="sg-label" for="audit-to">To (UTC)</label>
+                            <label class="sg-label" for="audit-to">По (МСК)</label>
                             <input id="audit-to"
                                    class="sg-input"
                                    type="datetime-local"
@@ -180,7 +181,7 @@
                                             </div>
 
                                             <div class="sg-audit-meta">
-                                                <span><strong>Created:</strong> @FormatUtc(log.CreatedAt)</span>
+                                                <span><strong>Создано:</strong> @FormatLocal(log.CreatedAt)</span>
                                                 <span><strong>AuditLogId:</strong> @log.AuditLogId</span>
                                             </div>
                                         </div>
@@ -250,7 +251,7 @@
 
                         <button class="sg-preset-card" type="button" @onclick="ApplyLast24HoursPresetAsync">
                             <span class="sg-preset-title">Последние 24 часа</span>
-                            <span class="sg-preset-desc">Ограничение диапазона по UTC</span>
+                            <span class="sg-preset-desc">Ограничение диапазона по московскому времени</span>
                         </button>
                     </div>
                 </section>
@@ -268,7 +269,7 @@
                         <li>Диапазон <strong>From/To</strong> должен быть корректным: from не позже to.</li>
                         <li><strong>ActorUserId</strong> может быть пустым у системных или анонимных событий.</li>
                         <li><strong>Limit</strong> ограничен API значениями от 1 до 1000.</li>
-                        <li>Время в карточках отображается в UTC, чтобы совпадать с API и БД.</li>
+                        <li>Время в карточках отображается по Москве; в API и БД оно хранится в UTC.</li>
                     </ul>
                 </section>
 
@@ -932,7 +933,7 @@
 @code {
     private readonly CancellationTokenSource _disposeCts = new();
 
-    private readonly List<AuditLogItem> _logs = [];
+    private readonly List<AuditLogVm> _logs = [];
     private readonly AuditLogFilterModel _filter = new();
 
     private static readonly int[] _availableLimits = [50, 100, 200, 500, 1000];
@@ -987,17 +988,17 @@
 
             ClearStatus();
 
-            var url = BuildRequestUrl();
+            var actorUserId = string.IsNullOrWhiteSpace(_filter.ActorUserId)
+                ? (Guid?)null
+                : Guid.Parse(_filter.ActorUserId);
 
-            using var response = await Http.GetAsync(url, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                SetStatus(await ReadErrorAsync(response, cancellationToken), StatusTone.Danger);
-                return;
-            }
-
-            var logs = await response.Content.ReadFromJsonAsync<List<AuditLogItem>>(cancellationToken: cancellationToken) ?? [];
+            var logs = await Api.GetAdminAuditLogsAsync(
+                actorUserId,
+                _filter.Action,
+                _filter.FromUtc,
+                _filter.ToUtc,
+                _filter.Limit,
+                cancellationToken);
 
             _logs.Clear();
             _logs.AddRange(logs.OrderByDescending(x => x.CreatedAt));
@@ -1110,36 +1111,6 @@
         return true;
     }
 
-    private string BuildRequestUrl()
-    {
-        var parameters = new List<string>
-        {
-            $"limit={_filter.Limit.ToString(CultureInfo.InvariantCulture)}"
-        };
-
-        if (!string.IsNullOrWhiteSpace(_filter.ActorUserId))
-        {
-            parameters.Add($"actorUserId={Uri.EscapeDataString(_filter.ActorUserId.Trim())}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(_filter.Action))
-        {
-            parameters.Add($"action={Uri.EscapeDataString(_filter.Action.Trim())}");
-        }
-
-        if (_filter.FromUtc.HasValue)
-        {
-            parameters.Add($"from={Uri.EscapeDataString(_filter.FromUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
-        }
-
-        if (_filter.ToUtc.HasValue)
-        {
-            parameters.Add($"to={Uri.EscapeDataString(_filter.ToUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
-        }
-
-        return $"api/admin/audit-logs?{string.Join("&", parameters)}";
-    }
-
     private static DateTime? ParseDateTimeLocal(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1150,23 +1121,26 @@
         if (DateTime.TryParse(
                 value,
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                DateTimeStyles.None,
                 out var parsed))
         {
-            return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified), MoscowTimeZone);
         }
 
         if (DateTime.TryParse(value, out parsed))
         {
-            return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified), MoscowTimeZone);
         }
 
         return null;
     }
 
-    private static string FormatUtc(DateTime value)
+    private static string FormatLocal(DateTime value)
     {
-        return value.ToUniversalTime().ToString("dd.MM.yyyy HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
+        return TimeZoneInfo.ConvertTimeFromUtc(
+                value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(),
+                MoscowTimeZone)
+            .ToString("dd.MM.yyyy HH:mm:ss 'МСК'", CultureInfo.InvariantCulture);
     }
 
     private string GetLatestTimestamp()
@@ -1176,7 +1150,7 @@
             return "—";
         }
 
-        return FormatUtc(_logs.Max(x => x.CreatedAt));
+        return FormatLocal(_logs.Max(x => x.CreatedAt));
     }
 
     private static string GetActionCategory(string? action)
@@ -1234,29 +1208,6 @@
         };
     }
 
-    private async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(cancellationToken: cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(payload?.Message))
-            {
-                return payload.Message;
-            }
-
-            if (!string.IsNullOrWhiteSpace(payload?.Error))
-            {
-                return payload.Error;
-            }
-        }
-        catch
-        {
-        }
-
-        return $"Ошибка API: {(int)response.StatusCode} {response.ReasonPhrase}";
-    }
-
     private void SetStatus(string message, StatusTone tone)
     {
         _statusMessage = message;
@@ -1280,17 +1231,6 @@
         _disposeCts.Dispose();
     }
 
-    private sealed class AuditLogItem
-    {
-        public Guid AuditLogId { get; set; }
-        public Guid? ActorUserId { get; set; }
-        public string Action { get; set; } = string.Empty;
-        public string? TargetType { get; set; }
-        public string? TargetId { get; set; }
-        public string? Details { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
-
     private sealed class AuditLogFilterModel
     {
         public string ActorUserId { get; set; } = string.Empty;
@@ -1301,19 +1241,19 @@
 
         public string FromText =>
             FromUtc.HasValue
-                ? FromUtc.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+                ? TimeZoneInfo.ConvertTimeFromUtc(
+                        FromUtc.Value.Kind == DateTimeKind.Utc ? FromUtc.Value : FromUtc.Value.ToUniversalTime(),
+                        MoscowTimeZone)
+                    .ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
                 : string.Empty;
 
         public string ToText =>
             ToUtc.HasValue
-                ? ToUtc.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+                ? TimeZoneInfo.ConvertTimeFromUtc(
+                        ToUtc.Value.Kind == DateTimeKind.Utc ? ToUtc.Value : ToUtc.Value.ToUniversalTime(),
+                        MoscowTimeZone)
+                    .ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
                 : string.Empty;
-    }
-
-    private sealed class ApiErrorResponse
-    {
-        public string? Error { get; set; }
-        public string? Message { get; set; }
     }
 
     private enum StatusTone
@@ -1321,5 +1261,26 @@
         Info,
         Success,
         Danger
+    }
+
+    private static readonly TimeZoneInfo MoscowTimeZone = ResolveMoscowTimeZone();
+
+    private static TimeZoneInfo ResolveMoscowTimeZone()
+    {
+        foreach (var id in new[] { "Europe/Moscow", "Russian Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
     }
 }

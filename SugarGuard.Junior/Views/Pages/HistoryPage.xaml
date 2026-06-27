@@ -3,426 +3,123 @@
                      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                      xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
                      xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
-                     xmlns:vm="clr-namespace:SugarGuard.Junior.ViewModels"
                      x:Class="SugarGuard.Junior.Views.Pages.HistoryPage"
-                     x:DataType="vm:HistoryPageViewModel"
                      Title="История"
-                     BackgroundColor="{AppThemeBinding Light=#F4F7FB, Dark=#0B1018}">
-
+                     BackgroundColor="{DynamicResource BackgroundPage}">
     <pages:SwipeablePage.Resources>
         <ResourceDictionary>
-
-            <!-- Базовый стиль для фильтров истории. -->
-            <Style x:Key="HistoryFilterButtonStyle" TargetType="Button">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
+            <Style x:Key="HistoryCard" TargetType="Border">
+                <Setter Property="Padding" Value="14" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+                <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+            </Style>
+            <Style x:Key="FilterButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+                <Setter Property="Background" Value="{x:Null}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceOffset}" />
+                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="CornerRadius" Value="14" />
-                <Setter Property="Padding" Value="10,6" />
-                <Setter Property="HeightRequest" Value="34" />
-                <Setter Property="MinimumWidthRequest" Value="64" />
-                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#FFFFFF, Dark=#141B26}" />
-                <Setter Property="TextColor" Value="{AppThemeBinding Light=#26344F, Dark=#D9E5F7}" />
-                <Setter Property="BorderColor" Value="{AppThemeBinding Light=#CED8E8, Dark=#314055}" />
-                <Setter Property="BorderWidth" Value="1" />
-                <Setter Property="Shadow">
-                    <Setter.Value>
-                        <Shadow Brush="#000000"
-                                Offset="0,8"
-                                Radius="18"
-                                Opacity="0.05" />
-                    </Setter.Value>
-                </Setter>
+                <Setter Property="CornerRadius" Value="15" />
+                <Setter Property="Padding" Value="7,5" />
+                <Setter Property="HeightRequest" Value="40" />
             </Style>
-
-            <!-- Поверхность для блока фильтров. -->
-            <Style x:Key="HistoryPanelBorderStyle" TargetType="Border">
-                <Setter Property="StrokeShape" Value="RoundRectangle 18" />
-                <Setter Property="StrokeThickness" Value="1" />
-                <Setter Property="Padding" Value="8" />
-                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#EFFFFFFF, Dark=#CC111825}" />
-                <Setter Property="Stroke" Value="{AppThemeBinding Light=#1416213E, Dark=#17EDF4FF}" />
-                <Setter Property="Shadow">
-                    <Setter.Value>
-                        <Shadow Brush="#000000"
-                                Offset="0,12"
-                                Radius="28"
-                                Opacity="0.08" />
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-            <!-- Базовый стиль карточки измерения. -->
-            <Style x:Key="MeasurementCardStyle" TargetType="Border">
-                <Setter Property="StrokeShape" Value="RoundRectangle 22" />
-                <Setter Property="StrokeThickness" Value="1" />
-                <Setter Property="Padding" Value="16" />
-                <Setter Property="Margin" Value="0,0,0,10" />
-                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F2FFFFFF, Dark=#CC111825}" />
-                <Setter Property="Stroke" Value="{AppThemeBinding Light=#1416213E, Dark=#17EDF4FF}" />
-                <Setter Property="Shadow">
-                    <Setter.Value>
-                        <Shadow Brush="#000000"
-                                Offset="0,10"
-                                Radius="24"
-                                Opacity="0.07" />
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
         </ResourceDictionary>
     </pages:SwipeablePage.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsLoading}">
+        <CollectionView ItemsSource="{Binding Measurements}"
+                        SelectionMode="None" VerticalScrollBarVisibility="Default">
+            <CollectionView.Header>
+                <VerticalStackLayout Padding="16,30,16,12" Spacing="12">
+                    <Label Text="История" FontFamily="{StaticResource ClashDisplay}" FontSize="30"
+                           FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                    <Label Text="Смотри, как менялся твой сахар" FontSize="14"
+                           TextColor="{DynamicResource TextSecondary}" />
 
-        <!-- Верх страницы. -->
-        <VerticalStackLayout Grid.Row="0"
-                             Padding="24,24,24,10"
-                             Spacing="4">
+                    <Border Style="{StaticResource HistoryCard}" Padding="7">
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
+                            <Button Grid.Column="0" Text="Сегодня" Style="{StaticResource FilterButton}" Command="{Binding SelectTodayCommand}">
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsTodaySelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                            </Button>
+                            <Button Grid.Column="1" Text="7 дней" Style="{StaticResource FilterButton}" Command="{Binding SelectLast7DaysCommand}">
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast7DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                            </Button>
+                            <Button Grid.Column="2" Text="30 дней" Style="{StaticResource FilterButton}" Command="{Binding SelectLast30DaysCommand}">
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast30DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                            </Button>
+                            <Button Grid.Column="3" Text="Период" Style="{StaticResource FilterButton}" Command="{Binding SelectCustomRangeCommand}">
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsCustomSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                            </Button>
+                        </Grid>
+                    </Border>
 
-            <Label Text="История измерений"
-                   FontFamily="{StaticResource ClashDisplay}"
-                   FontSize="28"
-                   FontAttributes="Bold"
-                   TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}" />
+                    <Grid IsVisible="{Binding ShouldShowCustomRange}" ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <DatePicker Date="{Binding CustomFrom}" />
+                        <DatePicker Grid.Column="1" Date="{Binding CustomTo}" />
+                    </Grid>
 
-            <Label Text="Смотри последние показатели, переключай период и быстро находи важные записи."
-                   FontFamily="{StaticResource Satoshi}"
-                   FontSize="14"
-                   TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
-                   LineBreakMode="WordWrap" />
-        </VerticalStackLayout>
-
-        <!-- Панель фильтров. -->
-        <Border Grid.Row="1"
-                Margin="16,0,16,10"
-                Style="{StaticResource HistoryPanelBorderStyle}">
-
-            <ScrollView Orientation="Horizontal"
-                        HorizontalScrollBarVisibility="Never">
-
-                <HorizontalStackLayout Spacing="6">
-
-                    <!-- Сегодня -->
-                    <Button Text="Сегодня"
-                            Style="{StaticResource HistoryFilterButtonStyle}"
-                            Command="{Binding SelectTodayCommand}">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button"
-                                         Binding="{Binding IsTodaySelected}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#1B8E8B" />
-                                <Setter Property="BorderColor" Value="#1B8E8B" />
-                                <Setter Property="TextColor" Value="White" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
-
-                    <!-- 7 дней -->
-                    <Button Text="7 дней"
-                            Style="{StaticResource HistoryFilterButtonStyle}"
-                            Command="{Binding SelectLast7DaysCommand}">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button"
-                                         Binding="{Binding IsLast7DaysSelected}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#1B8E8B" />
-                                <Setter Property="BorderColor" Value="#1B8E8B" />
-                                <Setter Property="TextColor" Value="White" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
-
-                    <!-- 30 дней -->
-                    <Button Text="30 дней"
-                            Style="{StaticResource HistoryFilterButtonStyle}"
-                            Command="{Binding SelectLast30DaysCommand}">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button"
-                                         Binding="{Binding IsLast30DaysSelected}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#1B8E8B" />
-                                <Setter Property="BorderColor" Value="#1B8E8B" />
-                                <Setter Property="TextColor" Value="White" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
-
-                    <!-- Произвольный период -->
-                    <Button Text="Период"
-                            Style="{StaticResource HistoryFilterButtonStyle}"
-                            Command="{Binding SelectCustomRangeCommand}">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button"
-                                         Binding="{Binding IsCustomSelected}"
-                                         Value="True">
-                                <Setter Property="BackgroundColor" Value="#1B8E8B" />
-                                <Setter Property="BorderColor" Value="#1B8E8B" />
-                                <Setter Property="TextColor" Value="White" />
-                            </DataTrigger>
-                        </Button.Triggers>
-                    </Button>
-
-                </HorizontalStackLayout>
-            </ScrollView>
-        </Border>
-
-        <!-- Основной контент. -->
-        <Grid Grid.Row="2">
-
-            <!-- Лента измерений -->
-            <CollectionView ItemsSource="{Binding Measurements}"
-                            SelectionMode="None"
-                            Margin="16,0,16,16"
-                            ItemSizingStrategy="MeasureAllItems"
-                            RemainingItemsThreshold="5"
-                            RemainingItemsThresholdReachedCommand="{Binding LoadNextPageCommand}">
-
-                <CollectionView.ItemsLayout>
-                    <LinearItemsLayout Orientation="Vertical"
-                                       ItemSpacing="2" />
-                </CollectionView.ItemsLayout>
-
-                <CollectionView.Footer>
-                    <StackLayout IsVisible="{Binding IsLoadingMore}" Padding="16">
-                        <ActivityIndicator IsRunning="{Binding IsLoadingMore}" Color="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}" />
-                    </StackLayout>
-                </CollectionView.Footer>
-
-                <CollectionView.Triggers>
-                    <!-- Скрываем список, если пока нечего показывать -->
-                    <DataTrigger TargetType="CollectionView"
-                                 Binding="{Binding IsEmpty}"
-                                 Value="True">
-                        <Setter Property="IsVisible" Value="False" />
-                    </DataTrigger>
-
-                    <!-- Скрываем список во время первичной загрузки -->
-                    <DataTrigger TargetType="CollectionView"
-                                 Binding="{Binding IsLoading}"
-                                 Value="True">
-                        <Setter Property="IsVisible" Value="False" />
-                    </DataTrigger>
-                </CollectionView.Triggers>
-
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:MeasurementDisplayItem">
-
-                        <Border Style="{StaticResource MeasurementCardStyle}">
-
-                            <Grid RowDefinitions="Auto,Auto,Auto"
-                                  ColumnDefinitions="*,Auto"
-                                  RowSpacing="10"
-                                  ColumnSpacing="12">
-
-                                <!-- Верхняя строка карточки -->
-                                <VerticalStackLayout Grid.Row="0"
-                                                     Grid.Column="0"
-                                                     Spacing="2">
-
-                                    <Label Text="Измерение"
-                                           FontFamily="{StaticResource Satoshi}"
-                                           FontSize="11"
-                                           FontAttributes="Bold"
-                                           TextColor="{AppThemeBinding Light=#96A2B8, Dark=#6F7D99}" />
-
-                                    <Label Text="{Binding MeasurementTime, StringFormat='{}{0:dd.MM.yyyy HH:mm}'}"
-                                           FontFamily="{StaticResource Satoshi}"
-                                           FontSize="13"
-                                           TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
-                                </VerticalStackLayout>
-
-                                <components:StatusChip Grid.Row="0"
-                                                       Grid.Column="1"
-                                                       UiState="{Binding UiState}"
-                                                       VerticalOptions="Start" />
-
-                                <!-- Значение глюкозы. -->
-                                <HorizontalStackLayout Grid.Row="1"
-                                                       Grid.Column="0"
-                                                       Grid.ColumnSpan="2"
-                                                       Spacing="8"
-                                                       VerticalOptions="Center">
-
-                                    <Label Text="{Binding GlucoseValue, StringFormat='{}{0:F1}'}"
-                                           FontFamily="{StaticResource ClashDisplay}"
-                                           FontSize="32"
-                                           FontAttributes="Bold"
-                                           TextColor="{Binding UiState, Converter={StaticResource GlucoseUiStateToColorConverter}}"
-                                           VerticalOptions="Center" />
-
-                                    <Label Text="ммоль/л"
-                                           FontFamily="{StaticResource Satoshi}"
-                                           FontSize="13"
-                                           FontAttributes="Bold"
-                                           TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
-                                           VerticalOptions="End"
-                                           Margin="0,0,0,4" />
-                                </HorizontalStackLayout>
-
-                                <!-- Заметка -->
-                                <Border Grid.Row="2"
-                                        Grid.Column="0"
-                                        Grid.ColumnSpan="2"
-                                        Padding="10,8"
-                                        BackgroundColor="{AppThemeBinding Light=#F5F8FC, Dark=#141B2635}"
-                                        Stroke="{AppThemeBinding Light=#1216213E, Dark=#12EDF4FF}"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 14"
-                                        IsVisible="{Binding Notes, Converter={StaticResource StringNotEmptyConverter}}">
-
-                                    <HorizontalStackLayout Spacing="8">
-                                        <Label Text="✎"
-                                               FontSize="12"
-                                               TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}"
-                                               VerticalOptions="Start" />
-
-                                        <Label Text="{Binding Notes}"
-                                               FontFamily="{StaticResource Satoshi}"
-                                               FontSize="13"
-                                               LineBreakMode="WordWrap"
-                                               TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
+                    <Border Style="{StaticResource HistoryCard}" IsVisible="{Binding HasMeasurements}">
+                        <VerticalStackLayout Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <VerticalStackLayout Spacing="0">
+                                    <Label Text="Среднее показанных" FontSize="13" TextColor="{DynamicResource TextSecondary}" />
+                                    <HorizontalStackLayout Spacing="5">
+                                        <Label Text="{Binding AverageGlucose}" FontFamily="{StaticResource ClashDisplay}"
+                                               FontSize="31" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                                        <Label Text="ммоль/л" FontSize="12" TextColor="{DynamicResource TextSecondary}" VerticalOptions="End" Margin="0,0,0,7" />
                                     </HorizontalStackLayout>
-                                </Border>
-
+                                </VerticalStackLayout>
+                                <Label Grid.Column="1" Text="Цель 4.0–10.0" FontSize="12" TextColor="{DynamicResource GlucoseNormalColor}" VerticalOptions="Center" />
                             </Grid>
-                        </Border>
-
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-            <!-- Пустое состояние. -->
-            <Grid Padding="24"
-                  HorizontalOptions="Fill"
-                  VerticalOptions="Fill"
-                  IsVisible="False">
-
-                <Grid.Triggers>
-                    <DataTrigger TargetType="Grid"
-                                 Binding="{Binding IsEmpty}"
-                                 Value="True">
-                        <Setter Property="IsVisible" Value="True" />
-                    </DataTrigger>
-
-                    <DataTrigger TargetType="Grid"
-                                 Binding="{Binding IsLoading}"
-                                 Value="True">
-                        <Setter Property="IsVisible" Value="False" />
-                    </DataTrigger>
-                </Grid.Triggers>
-
-                <Border HorizontalOptions="Center"
-                        VerticalOptions="Center"
-                        MaximumWidthRequest="360"
-                        Padding="24,22"
-                        BackgroundColor="{AppThemeBinding Light=#F2FFFFFF, Dark=#CC111825}"
-                        Stroke="{AppThemeBinding Light=#1416213E, Dark=#17EDF4FF}"
-                        StrokeThickness="1"
-                        StrokeShape="RoundRectangle 24">
-
-                    <VerticalStackLayout Spacing="14"
-                                         HorizontalOptions="Center">
-
-                        <Border WidthRequest="72"
-                                HeightRequest="72"
-                                HorizontalOptions="Center"
-                                BackgroundColor="{AppThemeBinding Light=#141B8E8B, Dark=#1A56D0BF}"
-                                Stroke="{AppThemeBinding Light=#331B8E8B, Dark=#3356D0BF}"
-                                StrokeThickness="1"
-                                StrokeShape="RoundRectangle 22">
-
-                            <Grid>
-                                <Label Text="📋"
-                                       FontSize="34"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center" />
-                            </Grid>
-                        </Border>
-
-                        <VerticalStackLayout Spacing="8"
-                                             HorizontalOptions="Center">
-
-                            <Label Text="История пока пуста"
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center"
-                                   TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}" />
-
-                            <Label Text="За выбранный период здесь еще нет измерений."
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="15"
-                                   HorizontalTextAlignment="Center"
-                                   LineBreakMode="WordWrap"
-                                   MaximumWidthRequest="290"
-                                   TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
-
-                            <Label Text="Попробуй сменить фильтр или добавь новое измерение, и мы аккуратно соберем историю здесь."
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="13"
-                                   HorizontalTextAlignment="Center"
-                                   LineBreakMode="WordWrap"
-                                   MaximumWidthRequest="300"
-                                   TextColor="{AppThemeBinding Light=#667694, Dark=#9EAED0}" />
+                            <GraphicsView x:Name="HistoryChart" Drawable="{Binding ChartDrawable}"
+                                          HeightRequest="180" IsVisible="{Binding HasChart}" />
+                            <Label Text="{Binding ResultsSummaryText}" FontSize="12" TextColor="{DynamicResource TextSecondary}" />
                         </VerticalStackLayout>
+                    </Border>
 
-                        <!-- Маленький помощник в friendly-empty-state -->
-                        <Border HorizontalOptions="Center"
-                                Padding="12,10"
-                                BackgroundColor="{AppThemeBinding Light=#F5F8FC, Dark=#141B2635}"
-                                Stroke="{AppThemeBinding Light=#1416213E, Dark=#12EDF4FF}"
-                                StrokeThickness="1"
-                                StrokeShape="RoundRectangle 18">
+                    <Label Text="Последние измерения" FontFamily="{StaticResource ClashDisplay}" FontSize="21"
+                           FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" IsVisible="{Binding HasMeasurements}" />
+                </VerticalStackLayout>
+            </CollectionView.Header>
 
-                            <HorizontalStackLayout Spacing="8"
-                                                   HorizontalOptions="Center">
-                                <Label Text="•ᴗ•"
-                                       FontSize="18"
-                                       TextColor="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}" />
+            <CollectionView.EmptyView>
+                <Grid Padding="16,20">
+                    <components:EmptyStateView TitleText="{Binding EmptyStateTitle}"
+                                               Message="{Binding EmptyStateMessage}" />
+                </Grid>
+            </CollectionView.EmptyView>
 
-                                <Label Text="Я помогу, когда появятся первые записи."
-                                       FontFamily="{StaticResource Satoshi}"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}" />
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="16,0,16,9" Style="{StaticResource HistoryCard}" Padding="13">
+                        <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="0" VerticalOptions="Center">
+                                <Label Text="{Binding DisplayTime}" FontSize="17" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                                <Label Text="{Binding DayLabel}" FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                            </VerticalStackLayout>
+                            <HorizontalStackLayout Grid.Column="1" Spacing="5" VerticalOptions="Center">
+                                <Label Text="{Binding DisplayValue}" FontFamily="{StaticResource ClashDisplay}" FontSize="25" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                                <Label Text="ммоль/л" FontSize="11" TextColor="{DynamicResource TextSecondary}" VerticalOptions="End" Margin="0,0,0,4" />
                             </HorizontalStackLayout>
-                        </Border>
-
-                    </VerticalStackLayout>
-                </Border>
-            </Grid>
-
-            <!-- Индикатор загрузки. -->
-            <Grid IsVisible="{Binding IsLoading}"
-                  BackgroundColor="#22000000"
-                  InputTransparent="True">
-
-                <Border HorizontalOptions="Center"
-                        VerticalOptions="Center"
-                        Padding="18,14"
-                        BackgroundColor="{AppThemeBinding Light=#F2FFFFFF, Dark=#DD111825}"
-                        Stroke="{AppThemeBinding Light=#1416213E, Dark=#17EDF4FF}"
-                        StrokeThickness="1"
-                        StrokeShape="RoundRectangle 18">
-
-                    <HorizontalStackLayout Spacing="10">
-                        <ActivityIndicator IsRunning="{Binding IsLoading}"
-                                           Color="{AppThemeBinding Light=#1B8E8B, Dark=#56D0BF}"
-                                           WidthRequest="20"
-                                           HeightRequest="20"
-                                           VerticalOptions="Center" />
-
-                        <Label Text="Загружаем историю..."
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="13"
-                               FontAttributes="Bold"
-                               TextColor="{AppThemeBinding Light=#16213E, Dark=#EDF4FF}"
-                               VerticalOptions="Center" />
-                    </HorizontalStackLayout>
-                </Border>
-            </Grid>
-
-        </Grid>
-    </Grid>
+                            <components:StatusChip Grid.Column="2" UiState="{Binding UiState}" VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.Footer>
+                <Grid Padding="16,6,16,24" ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Text="← Назад" Style="{StaticResource SecondaryButton}"
+                            Command="{Binding LoadPreviousPageCommand}"
+                            IsEnabled="{Binding CanGoPreviousPage}" />
+                    <Label Grid.Column="1" Text="{Binding PageLabel}" VerticalOptions="Center"
+                           TextColor="{DynamicResource TextSecondary}" FontSize="12" />
+                    <Button Grid.Column="2" Text="Вперёд →" Style="{StaticResource SecondaryButton}"
+                            Command="{Binding LoadNextPageCommand}"
+                            IsEnabled="{Binding CanGoNextPage}" />
+                </Grid>
+            </CollectionView.Footer>
+        </CollectionView>
+    </RefreshView>
 </pages:SwipeablePage>

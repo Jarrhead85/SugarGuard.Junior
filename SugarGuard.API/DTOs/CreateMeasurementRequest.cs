@@ -7,6 +7,11 @@ namespace SugarGuard.API.DTOs;
 /// </summary>
 public class CreateMeasurementRequest
 {
+    /// <summary>
+    /// Optional client-generated identifier. Mobile clients use it to make sync idempotent.
+    /// </summary>
+    public Guid? MeasurementId { get; set; }
+
     [Required]
     public Guid ChildId { get; set; }
 

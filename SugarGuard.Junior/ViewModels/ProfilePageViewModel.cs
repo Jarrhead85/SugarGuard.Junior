@@ -2,6 +2,7 @@
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
@@ -132,6 +133,10 @@ public partial class ProfilePageViewModel : ObservableObject
         var savedScale = (ScalePreset)Preferences.Get("interface_scale", (int)ScalePreset.Default);
         CurrentScale = savedScale;
         _themeService.ApplyScale(savedScale);
+
+        var lastSync = await _storageService.GetAsync("last_sync_time");
+        if (DateTime.TryParse(lastSync, null, DateTimeStyles.RoundtripKind, out var lastSyncUtc))
+            LastSyncTime = $"Последняя синхронизация: {lastSyncUtc.ToLocalTime():dd.MM.yyyy HH:mm}";
 
         var childId = await _storageService.GetAsync(AppConstants.StorageKeyCurrentChildId);
         if (string.IsNullOrEmpty(childId))

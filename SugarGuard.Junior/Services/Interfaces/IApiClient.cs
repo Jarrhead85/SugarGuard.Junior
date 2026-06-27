@@ -97,9 +97,19 @@ public interface IApiClient
     Task<bool> RemoveSnackAsync(RemoveSnackRequest request);
 
     /// <summary>
+    /// Фиксирует употребление перекуса и удаляет его из серверного рюкзака.
+    /// </summary>
+    Task<bool> ConsumeSnackAsync(ConsumeBackpackSnackRequest request);
+
+    /// <summary>
     /// Получает содержимое рюкзака
     /// </summary>
     Task<List<string>> GetBackpackAsync(string childId);
+
+    /// <summary>
+    /// Получает содержимое рюкзака с идентификаторами и ХЕ для локального merge.
+    /// </summary>
+    Task<List<BackpackApiItemResponse>> GetBackpackItemsAsync(string childId);
 
     // ========== ПРИВЯЗКА РОДИТЕЛЕЙ ==========
     /// <summary>

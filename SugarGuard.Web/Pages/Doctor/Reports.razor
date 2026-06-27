@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
 @rendermode InteractiveServer
 
+@using System.Globalization
 @using Microsoft.AspNetCore.Authorization
 @using SugarGuard.Web.Services
 @using static SugarGuard.Web.Services.SugarGuardApiService
@@ -10,95 +11,158 @@
 @inject NavigationManager Navigation
 @inject ILogger<Reports> Logger
 
-<PageTitle>Отчёты врача — SugarGuard</PageTitle>
+<PageTitle>Аналитика группы — SugarGuard</PageTitle>
 
-<div class="sg-page">
-    <PageHeader Title="Отчёты"
-                Subtitle="Рабочий список пациентов для быстрого анализа, сортировки и перехода к деталям.">
-        <TrailingContent>
-            <button class="sg-btn sg-btn--primary" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновляем..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
-    <div class="sg-panel sg-report-toolbar">
-        <input class="sg-input"
-               placeholder="Поиск пациента"
-               @bind="_search"
-               @bind:event="oninput" />
-        <select class="sg-select" @bind="_sortBy" @bind:after="LoadAsync">
-            <option value="lastMeasurement">По последнему измерению</option>
-            <option value="tir">По TIR</option>
-            <option value="name">По имени</option>
-        </select>
-    </div>
+<section class="doctor-report-page">
+    <header class="doctor-report-hero">
+        <div>
+            <span class="doctor-report-eyebrow">Аналитика группы</span>
+            <h1>Отчёты и динамика</h1>
+            <p>Срез по пациентам врача на основе реальных измерений, связей и рассчитанных показателей.</p>
+        </div>
+        <button class="doctor-report-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+            @(_isLoading ? "Обновляем..." : "Обновить")
+        </button>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <div class="sg-alert sg-alert--error" role="alert">@_error</div>
+        <div class="doctor-report-alert" role="alert">@_error</div>
     }
 
     @if (_isLoading)
     {
-        <div class="sg-panel">Загружаем отчёт...</div>
+        <div class="doctor-report-card">Загружаем аналитику...</div>
     }
     else
     {
-        <div class="sg-table-wrap">
-            <table class="sg-table">
-                <thead>
-                    <tr>
-                        <th>Пациент</th>
-                        <th>Возраст</th>
-                        <th>Последняя глюкоза</th>
-                        <th>TIR</th>
-                        <th>Критические</th>
-                        <th>Измерений</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var patient in FilteredPatients)
-                    {
-                        <tr>
-                            <td>@GetFullName(patient)</td>
-                            <td>@GetAge(patient.DateOfBirth)</td>
-                            <td>@(patient.LatestGlucose?.ToString("F1") ?? "—") ммоль/л</td>
-                            <td>@patient.TimeInTargetRange.ToString("F1")%</td>
-                            <td>@patient.CriticalEventsLast7Days</td>
-                            <td>@patient.MeasurementsLast7Days</td>
-                            <td>
-                                <button class="sg-btn sg-btn--secondary sg-btn--sm"
-                                        @onclick="() => NavigateToPatient(patient.ChildId)">
-                                    Детали
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <section class="doctor-report-kpis" aria-label="Сводка группы">
+            <article>
+                <span>Пациентов</span>
+                <strong>@_patients.Count</strong>
+                <small>активно прикреплены</small>
+            </article>
+            <article>
+                <span>Средний TIR</span>
+                <strong>@FormatPercent(AverageTir)</strong>
+                <small>за последние 7 дней</small>
+            </article>
+            <article>
+                <span>Средняя глюкоза</span>
+                <strong>@AverageGlucoseLabel</strong>
+                <small>по последним значениям</small>
+            </article>
+            <article>
+                <span>Без свежих данных</span>
+                <strong>@StalePatientsCount</strong>
+                <small>нет измерения за 24 часа</small>
+            </article>
+        </section>
+
+        <div class="doctor-report-toolbar">
+            <input type="search"
+                   placeholder="Поиск пациента..."
+                   @bind="_search"
+                   @bind:event="oninput" />
+            <select @bind="_sortBy" @bind:after="LoadAsync">
+                <option value="lastmeasurement">По последнему измерению</option>
+                <option value="tir">По TIR</option>
+                <option value="name">По имени</option>
+            </select>
         </div>
+
+        @if (FilteredPatients.Count == 0)
+        {
+            <div class="doctor-report-empty">
+                <strong>Пациенты не найдены</strong>
+                <span>Измените поиск или дождитесь прикрепления пациента к врачу.</span>
+            </div>
+        }
+        else
+        {
+            <div class="doctor-report-table-card">
+                <table class="doctor-report-table">
+                    <thead>
+                        <tr>
+                            <th>Пациент</th>
+                            <th>Возраст</th>
+                            <th>Последняя глюкоза</th>
+                            <th>TIR</th>
+                            <th>Критические</th>
+                            <th>Измерений за 7 дней</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var patient in FilteredPatients)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@GetFullName(patient)</strong>
+                                    <small>@FormatDiabetesType(patient.DiabetesType)</small>
+                                </td>
+                                <td>@FormatAge(patient.DateOfBirth)</td>
+                                <td>@FormatGlucose(patient)</td>
+                                <td>
+                                    <div class="doctor-report-progress">
+                                        <span style="width:@FormatProgressWidth(patient.TimeInTargetRange)"></span>
+                                    </div>
+                                    <b>@FormatPercent(patient.TimeInTargetRange)</b>
+                                </td>
+                                <td>@patient.CriticalEventsLast7Days</td>
+                                <td>@patient.MeasurementsLast7Days</td>
+                                <td>
+                                    <button type="button" @onclick="() => NavigateToPatient(patient.ChildId)">Открыть</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
-</div>
+</section>
 
 @code {
+    private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+
     private bool _isLoading = true;
     private string? _error;
     private string _search = string.Empty;
-    private string _sortBy = "lastMeasurement";
+    private string _sortBy = "lastmeasurement";
     private List<DoctorPatientSummaryVm> _patients = [];
 
-    private IEnumerable<DoctorPatientSummaryVm> FilteredPatients
+    private List<DoctorPatientSummaryVm> FilteredPatients
     {
         get
         {
             var query = _search.Trim();
             return string.IsNullOrWhiteSpace(query)
                 ? _patients
-                : _patients.Where(p => GetFullName(p).Contains(query, StringComparison.OrdinalIgnoreCase));
+                : _patients.Where(p => GetFullName(p).Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
         }
     }
+
+    private double AverageTir => _patients.Count == 0
+        ? 0
+        : Math.Round(_patients.Average(p => p.TimeInTargetRange), 1);
+
+    private string AverageGlucoseLabel
+    {
+        get
+        {
+            var values = _patients.Where(p => p.LatestGlucose is not null).Select(p => p.LatestGlucose!.Value).ToList();
+            if (values.Count == 0)
+            {
+                return "—";
+            }
+
+            return $"{values.Average():0.0} ммоль/л";
+        }
+    }
+
+    private int StalePatientsCount => _patients.Count(p =>
+        p.LatestMeasurementTime is null || p.LatestMeasurementTime.Value < DateTime.UtcNow.AddHours(-24));
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -123,34 +187,232 @@
     }
 
     private static string GetFullName(DoctorPatientSummaryVm patient)
-        => string.Join(' ', new[] { patient.FirstName, patient.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        => string.IsNullOrWhiteSpace(patient.FullName)
+            ? "Пациент без имени"
+            : patient.FullName.Trim();
 
-    private static string GetAge(DateOnly dateOfBirth)
+    private static string FormatDiabetesType(string diabetesType)
+        => string.IsNullOrWhiteSpace(diabetesType)
+            ? "тип диабета не указан"
+            : diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase).Trim();
+
+    private static string FormatAge(DateOnly dateOfBirth)
     {
         if (dateOfBirth == default)
+        {
             return "—";
+        }
 
         var today = DateOnly.FromDateTime(DateTime.Today);
         var age = today.Year - dateOfBirth.Year;
         if (dateOfBirth > today.AddYears(-age))
+        {
             age--;
+        }
 
         return $"{age} лет";
     }
 
+    private static string FormatGlucose(DoctorPatientSummaryVm patient)
+        => patient.LatestGlucose is null
+            ? "—"
+            : $"{patient.LatestGlucose.Value.ToString("0.0", RuCulture)} ммоль/л";
+
+    private static string FormatPercent(double value)
+        => $"{Math.Round(value, 1).ToString("0.#", RuCulture)}%";
+
+    private static string FormatProgressWidth(double value)
+        => $"{Math.Clamp(value, 0, 100).ToString("0.#", CultureInfo.InvariantCulture)}%";
+
     private void NavigateToPatient(Guid childId)
-        => Navigation.NavigateTo($"/doctor/patients/{childId}");
+        => Navigation.NavigateTo($"/doctor/patients/{childId:D}");
 }
 
 <style>
-    .sg-report-toolbar {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        flex-wrap: wrap;
+    .doctor-report-page {
+        display: grid;
+        gap: 22px;
     }
 
-    .sg-report-toolbar .sg-input {
-        min-width: min(360px, 100%);
+    .doctor-report-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        padding: 18px 0 20px;
+        border-bottom: 1px solid rgba(148, 163, 184, .22);
+    }
+
+    .doctor-report-eyebrow {
+        color: #8a97ad;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .doctor-report-hero h1 {
+        margin: 8px 0;
+        color: #16213e;
+        font-size: 34px;
+        line-height: 1.05;
+    }
+
+    .doctor-report-hero p {
+        margin: 0;
+        color: #667694;
+    }
+
+    .doctor-report-button,
+    .doctor-report-table button {
+        border: 0;
+        border-radius: 18px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #1b8e8b, #2678d9);
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .doctor-report-alert,
+    .doctor-report-card,
+    .doctor-report-empty,
+    .doctor-report-table-card,
+    .doctor-report-kpis article {
+        border: 1px solid rgba(148, 163, 184, .18);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, .86);
+        box-shadow: 0 18px 48px rgba(31, 48, 80, .08);
+    }
+
+    .doctor-report-alert {
+        padding: 14px 16px;
+        color: #db5967;
+        background: rgba(219, 89, 103, .09);
+    }
+
+    .doctor-report-card,
+    .doctor-report-empty {
+        padding: 28px;
+    }
+
+    .doctor-report-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .doctor-report-kpis article {
+        padding: 20px;
+    }
+
+    .doctor-report-kpis span {
+        color: #96a2b8;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    .doctor-report-kpis strong {
+        display: block;
+        margin-top: 8px;
+        color: #16213e;
+        font-size: 30px;
+    }
+
+    .doctor-report-kpis small {
+        color: #667694;
+    }
+
+    .doctor-report-toolbar {
+        display: grid;
+        grid-template-columns: 1fr minmax(220px, auto);
+        gap: 12px;
+    }
+
+    .doctor-report-toolbar input,
+    .doctor-report-toolbar select {
+        min-height: 44px;
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 16px;
+        padding: 0 14px;
+        background: rgba(255, 255, 255, .92);
+        color: #16213e;
+    }
+
+    .doctor-report-empty {
+        display: grid;
+        place-items: center;
+        gap: 8px;
+        min-height: 180px;
+        text-align: center;
+        color: #667694;
+    }
+
+    .doctor-report-empty strong {
+        color: #16213e;
+        font-size: 20px;
+    }
+
+    .doctor-report-table-card {
+        overflow: hidden;
+    }
+
+    .doctor-report-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .doctor-report-table th {
+        padding: 14px 16px;
+        color: #96a2b8;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .05em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .doctor-report-table td {
+        padding: 16px;
+        border-top: 1px solid rgba(148, 163, 184, .14);
+        color: #667694;
+    }
+
+    .doctor-report-table td strong {
+        display: block;
+        color: #16213e;
+    }
+
+    .doctor-report-table td small {
+        color: #8a97ad;
+    }
+
+    .doctor-report-progress {
+        width: 160px;
+        max-width: 100%;
+        height: 7px;
+        margin-bottom: 6px;
+        border-radius: 999px;
+        background: #edf2f8;
+        overflow: hidden;
+    }
+
+    .doctor-report-progress span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #1b8e8b, #56d0bf);
+    }
+
+    @@media (max-width: 960px) {
+        .doctor-report-kpis {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .doctor-report-toolbar {
+            grid-template-columns: 1fr;
+        }
     }
 </style>

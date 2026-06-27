@@ -56,8 +56,22 @@ public class MeasurementsService : IMeasurementsService
         CreateMeasurementRequest request,
         CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        if (request.MeasurementId.HasValue)
+        {
+            var existing = await db.Measurements
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.MeasurementId == request.MeasurementId.Value, cancellationToken);
+            if (existing is not null)
+            {
+                return existing;
+            }
+        }
+
         var measurement = new Measurement
         {
+            MeasurementId = request.MeasurementId.GetValueOrDefault(Guid.NewGuid()),
             ChildId = request.ChildId,
             GlucoseValue = request.GlucoseValue,
             MeasurementTime = request.MeasurementTime,
@@ -66,11 +80,17 @@ public class MeasurementsService : IMeasurementsService
             DataSource = request.DataSource
         };
 
-        await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
-        {
-            db.Measurements.Add(measurement);
-            await db.SaveChangesAsync(cancellationToken);
-        }
+        var recommendation = await db.AIRecommendations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                item => item.MeasurementId == measurement.MeasurementId,
+                cancellationToken);
+
+        if (recommendation is not null)
+            measurement.RecommendationId = recommendation.RecommendationId;
+
+        db.Measurements.Add(measurement);
+        await db.SaveChangesAsync(cancellationToken);
 
         await _audit.WriteAsync(
             action: "measurement.created",
@@ -241,6 +261,29 @@ public class MeasurementsService : IMeasurementsService
                 continue;
             }
 
+            Guid? requestedMeasurementId = null;
+            if (Guid.TryParse(item.ClientOperationId, out var parsedMeasurementId))
+            {
+                requestedMeasurementId = parsedMeasurementId;
+
+                var existingById = existingMeasurements
+                    .FirstOrDefault(m => m.MeasurementId == parsedMeasurementId);
+                if (existingById.MeasurementId != Guid.Empty)
+                {
+                    successCount++;
+                    syncLogs.Add(new SyncLog
+                    {
+                        ChildId = item.ChildId,
+                        EntityType = "Measurement",
+                        EntityId = parsedMeasurementId.ToString(),
+                        Status = "success",
+                        IsConflict = false,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    continue;
+                }
+            }
+
             var key = (item.ChildId, item.MeasurementTime, item.GlucoseValue);
 
             // Дубликат — фиксируем конфликт
@@ -275,6 +318,7 @@ public class MeasurementsService : IMeasurementsService
 
             var measurement = new Measurement
             {
+                MeasurementId = requestedMeasurementId.GetValueOrDefault(Guid.NewGuid()),
                 ChildId = item.ChildId,
                 GlucoseValue = item.GlucoseValue,
                 MeasurementTime = item.MeasurementTime,

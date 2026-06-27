@@ -387,6 +387,7 @@ builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IParentDashboardService, ParentDashboardService>();
 builder.Services.AddScoped<IDoctorDashboardService, DoctorDashboardService>();
+builder.Services.AddScoped<IBackpackService, BackpackService>();
 builder.Services.AddScoped<IGlucoseStatusService, GlucoseStatusService>();
 builder.Services.AddScoped<IGlucoseUiStateService, GlucoseUiStateService>();
 builder.Services.AddScoped<IStatisticsCalculationService, StatisticsCalculationService>();

@@ -315,6 +315,19 @@ public class SyncConflictInfo
 }
 
 /// <summary>
+/// Серверный элемент рюкзака с полными данными для merge в локальную БД.
+/// </summary>
+public sealed class BackpackApiItemResponse
+{
+    public string BackpackItemId { get; set; } = string.Empty;
+    public string ChildId { get; set; } = string.Empty;
+    public string SnackName { get; set; } = string.Empty;
+    public double BreadUnits { get; set; }
+    public string? AddedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
 /// Ответ при подключении к Telegram
 /// </summary>
 public class TelegramConnectResponse

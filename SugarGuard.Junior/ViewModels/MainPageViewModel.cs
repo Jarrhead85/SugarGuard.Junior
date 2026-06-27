@@ -90,7 +90,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     // ========== ПРИВЯЗАННЫЕ СВОЙСТВА: ПРОФИЛЬ И ДАТА ==========
 
     [ObservableProperty]
-    private string childName = "Привет!";
+    private string childName = "друг";
 
     [ObservableProperty]
     private string currentDate = DateTime.Now.ToString("dd MMMM yyyy");
@@ -779,20 +779,20 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             {
                 var nickname = await _storageService.GetAsync("child_nickname");
                 ChildName = string.IsNullOrWhiteSpace(nickname)
-                    ? "Привет!"
-                    : $"Привет, {nickname.Trim()}";
+                    ? "друг"
+                    : nickname.Trim();
                 return;
             }
 
             var firstName = await _childRepository.GetFirstNameAsync(child);
             ChildName = string.IsNullOrWhiteSpace(firstName)
-                ? "Привет!"
-                : $"Привет, {firstName.Trim()}";
+                ? "друг"
+                : firstName.Trim();
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Не удалось загрузить имя ребёнка для главной");
-            ChildName = "Привет!";
+            ChildName = "друг";
         }
     }
 

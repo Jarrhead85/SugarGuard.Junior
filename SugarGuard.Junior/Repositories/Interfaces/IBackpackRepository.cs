@@ -19,9 +19,35 @@ public interface IBackpackRepository : IRepository<BackpackItem>
     Task<BackpackItem> AddSnackAsync(string childId, string snackName, double carbs);
 
     /// <summary>
+    /// Создаёт или обновляет локальный элемент, пришедший с сервера.
+    /// </summary>
+    Task UpsertSyncedSnackAsync(string backpackItemId, string childId, string snackName, double breadUnits, DateTime createdAt);
+
+    /// <summary>
+    /// Помечает локальный элемент как синхронизированный.
+    /// </summary>
+    Task<bool> MarkAsSyncedAsync(string backpackItemId);
+
+    /// <summary>
+    /// Удаляет локальные синхронизированные элементы, которых больше нет на сервере.
+    /// </summary>
+    Task<int> RemoveSyncedItemsMissingFromServerAsync(string childId, IReadOnlySet<string> serverItemIds);
+
+    /// <summary>
+    /// Удаляет один локальный дубль старого формата, у которого нет операции
+    /// добавления в очереди. Используется после подтверждённого потребления.
+    /// </summary>
+    Task<bool> RemoveOrphanedUnsyncedDuplicateAsync(string childId, string snackName, double breadUnits);
+
+    /// <summary>
     /// Удаляет перекус из рюкзака и добавляет в историю
     /// </summary>
     Task<bool> RemoveSnackAsync(string backpackItemId, string childId, string removedBy);
+
+    /// <summary>
+    /// Атомарно переносит перекус из рюкзака в журнал употребления.
+    /// </summary>
+    Task<bool> ConsumeSnackAsync(string backpackItemId, string childId, DateTime consumedAt);
 
     /// <summary>
     /// Получает историю всех перекусов

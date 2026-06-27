@@ -422,6 +422,16 @@ public class MockApiClient : IApiClient
         return true;
     }
 
+    public async Task<bool> ConsumeSnackAsync(ConsumeBackpackSnackRequest request)
+    {
+        _logger.LogInformation(
+            "[MOCK] Съеден перекус {SnackName} ({BreadUnits} ХЕ)",
+            request.SnackName,
+            request.BreadUnits);
+        await Task.Delay(150);
+        return true;
+    }
+
     /// <summary>
     /// Имитирует получение содержимого рюкзака
     /// </summary>
@@ -437,6 +447,20 @@ public class MockApiClient : IApiClient
         }
 
         return new List<string>();
+    }
+
+    public async Task<List<BackpackApiItemResponse>> GetBackpackItemsAsync(string childId)
+    {
+        var snacks = await GetBackpackAsync(childId);
+        return snacks.Select(name => new BackpackApiItemResponse
+        {
+            BackpackItemId = Guid.NewGuid().ToString(),
+            ChildId = childId,
+            SnackName = name,
+            BreadUnits = 1,
+            AddedBy = "mock",
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
     }
 
     /// <summary>

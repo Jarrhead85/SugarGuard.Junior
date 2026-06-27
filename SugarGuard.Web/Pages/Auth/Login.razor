@@ -52,12 +52,14 @@
 
                 <div class="input-wrap">
                     <label class="input-label" for="login-email">Email</label>
-                    <InputText id="login-email"
-                               type="email"
-                               @bind-Value="_loginModel.Email"
-                               class="@($"input-field{(_emailError ? " error" : "")}")"
-                               placeholder="you@example.com"
-                               disabled="@_isLoading" />
+                    <input id="login-email"
+                           type="email"
+                           value="@_loginModel.Email"
+                           @oninput="OnLoginEmailInput"
+                           class="@($"input-field{(_emailError ? " error" : "")}")"
+                           placeholder="you@example.com"
+                           autocomplete="email"
+                           disabled="@_isLoading" />
                     <ValidationMessage For="@(() => _loginModel.Email)" class="input-helper error" />
                 </div>
 
@@ -65,11 +67,12 @@
                     <label class="input-label" for="login-password">Пароль</label>
                     <div class="input-password-wrap">
                         <input id="login-password"
-                               @bind="_loginModel.Password"
-                               @bind:event="oninput"
+                               value="@_loginModel.Password"
+                               @oninput="OnLoginPasswordInput"
                                type="@(_showPassword ? "text" : "password")"
                                class="input-field @(_passwordError ? "error" : "")"
                                placeholder="••••••••"
+                               autocomplete="current-password"
                                disabled="@_isLoading" />
                         <button type="button"
                                 class="input-eye-btn"
@@ -251,6 +254,20 @@
     private string _newPassword = string.Empty;
     private bool _forgotLoading;
 
+    private void OnLoginEmailInput(ChangeEventArgs e)
+    {
+        _loginModel.Email = e.Value?.ToString() ?? string.Empty;
+        _emailError = false;
+        _errorMessage = null;
+    }
+
+    private void OnLoginPasswordInput(ChangeEventArgs e)
+    {
+        _loginModel.Password = e.Value?.ToString() ?? string.Empty;
+        _passwordError = false;
+        _errorMessage = null;
+    }
+
     // Инициализация
     /// <summary>
     /// При первом рендере JS-interop ещё недоступен
@@ -262,6 +279,13 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         if (authState.User.Identity?.IsAuthenticated == true)
         {
+            var returnUrl = ParseReturnUrl();
+            if (!string.IsNullOrWhiteSpace(returnUrl) && SafeRedirect.SanitizeReturnUrl(returnUrl) == returnUrl)
+            {
+                Navigation.NavigateTo(returnUrl, replace: true);
+                return;
+            }
+
             RedirectByRole(authState.User);
         }
     }

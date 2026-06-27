@@ -100,7 +100,9 @@ public interface IAIRecommendationService
         double currentGlucose,
         List<double> recentGlucoseValues,
         string childState,
-        List<string> availableSnacks);
+        List<string> availableSnacks,
+        string? measurementId = null,
+        bool forceNew = false);
 
     /// <summary>
     /// Получает последнюю рекомендацию

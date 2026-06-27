@@ -145,10 +145,15 @@ public class GigaChatService : IGigaChatService
             model = "GigaChat",
             messages = new[]
             {
+                new
+                {
+                    role = "system",
+                    content = "Ты детский помощник по диабету. Отвечай по-русски, спокойно и не более чем двумя короткими предложениями. Не назначай дозу инсулина. Если упоминаешь еду, выбирай только из переданного рюкзака и не выдумывай продукты."
+                },
                 new { role = "user", content = prompt }
             },
-            temperature = 0.7,
-            max_tokens = 200
+            temperature = 0.2,
+            max_tokens = 90
         };
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, apiUrl);
@@ -203,16 +208,11 @@ public class GigaChatService : IGigaChatService
             : "нет данных";
 
         return $"""
-            Ребёнку {request.ChildAge} лет, диабет {request.DiabetesType}.
-            Текущий уровень глюкозы: {request.CurrentGlucose:F1} ммоль/л ({request.GlucoseStatus}).
-            В последние 3 часа: {recentValuesText} (тренд {request.Trend}).
-            Целевой диапазон: {request.TargetRangeMin:F1}-{request.TargetRangeMax:F1}.
-            Используемый инсулин: {request.InsulinScheme}.
-            Чувствительность: 1 ед на {request.InsulinSensitivity:F1} ммоль/л.
-            Рюкзак (доступные перекусы): {snacksText}.
-            
-            Дай краткий совет на русском языке (1-2 предложения).
-            ВАЖНО: Это не медицинская консультация, а помощь!
+            Возраст: {request.ChildAge}; диабет: {request.DiabetesType}.
+            Глюкоза: {request.CurrentGlucose:F1} ммоль/л ({request.GlucoseStatus}); тренд: {request.Trend}; недавние: {recentValuesText}.
+            Цель: {request.TargetRangeMin:F1}-{request.TargetRangeMax:F1}.
+            Рюкзак: {snacksText}.
+            Дай одно конкретное безопасное действие. При низкой глюкозе предложи только реально доступный перекус; если подходящего нет, скажи обратиться к взрослому и взять быстрые углеводы из аварийного запаса.
             """;
     }
 
@@ -241,8 +241,8 @@ public class GigaChatService : IGigaChatService
 
             case "НИЗКО":
                 recommendationText = request.AvailableSnacks.Any()
-                    ? $"Низкий сахар. Съешь что-то сладкое из рюкзака: {string.Join(", ", request.AvailableSnacks.Take(2))}."
-                    : "Низкий сахар. Съешь быстрые углеводы (сок, фрукт, конфету).";
+                    ? $"Низкий сахар. Выбери из рюкзака: {string.Join(", ", request.AvailableSnacks.Take(2))}."
+                    : "Низкий сахар. Позови взрослого и используй аварийный запас быстрых углеводов.";
                 urgency = "HIGH";
                 break;
 

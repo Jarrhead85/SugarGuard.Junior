@@ -1,0 +1,204 @@
+.doctor-notes-index {
+    --doctor-text: #16213e;
+    --doctor-muted: #667694;
+    --doctor-faint: #96a2b8;
+    --doctor-surface: rgba(255, 255, 255, .9);
+    --doctor-border: rgba(22, 33, 62, .09);
+    --doctor-primary: #1b8e8b;
+    --doctor-primary-alt: #2678d9;
+    --doctor-warning: #e3a32b;
+    --doctor-offset: #eef4fb;
+    display: grid;
+    gap: 22px;
+    color: var(--doctor-text);
+}
+
+.doctor-notes-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.doctor-notes-hero span {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--doctor-muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.doctor-notes-hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 3vw, 2.7rem);
+    font-weight: 900;
+    line-height: 1;
+}
+
+.doctor-notes-hero p {
+    max-width: 680px;
+    margin: 14px 0 0;
+    color: var(--doctor-muted);
+}
+
+.doctor-notes-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.doctor-notes-btn:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.doctor-notes-btn--primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--doctor-primary), var(--doctor-primary-alt));
+}
+
+.doctor-notes-btn--soft {
+    color: var(--doctor-primary);
+    background: rgba(27,142,139,.12);
+    border-color: var(--doctor-border);
+}
+
+.doctor-notes-alert,
+.doctor-notes-empty,
+.doctor-note-card {
+    border: 1px solid var(--doctor-border);
+    border-radius: 22px;
+    background: var(--doctor-surface);
+    box-shadow: 0 12px 28px rgba(22,33,62,.07);
+}
+
+.doctor-notes-alert {
+    padding: 14px 16px;
+    color: #db5967;
+    background: rgba(219,89,103,.1);
+}
+
+.doctor-notes-empty {
+    display: grid;
+    place-items: center;
+    gap: 12px;
+    padding: 56px 24px;
+    text-align: center;
+}
+
+.doctor-notes-empty h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.doctor-notes-empty p {
+    max-width: 520px;
+    margin: 0;
+    color: var(--doctor-muted);
+}
+
+.doctor-notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.doctor-note-card {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+}
+
+.doctor-note-card.important {
+    border-color: rgba(227, 163, 43, .32);
+    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(227,163,43,.08));
+}
+
+.doctor-note-card__top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.doctor-note-avatar {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--doctor-primary), #56d0bf);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.doctor-note-card h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.doctor-note-card p {
+    margin: 0;
+    color: var(--doctor-muted);
+    line-height: 1.5;
+}
+
+.doctor-note-card__text {
+    color: var(--doctor-text) !important;
+}
+
+.doctor-note-card__empty {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+}
+
+.doctor-note-card time {
+    color: var(--doctor-faint);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.doctor-note-skeleton {
+    height: 190px;
+    border-radius: 22px;
+    background: var(--doctor-offset);
+    animation: doctor-notes-pulse 1.45s ease-in-out infinite;
+}
+
+@keyframes doctor-notes-pulse {
+    50% {
+        opacity: .5;
+    }
+}
+
+[data-theme="dark"] .doctor-notes-index {
+    --doctor-text: #edf4ff;
+    --doctor-muted: #9eaed0;
+    --doctor-faint: #6f7d99;
+    --doctor-surface: rgba(17,24,37,.92);
+    --doctor-border: rgba(213,228,255,.12);
+    --doctor-offset: #172236;
+}
+
+@media (max-width: 760px) {
+    .doctor-notes-hero {
+        flex-direction: column;
+    }
+
+    .doctor-notes-btn {
+        width: 100%;
+    }
+}

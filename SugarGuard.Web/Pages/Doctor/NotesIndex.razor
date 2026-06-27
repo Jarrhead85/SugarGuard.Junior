@@ -1,0 +1,223 @@
+@page "/doctor/notes"
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Services
+@using DoctorNoteVm = SugarGuard.Web.ViewModels.DoctorNoteVm
+@using static SugarGuard.Web.Services.SugarGuardApiService
+@attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+@inject SugarGuardApiService ApiService
+@inject NavigationManager Navigation
+@inject ILogger<NotesIndex> Logger
+@implements IDisposable
+
+<PageTitle>Записки врача — SugarGuard</PageTitle>
+
+<section class="doctor-notes-index" aria-labelledby="doctorNotesTitle">
+    <header class="doctor-notes-hero">
+        <div>
+            <span>Клиническая работа</span>
+            <h1 id="doctorNotesTitle">Записки врача</h1>
+            <p>Последние заметки по прикреплённым пациентам. Данные берутся из реальной карты ребёнка.</p>
+        </div>
+        <button class="doctor-notes-btn doctor-notes-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+            @(_isLoading ? "Обновляем..." : "Обновить")
+        </button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="doctor-notes-alert" role="alert">@_error</div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="doctor-notes-grid" aria-busy="true">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="doctor-note-skeleton"></div>
+            }
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="doctor-notes-empty">
+            <h2>Заметок пока нет</h2>
+            <p>Откройте пациента и добавьте первую заметку. Здесь появится сводка по всей вашей группе.</p>
+            <button class="doctor-notes-btn doctor-notes-btn--primary" type="button" @onclick="GoToPatients">
+                Перейти к пациентам
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="doctor-notes-grid">
+            @foreach (var item in _items)
+            {
+                <article class="doctor-note-card @(item.Note?.IsImportant == true ? "important" : null)">
+                    <div class="doctor-note-card__top">
+                        <span class="doctor-note-avatar" aria-hidden="true">@GetInitials(item.Patient)</span>
+                        <div>
+                            <h2>@GetFullName(item.Patient)</h2>
+                            <p>@FormatPatientMeta(item.Patient)</p>
+                        </div>
+                    </div>
+
+                    @if (item.Note is null)
+                    {
+                        <p class="doctor-note-card__empty">Заметок по пациенту пока нет.</p>
+                    }
+                    else
+                    {
+                        <p class="doctor-note-card__text">@item.Note.NoteText</p>
+                        <time>@FormatDateTime(item.Note.CreatedAt)</time>
+                    }
+
+                    <button class="doctor-notes-btn doctor-notes-btn--soft"
+                            type="button"
+                            @onclick="() => OpenPatient(item.Patient.ChildId)">
+                        Открыть карту
+                    </button>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+    private readonly CancellationTokenSource _cts = new();
+
+    private bool _isLoading = true;
+    private string? _error;
+    private List<PatientNotePreview> _items = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var patients = await ApiService.GetDoctorPatientsAsync("lastmeasurement", _cts.Token);
+            var previews = await Task.WhenAll(patients.Select(LoadPreviewAsync));
+            _items = previews
+                .OrderByDescending(i => i.Note?.CreatedAt ?? DateTime.MinValue)
+                .ThenBy(i => GetFullName(i.Patient))
+                .ToList();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить обзор заметок врача.");
+            _error = "Не удалось загрузить заметки. Попробуйте обновить страницу.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task<PatientNotePreview> LoadPreviewAsync(DoctorPatientSummaryVm patient)
+    {
+        try
+        {
+            var notes = await ApiService.GetDoctorNotesAsync(
+                patient.ChildId,
+                page: 1,
+                pageSize: 1,
+                onlyImportant: false,
+                cancellationToken: _cts.Token);
+
+            return new PatientNotePreview(patient, notes.Items.FirstOrDefault());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить последнюю заметку пациента {ChildId}.", patient.ChildId);
+            return new PatientNotePreview(patient, null);
+        }
+    }
+
+    private void OpenPatient(Guid childId)
+    {
+        Navigation.NavigateTo($"/doctor/patients/{childId:D}");
+    }
+
+    private void GoToPatients()
+    {
+        Navigation.NavigateTo("/doctor/patients");
+    }
+
+    private static string GetFullName(DoctorPatientSummaryVm patient)
+    {
+        var value = patient.FullName.Trim();
+        return string.IsNullOrWhiteSpace(value) ? "Пациент без имени" : value;
+    }
+
+    private static string GetInitials(DoctorPatientSummaryVm patient)
+    {
+        var parts = GetFullName(patient)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpper(parts[0][0], RuCulture)}{char.ToUpper(parts[1][0], RuCulture)}";
+        }
+
+        return parts.Length == 0 ? "?" : char.ToUpper(parts[0][0], RuCulture).ToString();
+    }
+
+    private static string FormatPatientMeta(DoctorPatientSummaryVm patient)
+    {
+        return $"{FormatDiabetesType(patient.DiabetesType)} · {FormatAge(patient.DateOfBirth)}";
+    }
+
+    private static string FormatDiabetesType(string diabetesType)
+    {
+        if (string.IsNullOrWhiteSpace(diabetesType))
+        {
+            return "тип не указан";
+        }
+
+        return diabetesType.Contains("type", StringComparison.OrdinalIgnoreCase)
+            ? diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase).Trim()
+            : diabetesType;
+    }
+
+    private static string FormatAge(DateOnly dateOfBirth)
+    {
+        if (dateOfBirth == default)
+        {
+            return "возраст не указан";
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+        {
+            age--;
+        }
+
+        return $"{age} лет";
+    }
+
+    private static string FormatDateTime(DateTime value)
+    {
+        var utc = value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        return utc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", RuCulture);
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+
+    private sealed record PatientNotePreview(DoctorPatientSummaryVm Patient, DoctorNoteVm? Note);
+}

@@ -33,7 +33,7 @@ public class BackpackHistory
     public DateTime? DeletedAt { get; set; } // Дата и время удаления перекуса из рюкзака
 
     [Column("deleted_by")]
-    [MaxLength(50)]
+    [MaxLength(80)]
     public string? DeletedBy { get; set; } // Идентификатор пользователя, который удалил перекус
 
     [Column("created_at")]

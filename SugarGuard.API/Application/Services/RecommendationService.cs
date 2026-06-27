@@ -71,11 +71,22 @@ public class RecommendationService : IRecommendationService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
-        return await db.BackpackItems
+        var items = await db.BackpackItems
             .AsNoTracking()
             .Where(bi => bi.ChildId == childId)
-            .Select(bi => $"{bi.SnackName} ({bi.BreadUnits:F1} ХЕ)")
             .ToListAsync(cancellationToken);
+
+        return items
+            .GroupBy(
+                item => new { Name = item.SnackName.Trim().ToUpper(), item.BreadUnits })
+            .Select(group =>
+            {
+                var item = group.First();
+                return group.Count() == 1
+                    ? $"{item.SnackName} ({item.BreadUnits:F1} ХЕ)"
+                    : $"{item.SnackName}: {group.Count()} шт. по {item.BreadUnits:F1} ХЕ";
+            })
+            .ToList();
     }
 
     /// <inheritdoc/>

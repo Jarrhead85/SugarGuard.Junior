@@ -70,7 +70,7 @@
 
                 <NavLink class="topbar__link"
                          ActiveClass="topbar__link--active"
-                         href="/parent/measurements"
+                         href="/parent/dashboard?tab=measurements"
                          Match="NavLinkMatch.Prefix"
                          role="menuitem">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -82,7 +82,7 @@
 
                 <NavLink class="topbar__link"
                          ActiveClass="topbar__link--active"
-                         href="/parent/backpack"
+                         href="/parent/dashboard?tab=backpack"
                          Match="NavLinkMatch.Prefix"
                          role="menuitem">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -95,7 +95,7 @@
 
                 <NavLink class="topbar__link"
                          ActiveClass="topbar__link--active"
-                         href="/parent/settings"
+                         href="/parent/dashboard?tab=settings"
                          Match="NavLinkMatch.Prefix"
                          role="menuitem">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -112,21 +112,6 @@
             <Authorized>
                 <NavLink class="topbar__link"
                          ActiveClass="topbar__link--active"
-                         href="/doctor/dashboard"
-                         Match="NavLinkMatch.All"
-                         role="menuitem">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
-                    Дашборд
-                </NavLink>
-
-                <NavLink class="topbar__link"
-                         ActiveClass="topbar__link--active"
                          href="/doctor/patients"
                          Match="NavLinkMatch.Prefix"
                          role="menuitem">
@@ -137,7 +122,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
-                    Пациенты
+                    Мои пациенты
                 </NavLink>
             </Authorized>
         </AuthorizeView>

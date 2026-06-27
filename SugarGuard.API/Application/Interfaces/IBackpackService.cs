@@ -42,6 +42,15 @@ public interface IBackpackService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Обновляет название и ХЕ позиции рюкзака.
+    /// </summary>
+    Task<BackpackUpdateOutcome> UpdateAsync(
+        Guid itemId,
+        UpdateBackpackItemRequest request,
+        Guid currentUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Удаляет перекус с предварительным сохранением истории
     /// </summary>
     Task<BackpackRemoveResult> RemoveAsync(
@@ -90,3 +99,14 @@ public sealed record ConsumeSnackResult(
     string SnackName,
     decimal BreadUnits,
     DateTime ConsumedAt);
+
+public enum BackpackUpdateResultStatus
+{
+    Updated,
+    NotFound,
+    Forbidden
+}
+
+public sealed record BackpackUpdateOutcome(
+    BackpackUpdateResultStatus Status,
+    BackpackItemResponse? Item);

@@ -1,5 +1,6 @@
 ﻿using SugarGuard.Domain.Enums;
 using SugarGuard.Web.ViewModels;
+using System.Text.Json;
 
 namespace SugarGuard.Web.Services;
 
@@ -77,8 +78,11 @@ public sealed class TimelineEventDto
 public enum TimelineEventType
 {
     GlucoseMeasurement,
+    Measurement,
     Meal,
+    SnackConsumed,
     Alert,
+    CriticalAlert,
     Note,
     Sync
 }
@@ -90,6 +94,7 @@ public sealed class DiabetesSettingsVm
 {
     public decimal  TargetGlucoseMin   { get; init; }
     public decimal  TargetGlucoseMax   { get; init; }
+    public decimal  InsulinSensitivity { get; init; }
     public decimal  InsulinToCarbRatio { get; init; }
 }
 
@@ -243,8 +248,23 @@ internal sealed class AdminSystemStatsDto
 internal sealed class AdminHealthDto
 {
     public string?   Status    { get; init; }
-    public bool      Database  { get; init; }
+    public JsonElement Database { get; init; }
     public DateTime? ServerUtc { get; init; }
+
+    public bool DatabaseOk => Database.ValueKind switch
+    {
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.String => IsHealthyDatabaseValue(Database.GetString()),
+        JsonValueKind.Number => Database.TryGetInt32(out var value) && value != 0,
+        _ => false
+    };
+
+    private static bool IsHealthyDatabaseValue(string? value) =>
+        string.Equals(value, "ok", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(value, "healthy", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(value, "available", StringComparison.OrdinalIgnoreCase);
 }
 
 internal sealed class ChildAccessLinksApiDto
@@ -275,6 +295,12 @@ public sealed class AddBackpackItemRequest
     public decimal BreadUnits { get; init; }
 }
 
+public sealed class UpdateBackpackItemRequest
+{
+    public string SnackName { get; init; } = string.Empty;
+    public decimal BreadUnits { get; init; }
+}
+
 /// <summary>
 /// Обновление настроек диабета
 /// </summary>
@@ -282,6 +308,7 @@ public sealed class UpdateDiabetesSettingsRequest
 {
     public decimal  TargetGlucoseMin   { get; set; }
     public decimal  TargetGlucoseMax   { get; set; }
+    public decimal  InsulinSensitivity { get; set; } = 2.5m;
     public decimal  InsulinToCarbRatio { get; set; }
 }
 

@@ -24,6 +24,16 @@ public interface IBackpackService
     Task<bool> RemoveSnackAsync(string backpackItemId, string childId, string removedBy = "child");
 
     /// <summary>
+    /// Отмечает перекус съеденным, сохраняет журнал и ставит событие в очередь синхронизации.
+    /// </summary>
+    Task<bool> ConsumeSnackAsync(
+        string backpackItemId,
+        string childId,
+        string snackName,
+        double breadUnits,
+        double currentGlucose);
+
+    /// <summary>
     /// Очищает весь рюкзак
     /// </summary>
     Task<bool> ClearBackpackAsync(string childId);

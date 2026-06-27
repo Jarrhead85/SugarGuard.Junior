@@ -1,6 +1,7 @@
-﻿@page "/doctor/patients"
+@page "/doctor/patients"
+@using System.Globalization
+@using System.Text
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @using SugarGuard.Web.Services
 @using DoctorNoteVm = SugarGuard.Web.ViewModels.DoctorNoteVm
 @using static SugarGuard.Web.Services.SugarGuardApiService
@@ -8,478 +9,441 @@
 @implements IDisposable
 @inject SugarGuardApiService ApiService
 @inject NavigationManager Nav
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Мои пациенты — SugarGuard</PageTitle>
 
-<div class="sg-page">
-
-    <PageHeader Title="Мои пациенты"
-                Subtitle="Список пациентов, прикреплённых к вашей учётной записи">
-        <TrailingContent>
-            <div class="sg-search-wrapper">
-                <span class="sg-search-icon" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="M21 21l-4.35-4.35" />
-                    </svg>
-                </span>
-                <input class="sg-input sg-input--search"
-                       type="search"
-                       placeholder="Поиск по имени..."
-                       @bind="_searchQuery"
-                       @bind:event="oninput"
-                       aria-label="Поиск пациента" />
-            </div>
-            <div class="sg-sort-wrapper">
-                <label class="sr-only" for="sortSelect">Сортировка</label>
-                <select id="sortSelect"
-                        class="sg-select"
-                        @bind="_sortBy"
-                        @bind:after="OnSortChangedAsync">
-                    <option value="lastmeasurement">По последнему измерению</option>
-                    <option value="tir">По TIR (возр.)</option>
-                    <option value="name">По имени</option>
-                </select>
-            </div>
-        </TrailingContent>
-    </PageHeader>
-
-    <!-- Сводка когорты -->
-    @if (_cohortSummary is not null)
-    {
-        <div class="sg-cohort-summary">
-            <div class="sg-cohort-card">
-                <span class="sg-cohort-card__value">@_cohortSummary.TotalPatients</span>
-                <span class="sg-cohort-card__label">Всего пациентов</span>
-            </div>
-            <div class="sg-cohort-card sg-cohort-card--warning">
-                <span class="sg-cohort-card__value">@_cohortSummary.PatientsWithCriticalToday</span>
-                <span class="sg-cohort-card__label">Критических эпизодов сегодня</span>
-            </div>
-            <div class="sg-cohort-card">
-                <span class="sg-cohort-card__value">@_cohortSummary.AverageTimeInTargetRange.ToString("F1")%</span>
-                <span class="sg-cohort-card__label">Средний TIR (7 дней)</span>
-            </div>
-            <div class="sg-cohort-card sg-cohort-card--muted">
-                <span class="sg-cohort-card__value">@_cohortSummary.PatientsWithoutMeasurementsToday</span>
-                <span class="sg-cohort-card__label">Без измерений сегодня</span>
-            </div>
+<section class="doctor-portal" aria-labelledby="doctorPatientsTitle">
+    <header class="doctor-hero">
+        <div>
+            <div class="doctor-eyebrow">Кабинет врача</div>
+            <h1 id="doctorPatientsTitle">Мои пациенты</h1>
+            <p>Список детей, прикреплённых к вашей учётной записи. Все показатели рассчитаны по реальным данным системы.</p>
         </div>
-    }
 
-    <!-- Состояние загрузки -->
-    @if (_isLoading)
-    {
-        <div class="sg-skeleton-list" role="status" aria-label="Загрузка пациентов">
-            @for (var i = 0; i < 5; i++)
-            {
-                <div class="sg-skeleton-card">
-                    <div class="sg-skeleton sg-skeleton--avatar"></div>
-                    <div class="sg-skeleton-card__content">
-                        <div class="sg-skeleton sg-skeleton--text sg-skeleton--heading"></div>
-                        <div class="sg-skeleton sg-skeleton--text"></div>
-                        <div class="sg-skeleton sg-skeleton--text sg-skeleton--short"></div>
-                    </div>
-                </div>
-            }
-        </div>
-    }
-    else if (_errorMessage is not null)
-    {
-        <!-- Состояние ошибки -->
-        <div class="sg-error-state" role="alert">
-            <div class="sg-error-state__icon" aria-hidden="true">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+        <div class="doctor-hero-actions">
+            <span class="doctor-sync-pill">
+                <span class="doctor-sync-dot" aria-hidden="true"></span>
+                @_lastUpdatedLabel
+            </span>
+            <a class="doctor-btn doctor-btn--soft @(ExportDisabled ? "is-disabled" : null)"
+               href="@PatientsCsvHref"
+               download="sugarguard-doctor-patients.csv"
+               aria-disabled="@ExportDisabled"
+               @onclick:preventDefault="ExportDisabled">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-            </div>
-            <h2 class="sg-error-state__title">Не удалось загрузить список пациентов</h2>
-            <p class="sg-error-state__message">@_errorMessage</p>
-            <button class="sg-btn sg-btn--primary" @onclick="LoadDataAsync">
-                Повторить попытку
+                Экспорт
+            </a>
+            <button class="doctor-btn doctor-btn--primary"
+                    type="button"
+                    disabled="@(!_patients.Any())"
+                    @onclick="OpenFirstPatientNote">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Новая записка
             </button>
         </div>
-    }
-    else if (FilteredPatients.Count == 0)
+    </header>
+
+    @if (_isLoading)
     {
-        <!-- Пустое состояние -->
-        <div class="sg-empty-state">
-            <div class="sg-empty-state__icon" aria-hidden="true">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+        <div class="doctor-skeleton" role="status" aria-label="Загрузка пациентов">
+            <div class="doctor-kpi-grid">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="doctor-kpi-card doctor-skeleton-card">
+                        <span></span>
+                        <strong></strong>
+                        <small></small>
+                    </div>
+                }
             </div>
-            <h2 class="sg-empty-state__title">
-                @(_searchQuery.Length > 0 ? "Пациенты не найдены" : "Нет прикреплённых пациентов")
-            </h2>
-            <p class="sg-empty-state__message">
-                @(_searchQuery.Length > 0
-                            ? $"По запросу «{_searchQuery}» ничего не найдено. Попробуйте изменить поисковый запрос."
-                            : "К вашей учётной записи ещё не прикреплено ни одного пациента. Обратитесь к администратору.")
-        </p>
-        @if (_searchQuery.Length > 0)
-            {
-                <button class="sg-btn sg-btn--ghost" @onclick="ClearSearch">
-                    Сбросить поиск
-                </button>
-            }
+            <div class="doctor-table-card">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="doctor-skeleton-row"></div>
+                }
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="doctor-alert doctor-alert--danger" role="alert">
+            <div>
+                <strong>Не удалось загрузить пациентов</strong>
+                <p>@_errorMessage</p>
+            </div>
+            <button class="doctor-btn doctor-btn--soft" type="button" @onclick="LoadDataAsync">
+                Повторить
+            </button>
         </div>
     }
     else
     {
-        <!-- Список пациентов -->
-        <div class="sg-patients-grid" role="list">
-            @foreach (var patient in FilteredPatients)
-            {
-                <article class="sg-patient-card @GetCardCssClass(patient)"
-                         role="listitem"
-                         @key="patient.ChildId">
-                    <!-- Шапка карточки -->
-                    <div class="sg-patient-card__header">
-                        <div class="sg-patient-card__avatar" aria-hidden="true">
-                            @GetInitials(patient.FirstName, patient.LastName)
-                        </div>
-                        <div class="sg-patient-card__identity">
-                            <h2 class="sg-patient-card__name">
-                                @patient.FirstName @patient.LastName
-                            </h2>
-                            <p class="sg-patient-card__meta">
-                                @patient.DiabetesType
-                                @if (patient.DateOfBirth != default)
-                                {
-                                    <span aria-hidden="true"> · </span>
-                                    <span>@CalculateAge(patient.DateOfBirth) лет</span>
-                                }
-                            </p>
-                        </div>
-                        @if (patient.LatestGlucoseUiState is not null)
-                        {
-                            <div class="sg-glucose-badge sg-glucose-badge--@patient.LatestGlucoseUiState.ToLowerInvariant()"
-                                 role="status"
-                                 aria-label="Уровень глюкозы: @patient.LatestGlucoseUiState">
-                                <span class="sg-glucose-badge__value">
-                                    @(patient.LatestGlucose.HasValue
-                                                            ? patient.LatestGlucose.Value.ToString("F1")
-                                                            : "—")
-                    </span>
-                    <span class="sg-glucose-badge__unit">ммоль/л</span>
-                </div>
-                                }
-                    </div>
-
-                    <!-- Статистика -->
-                    <div class="sg-patient-card__stats">
-                        <div class="sg-stat-item">
-                            <span class="sg-stat-item__label">TIR (7 дней)</span>
-                            <span class="sg-stat-item__value @GetTirCssClass(patient.TimeInTargetRange)">
-                                @patient.TimeInTargetRange.ToString("F1")%
-                            </span>
-                        </div>
-                        <div class="sg-stat-item">
-                            <span class="sg-stat-item__label">Критических эпизодов</span>
-                            <span class="sg-stat-item__value @(patient.CriticalEventsLast7Days > 0 ? "sg-stat-item__value--danger" : "")">
-                                @patient.CriticalEventsLast7Days
-                            </span>
-                        </div>
-                        <div class="sg-stat-item">
-                            <span class="sg-stat-item__label">Измерений за 7 дней</span>
-                            <span class="sg-stat-item__value">
-                                @patient.MeasurementsLast7Days
-                            </span>
-                        </div>
-                        <div class="sg-stat-item">
-                            <span class="sg-stat-item__label">Последнее измерение</span>
-                            <span class="sg-stat-item__value sg-stat-item__value--muted">
-                                @FormatMeasurementTime(patient.LatestMeasurementTime)
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- TIR-прогресс-бар -->
-                    <div class="sg-tir-bar" role="progressbar"
-                         aria-valuenow="@((int)patient.TimeInTargetRange)"
-                         aria-valuemin="0"
-                         aria-valuemax="100"
-                         aria-label="Time in Range: @patient.TimeInTargetRange.ToString("F1")%">
-                        <div class="sg-tir-bar__fill @GetTirCssClass(patient.TimeInTargetRange)"
-                             style="width: @patient.TimeInTargetRange.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%">
-                        </div>
-                    </div>
-
-                    <!-- Последняя заметка -->
-                    @if (_notesByChild.TryGetValue(patient.ChildId, out var latestNote) && latestNote is not null)
-                    {
-                        <div class="sg-patient-card__note @(latestNote.IsImportant ? "sg-patient-card__note--important" : "")">
-                            <span class="sg-patient-card__note-icon" aria-hidden="true">
-                                @if (latestNote.IsImportant)
-                                {
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                                    </svg>
-                                }
-                                else
-                                {
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                         stroke="currentColor" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                        <line x1="16" y1="13" x2="8" y2="13" />
-                                        <line x1="16" y1="17" x2="8" y2="17" />
-                                    </svg>
-                                }
-                            </span>
-                            <span class="sg-patient-card__note-text">@TruncateNote(latestNote.NoteText)</span>
-                            <time class="sg-patient-card__note-time"
-                                  datetime="@latestNote.CreatedAt.ToString("o")">
-                                @latestNote.CreatedAt.ToString("dd.MM HH:mm")
-                            </time>
-                        </div>
-                    }
-
-                    <!-- Действия -->
-                    <div class="sg-patient-card__actions">
-                        <button class="sg-btn sg-btn--primary sg-btn--sm"
-                                @onclick="() => NavigateToPatient(patient.ChildId)"
-                                aria-label="Открыть дашборд пациента @patient.FirstName @patient.LastName">
-                            Дашборд
-                        </button>
-                        <button class="sg-btn sg-btn--ghost sg-btn--sm"
-                                @onclick="() => OpenAddNoteModal(patient)"
-                                aria-label="Добавить заметку для @patient.FirstName @patient.LastName">
-                            + Заметка
-                        </button>
-                    </div>
-                </article>
-            }
+        <div class="doctor-kpi-grid" aria-label="Сводка по пациентам">
+            <article class="doctor-kpi-card">
+                <span class="doctor-kpi-label">Всего пациентов</span>
+                <strong class="doctor-kpi-value">@TotalPatients</strong>
+                <small class="doctor-kpi-caption doctor-kpi-caption--success">активно прикреплены к врачу</small>
+            </article>
+            <article class="doctor-kpi-card">
+                <span class="doctor-kpi-label">Средний TIR группы</span>
+                <strong class="doctor-kpi-value">@FormatPercent(AverageTir)</strong>
+                <small class="doctor-kpi-caption doctor-kpi-caption--success">за последние 7 дней</small>
+            </article>
+            <article class="doctor-kpi-card">
+                <span class="doctor-kpi-label">Требуют внимания</span>
+                <strong class="doctor-kpi-value doctor-kpi-value--warning">@AttentionPatientsCount</strong>
+                <small class="doctor-kpi-caption doctor-kpi-caption--warning">низкий TIR или нет свежих данных</small>
+            </article>
+            <article class="doctor-kpi-card">
+                <span class="doctor-kpi-label">Критических алертов</span>
+                <strong class="doctor-kpi-value doctor-kpi-value--danger">@CriticalAlertsCount</strong>
+                <small class="doctor-kpi-caption doctor-kpi-caption--danger">за последние 24 часа</small>
+            </article>
         </div>
-    }
-</div>
 
-<!-- Модальное окно добавления заметки -->
+        <div class="doctor-toolbar">
+            <label class="doctor-search" for="doctorPatientSearch">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input id="doctorPatientSearch"
+                       type="search"
+                       placeholder="Поиск пациента..."
+                       @bind="_searchQuery"
+                       @bind:event="oninput" />
+            </label>
+
+            <div class="doctor-filters" role="group" aria-label="Фильтр пациентов">
+                <button class="doctor-filter-chip @(IsFilterActive(FilterAll) ? "active" : null)"
+                        type="button"
+                        @onclick="() => SetStatusFilter(FilterAll)">
+                    Все
+                </button>
+                <button class="doctor-filter-chip @(IsFilterActive(FilterCritical) ? "active" : null)"
+                        type="button"
+                        @onclick="() => SetStatusFilter(FilterCritical)">
+                    <span class="doctor-filter-dot doctor-filter-dot--danger" aria-hidden="true"></span>
+                    Критично
+                </button>
+                <button class="doctor-filter-chip @(IsFilterActive(FilterAttention) ? "active" : null)"
+                        type="button"
+                        @onclick="() => SetStatusFilter(FilterAttention)">
+                    <span class="doctor-filter-dot doctor-filter-dot--warning" aria-hidden="true"></span>
+                    Внимание
+                </button>
+                <button class="doctor-filter-chip @(IsFilterActive(FilterStable) ? "active" : null)"
+                        type="button"
+                        @onclick="() => SetStatusFilter(FilterStable)">
+                    <span class="doctor-filter-dot doctor-filter-dot--success" aria-hidden="true"></span>
+                    Стабильно
+                </button>
+            </div>
+
+            <label class="doctor-sort" for="doctorSortSelect">
+                <span class="sr-only">Сортировка</span>
+                <select id="doctorSortSelect"
+                        @bind="_sortBy"
+                        @bind:after="OnSortChangedAsync">
+                    <option value="lastmeasurement">По последнему измерению</option>
+                    <option value="tir">По TIR</option>
+                    <option value="name">По имени</option>
+                </select>
+            </label>
+        </div>
+
+        @if (FilteredPatients.Count == 0)
+        {
+            <div class="doctor-empty">
+                <div class="doctor-empty-icon" aria-hidden="true">∅</div>
+                <h2>@(_patients.Count == 0 ? "Пока нет прикреплённых пациентов" : "Пациенты не найдены")</h2>
+                <p>
+                    @(_patients.Count == 0
+                        ? "Когда администратор или родитель прикрепит ребёнка к врачу, он появится в этом списке."
+                        : "Измените поисковую строку или фильтр статуса.")
+                </p>
+                @if (_patients.Count > 0)
+                {
+                    <button class="doctor-btn doctor-btn--soft" type="button" @onclick="ClearSearchAndFilters">
+                        Сбросить фильтры
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="doctor-table-card">
+                <table class="doctor-table" aria-label="Список пациентов врача">
+                    <thead>
+                        <tr>
+                            <th>Пациент</th>
+                            <th>Возраст</th>
+                            <th class="num">TIR 7д</th>
+                            <th>Прогресс</th>
+                            <th>Последн. измер.</th>
+                            <th>Гипо / гипер</th>
+                            <th>Статус</th>
+                            <th class="actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var patient in FilteredPatients)
+                        {
+                            var status = GetPatientStatus(patient);
+                            <tr @key="patient.ChildId">
+                                <td>
+                                    <div class="doctor-patient-name">
+                                        <span class="doctor-avatar"
+                                              style="background:@GetAvatarGradient(patient)"
+                                              aria-hidden="true">
+                                            @GetInitials(patient)
+                                        </span>
+                                        <div>
+                                            <strong>@GetFullName(patient)</strong>
+                                            <small>@FormatDiabetesType(patient.DiabetesType)</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@FormatAge(patient.DateOfBirth)</td>
+                                <td class="num @GetTirTextClass(patient.TimeInTargetRange)">@FormatPercent(patient.TimeInTargetRange)</td>
+                                <td>
+                                    <div class="doctor-progress" aria-label="TIR @FormatPercent(patient.TimeInTargetRange)">
+                                        <span class="@GetTirFillClass(patient.TimeInTargetRange)"
+                                              style="width:@FormatProgressWidth(patient.TimeInTargetRange)">
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="muted">@FormatMeasurementTime(patient.LatestMeasurementTime)</td>
+                                <td>@FormatHypoHyper(patient)</td>
+                                <td>
+                                    <span class="doctor-chip @status.CssClass">
+                                        <span class="doctor-chip-dot" aria-hidden="true"></span>
+                                        @status.Label
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="doctor-row-actions">
+                                        <button class="doctor-row-button"
+                                                type="button"
+                                                @onclick="() => NavigateToPatient(patient.ChildId)">
+                                            Открыть
+                                        </button>
+                                        <button class="doctor-row-button doctor-row-button--soft"
+                                                type="button"
+                                                @onclick="() => OpenAddNoteModal(patient)"
+                                                aria-label="Добавить заметку для @GetFullName(patient)">
+                                            + Заметка
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</section>
+
 @if (_isNoteModalOpen && _selectedPatient is not null)
 {
-    <div class="sg-modal-overlay"
+    <div class="doctor-modal-backdrop"
          role="dialog"
          aria-modal="true"
          aria-labelledby="noteModalTitle"
          @onclick="CloseNoteModal">
-        <div class="sg-modal" @onclick:stopPropagation="true">
-            <div class="sg-modal__header">
-                <h2 class="sg-modal__title" id="noteModalTitle">
-                    Заметка для @_selectedPatient.FirstName @_selectedPatient.LastName
-                </h2>
-                <button class="sg-modal__close"
+        <div class="doctor-modal" @onclick:stopPropagation="true">
+            <header class="doctor-modal-header">
+                <div>
+                    <h2 id="noteModalTitle">Заметка для @GetFullName(_selectedPatient)</h2>
+                    <p>Клиническая заметка сохранится в карте пациента.</p>
+                </div>
+                <button class="doctor-modal-close"
+                        type="button"
                         @onclick="CloseNoteModal"
-                        aria-label="Закрыть окно заметки">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
+                        aria-label="Закрыть">
+                    ×
                 </button>
-            </div>
-            <div class="sg-modal__body">
-                <div class="sg-form-group">
-                    <label class="sg-label" for="noteText">Текст заметки</label>
+            </header>
+            <div class="doctor-modal-body">
+                <label class="doctor-field" for="noteText">
+                    <span>Текст заметки</span>
                     <textarea id="noteText"
-                              class="sg-textarea"
-                              rows="4"
+                              rows="5"
                               maxlength="4000"
-                              placeholder="Введите заметку о пациенте..."
+                              placeholder="Например: обсудить ночные гипо, скорректировать перекус перед тренировкой..."
                               @bind="_noteText"
-                              @bind:event="oninput"
-                              aria-required="true"
-                              aria-describedby="noteTextHint"></textarea>
-                    <span id="noteTextHint" class="sg-hint">
-                        @_noteText.Length / 4000 символов
-                    </span>
-                </div>
-                <div class="sg-form-group sg-form-group--inline">
-                    <label class="sg-checkbox-label">
-                        <input type="checkbox"
-                               class="sg-checkbox"
-                               @bind="_noteIsImportant"
-                               aria-label="Отметить как важную" />
-                        <span class="sg-checkbox-text">Важная заметка</span>
+                              @bind:event="oninput">
+                    </textarea>
+                </label>
+                <div class="doctor-note-meta">
+                    <label class="doctor-checkbox">
+                        <input type="checkbox" @bind="_noteIsImportant" />
+                        <span>Важная заметка</span>
                     </label>
+                    <span>@_noteText.Length / 4000</span>
                 </div>
-                @if (_noteError is not null)
+                @if (!string.IsNullOrWhiteSpace(_noteError))
                 {
-                    <div class="sg-inline-error" role="alert">@_noteError</div>
+                    <div class="doctor-inline-error" role="alert">@_noteError</div>
                 }
             </div>
-            <div class="sg-modal__footer">
-                <button class="sg-btn sg-btn--ghost"
-                        @onclick="CloseNoteModal"
-                        disabled="@_isNoteSubmitting">
+            <footer class="doctor-modal-footer">
+                <button class="doctor-btn doctor-btn--ghost"
+                        type="button"
+                        disabled="@_isNoteSubmitting"
+                        @onclick="CloseNoteModal">
                     Отмена
                 </button>
-                <button class="sg-btn sg-btn--primary"
-                        @onclick="SubmitNoteAsync"
-                        disabled="@(_isNoteSubmitting || _noteText.Trim().Length == 0)"
-                        aria-busy="@_isNoteSubmitting">
-                    @if (_isNoteSubmitting)
-                    {
-                        <span class="sg-spinner" aria-hidden="true"></span>
-                        <span>Сохранение...</span>
-                    }
-                    else
-                    {
-                        <span>Сохранить</span>
-                    }
+                <button class="doctor-btn doctor-btn--primary"
+                        type="button"
+                        disabled="@(_isNoteSubmitting || string.IsNullOrWhiteSpace(_noteText))"
+                        @onclick="SubmitNoteAsync">
+                    @(_isNoteSubmitting ? "Сохраняем..." : "Сохранить")
                 </button>
-            </div>
+            </footer>
         </div>
     </div>
 }
 
 @code {
-    // Состояние страницы   
-    private bool _isLoading = true; // Флаг загрузки данных
+    private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+    private const string FilterAll = "all";
+    private const string FilterCritical = "critical";
+    private const string FilterAttention = "attention";
+    private const string FilterStable = "stable";
 
-    private string? _errorMessage; // Сообщение об ошибке, если загрузка не удалась
+    private static readonly string[] AvatarGradients =
+    [
+        "linear-gradient(135deg,#DB5967,#FF8FA0)",
+        "linear-gradient(135deg,#E3A32B,#F4BC56)",
+        "linear-gradient(135deg,#1B8E8B,#56D0BF)",
+        "linear-gradient(135deg,#2678D9,#6DAEFF)",
+        "linear-gradient(135deg,#37A563,#62D889)"
+    ];
 
-    // Данные    
-    private List<DoctorPatientSummaryVm> _patients = new(); // Список пациентов, прикреплённых к текущему врачу
+    private readonly CancellationTokenSource _cts = new();
 
-    private DoctorCohortSummaryVm? _cohortSummary; // Сводная статистика по всей когорте пациентов
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private DateTime? _lastLoadedAt;
 
-    private Dictionary<Guid, DoctorNoteVm?> _notesByChild = new(); // Кэш последних заметок по каждому ребёнку
+    private List<DoctorPatientSummaryVm> _patients = [];
+    private DoctorCohortSummaryVm? _cohortSummary;
+    private Dictionary<Guid, DoctorNoteVm?> _notesByChild = [];
 
-    // Поиск и сортировка 
-    private string _searchQuery = string.Empty; // Текущий поисковый запрос
+    private string _searchQuery = string.Empty;
+    private string _sortBy = "lastmeasurement";
+    private string _statusFilter = FilterAll;
 
-    private string _sortBy = "lastmeasurement"; // Режим сортировки
+    private bool _isNoteModalOpen;
+    private DoctorPatientSummaryVm? _selectedPatient;
+    private string _noteText = string.Empty;
+    private bool _noteIsImportant;
+    private bool _isNoteSubmitting;
+    private string? _noteError;
 
-    // Модальное окно заметки    
-    private bool _isNoteModalOpen; // Флаг открытия модального окна заметки
+    private string _lastUpdatedLabel =>
+        _lastLoadedAt is null
+            ? "Данные загружаются"
+            : $"Данные обновлены: {_lastLoadedAt.Value:HH:mm}";
 
-    private DoctorPatientSummaryVm? _selectedPatient; // Пациент, для которого открыто модальное окно
+    private int TotalPatients => _cohortSummary?.TotalPatients ?? _patients.Count;
 
-    private string _noteText = string.Empty; // Текст новой заметки
+    private double AverageTir => _cohortSummary?.AverageTimeInTargetRange
+        ?? (_patients.Count == 0 ? 0 : Math.Round(_patients.Average(p => p.TimeInTargetRange), 1));
 
-    private bool _noteIsImportant; // Флаг важности заметки
+    private int AttentionPatientsCount => _patients.Count(p => IsCriticalPatient(p) || IsAttentionPatient(p));
 
-    private bool _isNoteSubmitting; // Флаг отправки заметки на сервер
+    private int CriticalAlertsCount => _cohortSummary?.PatientsWithCriticalToday
+        ?? _patients.Count(IsCriticalPatient);
 
-    private string? _noteError; // Ошибка при сохранении заметки
+    private bool ExportDisabled => FilteredPatients.Count == 0;
 
-    // CancellationToken    
-    private readonly CancellationTokenSource _cts = new(); // Токен отмены для HTTP-запросов при уничтожении компонента
+    private string PatientsCsvHref => ExportDisabled
+        ? "#"
+        : $"data:text/csv;charset=utf-8,{Uri.EscapeDataString(BuildPatientsCsv())}";
 
-    // Вычисляемое свойство
-    /// <summary>
-    /// Возвращает список пациентов
-    /// </summary>
-    private List<DoctorPatientSummaryVm> FilteredPatients
-    {
-        get
-        {
-            if (_searchQuery.Trim().Length == 0)
-                return _patients;
+    private List<DoctorPatientSummaryVm> FilteredPatients => _patients
+        .Where(MatchesSearch)
+        .Where(MatchesStatusFilter)
+        .ToList();
 
-            var query = _searchQuery.Trim().ToLowerInvariant();
-            return _patients
-                .Where(p =>
-                    p.FirstName.ToLowerInvariant().Contains(query) ||
-                    p.LastName.ToLowerInvariant().Contains(query))
-                .ToList();
-        }
-    }
-
-    // Жизненный цикл
-    /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
     }
 
-    /// <inheritdoc />
     public void Dispose()
     {
         _cts.Cancel();
         _cts.Dispose();
     }
 
-    // Загрузка данных 
-
-    /// <summary>
-    /// Загружает список пациентов и сводку по когорте из API
-    /// </summary>
     private async Task LoadDataAsync()
     {
         _isLoading = true;
         _errorMessage = null;
-        StateHasChanged();
 
         try
         {
-            var patientsTask = ApiService.GetDoctorPatientsAsync();
+            var patientsTask = ApiService.GetDoctorPatientsAsync(_sortBy, _cts.Token);
             var cohortTask = ApiService.GetDoctorCohortSummaryAsync(_cts.Token);
 
             await Task.WhenAll(patientsTask, cohortTask);
 
-            _patients = (await patientsTask)?.ToList() ?? new List<DoctorPatientSummaryVm>();
+            _patients = (await patientsTask).ToList();
             _cohortSummary = await cohortTask;
+            _lastLoadedAt = (_cohortSummary?.GeneratedAt ?? DateTime.UtcNow).ToLocalTime();
 
             await LoadLatestNotesAsync();
         }
         catch (OperationCanceledException)
         {
-
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Ошибка: {ex.Message}";
+            _errorMessage = ex.Message;
         }
         finally
         {
             _isLoading = false;
-            StateHasChanged();
         }
     }
 
-    /// <summary>
-    /// Загружает последнюю заметку для каждого пациента из кэшированного списка
-    /// </summary>
     private async Task LoadLatestNotesAsync()
     {
         _notesByChild.Clear();
-
-        var patients = _patients.ToList();
-        if (patients.Count == 0)
+        if (_patients.Count == 0)
         {
             return;
         }
 
-        var latestNotes = await Task.WhenAll(
-            patients.Select(async patient =>
+        var latestNotes = await Task.WhenAll(_patients.Select(async patient =>
+        {
+            try
             {
-                try
-                {
-                    var notes = await ApiService.GetDoctorNotesAsync(
-                        patient.ChildId,
-                        page: 1,
-                        pageSize: 1,
-                        onlyImportant: false,
-                        cancellationToken: _cts.Token);
+                var notes = await ApiService.GetDoctorNotesAsync(
+                    patient.ChildId,
+                    page: 1,
+                    pageSize: 1,
+                    onlyImportant: false,
+                    cancellationToken: _cts.Token);
 
-                    return (patient.ChildId, note: notes?.Items.FirstOrDefault());
-                }
-                catch
-                {
-                    return (patient.ChildId, note: null);
-                }
-            }));
+                return (patient.ChildId, note: notes.Items.FirstOrDefault());
+            }
+            catch
+            {
+                return (patient.ChildId, note: null);
+            }
+        }));
 
         foreach (var (childId, note) in latestNotes)
         {
@@ -487,46 +451,38 @@
         }
     }
 
-    // Поиск и сортировка 
-    /// <summary>
-    /// Обработчик изменения строки поиска
-    /// </summary>
-    private void OnSearchChanged(ChangeEventArgs e)
-    {
-        _searchQuery = e.Value?.ToString() ?? string.Empty;
-        StateHasChanged();
-    }
-
-    /// <summary>
-    /// Обработчик изменения режима сортировки
-    /// </summary>
     private async Task OnSortChangedAsync()
     {
         await LoadDataAsync();
     }
 
-    /// <summary>
-    /// Сбрасывает строку поиска
-    /// </summary>
-    private void ClearSearch()
+    private void SetStatusFilter(string filter)
+    {
+        _statusFilter = filter;
+    }
+
+    private bool IsFilterActive(string filter) => string.Equals(_statusFilter, filter, StringComparison.Ordinal);
+
+    private void ClearSearchAndFilters()
     {
         _searchQuery = string.Empty;
-        StateHasChanged();
+        _statusFilter = FilterAll;
     }
 
-    // Навигация 
-    /// <summary>
-    /// Переходит на дашборд конкретного пациента
-    /// </summary>
     private void NavigateToPatient(Guid childId)
     {
-        Nav.NavigateTo($"/doctor/patients/{childId}");
+        Nav.NavigateTo($"/doctor/patients/{childId:D}");
     }
 
-    // Модальное окно заметки
-    /// <summary>
-    /// Открывает модальное окно добавления заметки
-    /// </summary>
+    private void OpenFirstPatientNote()
+    {
+        var patient = FilteredPatients.FirstOrDefault() ?? _patients.FirstOrDefault();
+        if (patient is not null)
+        {
+            OpenAddNoteModal(patient);
+        }
+    }
+
     private void OpenAddNoteModal(DoctorPatientSummaryVm patient)
     {
         _selectedPatient = patient;
@@ -537,27 +493,26 @@
         _isNoteModalOpen = true;
     }
 
-    /// <summary>
-    /// Закрывает модальное окно
-    /// </summary>
     private void CloseNoteModal()
     {
-        if (_isNoteSubmitting) return;
+        if (_isNoteSubmitting)
+        {
+            return;
+        }
+
         _isNoteModalOpen = false;
         _selectedPatient = null;
     }
 
-    /// <summary>
-    /// Отправляет заметку через API и обновляет кэш
-    /// </summary>
     private async Task SubmitNoteAsync()
     {
-        if (_selectedPatient is null) return;
-        if (_noteText.Trim().Length == 0) return;
+        if (_selectedPatient is null || string.IsNullOrWhiteSpace(_noteText))
+        {
+            return;
+        }
 
         _isNoteSubmitting = true;
         _noteError = null;
-        StateHasChanged();
 
         try
         {
@@ -577,8 +532,7 @@
                 onlyImportant: false,
                 cancellationToken: _cts.Token);
 
-            _notesByChild[_selectedPatient.ChildId] = notes?.Items.FirstOrDefault();
-
+            _notesByChild[_selectedPatient.ChildId] = notes.Items.FirstOrDefault();
             _isNoteModalOpen = false;
             _selectedPatient = null;
         }
@@ -589,82 +543,216 @@
         finally
         {
             _isNoteSubmitting = false;
-            StateHasChanged();
         }
     }
 
-    // Вспомогательные методы 
-    /// <summary>
-    /// Возвращает инициалы пациента для аватара
-    /// </summary>
-    private static string GetInitials(string firstName, string lastName)
+    private bool MatchesSearch(DoctorPatientSummaryVm patient)
     {
-        var f = firstName.Length > 0 ? firstName[0].ToString().ToUpperInvariant() : string.Empty;
-        var l = lastName.Length > 0 ? lastName[0].ToString().ToUpperInvariant() : string.Empty;
-        return $"{f}{l}";
+        var query = _searchQuery.Trim();
+        if (query.Length == 0)
+        {
+            return true;
+        }
+
+        return GetFullName(patient).Contains(query, StringComparison.OrdinalIgnoreCase)
+            || patient.ChildId.ToString("D").Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Вычисляет возраст по дате рождения
-    /// </summary>
-    private static int CalculateAge(DateOnly dateOfBirth)
+    private bool MatchesStatusFilter(DoctorPatientSummaryVm patient) => _statusFilter switch
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var age = today.Year - dateOfBirth.Year;
-        if (dateOfBirth > today.AddYears(-age)) age--;
-        return age;
+        FilterCritical => IsCriticalPatient(patient),
+        FilterAttention => !IsCriticalPatient(patient) && IsAttentionPatient(patient),
+        FilterStable => !IsCriticalPatient(patient) && !IsAttentionPatient(patient),
+        _ => true
+    };
+
+    private static (string Label, string CssClass) GetPatientStatus(DoctorPatientSummaryVm patient)
+    {
+        if (IsCriticalPatient(patient))
+        {
+            return ("Критично", "doctor-chip--danger");
+        }
+
+        if (IsAttentionPatient(patient))
+        {
+            return ("Внимание", "doctor-chip--warning");
+        }
+
+        return ("Стабильно", "doctor-chip--success");
     }
 
-    /// <summary>
-    /// Форматирует время последнего измерения в читаемый вид
-    /// </summary>
-    private static string FormatMeasurementTime(DateTime? time)
-    {
-        if (time is null) return "нет данных";
-
-        var diff = DateTime.UtcNow - time.Value;
-
-        if (diff.TotalMinutes < 1) return "только что";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин. назад";
-        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч. назад";
-        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн. назад";
-
-        return time.Value.ToLocalTime().ToString("dd.MM.yyyy");
-    }
-
-    /// <summary>
-    /// Обрезает текст заметки до 120 символов
-    /// </summary>
-    private static string TruncateNote(string text)
-    {
-        const int MaxLength = 120;
-        if (text.Length <= MaxLength) return text;
-        return text[..MaxLength] + "…";
-    }
-
-    /// <summary>
-    /// Возвращает CSS-класс карточки на основе состояния глюкозы
-    /// </summary>
-    private static string GetCardCssClass(DoctorPatientSummaryVm patient)
+    private static bool IsCriticalPatient(DoctorPatientSummaryVm patient)
     {
         if (patient.CriticalEventsLast7Days > 0)
-            return "sg-patient-card--critical";
-
-        return patient.LatestGlucoseUiState?.ToLowerInvariant() switch
         {
-            "danger" => "sg-patient-card--danger",
-            "warning" => "sg-patient-card--warning",
-            _ => string.Empty
-        };
+            return true;
+        }
+
+        return string.Equals(patient.LatestGlucoseUiState, "Danger", StringComparison.OrdinalIgnoreCase)
+            || (patient.LatestGlucose is < 3.0m or > 13.9m);
     }
 
-    /// <summary>
-    /// Возвращает CSS-класс для индикатора TIR
-    /// </summary>
-    private static string GetTirCssClass(double tir)
+    private static bool IsAttentionPatient(DoctorPatientSummaryVm patient)
     {
-        if (tir >= 70) return "sg-tir--good";
-        if (tir >= 50) return "sg-tir--warning";
-        return "sg-tir--danger";
+        if (patient.TimeInTargetRange is > 0 and < 70)
+        {
+            return true;
+        }
+
+        if (!HasFreshMeasurement(patient))
+        {
+            return true;
+        }
+
+        return string.Equals(patient.LatestGlucoseUiState, "Warning", StringComparison.OrdinalIgnoreCase)
+            || patient.LatestGlucose is < 3.9m or > 10m;
     }
+
+    private static bool HasFreshMeasurement(DoctorPatientSummaryVm patient)
+    {
+        return patient.LatestMeasurementTime is not null
+            && patient.LatestMeasurementTime.Value >= DateTime.UtcNow.AddHours(-24);
+    }
+
+    private static string GetFullName(DoctorPatientSummaryVm patient)
+    {
+        var fullName = patient.FullName.Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? "Пациент без имени" : fullName;
+    }
+
+    private static string GetInitials(DoctorPatientSummaryVm patient)
+    {
+        var name = GetFullName(patient);
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}";
+        }
+
+        return char.ToUpperInvariant(parts[0][0]).ToString();
+    }
+
+    private static string GetAvatarGradient(DoctorPatientSummaryVm patient)
+    {
+        var index = Math.Abs(patient.ChildId.GetHashCode()) % AvatarGradients.Length;
+        return AvatarGradients[index];
+    }
+
+    private static string FormatDiabetesType(string diabetesType)
+    {
+        if (string.IsNullOrWhiteSpace(diabetesType))
+        {
+            return "тип диабета не указан";
+        }
+
+        return diabetesType.Contains("type", StringComparison.OrdinalIgnoreCase)
+            ? diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase)
+            : diabetesType;
+    }
+
+    private static string FormatAge(DateOnly dateOfBirth)
+    {
+        if (dateOfBirth == default)
+        {
+            return "—";
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+        {
+            age--;
+        }
+
+        return $"{age} лет";
+    }
+
+    private static string FormatPercent(double value)
+    {
+        return $"{Math.Round(value, 1).ToString("0.#", RuCulture)}%";
+    }
+
+    private static string FormatProgressWidth(double value)
+    {
+        var clamped = Math.Clamp(value, 0, 100);
+        return $"{clamped.ToString("0.#", CultureInfo.InvariantCulture)}%";
+    }
+
+    private static string GetTirTextClass(double tir)
+    {
+        if (tir >= 70) return "doctor-text-success";
+        if (tir >= 50) return "doctor-text-warning";
+        return "doctor-text-danger";
+    }
+
+    private static string GetTirFillClass(double tir)
+    {
+        if (tir >= 70) return "doctor-progress-fill doctor-progress-fill--success";
+        if (tir >= 50) return "doctor-progress-fill doctor-progress-fill--warning";
+        return "doctor-progress-fill doctor-progress-fill--danger";
+    }
+
+    private static string FormatMeasurementTime(DateTime? time)
+    {
+        if (time is null)
+        {
+            return "нет данных";
+        }
+
+        var measurementUtc = time.Value.Kind == DateTimeKind.Local
+            ? time.Value.ToUniversalTime()
+            : time.Value;
+
+        var diff = DateTime.UtcNow - measurementUtc;
+        if (diff.TotalSeconds < 0)
+        {
+            return measurementUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", RuCulture);
+        }
+
+        if (diff.TotalMinutes < 1) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч назад";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн назад";
+
+        return measurementUtc.ToLocalTime().ToString("dd.MM.yyyy", RuCulture);
+    }
+
+    private static string FormatHypoHyper(DoctorPatientSummaryVm patient)
+    {
+        if (patient.LatestGlucose is null)
+        {
+            return "— / —";
+        }
+
+        var hypo = patient.LatestGlucose < 3.9m ? 1 : 0;
+        var hyper = patient.LatestGlucose > 10m ? 1 : 0;
+        return $"{hypo} / {hyper}";
+    }
+
+    private string BuildPatientsCsv()
+    {
+        var rows = new StringBuilder();
+        rows.AppendLine("Пациент;Возраст;TIR 7д;Последнее измерение;Гипо / гипер;Статус;Глюкоза");
+
+        foreach (var patient in FilteredPatients)
+        {
+            var status = GetPatientStatus(patient);
+            rows.Append(Csv(GetFullName(patient))).Append(';')
+                .Append(Csv(FormatAge(patient.DateOfBirth))).Append(';')
+                .Append(Csv(FormatPercent(patient.TimeInTargetRange))).Append(';')
+                .Append(Csv(FormatMeasurementTime(patient.LatestMeasurementTime))).Append(';')
+                .Append(Csv(FormatHypoHyper(patient))).Append(';')
+                .Append(Csv(status.Label)).Append(';')
+                .AppendLine(Csv(patient.LatestGlucose?.ToString("0.0", RuCulture) ?? "—"));
+        }
+
+        return rows.ToString();
+    }
+
+    private static string Csv(string value)
+    {
+        var quote = ((char)34).ToString();
+        return string.Concat(quote, value.Replace(quote, quote + quote), quote);
+    }
+
 }

@@ -3,199 +3,116 @@
                      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                      xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
                      xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
-                     xmlns:converters="clr-namespace:SugarGuard.Junior.Converters"
                      x:Class="SugarGuard.Junior.Views.Pages.BackpackPage"
                      x:Name="BackpackPageRoot"
                      Title="Рюкзак"
                      BackgroundColor="{DynamicResource BackgroundPage}">
-
     <pages:SwipeablePage.Resources>
         <ResourceDictionary>
-            <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
-
-            <Style x:Key="BackpackCard" TargetType="Border">
+            <Style x:Key="BagCard" TargetType="Border">
                 <Setter Property="Padding" Value="14" />
                 <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
                 <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
                 <Setter Property="StrokeThickness" Value="1" />
-                <Setter Property="StrokeShape" Value="RoundRectangle 18" />
-            </Style>
-
-            <Style x:Key="BackpackMutedText" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="13" />
-                <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
-                <Setter Property="LineBreakMode" Value="WordWrap" />
-            </Style>
-
-            <Style x:Key="BackpackTitleText" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="18" />
-                <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
-            </Style>
-
-            <Style x:Key="BackpackChip" TargetType="Border">
-                <Setter Property="Padding" Value="10,5" />
-                <Setter Property="BackgroundColor" Value="{DynamicResource SurfacePrimarySoft}" />
-                <Setter Property="StrokeThickness" Value="0" />
-                <Setter Property="StrokeShape" Value="RoundRectangle 999" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 20" />
             </Style>
         </ResourceDictionary>
     </pages:SwipeablePage.Resources>
 
     <CollectionView ItemsSource="{Binding BackpackItems}"
-                    SelectionMode="None"
-                    VerticalScrollBarVisibility="Default"
+                    SelectionMode="None" VerticalScrollBarVisibility="Default"
                     ItemSizingStrategy="MeasureAllItems">
-
         <CollectionView.Header>
-            <VerticalStackLayout Padding="16,12,16,12" Spacing="12">
-                <Border Padding="16"
-                        BackgroundColor="{DynamicResource Primary}"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 22">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
-                        <VerticalStackLayout Grid.Row="0" Grid.Column="0" Spacing="3">
-                            <Label Text="Рюкзак"
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="24"
-                                   FontAttributes="Bold"
-                                   TextColor="{DynamicResource TextOnPrimary}" />
-                            <Label Text="Перекусы на день и быстрые ХЕ"
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="13"
-                                   TextColor="{DynamicResource TextOnPrimary}"
-                                   Opacity="0.9" />
+            <VerticalStackLayout Padding="16,30,16,12" Spacing="12">
+                <Label Text="Рюкзак" FontFamily="{StaticResource ClashDisplay}" FontSize="30"
+                       FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+
+                <Border Padding="18" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="190">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#3BC9A6" Offset="0" />
+                            <GradientStop Color="#277FE5" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,112">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Перекусы на день" FontSize="22" FontAttributes="Bold" TextColor="White" />
+                            <Label Text="и быстрые ХЕ" FontSize="15" TextColor="White" Opacity="0.9" />
                         </VerticalStackLayout>
-
-                        <Button Grid.Row="0"
-                                Grid.Column="1"
-                                Text="+ Добавить"
-                                Command="{Binding AddSnackCommand}"
-                                BackgroundColor="{DynamicResource Surface}"
-                                TextColor="{DynamicResource Primary}"
-                                FontFamily="{StaticResource Satoshi}"
-                                FontSize="13"
-                                FontAttributes="Bold"
-                                CornerRadius="16"
-                                Padding="12,8"
-                                MinimumHeightRequest="40"
-                                VerticalOptions="Center" />
-
-                        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                            <Border Grid.Column="0" Style="{StaticResource BackpackChip}" BackgroundColor="#26FFFFFF">
-                                <Label Text="{Binding TotalBreadUnitsText}"
-                                       FontFamily="{StaticResource Satoshi}"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center"
-                                       TextColor="{DynamicResource TextOnPrimary}" />
+                        <Button Grid.Column="1" Text="Добавить  +" Command="{Binding AddSnackCommand}"
+                                Background="White" TextColor="#177D84" FontAttributes="Bold"
+                                CornerRadius="18" HeightRequest="42" Padding="10,5" />
+                        <Image Grid.Row="1" Grid.Column="1" Source="mascot.png" Aspect="AspectFit" Margin="4" />
+                        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*" ColumnSpacing="7">
+                            <Border Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
+                                <Label Text="{Binding TotalBreadUnitsText}" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
                             </Border>
-                            <Border Grid.Column="1" Style="{StaticResource BackpackChip}" BackgroundColor="#26FFFFFF">
-                                <Label Text="{Binding SnackCount, StringFormat='{}{0} шт.'}"
-                                       FontFamily="{StaticResource Satoshi}"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center"
-                                       TextColor="{DynamicResource TextOnPrimary}" />
+                            <Border Grid.Column="1" Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
+                                <Label Text="{Binding SnackCount, StringFormat='{}{0} шт.'}" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
                             </Border>
-                            <Border Grid.Column="2" Style="{StaticResource BackpackChip}" BackgroundColor="#26FFFFFF">
-                                <Label Text="{Binding ConsumedToday, StringFormat='Съедено {0:F1}'}"
-                                       FontFamily="{StaticResource Satoshi}"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center"
-                                       TextColor="{DynamicResource TextOnPrimary}" />
+                            <Border Grid.Column="2" Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
+                                <Label Text="{Binding ConsumedToday, StringFormat='Съедено {0:F1}'}" FontSize="12" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
                             </Border>
                         </Grid>
                     </Grid>
                 </Border>
 
-                <Border Style="{StaticResource BackpackCard}" IsVisible="{Binding HasError}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <VerticalStackLayout Grid.Column="0" Spacing="3">
-                            <Label Text="{Binding ErrorTitle}" Style="{StaticResource BackpackTitleText}" />
-                            <Label Text="{Binding ErrorMessage}" Style="{StaticResource BackpackMutedText}" />
+                <Border Style="{StaticResource BagCard}" IsVisible="{Binding HasError}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding ErrorTitle}" FontAttributes="Bold" />
+                            <Label Text="{Binding ErrorMessage}" FontSize="13" TextColor="{DynamicResource TextSecondary}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1"
-                                Text="Обновить"
-                                Command="{Binding RetryLoadCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="Обновить" Command="{Binding RetryLoadCommand}" Style="{StaticResource SecondaryButton}" />
                     </Grid>
                 </Border>
-
-                <Label Text="Содержимое"
-                       FontFamily="{StaticResource Satoshi}"
-                       FontSize="16"
-                       FontAttributes="Bold"
-                       TextColor="{DynamicResource TextPrimary}"
-                       IsVisible="{Binding HasItems}" />
+                <Label Text="Содержимое" FontFamily="{StaticResource ClashDisplay}" FontSize="22"
+                       FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" IsVisible="{Binding HasItems}" />
             </VerticalStackLayout>
         </CollectionView.Header>
 
         <CollectionView.EmptyView>
-            <Grid Padding="16,0,16,24"
-                  IsVisible="{Binding ShowEmptyState}">
-                <components:EmptyStateView
-                    Icon="{Binding EmptyStateIcon}"
-                    TitleText="{Binding EmptyStateTitle}"
-                    Message="{Binding EmptyStateMessage}"
-                    HelperText="Нажми «Добавить», чтобы положить первый перекус."
-                    HelperTone="Info"
-                    IsMascotVisible="False" />
+            <Grid Padding="16,0,16,24" IsVisible="{Binding ShowEmptyState}">
+                <components:EmptyStateView TitleText="{Binding EmptyStateTitle}"
+                                           Message="{Binding EmptyStateMessage}"
+                                           HelperText="Нажми «Добавить», чтобы положить первый перекус."
+                                           HelperTone="Info" />
             </Grid>
         </CollectionView.EmptyView>
 
         <CollectionView.ItemTemplate>
             <DataTemplate>
-                <Border Margin="16,0,16,10"
-                        Style="{StaticResource BackpackCard}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" RowDefinitions="Auto,Auto">
-                        <Label Grid.Row="0"
-                               Grid.Column="0"
-                               Text="{Binding SnackName}"
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource TextPrimary}"
-                               LineBreakMode="TailTruncation" />
-
-                        <Border Grid.Row="1"
-                                Grid.Column="0"
-                                Style="{StaticResource BackpackChip}"
-                                HorizontalOptions="Start"
-                                Margin="0,6,0,0">
-                            <Label Text="{Binding BreadUnits, StringFormat='{}{0:F1} ХЕ'}"
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="{DynamicResource Primary}" />
+                <Border Margin="16,0,16,10" Style="{StaticResource BagCard}">
+                    <Grid ColumnDefinitions="48,*,Auto" ColumnSpacing="11">
+                        <Border WidthRequest="48" HeightRequest="48" StrokeThickness="0"
+                                BackgroundColor="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 16">
+                            <Label Text="{Binding SnackIcon}" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                         </Border>
-
-                        <Button Grid.Row="0"
-                                Grid.RowSpan="2"
-                                Grid.Column="1"
-                                Text="Удалить"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"
-                                CommandParameter="{Binding BackpackItemId}"
-                                BackgroundColor="{DynamicResource DangerSoft}"
-                                TextColor="{DynamicResource Danger}"
-                                FontFamily="{StaticResource Satoshi}"
-                                FontSize="12"
-                                FontAttributes="Bold"
-                                CornerRadius="14"
-                                Padding="10,7"
-                                MinimumHeightRequest="38"
-                                VerticalOptions="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                            <Label Text="{Binding SnackName}" FontSize="17" FontAttributes="Bold"
+                                   TextColor="{DynamicResource TextPrimary}" LineBreakMode="TailTruncation" />
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="{Binding BreadUnits, StringFormat='{}{0:F1} ХЕ'}"
+                                       FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource Primary}" />
+                                <Label Text="{Binding QuantityText}" FontSize="13"
+                                       FontAttributes="Bold" TextColor="{DynamicResource TextSecondary}" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                            <Button Text="Съесть" HeightRequest="42" Padding="15,5" CornerRadius="15"
+                                    BackgroundColor="{DynamicResource Primary}" TextColor="White" FontAttributes="Bold"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.ConsumeSnackCommand}"
+                                    CommandParameter="{Binding .}" />
+                            <Button Text="Убрать" HeightRequest="30" Padding="8,2" CornerRadius="12"
+                                    Style="{StaticResource GhostButton}" TextColor="{DynamicResource TextSecondary}"
+                                    FontSize="11" BorderColor="{DynamicResource BorderDefault}" BorderWidth="1"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"
+                                    CommandParameter="{Binding BackpackItemId}" />
+                        </VerticalStackLayout>
                     </Grid>
                 </Border>
             </DataTemplate>
         </CollectionView.ItemTemplate>
-
-        <CollectionView.Footer>
-            <BoxView HeightRequest="18" Opacity="0" />
-        </CollectionView.Footer>
+        <CollectionView.Footer><BoxView HeightRequest="20" Opacity="0" /></CollectionView.Footer>
     </CollectionView>
 </pages:SwipeablePage>

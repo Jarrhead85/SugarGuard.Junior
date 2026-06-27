@@ -15,27 +15,64 @@
 
         <div class="sidebar-logo">
             <img class="sidebar-logo-image" src="/images/sugarguard-icon.png" alt="" aria-hidden="true" />
-            <span class="sidebar-logo-text">SugarGuard</span>
+            <span class="sidebar-logo-copy">
+                <span class="sidebar-logo-text">SugarGuard</span>
+                <span class="sidebar-logo-subtitle">@GetPortalSubtitle(Navigation.Uri)</span>
+            </span>
         </div>
 
         <nav class="sidebar-nav">
             <AuthorizeView Roles="Parent">
                 <Authorized>
                     <NavItem Href="/parent/dashboard"    Icon="home"         Label="Главная" />
-                    <NavItem Href="/parent/measurements" Icon="activity"     Label="Измерения" />
-                    <NavItem Href="/parent/backpack"     Icon="shopping-bag" Label="Рюкзак" />
-                    <NavItem Href="/parent/doctor"       Icon="stethoscope"  Label="Врач" />
-                    <NavItem Href="/parent/settings"     Icon="settings"     Label="Настройки" />
+                    <NavItem Href="/parent/dashboard?tab=measurements" Icon="activity"     Label="Измерения" />
+                    <NavItem Href="/parent/dashboard?tab=backpack"     Icon="shopping-bag" Label="Рюкзак" />
+                    <NavItem Href="/parent/dashboard?tab=doctor"       Icon="stethoscope"  Label="Врач" />
+                    <NavItem Href="/parent/dashboard?tab=settings"     Icon="settings"     Label="Настройки" />
+                    <div class="parent-child-card" role="region" aria-label="Ребёнок родителя">
+                        @if (parentSidebarChild is null)
+                        {
+                            <button class="parent-child-card-empty" @onclick='() => Navigation.NavigateTo("/parent/link-child")'>
+                                <span class="parent-child-avatar" aria-hidden="true">+</span>
+                                <span>
+                                    <strong>Привязать ребёнка</strong>
+                                    <small>Код из мобильного приложения</small>
+                                </span>
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="parent-child-card-button" @onclick='() => Navigation.NavigateTo("/parent/dashboard")'>
+                                <span class="parent-child-avatar" aria-hidden="true">@GetInitials(parentSidebarChild.Name)</span>
+                                <span class="parent-child-info">
+                                    <strong>@parentSidebarChild.Name</strong>
+                                    <small>@parentSidebarChild.Subtitle</small>
+                                </span>
+                                @if (parentSidebarChild.LatestGlucose.HasValue)
+                                {
+                                    <span class="parent-child-glucose @parentSidebarChild.GlucoseClass">
+                                        @parentSidebarChild.LatestGlucose.Value.ToString("0.0")
+                                    </span>
+                                }
+                            </button>
+                        }
+                    </div>
                 </Authorized>
             </AuthorizeView>
 
             <AuthorizeView Roles="Doctor">
                 <Authorized>
-                    <NavItem Href="/doctor/dashboard"   Icon="home"        Label="Главная" />
-                    <NavItem Href="/doctor/patients"    Icon="users"       Label="Пациенты" />
-                    <NavItem Href="/doctor/alerts"      Icon="bell"        Label="Оповещения" />
-                    <NavItem Href="/doctor/reports"     Icon="file-text"   Label="Отчёты" />
-                    <NavItem Href="/doctor/profile"     Icon="user"        Label="Профиль" />
+                    <div class="doctor-nav-block">
+                        <span class="doctor-nav-caption">Рабочее пространство</span>
+                        <NavItem Href="/doctor/patients" Icon="users" Label="Мои пациенты" />
+                        <NavItem Href="/doctor/alerts" Icon="bell" Label="Группы риска" />
+                        <NavItem Href="/doctor/reports" Icon="activity" Label="Аналитика группы" />
+                    </div>
+                    <div class="doctor-nav-block">
+                        <span class="doctor-nav-caption">Клиническая работа</span>
+                        <NavItem Href="/doctor/notes" Icon="file-text" Label="Записки врача" />
+                        <NavItem Href="/doctor/profile" Icon="settings" Label="Профиль и настройки" />
+                    </div>
                 </Authorized>
             </AuthorizeView>
 
@@ -202,6 +239,7 @@
     private bool sidebarOpen;
     private bool isDarkTheme;
     private List<UserNotificationItem> notifications = new();
+    private ParentSidebarChild? parentSidebarChild;
     private int unreadCount => notifications.Count(n => n.IsUnread);
     private bool HasUnread => unreadCount > 0;
     private string PortalClass => GetPortalClass(Navigation.Uri);
@@ -216,6 +254,7 @@
     {
         if (!firstRender) return;
         await LoadThemeAsync();
+        await LoadParentSidebarChildAsync();
     }
 
     private async Task LoadThemeAsync()
@@ -224,6 +263,7 @@
         {
             var stored = await JS.InvokeAsync<string>("sugarGuardTheme.getTheme");
             isDarkTheme = stored == "dark";
+            StateHasChanged();
         }
         catch
         {
@@ -248,7 +288,60 @@
         notifOpen = false;
         sidebarOpen = false;
         UpdatePageInfo(e.Location);
+        _ = InvokeAsync(LoadParentSidebarChildAsync);
         StateHasChanged();
+    }
+
+    private async Task LoadParentSidebarChildAsync()
+    {
+        try
+        {
+            var path = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath;
+            if (!path.StartsWith("/parent", StringComparison.OrdinalIgnoreCase)
+                || !await CurrentUser.IsParentAsync())
+            {
+                parentSidebarChild = null;
+                return;
+            }
+
+            var children = await Api.GetMyChildrenAsync();
+            var child = children.FirstOrDefault();
+            if (child is null)
+            {
+                parentSidebarChild = null;
+                return;
+            }
+
+            decimal? latestGlucose = null;
+            var glucoseClass = "normal";
+            try
+            {
+                var summary = await Api.GetDashboardSummaryAsync(child.ChildId);
+                latestGlucose = summary.LatestGlucose;
+                glucoseClass = summary.LatestGlucoseUiState switch
+                {
+                    "Critical" or "Danger" => "danger",
+                    "Warning" or "Elevated" => "warn",
+                    _ => "normal"
+                };
+            }
+            catch
+            {
+                latestGlucose = null;
+            }
+
+            parentSidebarChild = new ParentSidebarChild(
+                string.IsNullOrWhiteSpace(child.FullName) ? "Ребёнок" : child.FullName,
+                $"{GetAge(child.DateOfBirth)} лет · {child.DiabetesType}",
+                latestGlucose,
+                glucoseClass);
+
+            StateHasChanged();
+        }
+        catch
+        {
+            parentSidebarChild = null;
+        }
     }
 
     private void UpdatePageInfo(string uri)
@@ -264,16 +357,27 @@
             "parent/doctor"       => ("Врач",          "Связь с врачом"),
             "parent/settings"     => ("Настройки",     "Параметры аккаунта"),
             // Врач
-            "doctor/dashboard"    => ("Главная",       "Обзор пациентов"),
-            "doctor/patients"     => ("Пациенты",      "Список пациентов"),
-            "doctor/alerts"       => ("Оповещения",    "Критические события"),
-            "doctor/reports"      => ("Отчёты",        "Экспорт и аналитика"),
+            "doctor/dashboard"    => ("Мои пациенты",  "Кабинет врача"),
+            "doctor/patients"     => ("Мои пациенты",  "Кабинет врача"),
+            "doctor/alerts"       => ("Группы риска",  "Пациенты, которым нужно внимание"),
+            "doctor/reports"      => ("Аналитика группы", "Отчёты и динамика когорты"),
+            "doctor/notes"        => ("Записки врача", "Клинические заметки по пациентам"),
             "doctor/profile"      => ("Профиль",       "Мои данные"),
             // Администратор
-            "admin/dashboard"     => ("Панель",        "Обзор системы"),
+            "admin"               => ("Дашборд",       "Кабинет администратора"),
+            "admin/dashboard"     => ("Дашборд",       "Кабинет администратора"),
             "admin/users"         => ("Пользователи",  "Управление аккаунтами"),
+            "admin/doctor-requests" => ("Верификация", "Заявки врачей"),
+            "admin/links"         => ("Связи",         "Родители, врачи и дети"),
+            "admin/audit"         => ("Журнал аудита", "События системы"),
+            "admin/audit-log"     => ("Журнал аудита", "События системы"),
             "admin/system"        => ("Система",       "Состояние сервисов"),
-            "admin/audit"         => ("Аудит",         "Журнал событий"),
+            "admin/system-stats"  => ("Система",       "Состояние сервисов"),
+            "admin/sync-logs"     => ("Синхронизация", "Очередь и конфликты"),
+            "admin/export-logs"   => ("Экспорт",       "Задачи выгрузки"),
+            "admin/faq"           => ("FAQ",           "База знаний"),
+            "admin/roles"         => ("Права доступа", "Роли и политики"),
+            "admin/tokens"        => ("JWT / Токены",  "Сессии и безопасность"),
             "admin/settings"      => ("Настройки",     "Конфигурация"),
             // Общие
             "login"               => ("Вход",          string.Empty),
@@ -308,6 +412,7 @@
     {
         isDarkTheme = !isDarkTheme;
         await SaveThemeAsync();
+        StateHasChanged();
     }
 
     private async Task HandleLogoutAsync()
@@ -326,6 +431,15 @@
             : parts[0][0].ToString().ToUpper();
     }
 
+    private static int GetAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+            age--;
+        return Math.Max(age, 0);
+    }
+
     private static string GetRoleLabel(string? role) => role switch
     {
         "Parent" => "Родитель",
@@ -337,10 +451,30 @@
     private static string GetPortalClass(string uri)
     {
         var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        if (path.StartsWith("doctor/", StringComparison.Ordinal))
+        {
+            return "app-shell--care app-shell--doctor";
+        }
+
         return path.StartsWith("parent/", StringComparison.Ordinal)
-            || path.StartsWith("doctor/", StringComparison.Ordinal)
             ? "app-shell--care"
             : "app-shell--admin";
+    }
+
+    private static string GetPortalSubtitle(string uri)
+    {
+        var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        if (path.StartsWith("doctor/", StringComparison.Ordinal))
+        {
+            return "Кабинет врача";
+        }
+
+        if (path.StartsWith("parent/", StringComparison.Ordinal))
+        {
+            return "Кабинет родителя";
+        }
+
+        return "Кабинет администратора";
     }
 
     public void Dispose()
@@ -348,4 +482,9 @@
         Navigation.LocationChanged -= OnLocationChanged;
     }
 
+    private sealed record ParentSidebarChild(
+        string Name,
+        string Subtitle,
+        decimal? LatestGlucose,
+        string GlucoseClass);
 }

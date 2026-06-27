@@ -127,6 +127,57 @@ public sealed class ChildrenService : IChildrenService
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
+
+        if (role == UserRole.ChildDevice)
+        {
+            var existingSelfLink = await db.ParentChildLinks
+                .Where(l => l.ParentUserId == userId)
+                .OrderByDescending(l => l.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (existingSelfLink is not null)
+            {
+                var existingChild = await db.Children
+                    .FirstOrDefaultAsync(
+                        c => c.ChildId == existingSelfLink.ChildId,
+                        cancellationToken);
+
+                if (existingChild is not null)
+                {
+                    ApplyChildRequest(existingChild, request, now);
+                    existingChild.SetupCompleted = true;
+                    existingChild.SetupCompletedAt ??= now;
+
+                    var hasSettings = await db.DiabetesSettings
+                        .AnyAsync(d => d.ChildId == existingChild.ChildId, cancellationToken);
+
+                    if (!hasSettings)
+                    {
+                        db.DiabetesSettings.Add(new DiabetesSettings
+                        {
+                            ChildId = existingChild.ChildId,
+                            UpdatedAt = now
+                        });
+                    }
+
+                    await db.SaveChangesAsync(cancellationToken);
+
+                    await _audit.WriteAsync(
+                        action: "child.updated",
+                        targetType: "Child",
+                        targetId: existingChild.ChildId.ToString(),
+                        details: $"ChildDevice={userId};Source=CreateAsyncExistingSelfLink",
+                        cancellationToken: cancellationToken);
+
+                    return new CreateChildResult
+                    {
+                        Child = MapToResponse(existingChild),
+                        ParentLinkId = existingSelfLink.LinkId
+                    };
+                }
+            }
+        }
+
         Guid? parentLinkId = null;
         var child = new Child
         {
@@ -190,6 +241,25 @@ public sealed class ChildrenService : IChildrenService
             Child = MapToResponse(child),
             ParentLinkId = parentLinkId
         };
+    }
+
+    private static void ApplyChildRequest(Child child, CreateChildRequest request, DateTime updatedAt)
+    {
+        child.FirstName = request.FirstName.Trim();
+        child.LastName = request.LastName.Trim();
+        child.DateOfBirth = request.DateOfBirth;
+        child.Weight = request.Weight ?? child.Weight;
+        child.Height = request.Height ?? child.Height;
+        child.DiabetesType = request.DiabetesType.Trim();
+        child.DiagnosisDate = request.DiagnosisDate;
+        child.InsulinScheme = request.InsulinScheme?.Trim();
+        child.TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
+            ? child.TimeZoneId
+            : request.TimeZoneId.Trim();
+        child.PhotoUrl = string.IsNullOrWhiteSpace(request.PhotoUrl)
+            ? child.PhotoUrl
+            : request.PhotoUrl.Trim();
+        child.UpdatedAt = updatedAt;
     }
 
     /// <inheritdoc/>

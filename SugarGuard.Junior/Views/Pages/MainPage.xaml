@@ -7,199 +7,154 @@
                      x:Class="SugarGuard.Junior.Views.Pages.MainPage"
                      Title="Мой сахар"
                      BackgroundColor="{DynamicResource BackgroundPage}">
-
     <pages:SwipeablePage.Resources>
         <ResourceDictionary>
             <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
-
             <Style x:Key="HomeCard" TargetType="Border">
-                <Setter Property="Padding" Value="14" />
+                <Setter Property="Padding" Value="16" />
                 <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
                 <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
                 <Setter Property="StrokeThickness" Value="1" />
                 <Setter Property="StrokeShape" Value="RoundRectangle 20" />
             </Style>
-
-            <Style x:Key="HomeLabel" TargetType="Label">
+            <Style x:Key="Muted" TargetType="Label">
                 <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
                 <Setter Property="FontSize" Value="13" />
                 <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
             </Style>
-
-            <Style x:Key="HomeValue" TargetType="Label">
-                <Setter Property="FontFamily" Value="{StaticResource Satoshi}" />
-                <Setter Property="FontSize" Value="18" />
-                <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
-            </Style>
-
-            <Style x:Key="ShortcutButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Style x:Key="QuickValue" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
                 <Setter Property="FontSize" Value="16" />
-                <Setter Property="Padding" Value="10,8" />
-                <Setter Property="MinimumHeightRequest" Value="40" />
+                <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="CornerRadius" Value="16" />
+                <Setter Property="HeightRequest" Value="44" />
+                <Setter Property="Padding" Value="6" />
             </Style>
         </ResourceDictionary>
     </pages:SwipeablePage.Resources>
 
     <Grid>
         <ScrollView VerticalScrollBarVisibility="Never">
-            <VerticalStackLayout Padding="16,12,16,24" Spacing="12">
+            <VerticalStackLayout Padding="16,30,16,22" Spacing="10">
+                <Label Text="Мой сахар"
+                       FontFamily="{StaticResource ClashDisplay}"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource TextPrimary}" />
 
-                <components:SyncBanner
-                    IsVisible="{Binding ShowOfflineIndicator}"
-                    PendingCount="{Binding PendingSyncCount}"
-                    IsDismissible="True" />
+                <components:SyncBanner IsVisible="{Binding ShowOfflineIndicator}"
+                                       PendingCount="{Binding PendingSyncCount}"
+                                       IsDismissible="True" />
 
-                <Border Style="{StaticResource HomeCard}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <VerticalStackLayout Grid.Column="0" Spacing="2">
-                            <Label Text="{Binding ChildName}"
+                <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="156">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#39C7A5" Offset="0" />
+                            <GradientStop Color="#2688E8" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
+                        <VerticalStackLayout Grid.Column="0" Spacing="3" VerticalOptions="Center">
+                            <Label Text="{Binding ChildName, StringFormat='Привет, {0}!'}"
                                    FontFamily="{StaticResource ClashDisplay}"
-                                   FontSize="28"
+                                   FontSize="23"
                                    FontAttributes="Bold"
-                                   TextColor="{DynamicResource TextPrimary}" />
-                            <Label Text="{Binding CurrentDate}" Style="{StaticResource HomeLabel}" />
-                        </VerticalStackLayout>
-
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="6"
-                                             HorizontalOptions="End">
-                            <Label Text="{Binding CurrentTime}"
-                                   Style="{StaticResource HomeValue}"
-                                   HorizontalOptions="End" />
+                                   TextColor="White"
+                                   MaxLines="2" />
+                            <Label Text="{Binding CurrentDate}" FontSize="13" TextColor="White" Opacity="0.9" />
                             <Button Text="Помощь"
                                     Command="{Binding NavigateToHelpCommand}"
-                                    Style="{StaticResource SecondaryButton}"
-                                    Padding="12,8"
-                                    MinimumHeightRequest="40"
-                                    FontSize="13" />
+                                    Background="White"
+                                    TextColor="#167F82"
+                                    FontAttributes="Bold"
+                                    FontSize="12"
+                                    CornerRadius="14"
+                                    HeightRequest="30"
+                                    WidthRequest="104"
+                                    Padding="8,2"
+                                    HorizontalOptions="Start" />
                         </VerticalStackLayout>
+                        <Border Grid.Column="1" Margin="2" Padding="3" Background="White"
+                                StrokeThickness="0" StrokeShape="RoundRectangle 18">
+                            <Image Source="mascot.png" Aspect="AspectFill" />
+                        </Border>
                     </Grid>
                 </Border>
 
                 <Border Style="{StaticResource HomeCard}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <VerticalStackLayout Grid.Column="0" Spacing="4">
-                            <Label Text="Последний сахар" Style="{StaticResource HomeLabel}" />
+                    <Grid ColumnDefinitions="54,*,Auto" ColumnSpacing="12">
+                        <Border WidthRequest="54" HeightRequest="54" StrokeThickness="0"
+                                BackgroundColor="{DynamicResource SurfacePrimarySoft}"
+                                StrokeShape="RoundRectangle 27">
+                            <Label Text="●" TextColor="{DynamicResource Primary}" FontSize="24"
+                                   HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
+                            <Label Text="Последний сахар" Style="{StaticResource Muted}" />
                             <HorizontalStackLayout Spacing="6">
-                                <Label Text="{Binding LastGlucoseValue}"
-                                       FontFamily="{StaticResource ClashDisplay}"
-                                       FontSize="34"
-                                       FontAttributes="Bold"
-                                       TextColor="{DynamicResource TextPrimary}" />
-                                <Label Text="ммоль/л"
-                                       Style="{StaticResource HomeLabel}"
-                                       VerticalOptions="End"
-                                       Margin="0,0,0,7" />
+                                <Label Text="{Binding LastGlucoseValue}" FontFamily="{StaticResource ClashDisplay}"
+                                       FontSize="34" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                                <Label Text="ммоль/л" Style="{StaticResource Muted}" VerticalOptions="End" Margin="0,0,0,7" />
                             </HorizontalStackLayout>
                         </VerticalStackLayout>
-
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="8"
-                                             HorizontalOptions="End"
-                                             VerticalOptions="Center">
-                            <components:StatusChip UiState="{Binding CurrentGlucoseUiState}"
-                                                   HorizontalOptions="End" />
-                            <Label Text="{Binding LastMeasurementTime}"
-                                   Style="{StaticResource HomeLabel}"
-                                   HorizontalOptions="End" />
+                        <VerticalStackLayout Grid.Column="2" Spacing="5" VerticalOptions="Center" HorizontalOptions="End">
+                            <components:StatusChip UiState="{Binding CurrentGlucoseUiState}" />
+                            <Label Text="{Binding LastMeasurementTime}" Style="{StaticResource Muted}" HorizontalTextAlignment="End" />
                         </VerticalStackLayout>
                     </Grid>
                 </Border>
 
                 <Border Style="{StaticResource HomeCard}">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="Ввести измерение"
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="20"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource TextPrimary}" />
-
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                            <Picker Grid.Column="0"
-                                    Title="Состояние"
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Ввести измерение" FontFamily="{StaticResource ClashDisplay}"
+                                   FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}"
+                                   VerticalOptions="Center" />
+                            <Picker Grid.Column="1" Title="Состояние"
                                     ItemsSource="{Binding ChildStateDisplayNames}"
                                     SelectedIndex="{Binding SelectedChildStateIndex}"
-                                    FontSize="14" />
-                            <Label Grid.Column="1"
-                                   Text="сейчас"
-                                   Style="{StaticResource HomeLabel}"
-                                   VerticalOptions="Center" />
+                                    FontSize="12" WidthRequest="120" />
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                            <Border Grid.Column="0"
-                                    StrokeShape="RoundRectangle 16"
-                                    BackgroundColor="{DynamicResource SurfaceOffset}"
-                                    Stroke="{DynamicResource BorderDefault}"
-                                    StrokeThickness="1"
-                                    Padding="12,0">
-                                <Entry x:Name="GlucoseInput"
-                                       Text="{Binding NewGlucoseValue}"
-                                       Placeholder="5.6"
-                                       FontFamily="{StaticResource Satoshi}"
-                                       FontSize="28"
-                                       Keyboard="Numeric"
-                                       TextColor="{DynamicResource TextPrimary}"
-                                       PlaceholderColor="{DynamicResource TextFaint}" />
-                            </Border>
-                            <Label Grid.Column="1"
-                                   Text="ммоль/л"
-                                   Style="{StaticResource HomeLabel}"
-                                   VerticalOptions="Center" />
-                        </Grid>
+                        <Border Padding="14,0" HeightRequest="64" Stroke="{DynamicResource BorderDefault}"
+                                BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 18">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Entry x:Name="GlucoseInput" Text="{Binding NewGlucoseValue}"
+                                       Placeholder="5.6" Keyboard="Numeric"
+                                       FontFamily="{StaticResource ClashDisplay}" FontSize="29"
+                                       TextColor="{DynamicResource TextPrimary}" />
+                                <Label Grid.Column="1" Text="ммоль/л" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                            </Grid>
+                        </Border>
 
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
-                            <Button Grid.Column="0" Text="4" Style="{StaticResource ShortcutButton}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="4" />
-                            <Button Grid.Column="1" Text="5" Style="{StaticResource ShortcutButton}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="5" />
-                            <Button Grid.Column="2" Text="7" Style="{StaticResource ShortcutButton}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="7" />
-                            <Button Grid.Column="3" Text="10" Style="{StaticResource ShortcutButton}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="10" />
+                            <Button Grid.Column="0" Text="4" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="4" />
+                            <Button Grid.Column="1" Text="5" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="5" />
+                            <Button Grid.Column="2" Text="7" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="7" />
+                            <Button Grid.Column="3" Text="10" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="10" />
                         </Grid>
 
-                        <Button Text="Получить совет"
-                                Command="{Binding SendMeasurementCommand}"
-                                Style="{StaticResource PrimaryButton}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                MinimumHeightRequest="50" />
-
-                        <Label Text="{Binding ErrorMessage}"
-                               IsVisible="{Binding IsErrorVisible}"
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="14"
-                               TextColor="{DynamicResource Danger}"
-                               LineBreakMode="WordWrap" />
+                        <Button Text="Получить совет  ›" Command="{Binding SendMeasurementCommand}"
+                                Style="{StaticResource PrimaryButton}" IsEnabled="{Binding IsNotBusy}"
+                                HeightRequest="52" FontSize="17" />
+                        <Label Text="{Binding ErrorMessage}" IsVisible="{Binding IsErrorVisible}"
+                               FontSize="13" TextColor="{DynamicResource Danger}" />
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Style="{StaticResource HomeCard}"
-                        IsVisible="{Binding ShowRecommendation}">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="{Binding RecommendationUrgency}"
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="13"
-                               FontAttributes="Bold"
+                <Border Style="{StaticResource HomeCard}" IsVisible="{Binding ShowRecommendation}">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="{Binding RecommendationUrgency}" FontSize="13" FontAttributes="Bold"
                                TextColor="{Binding UrgencyKey, Converter={StaticResource StatusToColorConverter}}" />
-                        <Label Text="{Binding RecommendationText}"
-                               FontFamily="{StaticResource Satoshi}"
-                               FontSize="16"
-                               TextColor="{DynamicResource TextPrimary}"
-                               LineBreakMode="WordWrap" />
+                        <Label Text="{Binding RecommendationText}" FontSize="15" TextColor="{DynamicResource TextPrimary}" />
                     </VerticalStackLayout>
                 </Border>
-
-                <GraphicsView x:Name="GlucoseGraphicsMini"
-                              HeightRequest="1"
-                              IsVisible="False" />
+                <GraphicsView x:Name="GlucoseGraphicsMini" HeightRequest="1" IsVisible="False" />
             </VerticalStackLayout>
         </ScrollView>
 
-        <components:EmptyStateView
-            IsVisible="{Binding ShowNoChildSelected}"
-            Icon="🙂"
-            TitleText="Профиль ещё не готов"
-            Message="Заверши настройку профиля, и здесь появится быстрый ввод сахара."
-            IsMascotVisible="True"
-            Mascot="SG" />
+        <components:EmptyStateView IsVisible="{Binding ShowNoChildSelected}"
+                                   Icon="SG" TitleText="Профиль ещё не готов"
+                                   Message="Заверши настройку профиля, чтобы вводить сахар."
+                                   IsMascotVisible="True" Mascot="SG" />
     </Grid>
 </pages:SwipeablePage>

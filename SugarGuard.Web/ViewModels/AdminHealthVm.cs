@@ -18,7 +18,7 @@ public sealed class AdminHealthVm
     internal static AdminHealthVm FromDto(AdminHealthDto dto) => new()
     {
         Status     = dto.Status ?? string.Empty,
-        DatabaseOk = dto.Database,
+        DatabaseOk = dto.DatabaseOk,
         ServerUtc  = dto.ServerUtc
     };
 }

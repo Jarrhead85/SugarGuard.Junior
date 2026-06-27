@@ -81,18 +81,26 @@ public class BackpackService : IBackpackService
         Guid addedByUserId,
         CancellationToken cancellationToken = default)
     {
-        var item = new BackpackItem
-        {
-            ChildId = request.ChildId,
-            SnackName = request.SnackName.Trim(),
-            BreadUnits = request.BreadUnits,
-            AddedBy = $"userId:{addedByUserId}",
-            CreatedAt = DateTime.UtcNow
-        };
+        var itemId = request.BackpackItemId.GetValueOrDefault(Guid.NewGuid());
+        BackpackItem item;
 
         await using (var db = await _dbFactory.CreateDbContextAsync(cancellationToken))
         {
-            db.BackpackItems.Add(item);
+            item = await db.BackpackItems.FirstOrDefaultAsync(x => x.BackpackItemId == itemId, cancellationToken)
+                ?? new BackpackItem
+                {
+                    BackpackItemId = itemId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+            item.ChildId = request.ChildId;
+            item.SnackName = request.SnackName.Trim();
+            item.BreadUnits = request.BreadUnits;
+            item.AddedBy = $"userId:{addedByUserId}";
+
+            if (db.Entry(item).State == EntityState.Detached)
+                db.BackpackItems.Add(item);
+
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -118,6 +126,66 @@ public class BackpackService : IBackpackService
             AddedBy = item.AddedBy,
             CreatedAt = item.CreatedAt
         };
+    }
+
+    /// <inheritdoc/>
+    public async Task<BackpackUpdateOutcome> UpdateAsync(
+        Guid itemId,
+        UpdateBackpackItemRequest request,
+        Guid currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var item = await db.BackpackItems
+            .FirstOrDefaultAsync(bi => bi.BackpackItemId == itemId, cancellationToken);
+
+        if (item is null)
+        {
+            _logger.LogWarning("UpdateAsync: позиция не найдена. ItemId={ItemId}.", itemId);
+            return new BackpackUpdateOutcome(BackpackUpdateResultStatus.NotFound, null);
+        }
+
+        if (!await _childAccess.CanAccessChildAsync(item.ChildId, cancellationToken))
+        {
+            _logger.LogWarning(
+                "UpdateAsync: доступ запрещён. ItemId={ItemId} ChildId={ChildId} CurrentUserId={CurrentUserId}.",
+                itemId, item.ChildId, currentUserId);
+            return new BackpackUpdateOutcome(BackpackUpdateResultStatus.Forbidden, null);
+        }
+
+        var oldName = item.SnackName;
+        var oldBreadUnits = item.BreadUnits;
+
+        item.SnackName = request.SnackName.Trim();
+        item.BreadUnits = request.BreadUnits;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        await _audit.WriteAsync(
+            action: "backpack.item_updated",
+            targetType: "BackpackItem",
+            targetId: item.BackpackItemId.ToString(),
+            details: $"Child={item.ChildId};" +
+                     $"OldSnack={oldName};NewSnack={item.SnackName};" +
+                     $"OldBreadUnits={oldBreadUnits};NewBreadUnits={item.BreadUnits}",
+            cancellationToken: CancellationToken.None);
+
+        _logger.LogInformation(
+            "UpdateAsync: ItemId={ItemId} SnackName={SnackName} BreadUnits={BreadUnits} ChildId={ChildId} Actor={ActorId}.",
+            item.BackpackItemId, item.SnackName, item.BreadUnits, item.ChildId, currentUserId);
+
+        return new BackpackUpdateOutcome(
+            BackpackUpdateResultStatus.Updated,
+            new BackpackItemResponse
+            {
+                BackpackItemId = item.BackpackItemId,
+                ChildId = item.ChildId,
+                SnackName = item.SnackName,
+                BreadUnits = item.BreadUnits,
+                AddedBy = item.AddedBy,
+                CreatedAt = item.CreatedAt
+            });
     }
 
     /// <inheritdoc/>

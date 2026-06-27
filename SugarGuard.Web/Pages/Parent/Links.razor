@@ -1,4 +1,5 @@
 ﻿@page "/parent/children/{ChildId:guid}/links"
+@page "/parent/links"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using SugarGuard.Domain.Enums
@@ -915,6 +916,21 @@
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
+        if (ChildId == Guid.Empty)
+        {
+            var children = await ApiService.GetMyChildrenAsync();
+            var child = children.FirstOrDefault();
+
+            if (child is null || child.ChildId == Guid.Empty)
+            {
+                NavigationManager.NavigateTo("/parent/dashboard", replace: true);
+                return;
+            }
+
+            NavigationManager.NavigateTo($"/parent/children/{child.ChildId:D}/links", replace: true);
+            return;
+        }
+
         await LoadAsync();
     }
 

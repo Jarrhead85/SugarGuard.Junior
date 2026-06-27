@@ -5,6 +5,8 @@ using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
 using SugarGuard.Shared.Dto;
+using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -309,6 +311,7 @@ public class RealApiClient : IApiClient
     {
         var apiBody = new
         {
+            measurementId = Guid.TryParse(request.MeasurementId, out var mid) ? mid : (Guid?)null,
             childId = Guid.TryParse(request.ChildId, out var cid) ? cid : Guid.Empty,
             glucoseValue = request.GlucoseValue,
             measurementTime = request.MeasurementTime,
@@ -332,7 +335,9 @@ public class RealApiClient : IApiClient
         var response = new MeasurementResponse
         {
             Success = true,
-            MeasurementId = raw.TryGetProperty("measurementId", out var mid) ? mid.GetString() : null,
+            MeasurementId = raw.TryGetProperty("measurementId", out var measurementIdElement)
+                ? measurementIdElement.GetString()
+                : null,
             IsCritical = raw.TryGetProperty("isCritical", out var ic) && ic.GetBoolean(),
             ErrorMessage = raw.TryGetProperty("errorMessage", out var em) ? em.GetString() : null
         };
@@ -347,6 +352,7 @@ public class RealApiClient : IApiClient
     {
         var list = request.Measurements.Select(m => new
         {
+            clientOperationId = m.MeasurementId,
             childId = Guid.TryParse(m.ChildId, out var cid) ? cid : Guid.Empty,
             glucoseValue = m.GlucoseValue,
             measurementTime = m.MeasurementTime,
@@ -414,10 +420,11 @@ public class RealApiClient : IApiClient
     {
         var apiBody = new
         {
+            measurementId = Guid.TryParse(request.MeasurementId, out var mid) ? mid : (Guid?)null,
             childId = Guid.TryParse(request.ChildId, out var cid) ? cid : Guid.Empty,
             glucoseValue = (decimal)request.CurrentGlucose,
             availableSnacks = request.AvailableSnacks,
-            forceNew = false
+            forceNew = request.ForceNew
         };
 
         using var res = await SendWithRetryAsync(() =>
@@ -507,6 +514,7 @@ public class RealApiClient : IApiClient
     {
         var body = new
         {
+            backpackItemId = Guid.TryParse(request.BackpackItemId, out var bid) ? bid : (Guid?)null,
             childId = Guid.TryParse(request.ChildId, out var cid) ? cid : Guid.Empty,
             snackName = request.SnackName,
             breadUnits = request.Carbs,
@@ -530,7 +538,29 @@ public class RealApiClient : IApiClient
         return res.IsSuccessStatusCode;
     }
 
+    public async Task<bool> ConsumeSnackAsync(ConsumeBackpackSnackRequest request)
+    {
+        if (!Guid.TryParse(request.BackpackItemId, out var itemId))
+            return false;
+
+        var glucose = request.CurrentGlucose.ToString(CultureInfo.InvariantCulture);
+        using var res = await SendWithRetryAsync(() =>
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"api/backpack/{itemId}/consume?currentGlucose={Uri.EscapeDataString(glucose)}"));
+
+        // 404 означает, что сервер ещё не получил локально добавленный перекус.
+        // Операция должна остаться в очереди и повториться после синхронизации Insert.
+        return res.IsSuccessStatusCode;
+    }
+
     public async Task<List<string>> GetBackpackAsync(string childId)
+    {
+        var items = await GetBackpackItemsAsync(childId);
+        return items.Select(item => item.SnackName).Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+    }
+
+    public async Task<List<BackpackApiItemResponse>> GetBackpackItemsAsync(string childId)
     {
         using var res = await SendWithRetryAsync(() =>
             new HttpRequestMessage(HttpMethod.Get, $"api/backpack/{childId}"));
@@ -541,10 +571,28 @@ public class RealApiClient : IApiClient
         var data = await res.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         if (data.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
         {
-            var list = new List<string>();
+            var list = new List<BackpackApiItemResponse>();
             foreach (var item in items.EnumerateArray())
-                if (item.TryGetProperty("snackName", out var sn))
-                    list.Add(sn.GetString() ?? "");
+            {
+                var snackName = item.TryGetProperty("snackName", out var sn)
+                    ? sn.GetString() ?? string.Empty
+                    : string.Empty;
+
+                if (string.IsNullOrWhiteSpace(snackName))
+                    continue;
+
+                list.Add(new BackpackApiItemResponse
+                {
+                    BackpackItemId = item.TryGetProperty("backpackItemId", out var id) ? id.ToString() : string.Empty,
+                    ChildId = item.TryGetProperty("childId", out var child) ? child.ToString() : childId,
+                    SnackName = snackName,
+                    BreadUnits = item.TryGetProperty("breadUnits", out var bu) && bu.TryGetDouble(out var value) ? value : 0d,
+                    AddedBy = item.TryGetProperty("addedBy", out var addedBy) ? addedBy.GetString() : null,
+                    CreatedAt = item.TryGetProperty("createdAt", out var createdAt) && createdAt.TryGetDateTime(out var date)
+                        ? date
+                        : DateTime.UtcNow
+                });
+            }
             return list;
         }
 

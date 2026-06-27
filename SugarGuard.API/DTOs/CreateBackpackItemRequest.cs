@@ -7,6 +7,11 @@ namespace SugarGuard.API.DTOs;
 /// </summary>
 public class CreateBackpackItemRequest
 {
+    /// <summary>
+    /// Optional client-generated identifier. Mobile uses this to keep local and server records aligned.
+    /// </summary>
+    public Guid? BackpackItemId { get; set; }
+
     [Required]
     public Guid ChildId { get; set; }
 
@@ -16,7 +21,7 @@ public class CreateBackpackItemRequest
     public string SnackName { get; set; } = string.Empty;
 
     [Required]
-    [Range(0.1, 99.99, ErrorMessage = "Хлебные единицы должны быть в диапазоне 0.1-99.99")]
+    [Range(0, 99.99, ErrorMessage = "Хлебные единицы должны быть в диапазоне 0-99.99")]
     public decimal BreadUnits { get; set; }
 
     [MaxLength(50)]

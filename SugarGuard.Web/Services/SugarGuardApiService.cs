@@ -163,7 +163,11 @@ namespace SugarGuard.Web.Services
             try
             {
                 var client = await CreateAuthorizedClientAsync(cancellationToken);
-                var url = BuildUrl($"api/measurements/{childId}/statistics", ("period", period));
+                var (from, to) = ResolveStatisticsPeriod(period);
+                var url = BuildUrl(
+                    $"api/parentdashboard/{childId}/statistics",
+                    ("from", from.ToString("o")),
+                    ("to", to.ToString("o")));
                 using var response = await client.GetAsync(url, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
@@ -180,6 +184,21 @@ namespace SugarGuard.Web.Services
             {
                 return null;
             }
+        }
+
+        private static (DateTime From, DateTime To) ResolveStatisticsPeriod(string period)
+        {
+            var to = DateTime.UtcNow;
+            var normalized = period.Trim().ToLowerInvariant();
+            var from = normalized switch
+            {
+                "24h" or "day" or "today" => to.AddHours(-24),
+                "7d" or "week" => to.AddDays(-7),
+                "30d" or "month" => to.AddDays(-30),
+                _ => to.AddDays(-7)
+            };
+
+            return (from, to);
         }
 
         // COMPARISON
@@ -266,19 +285,21 @@ namespace SugarGuard.Web.Services
 
         // BACKPACK
         /// <summary>
-        /// GET api/parentdashboard/{childId}/backpack
+        /// GET api/backpack/{childId}
         /// </summary>
         public async Task<List<BackpackItemVm>> GetBackpackAsync(
             Guid childId,
             CancellationToken cancellationToken = default)
         {
             var client = await CreateAuthorizedClientAsync(cancellationToken);
-            return await GetRequiredAsync<List<BackpackItemVm>>(
-                client, $"api/parentdashboard/{childId}/backpack", cancellationToken);
+            var response = await GetRequiredAsync<BackpackResponseApiDto>(
+                client, $"api/backpack/{childId}", cancellationToken);
+
+            return response.Items;
         }
 
         /// <summary>
-        /// POST api/parentdashboard/{childId}/backpack
+        /// POST api/backpack
         /// </summary>
         public async Task<BackpackItemVm> AddBackpackItemAsync(
             AddBackpackItemRequest request,
@@ -286,7 +307,7 @@ namespace SugarGuard.Web.Services
         {
             var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.PostAsJsonAsync(
-                $"api/parentdashboard/{request.ChildId}/backpack", request, cancellationToken);
+                "api/backpack", request, cancellationToken);
             response.EnsureSuccessStatusCode();
             return await response.Content
                 .ReadFromJsonAsync<BackpackItemVm>(_jsonOptions, cancellationToken)
@@ -294,16 +315,32 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
-        /// DELETE api/parentdashboard/{childId}/backpack/{itemId}
+        /// PUT api/backpack/{itemId}
+        /// </summary>
+        public async Task<BackpackItemVm> UpdateBackpackItemAsync(
+            Guid itemId,
+            UpdateBackpackItemRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var response = await client.PutAsJsonAsync(
+                $"api/backpack/{itemId}", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content
+                .ReadFromJsonAsync<BackpackItemVm>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустое тело для UpdateBackpackItem.");
+        }
+
+        /// <summary>
+        /// DELETE api/backpack/{itemId}
         /// </summary>
         public async Task DeleteBackpackItemAsync(
-            Guid childId,
             Guid itemId,
             CancellationToken cancellationToken = default)
         {
             var client = await CreateAuthorizedClientAsync(cancellationToken);
             var response = await client.DeleteAsync(
-                $"api/parentdashboard/{childId}/backpack/{itemId}", cancellationToken);
+                $"api/backpack/{itemId}", cancellationToken);
             response.EnsureSuccessStatusCode();
         }
 
@@ -433,8 +470,16 @@ namespace SugarGuard.Web.Services
             CancellationToken cancellationToken = default)
         {
             var client = await CreateAuthorizedClientAsync(cancellationToken);
-            var response = await client.PutAsJsonAsync(
-                $"api/dashboard/{childId}/settings", request, cancellationToken);
+            var response = await client.PatchAsJsonAsync(
+                $"api/children/{childId}/diabetes-settings",
+                new
+                {
+                    targetRangeMin = request.TargetGlucoseMin,
+                    targetRangeMax = request.TargetGlucoseMax,
+                    insulinSensitivity = request.InsulinSensitivity,
+                    carbInsulinRatio = request.InsulinToCarbRatio
+                },
+                cancellationToken);
             response.EnsureSuccessStatusCode();
         }
 
@@ -449,7 +494,7 @@ namespace SugarGuard.Web.Services
             {
                 var client = await CreateAuthorizedClientAsync(cancellationToken);
                 using var response = await client.GetAsync(
-                    $"api/dashboard/{childId}/settings", cancellationToken);
+                    $"api/children/{childId}/diabetes-settings", cancellationToken);
                 if (!response.IsSuccessStatusCode)
                     return null;
 
@@ -1708,7 +1753,7 @@ namespace SugarGuard.Web.Services
             LatestMeasurementTime = dto.LatestMeasurementTime,
             LatestGlucoseStatus = dto.LatestGlucoseStatus,
             LatestGlucoseUiState = dto.LatestGlucoseUiState,
-            TotalMeasurements = dto.TotalMeasurements,
+            TotalMeasurements = dto.TotalMeasurements24H,
             CriticalEpisodes = dto.CriticalEvents,
             RecommendationsCount = dto.RecommendationsCount,
             PendingExportJobs = dto.PendingExportJobs,
@@ -1718,8 +1763,7 @@ namespace SugarGuard.Web.Services
         private static TimelineEventDto MapTimelineEvent(TimelineEventApiDto dto) => new()
         {
             EventId = dto.EventId,
-            EventType = Enum.TryParse<TimelineEventType>(dto.EventType, ignoreCase: true, out var et)
-                                ? et : TimelineEventType.GlucoseMeasurement,
+            EventType = MapTimelineEventType(dto.EventType),
             OccurredAt = dto.OccurredAt,
             GlucoseValue = dto.GlucoseValue,
             GlucoseUiState = dto.GlucoseUiState,
@@ -1729,6 +1773,37 @@ namespace SugarGuard.Web.Services
             Notes = dto.Notes,
             IsImportant = dto.IsImportant
         };
+
+        private static TimelineEventType MapTimelineEventType(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numericValue))
+            {
+                return numericValue switch
+                {
+                    0 => TimelineEventType.Measurement,
+                    1 => TimelineEventType.SnackConsumed,
+                    2 => TimelineEventType.CriticalAlert,
+                    3 => TimelineEventType.Note,
+                    _ => TimelineEventType.GlucoseMeasurement
+                };
+            }
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                var eventType = value.GetString();
+                if (string.Equals(eventType, "DoctorNote", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TimelineEventType.Note;
+                }
+
+                if (Enum.TryParse<TimelineEventType>(eventType, ignoreCase: true, out var parsed))
+                {
+                    return parsed;
+                }
+            }
+
+            return TimelineEventType.GlucoseMeasurement;
+        }
 
         private static StatisticsVm MapStatistics(StatisticsApiDto dto) => new()
         {
@@ -1778,6 +1853,7 @@ namespace SugarGuard.Web.Services
         {
             TargetGlucoseMin = dto.TargetRangeMin,
             TargetGlucoseMax = dto.TargetRangeMax,
+            InsulinSensitivity = dto.InsulinSensitivity,
             InsulinToCarbRatio = dto.CarbInsulinRatio
         };
 
@@ -1850,7 +1926,7 @@ namespace SugarGuard.Web.Services
             public DateTime? LatestMeasurementTime { get; init; }
             public string? LatestGlucoseStatus { get; init; }
             public string? LatestGlucoseUiState { get; init; }
-            public int TotalMeasurements { get; init; }
+            public int TotalMeasurements24H { get; init; }
             public int CriticalEvents { get; init; }
             public int RecommendationsCount { get; init; }
             public int PendingExportJobs { get; init; }
@@ -1860,7 +1936,7 @@ namespace SugarGuard.Web.Services
         private sealed class TimelineEventApiDto
         {
             public Guid EventId { get; init; }
-            public string? EventType { get; init; }
+            public JsonElement EventType { get; init; }
             public DateTime OccurredAt { get; init; }
             public decimal? GlucoseValue { get; init; }
             public string? GlucoseUiState { get; init; }
@@ -1901,6 +1977,15 @@ namespace SugarGuard.Web.Services
             public int HyperEpisodesDelta { get; init; }
             public bool IsReliable { get; init; }
             public string? UnreliableReason { get; init; }
+        }
+
+        private sealed class BackpackResponseApiDto
+        {
+            public Guid ChildId { get; init; }
+            public List<BackpackItemVm> Items { get; init; } = [];
+            public int TotalItems { get; init; }
+            public decimal TotalBreadUnits { get; init; }
+            public DateTime LastUpdated { get; init; }
         }
 
         private sealed class DoctorPatientSummaryApiDto
@@ -1952,6 +2037,7 @@ namespace SugarGuard.Web.Services
         {
             public decimal TargetRangeMin { get; init; }
             public decimal TargetRangeMax { get; init; }
+            public decimal InsulinSensitivity { get; init; }
             public decimal CarbInsulinRatio { get; init; }
         }
 

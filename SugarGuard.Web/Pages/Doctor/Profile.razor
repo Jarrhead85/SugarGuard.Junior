@@ -13,44 +13,59 @@
 
 <PageTitle>Профиль врача — SugarGuard</PageTitle>
 
-<div class="sg-page">
-    <PageHeader Title="Профиль врача"
-                Subtitle="Данные текущей учётной записи и рабочая сводка по прикреплённым пациентам." />
+<section class="doctor-profile-page">
+    <header class="doctor-profile-hero">
+        <div>
+            <span class="doctor-profile-eyebrow">Профиль и настройки</span>
+            <h1>Профиль врача</h1>
+            <p>Данные текущей учётной записи и рабочая сводка по прикреплённым пациентам.</p>
+        </div>
+        <button class="doctor-profile-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+            @(_isLoading ? "Обновляем..." : "Обновить")
+        </button>
+    </header>
 
     @if (_isLoading)
     {
-        <div class="sg-panel">Загружаем профиль...</div>
+        <div class="doctor-profile-card">Загружаем профиль...</div>
     }
     else
     {
-        <section class="sg-panel sg-doctor-profile">
-            <div class="sg-doctor-profile__avatar">@Initials</div>
+        <section class="doctor-profile-card doctor-profile-card--identity">
+            <div class="doctor-profile-avatar">@Initials</div>
             <div>
+                <span>Учётная запись</span>
                 <h2>@DisplayName</h2>
                 <p>@Email</p>
-                <p>Роль: @Role</p>
             </div>
+            <strong>@FormatRole(Role)</strong>
         </section>
 
-        <section class="sg-profile-grid">
-            <article class="sg-panel">
-                <h2>Пациенты</h2>
+        <section class="doctor-profile-grid" aria-label="Рабочая сводка врача">
+            <article class="doctor-profile-card">
+                <span>Пациенты</span>
                 <strong>@_patientsCount</strong>
-                <p>Прикреплено к вашей учётной записи.</p>
+                <p>активно прикреплены к вашей учётной записи</p>
             </article>
-            <article class="sg-panel">
-                <h2>Критические сегодня</h2>
+            <article class="doctor-profile-card">
+                <span>Критические сегодня</span>
                 <strong>@_criticalToday</strong>
-                <p>Пациентов с критическими эпизодами.</p>
+                <p>пациентов с критическими эпизодами</p>
             </article>
-            <article class="sg-panel">
-                <h2>Средний TIR</h2>
-                <strong>@(_averageTir?.ToString("F1") ?? "—")%</strong>
-                <p>По доступным данным за 7 дней.</p>
+            <article class="doctor-profile-card">
+                <span>Средний TIR</span>
+                <strong>@(_averageTir?.ToString("0.#") ?? "—")%</strong>
+                <p>по доступным данным за 7 дней</p>
             </article>
         </section>
+
+        <section class="doctor-profile-card">
+            <span>Безопасность</span>
+            <h2>Доступ ограничен ролью врача</h2>
+            <p>Врач видит только пациентов, для которых создана активная связь Doctor → Child. Административные операции выполняются в кабинете администратора.</p>
+        </section>
     }
-</div>
+</section>
 
 @code {
     private bool _isLoading = true;
@@ -61,12 +76,16 @@
     private int _criticalToday;
     private double? _averageTir;
 
-    private string Initials => string.IsNullOrWhiteSpace(Email)
+    private string Initials => string.IsNullOrWhiteSpace(Email) || Email == "—"
         ? "DR"
         : Email[0].ToString().ToUpperInvariant();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _isLoading = true;
+
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -76,7 +95,7 @@
                 ?? user.Identity?.Name
                 ?? "—";
             Role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Doctor";
-            DisplayName = user.Identity?.Name is { Length: > 0 } name && !name.Contains('@')
+            DisplayName = user.Identity?.Name is { Length: > 0 } name && !name.Contains('@', StringComparison.Ordinal)
                 ? name
                 : Email;
 
@@ -97,29 +116,125 @@
             _isLoading = false;
         }
     }
+
+    private static string FormatRole(string role) => role switch
+    {
+        "Doctor" => "Врач",
+        "Admin" => "Администратор",
+        "SupportAdmin" => "Поддержка",
+        _ => role
+    };
 }
 
 <style>
-    .sg-doctor-profile {
+    .doctor-profile-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .doctor-profile-hero {
         display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        padding: 18px 0 20px;
+        border-bottom: 1px solid rgba(148, 163, 184, .22);
+    }
+
+    .doctor-profile-eyebrow {
+        color: #8a97ad;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .doctor-profile-hero h1 {
+        margin: 8px 0;
+        color: #16213e;
+        font-size: 34px;
+        line-height: 1.05;
+    }
+
+    .doctor-profile-hero p,
+    .doctor-profile-card p {
+        margin: 0;
+        color: #667694;
+    }
+
+    .doctor-profile-button {
+        border: 0;
+        border-radius: 18px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #1b8e8b, #2678d9);
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .doctor-profile-card {
+        border: 1px solid rgba(148, 163, 184, .18);
+        border-radius: 22px;
+        padding: 22px;
+        background: rgba(255, 255, 255, .86);
+        box-shadow: 0 18px 48px rgba(31, 48, 80, .08);
+    }
+
+    .doctor-profile-card--identity {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
         gap: 18px;
         align-items: center;
     }
 
-    .sg-doctor-profile__avatar {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
+    .doctor-profile-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 24px;
         display: grid;
         place-items: center;
-        background: color-mix(in oklab, var(--color-primary) 15%, var(--color-surface));
-        color: var(--color-primary);
-        font-weight: 800;
+        background: linear-gradient(135deg, #1b8e8b, #2678d9);
+        color: #fff;
+        font-size: 22px;
+        font-weight: 900;
     }
 
-    .sg-profile-grid {
+    .doctor-profile-card span {
+        color: #96a2b8;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    .doctor-profile-card h2 {
+        margin: 4px 0;
+        color: #16213e;
+    }
+
+    .doctor-profile-card strong {
+        color: #16213e;
+        font-size: 30px;
+    }
+
+    .doctor-profile-card--identity strong {
+        font-size: 14px;
+        color: #1b8e8b;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(27, 142, 139, .12);
+    }
+
+    .doctor-profile-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 16px;
+    }
+
+    @@media (max-width: 860px) {
+        .doctor-profile-card--identity,
+        .doctor-profile-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>

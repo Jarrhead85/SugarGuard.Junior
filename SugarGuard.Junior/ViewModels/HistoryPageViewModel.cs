@@ -11,6 +11,8 @@ using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
+using SugarGuard.Junior.Models.Core;
+using SugarGuard.Junior.Views.Components;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
 namespace SugarGuard.Junior.ViewModels;
@@ -206,7 +208,7 @@ public partial class HistoryPageViewModel : ObservableObject
 
     private string? _currentChildId;
     private int _currentPage;
-    private const int PageSize = AppConstants.HistoryPageSize;
+    private const int PageSize = 5;
     private bool _isNormalizingCustomRange;
 
     /// <summary>
@@ -238,7 +240,7 @@ public partial class HistoryPageViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(EmptyStateTitle))]
     [NotifyPropertyChangedFor(nameof(EmptyStateMessage))]
     [NotifyPropertyChangedFor(nameof(EmptyState))]
-    private DateFilterOption selectedFilter = DateFilterOption.Today;
+    private DateFilterOption selectedFilter = DateFilterOption.Last7Days;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusyStateVisible))]
@@ -248,7 +250,14 @@ public partial class HistoryPageViewModel : ObservableObject
     private bool isLoading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanGoNextPage))]
     private bool hasMorePages = true;
+
+    public bool CanGoPreviousPage => _currentPage > 0;
+
+    public bool CanGoNextPage => HasMorePages;
+
+    public string PageLabel => $"Страница {_currentPage + 1}";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsListVisible))]
@@ -287,6 +296,14 @@ public partial class HistoryPageViewModel : ObservableObject
     /// История содержит данные.
     /// </summary>
     public bool HasMeasurements => Measurements.Count > 0;
+
+    public bool HasChart => Measurements.Count >= 2;
+
+    public string AverageGlucose => Measurements.Count == 0
+        ? "—"
+        : Measurements.Average(item => item.GlucoseValue).ToString("0.0", CultureInfo.InvariantCulture);
+
+    public GlucoseChartDrawable ChartDrawable { get; } = new();
 
     /// <summary>
     /// Видимость busy-состояния.
@@ -466,7 +483,25 @@ public partial class HistoryPageViewModel : ObservableObject
         try
         {
             _currentPage++;
-            await LoadMeasurementsPageAsync(GetDateRangeForFilter(SelectedFilter), _currentPage, replace: false);
+            await LoadMeasurementsPageAsync(GetDateRangeForFilter(SelectedFilter), _currentPage, replace: true);
+        }
+        finally
+        {
+            IsLoadingMore = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadPreviousPageAsync()
+    {
+        if (IsLoadingMore || _currentPage <= 0)
+            return;
+
+        IsLoadingMore = true;
+        try
+        {
+            _currentPage--;
+            await LoadMeasurementsPageAsync(GetDateRangeForFilter(SelectedFilter), _currentPage, replace: true);
         }
         finally
         {
@@ -516,6 +551,10 @@ public partial class HistoryPageViewModel : ObservableObject
                 ReplaceMeasurements(items);
             else
                 AppendMeasurements(items);
+
+            OnPropertyChanged(nameof(CanGoPreviousPage));
+            OnPropertyChanged(nameof(CanGoNextPage));
+            OnPropertyChanged(nameof(PageLabel));
 
             _logger.LogInformation(
                 "Загружено {Count} измерений за период {From} — {To} (страница {Page}).",
@@ -856,6 +895,12 @@ public partial class HistoryPageViewModel : ObservableObject
     /// </summary>
     private void OnMeasurementsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        ChartDrawable.DataPoints = Measurements
+            .OrderBy(item => item.MeasurementTime)
+            .Select(item => new ChartDataPoint(item.MeasurementTime, item.GlucoseValue, item.UiState))
+            .ToList();
+        OnPropertyChanged(nameof(HasChart));
+        OnPropertyChanged(nameof(AverageGlucose));
         RefreshPresentationState();
     }
 

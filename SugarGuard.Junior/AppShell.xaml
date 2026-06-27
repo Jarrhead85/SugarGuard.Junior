@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:SugarGuard.Junior.Views.Pages"
     FlyoutBehavior="Disabled"
+    Shell.NavBarIsVisible="False"
     TabBarBackgroundColor="{DynamicResource TabBarBackgroundColor}"
     TabBarForegroundColor="{DynamicResource TabBarSelectedColor}"
     TabBarUnselectedColor="{DynamicResource TabBarUnselectedColor}"
@@ -35,21 +36,29 @@
         <ShellContent
             Title="Главная"
             Route="mainpage"
-            ContentTemplate="{DataTemplate local:MainPage}" />
+            ContentTemplate="{DataTemplate local:MainPage}">
+            <ShellContent.Icon><FontImageSource Glyph="⌂" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+        </ShellContent>
 
         <ShellContent
             Title="История"
             Route="historypage"
-            ContentTemplate="{DataTemplate local:HistoryPage}" />
+            ContentTemplate="{DataTemplate local:HistoryPage}">
+            <ShellContent.Icon><FontImageSource Glyph="▥" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+        </ShellContent>
 
         <ShellContent
             Title="Рюкзак"
             Route="backpackpage"
-            ContentTemplate="{DataTemplate local:BackpackPage}" />
+            ContentTemplate="{DataTemplate local:BackpackPage}">
+            <ShellContent.Icon><FontImageSource Glyph="▣" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+        </ShellContent>
 
         <ShellContent
             Title="Профиль"
             Route="profilepage"
-            ContentTemplate="{DataTemplate local:ProfilePage}" />
+            ContentTemplate="{DataTemplate local:ProfilePage}">
+            <ShellContent.Icon><FontImageSource Glyph="○" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+        </ShellContent>
     </TabBar>
 </Shell>

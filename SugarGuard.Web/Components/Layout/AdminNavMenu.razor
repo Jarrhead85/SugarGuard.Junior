@@ -4,16 +4,27 @@
 
 <AuthorizeView Roles="Admin,SupportAdmin">
     <Authorized>
-        <nav class="sg-sidenav">
-            <NavItem Href="/admin" Icon="grid" Label="Дашборд" Match="NavLinkMatch.All" />
+        <div class="admin-nav-block">
+            <span class="admin-nav-caption">Управление</span>
+            <NavItem Href="/admin/dashboard" Icon="grid" Label="Дашборд" />
             <NavItem Href="/admin/users" Icon="users" Label="Пользователи" />
-            <NavItem Href="/admin/doctor-requests" Icon="user-check" Label="Заявки врачей" />
-            <NavItem Href="/admin/roles" Icon="shield" Label="Роли" />
-            <NavItem Href="/admin/links" Icon="link" Label="Связки" />
-            <NavItem Href="/admin/sync-logs" Icon="refresh-cw" Label="Sync Logs" />
+            <NavItem Href="/admin/doctor-requests" Icon="user-check" Label="Верификация" />
+            <NavItem Href="/admin/links" Icon="link" Label="Связи" />
+            <NavItem Href="/admin/audit" Icon="file-text" Label="Журнал аудита" />
+            <NavItem Href="/admin/system" Icon="activity" Label="Система" />
+        </div>
+
+        <div class="admin-nav-block">
+            <span class="admin-nav-caption">Операции</span>
+            <NavItem Href="/admin/sync-logs" Icon="refresh-cw" Label="Синхронизация" />
             <NavItem Href="/admin/export-logs" Icon="download" Label="Экспорт" />
             <NavItem Href="/admin/faq" Icon="help-circle" Label="FAQ" />
-            <NavItem Href="/admin/system" Icon="activity" Label="Система" />
-        </nav>
+        </div>
+
+        <div class="admin-nav-block">
+            <span class="admin-nav-caption">Безопасность</span>
+            <NavItem Href="/admin/roles" Icon="shield" Label="Права доступа" />
+            <NavItem Href="/admin/tokens" Icon="server" Label="JWT / Токены" />
+        </div>
     </Authorized>
 </AuthorizeView>

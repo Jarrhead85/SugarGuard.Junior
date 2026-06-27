@@ -23,7 +23,27 @@ public sealed class PassThroughAuthenticationHandler : AuthenticationHandler<Aut
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
     {
-        Response.Redirect("/login");
+        var returnUrl = BuildSafeReturnUrl();
+        var loginUrl = string.IsNullOrWhiteSpace(returnUrl)
+            ? "/login"
+            : $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+        Response.Redirect(loginUrl);
         return Task.CompletedTask;
+    }
+
+    private string? BuildSafeReturnUrl()
+    {
+        var path = Request.PathBase.Add(Request.Path).ToString();
+
+        if (string.IsNullOrWhiteSpace(path)
+            || path.Equals("/login", StringComparison.OrdinalIgnoreCase)
+            || !path.StartsWith("/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var query = Request.QueryString.HasValue ? Request.QueryString.Value : string.Empty;
+        return path + query;
     }
 }

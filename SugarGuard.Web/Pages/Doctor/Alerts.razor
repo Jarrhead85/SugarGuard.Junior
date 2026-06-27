@@ -10,67 +10,77 @@
 @inject NavigationManager Navigation
 @inject ILogger<Alerts> Logger
 
-<PageTitle>Оповещения врача — SugarGuard</PageTitle>
+<PageTitle>Группы риска — SugarGuard</PageTitle>
 
-<div class="sg-page">
-    <PageHeader Title="Оповещения"
-                Subtitle="Пациенты, которым сейчас нужно внимание: критические значения, редкие измерения и низкий TIR.">
-        <TrailingContent>
-            <button class="sg-btn sg-btn--primary" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновляем..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
+<section class="doctor-simple-page">
+    <header class="doctor-simple-hero">
+        <div>
+            <span class="doctor-simple-eyebrow">Рабочее пространство</span>
+            <h1>Группы риска</h1>
+            <p>Пациенты, которым сейчас нужно внимание врача: критические значения, низкий TIR или отсутствие свежих измерений.</p>
+        </div>
+        <button class="doctor-simple-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+            @(_isLoading ? "Обновляем..." : "Обновить")
+        </button>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <div class="sg-alert sg-alert--error" role="alert">@_error</div>
+        <div class="doctor-simple-alert" role="alert">@_error</div>
     }
 
     @if (_isLoading)
     {
-        <div class="sg-panel">Загружаем оповещения...</div>
+        <div class="doctor-simple-card">Загружаем список риска...</div>
     }
     else if (AlertPatients.Count == 0)
     {
-        <div class="sg-empty-state">
-            <h2 class="sg-empty-state__title">Срочных оповещений нет</h2>
-            <p class="sg-empty-state__message">Все прикреплённые пациенты сейчас без критических признаков по доступным данным.</p>
+        <div class="doctor-simple-empty">
+            <strong>Срочных оповещений нет</strong>
+            <span>По доступным данным все прикреплённые пациенты сейчас без критических признаков.</span>
         </div>
     }
     else
     {
-        <div class="sg-alert-grid">
+        <div class="doctor-risk-grid">
             @foreach (var patient in AlertPatients)
             {
-                <article class="sg-panel sg-alert-card @GetSeverityClass(patient)">
-                    <div>
-                        <h2>@GetFullName(patient)</h2>
-                        <p>@GetReason(patient)</p>
+                var severity = GetSeverity(patient);
+                <article class="doctor-risk-card @severity.CssClass">
+                    <div class="doctor-risk-card__top">
+                        <span class="doctor-risk-avatar">@GetInitials(patient)</span>
+                        <div>
+                            <h2>@GetFullName(patient)</h2>
+                            <p>@GetReason(patient)</p>
+                        </div>
+                        <strong>@severity.Label</strong>
                     </div>
-                    <dl class="sg-alert-card__metrics">
+
+                    <dl class="doctor-risk-metrics">
                         <div>
                             <dt>Глюкоза</dt>
-                            <dd>@(patient.LatestGlucose?.ToString("F1") ?? "—") ммоль/л</dd>
+                            <dd>@FormatGlucose(patient)</dd>
                         </div>
                         <div>
                             <dt>TIR 7 дней</dt>
-                            <dd>@patient.TimeInTargetRange.ToString("F1")%</dd>
+                            <dd>@patient.TimeInTargetRange.ToString("0.#")%</dd>
                         </div>
                         <div>
                             <dt>Измерений</dt>
                             <dd>@patient.MeasurementsLast7Days</dd>
                         </div>
                     </dl>
-                    <button class="sg-btn sg-btn--secondary"
+
+                    <button class="doctor-simple-button doctor-simple-button--soft"
+                            type="button"
                             @onclick="() => NavigateToPatient(patient.ChildId)">
-                        Открыть пациента
+                        Открыть карточку
                     </button>
                 </article>
             }
         </div>
     }
-</div>
+</section>
 
 @code {
     private bool _isLoading = true;
@@ -78,10 +88,7 @@
     private List<DoctorPatientSummaryVm> _patients = [];
 
     private List<DoctorPatientSummaryVm> AlertPatients => _patients
-        .Where(p => p.CriticalEventsLast7Days > 0
-            || p.LatestGlucoseUiState is "Critical" or "Danger"
-            || p.TimeInTargetRange < 50
-            || p.MeasurementsLast7Days == 0)
+        .Where(IsAlertPatient)
         .OrderByDescending(p => p.CriticalEventsLast7Days)
         .ThenBy(p => p.TimeInTargetRange)
         .ThenBy(p => p.LatestMeasurementTime ?? DateTime.MinValue)
@@ -96,7 +103,7 @@
 
         try
         {
-            _patients = await ApiService.GetDoctorPatientsAsync("lastMeasurement");
+            _patients = await ApiService.GetDoctorPatientsAsync("lastmeasurement");
         }
         catch (Exception ex)
         {
@@ -109,60 +116,229 @@
         }
     }
 
+    private static bool IsAlertPatient(DoctorPatientSummaryVm patient)
+        => patient.CriticalEventsLast7Days > 0
+            || patient.LatestGlucoseUiState is "Critical" or "Danger"
+            || patient.TimeInTargetRange is > 0 and < 70
+            || patient.MeasurementsLast7Days == 0
+            || patient.LatestMeasurementTime is null
+            || patient.LatestMeasurementTime.Value < DateTime.UtcNow.AddHours(-24);
+
     private static string GetFullName(DoctorPatientSummaryVm patient)
-        => string.Join(' ', new[] { patient.FirstName, patient.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        => string.IsNullOrWhiteSpace(patient.FullName)
+            ? "Пациент без имени"
+            : patient.FullName.Trim();
+
+    private static string GetInitials(DoctorPatientSummaryVm patient)
+    {
+        var parts = GetFullName(patient).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}"
+            : char.ToUpperInvariant(parts[0][0]).ToString();
+    }
 
     private static string GetReason(DoctorPatientSummaryVm patient)
     {
         if (patient.CriticalEventsLast7Days > 0)
+        {
             return $"Критических эпизодов за 7 дней: {patient.CriticalEventsLast7Days}.";
+        }
+
         if (patient.LatestGlucoseUiState is "Critical" or "Danger")
+        {
             return "Последнее измерение в критическом диапазоне.";
+        }
+
         if (patient.MeasurementsLast7Days == 0)
+        {
             return "Нет измерений за последние 7 дней.";
-        return "TIR ниже 50%, стоит проверить дневник измерений.";
+        }
+
+        if (patient.LatestMeasurementTime is null || patient.LatestMeasurementTime.Value < DateTime.UtcNow.AddHours(-24))
+        {
+            return "Нет свежего измерения за последние 24 часа.";
+        }
+
+        return "TIR ниже целевого уровня, стоит проверить дневник измерений.";
     }
 
-    private static string GetSeverityClass(DoctorPatientSummaryVm patient)
+    private static (string Label, string CssClass) GetSeverity(DoctorPatientSummaryVm patient)
         => patient.CriticalEventsLast7Days > 0 || patient.LatestGlucoseUiState is "Critical" or "Danger"
-            ? "sg-alert-card--danger"
-            : "sg-alert-card--warning";
+            ? ("Критично", "doctor-risk-card--danger")
+            : ("Внимание", "doctor-risk-card--warning");
+
+    private static string FormatGlucose(DoctorPatientSummaryVm patient)
+        => patient.LatestGlucose is null
+            ? "—"
+            : $"{patient.LatestGlucose.Value:0.0} ммоль/л";
 
     private void NavigateToPatient(Guid childId)
-        => Navigation.NavigateTo($"/doctor/patients/{childId}");
+        => Navigation.NavigateTo($"/doctor/patients/{childId:D}");
 }
 
 <style>
-    .sg-alert-grid {
+    .doctor-simple-page {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 22px;
+    }
+
+    .doctor-simple-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        padding: 18px 0 20px;
+        border-bottom: 1px solid rgba(148, 163, 184, .22);
+    }
+
+    .doctor-simple-eyebrow {
+        color: #8a97ad;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .doctor-simple-hero h1 {
+        margin: 8px 0 8px;
+        color: #16213e;
+        font-size: 34px;
+        line-height: 1.05;
+    }
+
+    .doctor-simple-hero p {
+        max-width: 720px;
+        margin: 0;
+        color: #667694;
+    }
+
+    .doctor-simple-button {
+        border: 0;
+        border-radius: 18px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #1b8e8b, #2678d9);
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+    }
+
+    .doctor-simple-button--soft {
+        background: rgba(27, 142, 139, .12);
+        color: #1b8e8b;
+    }
+
+    .doctor-simple-alert,
+    .doctor-simple-card,
+    .doctor-simple-empty,
+    .doctor-risk-card {
+        border: 1px solid rgba(148, 163, 184, .18);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, .86);
+        box-shadow: 0 18px 48px rgba(31, 48, 80, .08);
+    }
+
+    .doctor-simple-alert {
+        padding: 14px 16px;
+        color: #db5967;
+        background: rgba(219, 89, 103, .09);
+    }
+
+    .doctor-simple-card,
+    .doctor-simple-empty {
+        padding: 28px;
+    }
+
+    .doctor-simple-empty {
+        display: grid;
+        place-items: center;
+        gap: 8px;
+        min-height: 180px;
+        text-align: center;
+        color: #667694;
+    }
+
+    .doctor-simple-empty strong {
+        color: #16213e;
+        font-size: 20px;
+    }
+
+    .doctor-risk-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 16px;
     }
 
-    .sg-alert-card {
+    .doctor-risk-card {
         display: grid;
-        gap: 16px;
-        border-left: 4px solid var(--color-warning, #e3a32b);
+        gap: 18px;
+        padding: 20px;
     }
 
-    .sg-alert-card--danger {
-        border-left-color: var(--color-error, #db5967);
+    .doctor-risk-card--danger {
+        border-color: rgba(219, 89, 103, .32);
     }
 
-    .sg-alert-card__metrics {
+    .doctor-risk-card--warning {
+        border-color: rgba(227, 163, 43, .36);
+    }
+
+    .doctor-risk-card__top {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: start;
+    }
+
+    .doctor-risk-card h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #16213e;
+    }
+
+    .doctor-risk-card p {
+        margin: 4px 0 0;
+        color: #667694;
+    }
+
+    .doctor-risk-card strong {
+        color: #db5967;
+    }
+
+    .doctor-risk-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background: rgba(27, 142, 139, .13);
+        color: #1b8e8b;
+        font-weight: 900;
+    }
+
+    .doctor-risk-metrics {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 12px;
         margin: 0;
     }
 
-    .sg-alert-card__metrics dt {
-        color: var(--color-text-muted);
-        font-size: 12px;
+    .doctor-risk-metrics div {
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(244, 247, 251, .92);
     }
 
-    .sg-alert-card__metrics dd {
-        margin: 0;
-        font-weight: 700;
+    .doctor-risk-metrics dt {
+        color: #96a2b8;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    .doctor-risk-metrics dd {
+        margin: 4px 0 0;
+        color: #16213e;
+        font-weight: 900;
     }
 </style>

@@ -129,6 +129,68 @@ public class BackpackController : ControllerBase
         }
     }
 
+    // PUT api/backpack/{itemId}
+    /// <summary>
+    /// Обновляет название и ХЕ позиции рюкзака.
+    /// </summary>
+    [HttpPut("{itemId:guid}")]
+    [ProducesResponseType(typeof(BackpackItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<BackpackItemResponse>> UpdateSnack(
+        Guid itemId,
+        [FromBody] UpdateBackpackItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new
+            {
+                error = "validation_error",
+                details = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+            });
+        }
+
+        var currentUserId = _childAccess.GetCurrentUserId();
+        if (!currentUserId.HasValue)
+            return Unauthorized();
+
+        try
+        {
+            var outcome = await _backpack.UpdateAsync(
+                itemId,
+                request,
+                currentUserId.Value,
+                cancellationToken);
+
+            return outcome.Status switch
+            {
+                BackpackUpdateResultStatus.Updated => Ok(outcome.Item),
+                BackpackUpdateResultStatus.NotFound => this.ProblemWithCode(404, "Item Not Found",
+                    "Позиция рюкзака не найдена", "item_not_found"),
+                BackpackUpdateResultStatus.Forbidden => Forbid(),
+                _ => this.ProblemWithCode(
+                    StatusCodes.Status500InternalServerError,
+                    "Internal Server Error",
+                    "Неизвестный результат обновления позиции.",
+                    "internal_error")
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UpdateSnack: внутренняя ошибка. ItemId={ItemId}.", itemId);
+            return this.ProblemWithCode(
+                StatusCodes.Status500InternalServerError,
+                "Internal Server Error",
+                "Внутренняя ошибка сервера.",
+                "internal_error");
+        }
+    }
+
     // DELETE api/backpack/{itemId}
     /// <summary>
     /// Удаляет перекус из рюкзака
