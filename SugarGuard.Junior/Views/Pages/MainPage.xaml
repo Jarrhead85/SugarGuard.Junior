@@ -85,8 +85,8 @@
                         <Border WidthRequest="54" HeightRequest="54" StrokeThickness="0"
                                 BackgroundColor="{DynamicResource SurfacePrimarySoft}"
                                 StrokeShape="RoundRectangle 27">
-                            <Label Text="●" TextColor="{DynamicResource Primary}" FontSize="24"
-                                   HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Image Source="glucose_drop.svg" WidthRequest="48" HeightRequest="48"
+                                   HorizontalOptions="Center" VerticalOptions="Center" />
                         </Border>
                         <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
                             <Label Text="Последний сахар" Style="{StaticResource Muted}" />

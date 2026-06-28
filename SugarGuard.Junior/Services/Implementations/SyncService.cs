@@ -597,7 +597,8 @@ public class SyncService : ISyncService
         {
             var isConnected = await IsConnectedAsync();
             await using var ctx = await _factory.CreateDbContextAsync();
-            var pendingCount = await ctx.Set<SyncQueueItem>().CountAsync(q => !q.IsSynced);
+            var pendingCount = await ctx.Set<SyncQueueItem>()
+                .CountAsync(q => !q.IsSynced && q.RetryCount < MaxRetries);
 
             DateTime? lastSyncUtc = null;
             var saved = Preferences.Get("last_successful_sync_utc", string.Empty);

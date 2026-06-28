@@ -294,6 +294,11 @@
     margin-top: 6px;
 }
 
+    .chart-wrap ::deep .gc-wrapper,
+    .chart-wrap ::deep .gc-canvas-wrap {
+        height: 100%;
+    }
+
     .chart-wrap canvas {
         width: 100%;
         height: 100%;
@@ -336,6 +341,10 @@
     background: var(--color-surface-2, rgba(0,0,0,.02));
     border: 1px solid var(--color-border);
     transition: background 180ms;
+}
+
+.alert-item:hover {
+    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-surface));
 }
 
     .alert-item.unread {
@@ -404,14 +413,16 @@
 
 .alert-title {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 750;
+    line-height: 1.25;
 }
 
 .alert-desc {
     font-size: 13px;
     color: var(--color-text-muted);
     margin-top: 2px;
-    line-height: 1.35;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .alert-body {
@@ -445,10 +456,22 @@
     transition: background 180ms, color 180ms;
 }
 
-    .alert-dismiss:hover {
+.alert-dismiss:hover {
         background: var(--color-glucose-danger-soft);
         color: var(--color-glucose-danger);
     }
+
+.event-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
 
 /* TIR-КАРТОЧКИ */
 .tir-value {
@@ -716,10 +739,27 @@
 
 /* ФИЛЬТРОВАЯ СТРОКА */
 .filter-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
     gap: 12px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: end;
+}
+
+.filter-row .input-wrap {
+    min-width: 0;
+}
+
+.filter-row .form-input,
+.filter-row .form-select,
+.filter-actions .btn {
+    min-height: 44px;
+}
+
+.filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
 }
 
 .input-wrap {
@@ -1273,6 +1313,14 @@
     .grid-3 {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .filter-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .filter-actions {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1308,7 +1356,25 @@
     }
 
     .filter-row {
-        flex-direction: column;
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+        grid-column: auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        width: 100%;
+    }
+
+    .alert-item {
+        grid-template-columns: 6px 36px minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .alert-meta,
+    .alert-time {
+        grid-column: 3;
+        align-items: flex-start;
     }
 
     .child-banner {

@@ -9,7 +9,6 @@
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
 @using SugarGuard.Web.Components.Shared
-@using System.Globalization
 @using System.Text.Json
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -133,7 +132,7 @@
 @* ОБЗОР *@
 <div class="tab-pane @PaneClass("overview")" id="pane-overview" role="tabpanel">
 
-    @* KPI-карточки *@
+    @* Основные показатели *@
     <div class="kpi-grid">
         <StatCard Label="Глюкоза сейчас"
                   Value="@_currentGlucose.ToString("F1")"
@@ -142,6 +141,24 @@
                   Delta="@_glucoseDeltaText"
                   DeltaLabel="к предыдущему"
                   Variant="glucose" />
+        <StatCard Label="Время в диапазоне"
+                  Value="@_tirNormal.ToString()"
+                  Unit="%"
+                  Subtitle="за последние 7 дней"
+                  Status="safe"
+                  Variant="kpi" />
+        <StatCard Label="Ниже нормы"
+                  Value="@_tirLow.ToString()"
+                  Unit="%"
+                  Subtitle="@($"ниже {_targetMin:0.0} ммоль/л")"
+                  Status="danger"
+                  Variant="kpi" />
+        <StatCard Label="Выше нормы"
+                  Value="@_tirHigh.ToString()"
+                  Unit="%"
+                  Subtitle="@($"выше {_targetMax:0.0} ммоль/л")"
+                  Status="warning"
+                  Variant="kpi" />
     </div>
 
     @* График + Последние события *@
@@ -162,8 +179,12 @@
                 </div>
             </div>
             <div class="chart-wrap" id="glucoseChartWrap">
-                <canvas id="glucoseChart"
-                        aria-label="График уровня глюкозы за @_chartRange часов"></canvas>
+                <GlucoseChart Points="@_chartPoints"
+                              HeightPx="200"
+                              TargetMin="@((double)_targetMin)"
+                              TargetMax="@((double)_targetMax)"
+                              ShowHeader="false"
+                              ShowLegend="false" />
             </div>
             <div class="chart-legend" aria-hidden="true">
                 <span class="legend-item">
@@ -198,7 +219,7 @@
                     </span>
                 }
             </div>
-            @if (_recentAlerts.Count == 0)
+            @if (_allAlerts.Count == 0)
             {
                 <div class="empty-state" role="status">
                     <div class="empty-state__icon">
@@ -214,9 +235,11 @@
             else
             {
                 <div class="alert-list" role="list">
-                    @foreach (var alert in _recentAlerts.Take(5))
+                    @foreach (var alert in _pagedRecentAlerts)
                     {
                         <div class="alert-item" role="listitem">
+                            <span class="alert-item__indicator alert-item__indicator--@alert.Type"
+                                  aria-hidden="true"></span>
                             <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
                             <div class="alert-body">
                                 <div class="alert-title">@alert.Title</div>
@@ -226,32 +249,20 @@
                         </div>
                     }
                 </div>
+                <div class="event-pagination" role="navigation" aria-label="Страницы недавних событий">
+                    <span>@(_recentEventPage) из @_recentEventTotalPages</span>
+                    <div class="btn-group">
+                        <button class="btn btn--ghost btn--sm"
+                                disabled="@(_recentEventPage <= 1)"
+                                @onclick="PrevRecentEventPage"
+                                aria-label="Предыдущие события">←</button>
+                        <button class="btn btn--ghost btn--sm"
+                                disabled="@(_recentEventPage >= _recentEventTotalPages)"
+                                @onclick="NextRecentEventPage"
+                                aria-label="Следующие события">→</button>
+                    </div>
+                </div>
             }
-        </div>
-    </div>
-
-    @* Статистика TIR *@
-    <div class="grid-3">
-        <div class="card card--sm card-tir-ok">
-            <div class="tir-value" style="color:var(--color-glucose-normal)">
-                @_tirNormal<span class="tir-unit">%</span>
-            </div>
-            <div class="tir-label">Время в диапазоне</div>
-            <div class="tir-sub">4.0–10.0 ммоль/л</div>
-        </div>
-        <div class="card card--sm card-tir-warn">
-            <div class="tir-value" style="color:var(--color-glucose-warning)">
-                @_tirHigh<span class="tir-unit">%</span>
-            </div>
-            <div class="tir-label">Выше нормы</div>
-            <div class="tir-sub">&gt;10.0 ммоль/л</div>
-        </div>
-        <div class="card card--sm card-tir-danger">
-            <div class="tir-value" style="color:var(--color-glucose-danger)">
-                @_tirLow<span class="tir-unit">%</span>
-            </div>
-            <div class="tir-label">Ниже нормы</div>
-            <div class="tir-sub">&lt;4.0 ммоль/л</div>
         </div>
     </div>
 
@@ -381,14 +392,14 @@
     @* Фильтры *@
     <div class="card" style="margin-bottom:0">
         <div class="filter-row">
-            <div class="input-wrap" style="flex:1;min-width:160px">
+            <div class="input-wrap">
                 <label class="form-label" for="measDate">Дата</label>
                 <input id="measDate" class="form-input" type="date"
                        @bind="_measFilterDate"
                        max="@DateTime.Today.ToString("yyyy-MM-dd")"
                        aria-label="Выбрать дату" />
             </div>
-            <div class="input-wrap" style="flex:1;min-width:140px">
+            <div class="input-wrap">
                 <label class="form-label" for="measStatus">Статус</label>
                 <select id="measStatus" class="form-select" @bind="_measStatusFilter"
                         aria-label="Фильтр по статусу">
@@ -398,14 +409,14 @@
                     <option value="danger">Критично</option>
                 </select>
             </div>
-            <div style="display:flex;gap:var(--spacing-2);align-items:flex-end;padding-top:var(--spacing-5)">
-                <button class="btn btn--primary btn--sm"
+            <div class="filter-actions">
+                <button class="btn btn--primary"
                         @onclick="ApplyMeasFilterAsync"
                         aria-label="Применить фильтры">Применить</button>
-                <button class="btn btn--ghost btn--sm"
+                <button class="btn btn--ghost"
                         @onclick="ResetMeasFilterAsync"
                         aria-label="Сбросить фильтры">Сегодня</button>
-                <button class="btn btn--ghost btn--sm"
+                <button class="btn btn--ghost"
                         @onclick="ExportCsvAsync"
                         aria-label="Экспорт в CSV">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -514,7 +525,7 @@
     </div>
 
     <div class="alert-list" role="list">
-        @if (!_filteredAlerts.Any())
+        @if (_filteredAlertCount == 0)
         {
             <div class="empty-state" role="status">
                 <div class="empty-state__icon">
@@ -530,7 +541,7 @@
         }
         else
         {
-            @foreach (var alert in _filteredAlerts)
+            @foreach (var alert in _pagedAlerts)
             {
                  <div class="alert-item @(alert.IsUnread ? "alert-item--unread" : "")"
                      role="listitem">
@@ -558,6 +569,23 @@
             }
         }
     </div>
+    @if (_filteredAlertCount > 0)
+    {
+        <div class="pagination-row" role="navigation" aria-label="Страницы уведомлений">
+            <span class="pagination-info">
+                Показано @_pagedAlerts.Count из @_filteredAlertCount уведомлений
+            </span>
+            <div class="btn-group">
+                <button class="btn btn--ghost btn--sm"
+                        disabled="@(_alertPage <= 1)"
+                        @onclick="PrevAlertPage">← Назад</button>
+                <span class="pagination-page" aria-current="page">@_alertPage</span>
+                <button class="btn btn--ghost btn--sm"
+                        disabled="@(_alertPage >= _alertTotalPages)"
+                        @onclick="NextAlertPage">Вперёд →</button>
+            </div>
+        </div>
+    }
 </div>
 
 @* РЮКЗАК *@
@@ -993,8 +1021,17 @@
     private string _measStatusFilter = "";
     private DateTime _measFilterDate = DateTime.Today;
     private int _measPage = 1;
+    private int _recentEventPage = 1;
+    private int _alertPage = 1;
     private const int MeasPageSize = 10;
+    private const int EventPageSize = 5;
+    private static readonly TimeSpan LiveRefreshInterval = TimeSpan.FromSeconds(10);
     private const string ParentProfileStorageKey = "sg-parent-profile-v1";
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private readonly HashSet<Guid> _readAlertIds = [];
+    private readonly HashSet<Guid> _dismissedAlertIds = [];
+    private CancellationTokenSource? _refreshCts;
+    private Task? _refreshTask;
 
     // Живые данные
     private double _currentGlucose;
@@ -1079,6 +1116,8 @@
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
     }
 
     protected override async Task OnInitializedAsync()
@@ -1124,7 +1163,28 @@
                 ApplyDiabetesSettings(diabetesSettings);
             }
 
-            var summary = await Api.GetDashboardSummaryAsync(childId, CancellationToken.None);
+            await RefreshLiveDataAsync(childId, CancellationToken.None, resetPages: true);
+            await LoadAccessLinksAsync(childId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Ошибка загрузки данных дашборда");
+        }
+    }
+
+    private async Task RefreshLiveDataAsync(
+        Guid childId,
+        CancellationToken cancellationToken,
+        bool resetPages = false)
+    {
+        if (!await _refreshGate.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+
+        try
+        {
+            var summary = await Api.GetDashboardSummaryAsync(childId, cancellationToken);
             if (summary.LatestGlucose.HasValue)
             {
                 _currentGlucose = (double)summary.LatestGlucose.Value;
@@ -1138,7 +1198,7 @@
 
             _totalMeas = summary.TotalMeasurements;
 
-            var stats = await Api.GetStatisticsVmAsync(childId, "7d", CancellationToken.None);
+            var stats = await Api.GetStatisticsVmAsync(childId, "7d", cancellationToken);
             if (stats is not null)
             {
                 _tirNormal = (int)Math.Round(stats.TimeInTargetRange);
@@ -1152,22 +1212,35 @@
                 childId,
                 DateTime.UtcNow.AddDays(-7),
                 DateTime.UtcNow,
-                CancellationToken.None);
-            _allAlerts = alerts.Select(MapTimelineEvent).ToList();
-            _recentAlerts = _allAlerts.Take(5).ToList();
+                cancellationToken);
+            _allAlerts = alerts
+                .OrderByDescending(entry => entry.OccurredAt)
+                .Where(entry => !_dismissedAlertIds.Contains(entry.EventId))
+                .Select(MapTimelineEvent)
+                .ToList();
 
-            await LoadMeasurementsAsync(
-                childId,
-                DateTime.UtcNow.AddHours(-_chartRange),
-                DateTime.UtcNow,
-                resetPage: true);
+            foreach (var alert in _allAlerts)
+            {
+                alert.IsUnread = !_readAlertIds.Contains(alert.EventId);
+            }
 
+            if (resetPages || _activeTab == "overview")
+            {
+                await LoadMeasurementsAsync(
+                    childId,
+                    DateTime.UtcNow.AddHours(-_chartRange),
+                    DateTime.UtcNow,
+                    resetPage: resetPages,
+                    cancellationToken: cancellationToken);
+            }
             await LoadBackpackFromApiAsync(childId);
-            await LoadAccessLinksAsync(childId);
+
+            _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
+            _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
         }
-        catch (Exception ex)
+        finally
         {
-            Logger.LogWarning(ex, "Ошибка загрузки данных дашборда");
+            _refreshGate.Release();
         }
     }
 
@@ -1253,9 +1326,16 @@
         }
     }
 
-    private async Task LoadMeasurementsAsync(Guid childId, DateTime fromUtc, DateTime toUtc, bool resetPage)
+    private async Task LoadMeasurementsAsync(
+        Guid childId,
+        DateTime fromUtc,
+        DateTime toUtc,
+        bool resetPage,
+        CancellationToken cancellationToken = default)
     {
-        var measurements = await Api.GetMeasurementsAsync(childId, fromUtc, toUtc, CancellationToken.None);
+        var measurements = await Api.GetMeasurementsAsync(childId, fromUtc, toUtc, cancellationToken);
+
+        _chartPoints = GlucoseChart.FromMeasurements(measurements);
 
         _measurements.Clear();
         _measurements.AddRange(measurements
@@ -1281,7 +1361,7 @@
     private static string FormatGlucoseDelta(decimal delta) =>
         delta > 0 ? $"+{delta:0.0}" : delta.ToString("0.0");
 
-    private static AlertItem MapTimelineEvent(TimelineEventDto entry)
+    private AlertItem MapTimelineEvent(TimelineEventDto entry)
     {
         var statusType = entry.GlucoseUiState switch
         {
@@ -1293,6 +1373,7 @@
         return entry.EventType switch
         {
             TimelineEventType.SnackConsumed => new AlertItem(
+                entry.EventId,
                 "Съеден перекус",
                 $"{entry.SnackName ?? "Перекус"}, {entry.BreadUnits?.ToString("0.0") ?? "—"} ХЕ" +
                 (entry.GlucoseValue.HasValue ? $" · сахар {entry.GlucoseValue:0.0} ммоль/л" : string.Empty),
@@ -1301,13 +1382,15 @@
                 "✓",
                 true),
             TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement => new AlertItem(
-                "Новое измерение",
-                $"Глюкоза {entry.GlucoseValue?.ToString("0.0") ?? "—"} ммоль/л",
+                entry.EventId,
+                GetMeasurementEventTitle(entry.GlucoseValue),
+                GetMeasurementEventDescription(entry.GlucoseValue),
                 GetRelativeTime(entry.OccurredAt),
                 statusType,
                 statusType == "danger" ? "!" : "•",
                 true),
             TimelineEventType.CriticalAlert or TimelineEventType.Alert => new AlertItem(
+                entry.EventId,
                 "Критический уровень глюкозы",
                 entry.Notes ?? $"Глюкоза {entry.GlucoseValue?.ToString("0.0") ?? "—"} ммоль/л",
                 GetRelativeTime(entry.OccurredAt),
@@ -1315,6 +1398,7 @@
                 "!",
                 true),
             _ => new AlertItem(
+                entry.EventId,
                 entry.Title ?? "Событие",
                 entry.Description ?? entry.Notes ?? "Обновлены данные ребёнка",
                 GetRelativeTime(entry.OccurredAt),
@@ -1322,6 +1406,39 @@
                 "•",
                 entry.IsImportant)
         };
+    }
+
+    private string GetMeasurementEventTitle(decimal? value)
+    {
+        if (!value.HasValue)
+        {
+            return "Новое измерение";
+        }
+
+        if (value.Value < _targetMin)
+        {
+            return "Глюкоза ниже нормы";
+        }
+
+        return value.Value > _targetMax
+            ? "Глюкоза выше нормы"
+            : "Глюкоза в целевом диапазоне";
+    }
+
+    private string GetMeasurementEventDescription(decimal? value)
+    {
+        if (!value.HasValue)
+        {
+            return "Получено измерение без числового значения";
+        }
+
+        var rangeHint = value.Value < _targetMin
+            ? $"ниже цели на {_targetMin - value.Value:0.0}"
+            : value.Value > _targetMax
+                ? $"выше цели на {value.Value - _targetMax:0.0}"
+                : $"цель {_targetMin:0.0}–{_targetMax:0.0}";
+
+        return $"{value.Value:0.0} ммоль/л · {rangeHint}";
     }
 
     private static MeasurementItem MapMeasurement(MeasurementVm measurement)
@@ -1397,9 +1514,6 @@
 
         await LoadBrowserStateAsync();
 
-        if (_activeTab == "overview")
-            await RenderChartAsync();
-
         try
         {
             var vapidPublicKey = Configuration["Vapid:PublicKey"] ?? string.Empty;
@@ -1418,6 +1532,44 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Не удалось зарегистрировать Push-подписку.");
+        }
+
+        _refreshCts = new CancellationTokenSource();
+        _refreshTask = RunLiveRefreshAsync(_refreshCts.Token);
+    }
+
+    private async Task RunLiveRefreshAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(LiveRefreshInterval);
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    if (_selectedChildId == Guid.Empty)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await RefreshLiveDataAsync(_selectedChildId, cancellationToken);
+                        StateHasChanged();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "Не удалось автоматически обновить родительский дашборд.");
+                    }
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -1449,42 +1601,6 @@
         }
     }
 
-    private async Task RenderChartAsync()
-    {
-        try
-        {
-            var points = _measurements
-                .AsEnumerable()
-                .Reverse()
-                .Select(m => new
-                {
-                    Label = m.Time,
-                    Value = TryParseGlucose(m.Value)
-                })
-                .ToList();
-
-            await JS.InvokeVoidAsync(
-                "SugarGuard.renderGlucoseChart",
-                "glucoseChart",
-                JsonSerializer.Serialize(points.Select(p => p.Label)),
-                JsonSerializer.Serialize(points.Select(p => p.Value)),
-                "#0694a2");
-        }
-        catch (JSException)
-        {
-        }
-    }
-
-    private static double TryParseGlucose(string value)
-    {
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var parsed))
-            return parsed;
-
-        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed)
-            ? parsed
-            : 0d;
-    }
-
     // График
     private async Task SetChartRange(int hours)
     {
@@ -1498,7 +1614,6 @@
                 resetPage: true);
         }
 
-        await RenderChartAsync();
     }
 
     // Измерения
@@ -1526,10 +1641,6 @@
             localTo.ToUniversalTime(),
             resetPage: true);
 
-        if (_activeTab == "overview")
-        {
-            await RenderChartAsync();
-        }
     }
 
     private async Task ResetMeasFilterAsync()
@@ -1563,17 +1674,80 @@
         catch (JSException) { }
     }
 
-    // Уведомления
-    private List<AlertItem> _filteredAlerts =>
-        string.IsNullOrEmpty(_alertFilter)
-            ? _allAlerts
-            : _allAlerts.Where(a => a.Type == _alertFilter).ToList();
+    // События и уведомления
+    private int _recentEventTotalPages => Math.Max(1,
+        (int)Math.Ceiling(_allAlerts.Count / (double)EventPageSize));
 
-    private void SetAlertFilter(string filter) => _alertFilter = filter;
-    private void DismissAlert(AlertItem alert) => _allAlerts.Remove(alert);
+    private List<AlertItem> _pagedRecentAlerts => _allAlerts
+        .Skip((_recentEventPage - 1) * EventPageSize)
+        .Take(EventPageSize)
+        .ToList();
+
+    private IEnumerable<AlertItem> FilteredAlertSource => string.IsNullOrEmpty(_alertFilter)
+        ? _allAlerts
+        : _allAlerts.Where(a => a.Type == _alertFilter);
+
+    private int _filteredAlertCount => FilteredAlertSource.Count();
+    private int _alertTotalPages => Math.Max(1,
+        (int)Math.Ceiling(_filteredAlertCount / (double)EventPageSize));
+
+    private List<AlertItem> _pagedAlerts => FilteredAlertSource
+        .Skip((_alertPage - 1) * EventPageSize)
+        .Take(EventPageSize)
+        .ToList();
+
+    private void PrevRecentEventPage()
+    {
+        if (_recentEventPage > 1)
+        {
+            _recentEventPage--;
+        }
+    }
+
+    private void NextRecentEventPage()
+    {
+        if (_recentEventPage < _recentEventTotalPages)
+        {
+            _recentEventPage++;
+        }
+    }
+
+    private void PrevAlertPage()
+    {
+        if (_alertPage > 1)
+        {
+            _alertPage--;
+        }
+    }
+
+    private void NextAlertPage()
+    {
+        if (_alertPage < _alertTotalPages)
+        {
+            _alertPage++;
+        }
+    }
+
+    private void SetAlertFilter(string filter)
+    {
+        _alertFilter = filter;
+        _alertPage = 1;
+    }
+
+    private void DismissAlert(AlertItem alert)
+    {
+        _dismissedAlertIds.Add(alert.EventId);
+        _allAlerts.Remove(alert);
+        _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
+        _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
+    }
     private void MarkAllAlertsRead()
     {
-        foreach (var a in _allAlerts) a.IsUnread = false;
+        foreach (var alert in _allAlerts)
+        {
+            alert.IsUnread = false;
+            _readAlertIds.Add(alert.EventId);
+        }
         ShowNotice("Все уведомления отмечены как прочитанные.");
     }
 
@@ -1887,9 +2061,9 @@
         _tirLow = 0;
         _avgGlucose = "—";
         _totalMeas = 0;
-        _recentAlerts.Clear();
         _allAlerts.Clear();
         _measurements.Clear();
+        _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
         _backpackItems.Clear();
         _doctorNotes.Clear();
         _linkedDoctors.Clear();
@@ -1935,8 +2109,8 @@
     }
 
     // Данные — загружаются из API
-    private List<AlertItem> _recentAlerts = new();
     private List<AlertItem> _allAlerts = new();
+    private IReadOnlyList<GlucoseChart.ChartPoint> _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private readonly List<MeasurementItem> _measurements = new();
     private readonly List<BackpackItem> _backpackItems = new();
     private readonly List<DoctorNote> _doctorNotes = new();
@@ -1990,6 +2164,7 @@
     /// </summary>
     private sealed class AlertItem
     {
+        public Guid EventId { get; }
         public string Title { get; init; }
         public string Description { get; init; }
         public string Time { get; init; }
@@ -1997,9 +2172,10 @@
         public string Icon { get; init; }
         public bool IsUnread { get; set; }
 
-        public AlertItem(string title, string desc, string time,
+        public AlertItem(Guid eventId, string title, string desc, string time,
                          string type, string icon, bool isUnread)
         {
+            EventId = eventId;
             Title = title; Description = desc; Time = time;
             Type = type; Icon = icon; IsUnread = isUnread;
         }

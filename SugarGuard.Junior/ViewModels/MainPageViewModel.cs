@@ -54,6 +54,44 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string newGlucoseValue = string.Empty;
 
+    partial void OnNewGlucoseValueChanged(string value)
+    {
+        var normalized = NormalizeGlucoseInput(value);
+        if (!string.Equals(value, normalized, StringComparison.Ordinal))
+        {
+            NewGlucoseValue = normalized;
+        }
+    }
+
+    internal static string NormalizeGlucoseInput(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Replace(',', '.');
+        var result = new System.Text.StringBuilder(normalized.Length);
+        var hasDecimalSeparator = false;
+
+        foreach (var character in normalized)
+        {
+            if (char.IsDigit(character))
+            {
+                result.Append(character);
+                continue;
+            }
+
+            if (character == '.' && !hasDecimalSeparator)
+            {
+                result.Append(character);
+                hasDecimalSeparator = true;
+            }
+        }
+
+        return result.ToString();
+    }
+
     [ObservableProperty]
     private string lastGlucoseValue = "—";
 

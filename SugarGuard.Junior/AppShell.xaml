@@ -37,28 +37,28 @@
             Title="Главная"
             Route="mainpage"
             ContentTemplate="{DataTemplate local:MainPage}">
-            <ShellContent.Icon><FontImageSource Glyph="⌂" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+            <ShellContent.Icon><FileImageSource File="nav_home.svg" /></ShellContent.Icon>
         </ShellContent>
 
         <ShellContent
             Title="История"
             Route="historypage"
             ContentTemplate="{DataTemplate local:HistoryPage}">
-            <ShellContent.Icon><FontImageSource Glyph="▥" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+            <ShellContent.Icon><FileImageSource File="nav_history.svg" /></ShellContent.Icon>
         </ShellContent>
 
         <ShellContent
             Title="Рюкзак"
             Route="backpackpage"
             ContentTemplate="{DataTemplate local:BackpackPage}">
-            <ShellContent.Icon><FontImageSource Glyph="▣" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+            <ShellContent.Icon><FileImageSource File="nav_backpack.svg" /></ShellContent.Icon>
         </ShellContent>
 
         <ShellContent
             Title="Профиль"
             Route="profilepage"
             ContentTemplate="{DataTemplate local:ProfilePage}">
-            <ShellContent.Icon><FontImageSource Glyph="○" FontFamily="OpenSansSemibold" /></ShellContent.Icon>
+            <ShellContent.Icon><FileImageSource File="nav_profile.svg" /></ShellContent.Icon>
         </ShellContent>
     </TabBar>
 </Shell>

@@ -171,6 +171,154 @@
     background: var(--color-glucose-danger-soft, rgba(219,89,103,.13));
 }
 
+.app-shell--parent .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,253,255,.95)),
+        radial-gradient(circle at 25% 8%, rgba(27,142,139,.12), transparent 34%);
+}
+
+.app-shell--parent .sidebar-logo {
+    padding: 18px 18px 16px;
+}
+
+.app-shell--parent .sidebar-logo-image {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    box-shadow: 0 9px 24px rgba(27,142,139,.20);
+}
+
+.app-shell--parent .sidebar-nav {
+    gap: 4px;
+    padding: 14px 12px;
+}
+
+.app-shell--parent .parent-child-card {
+    margin: 0 0 10px;
+}
+
+.app-shell--parent .parent-child-card-button,
+.app-shell--parent .parent-child-card-empty {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 14px;
+    border-radius: 20px;
+}
+
+.app-shell--parent .parent-child-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(27,142,139,.12);
+    color: var(--color-primary);
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.app-shell--parent .parent-child-glucose {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: 4px;
+    padding: 6px 10px;
+}
+
+.parent-nav-caption {
+    padding: 8px 10px 4px;
+    color: var(--color-text-faint);
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.parent-nav-caption--account {
+    margin-top: 8px;
+}
+
+.parent-nav-item {
+    min-height: 42px;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 13px;
+    color: var(--color-text-muted);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.parent-nav-item:hover {
+    color: var(--color-text);
+    background: rgba(27,142,139,.07);
+    transform: translateX(1px);
+}
+
+.parent-nav-item.active {
+    color: var(--color-primary);
+    background: rgba(27,142,139,.12);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.parent-nav-icon {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    font-size: 19px;
+    line-height: 1;
+}
+
+.parent-nav-icon svg {
+    width: 19px;
+    height: 19px;
+}
+
+.parent-nav-badge {
+    min-width: 24px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.parent-nav-badge--ok {
+    color: var(--color-glucose-normal, #37a563);
+    background: var(--color-glucose-normal-soft, rgba(55,165,99,.12));
+}
+
+.parent-nav-badge--warn {
+    color: var(--color-glucose-warning, #e3a32b);
+    background: var(--color-glucose-warning-soft, rgba(227,163,43,.13));
+}
+
+.parent-nav-badge--danger {
+    color: var(--color-glucose-danger, #db5967);
+    background: var(--color-glucose-danger-soft, rgba(219,89,103,.13));
+}
+
+.sidebar-theme-btn {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--color-border);
+    border-radius: 11px;
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+[data-theme="dark"] .app-shell--parent .sidebar {
+    background:
+        linear-gradient(180deg, rgba(17,24,37,.98), rgba(12,17,27,.95)),
+        radial-gradient(circle at 25% 8%, rgba(86,208,191,.14), transparent 34%);
+}
+
 .app-shell--doctor .sidebar {
     width: 240px;
     min-width: 240px;

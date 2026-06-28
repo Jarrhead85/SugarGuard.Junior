@@ -14,6 +14,8 @@ namespace SugarGuard.Junior.Services.Implementations;
 /// </summary>
 public class BackpackService : IBackpackService
 {
+    private const int MaxSyncRetries = 10;
+
     private readonly ILogger<BackpackService> _logger;
     private readonly IBackpackRepository _backpackRepository;
     private readonly ISyncService _syncService;
@@ -160,7 +162,7 @@ public class BackpackService : IBackpackService
 
         var ids = await db.Set<SyncQueueItem>()
             .AsNoTracking()
-            .Where(item => !item.IsSynced &&
+            .Where(item => !item.IsSynced && item.RetryCount < MaxSyncRetries &&
                 ((item.EntityType == "SnackConsumption") ||
                  (item.EntityType == "BackpackItem" && item.OperationType == SyncOperationType.Delete)))
             .Select(item => item.EntityId)
