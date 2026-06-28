@@ -13,6 +13,23 @@ public sealed class AdminUserVm
     public string    Role         { get; set; } = string.Empty;
     public bool      IsActive     { get; init; }
     public DateTime CreatedAt    { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? PhotoUrl { get; init; }
+    public string? Specialty { get; init; }
+    public string? LicenseNumber { get; init; }
+    public bool IsEmailVerified { get; init; }
+
+    public bool IsAutomationAccount
+    {
+        get
+        {
+            var email = EmailForLogin ?? string.Empty;
+            return email.Contains(".demo@", StringComparison.OrdinalIgnoreCase)
+                || email.StartsWith("web-smoke-", StringComparison.OrdinalIgnoreCase)
+                || email.StartsWith("codex.", StringComparison.OrdinalIgnoreCase)
+                || email.StartsWith("sugarguard.mobile.", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     /// <summary>Создаёт VM из транспортного DTO сервиса.</summary>
     internal static AdminUserVm FromDto(AdminUserResponseDto dto) => new()
@@ -22,6 +39,11 @@ public sealed class AdminUserVm
         TelegramId    = dto.TelegramId,
         Role          = dto.Role,
         IsActive      = dto.IsActive,
-        CreatedAt     = dto.CreatedAt
+        CreatedAt     = dto.CreatedAt,
+        DisplayName = dto.DisplayName,
+        PhotoUrl = dto.PhotoUrl,
+        Specialty = dto.Specialty,
+        LicenseNumber = dto.LicenseNumber,
+        IsEmailVerified = dto.IsEmailVerified
     };
 }

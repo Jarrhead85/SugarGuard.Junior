@@ -51,9 +51,9 @@
                       Subtitle="Не деактивированы"
                       Status="safe" />
 
-            <StatCard Label="Родители"
-                      Value="@_users.Count(x => IsRole(x.Role, Roles.Parent)).ToString()"
-                      Subtitle="Доступны для parent-child"
+            <StatCard Label="Подтверждённые родители"
+                      Value="@_users.Count(IsVerifiedParent).ToString()"
+                      Subtitle="Без тестовых аккаунтов"
                       Status="neutral" />
 
             <StatCard Label="Врачи / админы"
@@ -115,17 +115,50 @@
                             {
                                 <article class="sg-user-row" @key="user.UserId">
                                     <div class="sg-user-main">
-                                        <div class="sg-user-title-row">
-                                            <h3>@GetUserTitle(user)</h3>
+                                        <div class="sg-user-identity">
+                                            <div class="sg-user-avatar" aria-hidden="true">
+                                                @if (!string.IsNullOrWhiteSpace(user.PhotoUrl))
+                                                {
+                                                    <img src="@user.PhotoUrl" alt="" />
+                                                }
+                                                else
+                                                {
+                                                    @GetUserInitials(user)
+                                                }
+                                            </div>
 
-                                            <div class="sg-user-badges">
-                                                <span class="sg-pill @GetRolePillClass(user.Role)">
-                                                    @user.Role
-                                                </span>
+                                            <div class="sg-user-identity-copy">
+                                                <div class="sg-user-title-row">
+                                                    <h3>@GetUserTitle(user)</h3>
 
-                                                <span class="sg-pill @(user.IsActive ? "sg-pill-success" : "sg-pill-danger")">
-                                                    @(user.IsActive ? "Активен" : "Неактивен")
-                                                </span>
+                                                    <div class="sg-user-badges">
+                                                        @if (user.IsAutomationAccount)
+                                                        {
+                                                            <span class="sg-pill sg-pill-neutral">Тестовый</span>
+                                                        }
+                                                        <span class="sg-pill @GetRolePillClass(user.Role)">
+                                                            @user.Role
+                                                        </span>
+
+                                                        <span class="sg-pill @(user.IsActive ? "sg-pill-success" : "sg-pill-danger")">
+                                                            @(user.IsActive ? "Активен" : "Неактивен")
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(user.Specialty) || !string.IsNullOrWhiteSpace(user.LicenseNumber))
+                                                {
+                                                    <div class="sg-user-professional">
+                                                        @if (!string.IsNullOrWhiteSpace(user.Specialty))
+                                                        {
+                                                            <span>@user.Specialty</span>
+                                                        }
+                                                        @if (!string.IsNullOrWhiteSpace(user.LicenseNumber))
+                                                        {
+                                                            <span>Лицензия: @user.LicenseNumber</span>
+                                                        }
+                                                    </div>
+                                                }
                                             </div>
                                         </div>
 
@@ -524,6 +557,47 @@
         line-height: 1.5;
     }
 
+    .sg-user-identity {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    .sg-user-avatar {
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border-radius: 14px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--sg-primary, #1B8E8B), var(--sg-primary-alt, #2678D9));
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .sg-user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .sg-user-identity-copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .sg-user-professional {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        margin-top: 6px;
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+    }
+
     .sg-user-actions {
         display: flex;
         align-items: end;
@@ -826,7 +900,7 @@
 
     private IEnumerable<AdminUserItem> ParentCandidates =>
         _users
-            .Where(x => x.IsActive && IsRole(x.Role, Roles.Parent))
+            .Where(IsVerifiedParent)
             .OrderBy(x => x.EmailForLogin ?? string.Empty)
             .ThenBy(x => x.CreatedAt);
 
@@ -1101,6 +1175,11 @@
 
     private static string GetUserTitle(AdminUserItem user)
     {
+        if (!string.IsNullOrWhiteSpace(user.DisplayName))
+        {
+            return user.DisplayName;
+        }
+
         if (!string.IsNullOrWhiteSpace(user.EmailForLogin))
         {
             return user.EmailForLogin;
@@ -1108,6 +1187,27 @@
 
         return $"Пользователь {user.UserId}";
     }
+
+    private static string GetUserInitials(AdminUserItem user)
+    {
+        var title = GetUserTitle(user);
+        var parts = title.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length >= 2)
+        {
+            return string.Concat(parts[0][0], parts[1][0]).ToUpperInvariant();
+        }
+
+        return title.Length >= 2
+            ? title[..2].ToUpperInvariant()
+            : title.ToUpperInvariant();
+    }
+
+    private static bool IsVerifiedParent(AdminUserItem user) =>
+        user.IsActive
+        && user.IsEmailVerified
+        && !user.IsAutomationAccount
+        && IsRole(user.Role, Roles.Parent);
 
     private static string GetUserOptionText(AdminUserItem user)
     {
@@ -1226,6 +1326,12 @@
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string? PhotoUrl { get; set; }
+        public string? Specialty { get; set; }
+        public string? LicenseNumber { get; set; }
+        public bool IsEmailVerified { get; set; }
+        public bool IsAutomationAccount { get; set; }
 
         public static AdminUserItem FromVm(AdminUserVm vm) => new()
         {
@@ -1234,7 +1340,13 @@
             TelegramId = vm.TelegramId,
             Role = vm.Role,
             IsActive = vm.IsActive,
-            CreatedAt = vm.CreatedAt
+            CreatedAt = vm.CreatedAt,
+            DisplayName = vm.DisplayName,
+            PhotoUrl = vm.PhotoUrl,
+            Specialty = vm.Specialty,
+            LicenseNumber = vm.LicenseNumber,
+            IsEmailVerified = vm.IsEmailVerified,
+            IsAutomationAccount = vm.IsAutomationAccount
         };
     }
 

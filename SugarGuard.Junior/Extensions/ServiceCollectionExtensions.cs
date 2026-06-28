@@ -50,9 +50,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISyncConflictResolver, SyncConflictResolver>();
         
         // AI Recommendation services
-        services.AddScoped<IAIRecommendationService, AIRecommendationService>();
-        services.AddScoped<IFallbackRecommendationService, FallbackRecommendationService>();
-        services.AddScoped<IRecommendationOrchestrator, RecommendationOrchestrator>();
+        services.AddSingleton<IAIRecommendationService, AIRecommendationService>();
+        services.AddSingleton<IFallbackRecommendationService, FallbackRecommendationService>();
+        services.AddSingleton<IRecommendationOrchestrator, RecommendationOrchestrator>();
         
         // Recommendation cache (singleton for app-wide cache)
         services.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();

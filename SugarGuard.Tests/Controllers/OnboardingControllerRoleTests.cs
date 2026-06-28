@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -7,6 +7,7 @@ using SugarGuard.API.DTOs;
 using SugarGuard.Domain.Enums;
 using SugarGuard.Shared.Dto;
 using IChildAccessService = SugarGuard.API.Services.IChildAccessService;
+using ICurrentUserContext = SugarGuard.API.Services.ICurrentUserContext;
 using IOnboardingService = SugarGuard.API.Application.Interfaces.IOnboardingService;
 using IChildrenService = SugarGuard.API.Application.Interfaces.IChildrenService;
 using IDiabetesSettingsService = SugarGuard.API.Application.Interfaces.IDiabetesSettingsService;
@@ -27,6 +28,7 @@ public class OnboardingControllerRoleTests
     private readonly Mock<IChildrenService> _childrenService = new();
     private readonly Mock<IDiabetesSettingsService> _diabetesSettings = new();
     private readonly Mock<IChildAccessService> _childAccess = new();
+    private readonly Mock<ICurrentUserContext> _currentUser = new();
     private readonly OnboardingController _sut;
 
     public OnboardingControllerRoleTests()
@@ -36,6 +38,7 @@ public class OnboardingControllerRoleTests
             _childrenService.Object,
             _diabetesSettings.Object,
             _childAccess.Object,
+            _currentUser.Object,
             NullLogger<OnboardingController>.Instance);
     }
 
@@ -47,8 +50,8 @@ public class OnboardingControllerRoleTests
     public async Task CreateChildOnboarding_DoctorRole_Returns403Forbidden()
     {
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
-        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.Doctor);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetRole()).Returns(UserRole.Doctor);
 
         var request = new CreateChildOnboardingRequest
         {
@@ -82,8 +85,8 @@ public class OnboardingControllerRoleTests
         var userId = Guid.NewGuid();
         var newChildId = Guid.NewGuid();
 
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
-        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.ChildDevice);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetRole()).Returns(UserRole.ChildDevice);
         _childAccess
             .Setup(x => x.GetAccessibleChildIdsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Guid>());
@@ -142,8 +145,8 @@ public class OnboardingControllerRoleTests
         var userId = Guid.NewGuid();
         var existingChildId = Guid.NewGuid();
 
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
-        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.ChildDevice);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetRole()).Returns(UserRole.ChildDevice);
         _childAccess
             .Setup(x => x.GetAccessibleChildIdsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { existingChildId });
@@ -215,8 +218,8 @@ public class OnboardingControllerRoleTests
         var newChildId = Guid.NewGuid();
         var parentLinkId = Guid.NewGuid();
 
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
-        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(UserRole.Parent);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetRole()).Returns(UserRole.Parent);
 
         _childrenService
             .Setup(x => x.CreateAsync(
@@ -270,8 +273,8 @@ public class OnboardingControllerRoleTests
     public async Task CreateChildOnboarding_AdminRoles_DelegatesToService(UserRole adminRole)
     {
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
-        _childAccess.Setup(x => x.GetCurrentUserRole()).Returns(adminRole);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetRole()).Returns(adminRole);
 
         _childrenService
             .Setup(x => x.CreateAsync(
@@ -310,7 +313,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task GetStatus_NoAuthenticatedUser_Returns401()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns((Guid?)null);
+        _currentUser.Setup(x => x.GetUserId()).Returns((Guid?)null);
 
         var result = await _sut.GetStatusAsync(CancellationToken.None);
 
@@ -320,7 +323,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task GetStatus_UserNotFound_Returns404()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(Guid.NewGuid());
+        _currentUser.Setup(x => x.GetUserId()).Returns(Guid.NewGuid());
         _onboarding
             .Setup(x => x.GetStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new KeyNotFoundException("User not found"));
@@ -334,7 +337,7 @@ public class OnboardingControllerRoleTests
     public async Task GetStatus_ServiceReturnsResult_Returns200()
     {
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
         _onboarding
             .Setup(x => x.GetStatusAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OnboardingStatusResponse
@@ -359,7 +362,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task GetStatus_UnexpectedException_Returns500()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(Guid.NewGuid());
+        _currentUser.Setup(x => x.GetUserId()).Returns(Guid.NewGuid());
         _onboarding
             .Setup(x => x.GetStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB down"));
@@ -377,7 +380,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task CompleteStep_NoAuthenticatedUser_Returns401()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns((Guid?)null);
+        _currentUser.Setup(x => x.GetUserId()).Returns((Guid?)null);
 
         var result = await _sut.CompleteStepAsync(1, CancellationToken.None);
 
@@ -388,7 +391,7 @@ public class OnboardingControllerRoleTests
     public async Task CompleteStep_ValidStep_Returns200()
     {
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
         _onboarding
             .Setup(x => x.CompleteStepAsync(userId, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OnboardingStatusResponse
@@ -411,7 +414,7 @@ public class OnboardingControllerRoleTests
     {
         // ArgumentOutOfRangeException из сервиса → 400 Bad Request
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
         _onboarding
             .Setup(x => x.CompleteStepAsync(userId, 999, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ArgumentOutOfRangeException("step"));
@@ -424,7 +427,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task CompleteStep_UserNotFound_Returns404()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(Guid.NewGuid());
+        _currentUser.Setup(x => x.GetUserId()).Returns(Guid.NewGuid());
         _onboarding
             .Setup(x => x.CompleteStepAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new KeyNotFoundException());
@@ -439,7 +442,7 @@ public class OnboardingControllerRoleTests
     {
         // Doctor: CompleteStep(3) → Service возвращает OnboardingStatusResponse с AwaitAdminApproval
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
         _onboarding
             .Setup(x => x.CompleteStepAsync(userId, 3, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OnboardingStatusResponse
@@ -466,7 +469,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task Skip_NoAuthenticatedUser_Returns401()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns((Guid?)null);
+        _currentUser.Setup(x => x.GetUserId()).Returns((Guid?)null);
 
         var result = await _sut.SkipAsync(CancellationToken.None);
 
@@ -477,7 +480,7 @@ public class OnboardingControllerRoleTests
     public async Task Skip_ValidRequest_Returns204()
     {
         var userId = Guid.NewGuid();
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(userId);
+        _currentUser.Setup(x => x.GetUserId()).Returns(userId);
 
         var result = await _sut.SkipAsync(CancellationToken.None);
 
@@ -490,7 +493,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task Skip_UserNotFound_Returns404()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(Guid.NewGuid());
+        _currentUser.Setup(x => x.GetUserId()).Returns(Guid.NewGuid());
         _onboarding
             .Setup(x => x.SkipAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new KeyNotFoundException());
@@ -503,7 +506,7 @@ public class OnboardingControllerRoleTests
     [Fact]
     public async Task Skip_UnexpectedException_Returns500()
     {
-        _childAccess.Setup(x => x.GetCurrentUserId()).Returns(Guid.NewGuid());
+        _currentUser.Setup(x => x.GetUserId()).Returns(Guid.NewGuid());
         _onboarding
             .Setup(x => x.SkipAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB down"));

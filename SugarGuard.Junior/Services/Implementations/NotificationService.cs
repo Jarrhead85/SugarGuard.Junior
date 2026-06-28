@@ -87,11 +87,21 @@ public class NotificationService : INotificationService
     {
         try
         {
-            // В реальном приложении здесь будет интеграция с SMS API
-            _logger.LogInformation("SMS на {PhoneNumber}: {Message}", phoneNumber, message);
-            
-            // Симуляция отправки SMS
-            await Task.Delay(200);
+            if (string.IsNullOrWhiteSpace(phoneNumber) || string.IsNullOrWhiteSpace(message))
+            {
+                _logger.LogWarning("SMS не отправлено: номер или текст пустой");
+                return false;
+            }
+
+            if (!Microsoft.Maui.ApplicationModel.Communication.Sms.Default.IsComposeSupported)
+            {
+                _logger.LogWarning("Создание SMS не поддерживается на этом устройстве");
+                return false;
+            }
+
+            var sms = new Microsoft.Maui.ApplicationModel.Communication.SmsMessage(message, [phoneNumber]);
+            await Microsoft.Maui.ApplicationModel.Communication.Sms.Default.ComposeAsync(sms);
+            _logger.LogInformation("Открыт системный редактор SMS для {PhoneNumber}", phoneNumber);
             return true;
         }
         catch (Exception ex)

@@ -19,17 +19,20 @@ public class BotUserContextController : ControllerBase
 {
     private readonly IBotUserContextService _botContext;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IAuditService _audit;
     private readonly ILogger<BotUserContextController> _logger;
 
     public BotUserContextController(
         IBotUserContextService botContext,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         IAuditService audit,
         ILogger<BotUserContextController> logger)
     {
         _botContext = botContext;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _audit = audit;
         _logger = logger;
     }
@@ -254,7 +257,7 @@ public class BotUserContextController : ControllerBase
         long telegramUserId,
         CancellationToken cancellationToken)
     {
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (!userId.HasValue) return false;
         return await _botContext.IsCurrentUserTelegramAsync(
             userId.Value, telegramUserId, cancellationToken);

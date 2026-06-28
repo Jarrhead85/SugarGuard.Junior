@@ -17,15 +17,18 @@ namespace SugarGuard.API.Controllers
     {
         private readonly IInviteCodeService _inviteCodeService;
         private readonly IChildAccessService _childAccess;
+        private readonly ICurrentUserContext _currentUser;
         private readonly ILogger<InviteCodesController> _logger;
 
         public InviteCodesController(
             IInviteCodeService inviteCodeService,
             IChildAccessService childAccess,
+            ICurrentUserContext currentUser,
             ILogger<InviteCodesController> logger)
         {
             _inviteCodeService = inviteCodeService;
             _childAccess = childAccess;
+            _currentUser = currentUser;
             _logger = logger;
         }
 
@@ -120,7 +123,7 @@ namespace SugarGuard.API.Controllers
                 });
             }
 
-            var userId = _childAccess.GetCurrentUserId();
+            var userId = _currentUser.GetUserId();
             if (!userId.HasValue)
             {
                 return this.ProblemWithCode(401, "Unauthorized",

@@ -149,10 +149,23 @@ public class RecommendationService : IRecommendationService
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
 
+        // Mobile creates the measurement locally first and synchronizes it shortly after
+        // requesting a recommendation. Keep the recommendation instead of violating the
+        // FK when the server-side measurement has not arrived yet.
+        Guid? persistedMeasurementId = null;
+        if (measurementId.HasValue)
+        {
+            persistedMeasurementId = await db.Measurements
+                .AsNoTracking()
+                .Where(measurement => measurement.MeasurementId == measurementId.Value)
+                .Select(measurement => (Guid?)measurement.MeasurementId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         var recommendation = new AIRecommendation
         {
             ChildId = childId,
-            MeasurementId = measurementId,
+            MeasurementId = persistedMeasurementId,
             GlucoseValueAtRequest = glucoseValue,
             RecommendationText = gigaChatResponse.RecommendationText,
             Urgency = gigaChatResponse.Urgency,
@@ -164,10 +177,10 @@ public class RecommendationService : IRecommendationService
         db.AIRecommendations.Add(recommendation);
         await db.SaveChangesAsync(cancellationToken);
 
-        if (measurementId.HasValue)
+        if (persistedMeasurementId.HasValue)
         {
             var measurement = await db.Measurements
-                .FirstOrDefaultAsync(m => m.MeasurementId == measurementId.Value, cancellationToken);
+                .FirstOrDefaultAsync(m => m.MeasurementId == persistedMeasurementId.Value, cancellationToken);
 
             if (measurement is not null)
             {
@@ -178,8 +191,16 @@ public class RecommendationService : IRecommendationService
             {
                 _logger.LogWarning(
                     "SaveRecommendationAsync: measurement {MeasurementId} не найден для привязки к рекомендации {RecommendationId}.",
-                    measurementId, recommendation.RecommendationId);
+                    persistedMeasurementId, recommendation.RecommendationId);
             }
+        }
+
+        if (measurementId.HasValue && !persistedMeasurementId.HasValue)
+        {
+            _logger.LogInformation(
+                "Рекомендация {RecommendationId} сохранена без связи: измерение {MeasurementId} ещё не синхронизировано.",
+                recommendation.RecommendationId,
+                measurementId);
         }
 
         await tx.CommitAsync(cancellationToken);

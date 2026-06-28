@@ -93,6 +93,13 @@ builder.Services.AddHttpClient("SugarGuardApi", client =>
     return handler;
 });
 
+builder.Services.AddHttpClient("SugarGuardApiPublic", client =>
+{
+    var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // Backward-compatible scoped HttpClient for older admin pages. It uses the
 // same base address and JWT handler as SugarGuardApiService.
 builder.Services.AddScoped(sp =>
@@ -211,6 +218,32 @@ app.UseAntiforgery();
 
 // Статические файлы (CSS, JS, wwwroot)
 app.MapStaticAssets();
+
+app.MapGet("/uploads/{**path}", async (
+    string path,
+    IHttpClientFactory httpClientFactory,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(path)
+        || path.Contains("..", StringComparison.Ordinal)
+        || path.Any(character => !(char.IsLetterOrDigit(character) || character is '/' or '-' or '_' or '.')))
+    {
+        return Results.BadRequest();
+    }
+
+    var client = httpClientFactory.CreateClient("SugarGuardApiPublic");
+    using var response = await client.GetAsync($"uploads/{path}", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+    if (!response.IsSuccessStatusCode)
+    {
+        return Results.NotFound();
+    }
+
+    context.Response.ContentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+    context.Response.Headers.CacheControl = "public,max-age=86400";
+    await response.Content.CopyToAsync(context.Response.Body, cancellationToken);
+    return Results.Empty;
+}).AllowAnonymous();
 
 // Razor-компоненты с поддержкой Blazor Server
 app.MapRazorComponents<App>()

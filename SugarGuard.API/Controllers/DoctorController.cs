@@ -21,6 +21,7 @@ public class DoctorController : ControllerBase
     private readonly IDoctorDashboardService _dashboard;
     private readonly IDoctorNoteService _noteService;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IAuditService _auditService;
     private readonly ILogger<DoctorController> _logger;
 
@@ -31,12 +32,14 @@ public class DoctorController : ControllerBase
         IDoctorDashboardService dashboard,
         IDoctorNoteService noteService,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         IAuditService auditService,
         ILogger<DoctorController> logger)
     {
         _dashboard = dashboard;
         _noteService = noteService;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _auditService = auditService;
         _logger = logger;
     }
@@ -54,7 +57,7 @@ public class DoctorController : ControllerBase
         [FromQuery] string? sortBy,
         CancellationToken cancellationToken)
     {
-        var doctorUserId = _childAccess.GetCurrentUserId();
+        var doctorUserId = _currentUser.GetUserId();
 
         if (doctorUserId is null)
         {
@@ -98,7 +101,7 @@ public class DoctorController : ControllerBase
         {
             _logger.LogWarning(
                 "GetNotes: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -142,7 +145,7 @@ public class DoctorController : ControllerBase
         {
             _logger.LogWarning(
                 "GetNotesByMeasurement: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -191,7 +194,7 @@ public class DoctorController : ControllerBase
             {
                 _logger.LogWarning(
                     "GetNoteById: IDOR-проверка провалена. UserId={UserId} NoteId={NoteId} ChildId={ChildId}.",
-                    _childAccess.GetCurrentUserId(), noteId, note.ChildId);
+                    _currentUser.GetUserId(), noteId, note.ChildId);
 
                 return Forbid();
             }
@@ -233,7 +236,7 @@ public class DoctorController : ControllerBase
             return BadRequest(new { error = "validation_error", details = errors });
         }
 
-        var doctorUserId = _childAccess.GetCurrentUserId();
+        var doctorUserId = _currentUser.GetUserId();
 
         if (doctorUserId is null)
         {
@@ -256,10 +259,7 @@ public class DoctorController : ControllerBase
                 "CreateNote: заметка создана. NoteId={NoteId} DoctorId={DoctorId} ChildId={ChildId}.",
                 note.NoteId, doctorUserId.Value, note.ChildId);
 
-            return CreatedAtAction(
-                actionName: nameof(GetNoteByIdAsync),
-                routeValues: new { noteId = note.NoteId },
-                value: note);
+            return Created($"/api/doctor/notes/{note.NoteId:D}", note);
         }
         catch (UnauthorizedAccessException)
         {
@@ -311,7 +311,7 @@ public class DoctorController : ControllerBase
             return BadRequest(new { error = "validation_error", details = errors });
         }
 
-        var doctorUserId = _childAccess.GetCurrentUserId();
+        var doctorUserId = _currentUser.GetUserId();
 
         if (doctorUserId is null)
         {
@@ -375,7 +375,7 @@ public class DoctorController : ControllerBase
         Guid noteId,
         CancellationToken cancellationToken)
     {
-        var currentUserId = _childAccess.GetCurrentUserId();
+        var currentUserId = _currentUser.GetUserId();
 
         if (currentUserId is null)
         {
@@ -440,7 +440,7 @@ public class DoctorController : ControllerBase
     public async Task<IActionResult> GetCohortSummaryAsync(
         CancellationToken cancellationToken)
     {
-        var doctorUserId = _childAccess.GetCurrentUserId();
+        var doctorUserId = _currentUser.GetUserId();
 
         if (doctorUserId is null)
         {

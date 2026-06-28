@@ -28,4 +28,7 @@ public sealed class LinkedAccessUserResponse
     public string UserRole { get; set; } = string.Empty; // Роль пользователя в системе
    
     public DateTime LinkedAt { get; set; } // Дата создания связки
+    public string DisplayName { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+    public string? Specialty { get; set; }
 }

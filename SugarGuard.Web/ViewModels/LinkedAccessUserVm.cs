@@ -18,6 +18,9 @@ public sealed class LinkedAccessUserVm
     public string  UserRole     { get; init; } = string.Empty;
     /// <summary>Дата создания связи (UTC).</summary>
     public DateTime LinkedAt   { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? PhotoUrl { get; init; }
+    public string? Specialty { get; init; }
 }
 
 /// <summary>Все связи ребёнка (родители и врачи).</summary>

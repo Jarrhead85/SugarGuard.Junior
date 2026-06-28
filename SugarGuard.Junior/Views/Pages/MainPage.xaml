@@ -73,9 +73,9 @@
                                     Padding="8,2"
                                     HorizontalOptions="Start" />
                         </VerticalStackLayout>
-                        <Border Grid.Column="1" Margin="2" Padding="3" Background="White"
+                        <Border Grid.Column="1" Margin="0" Padding="0" Background="Transparent"
                                 StrokeThickness="0" StrokeShape="RoundRectangle 18">
-                            <Image Source="mascot.png" Aspect="AspectFill" />
+                            <Image Source="junior_mascot.png" Aspect="AspectFit" />
                         </Border>
                     </Grid>
                 </Border>
@@ -119,7 +119,8 @@
                                 BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Entry x:Name="GlucoseInput" Text="{Binding NewGlucoseValue}"
-                                       Placeholder="5.6" Keyboard="Numeric"
+                                       Placeholder="5.6" Keyboard="Text" MaxLength="4"
+                                       ReturnType="Done" ClearButtonVisibility="WhileEditing"
                                        FontFamily="{StaticResource ClashDisplay}" FontSize="29"
                                        TextColor="{DynamicResource TextPrimary}" />
                                 <Label Grid.Column="1" Text="ммоль/л" Style="{StaticResource Muted}" VerticalOptions="Center" />
@@ -127,10 +128,10 @@
                         </Border>
 
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
-                            <Button Grid.Column="0" Text="4" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="4" />
-                            <Button Grid.Column="1" Text="5" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="5" />
-                            <Button Grid.Column="2" Text="7" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="7" />
-                            <Button Grid.Column="3" Text="10" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="10" />
+                            <Button Grid.Column="0" Text="{Binding GlucoseShortcut1}" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="{Binding GlucoseShortcut1}" />
+                            <Button Grid.Column="1" Text="{Binding GlucoseShortcut2}" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="{Binding GlucoseShortcut2}" />
+                            <Button Grid.Column="2" Text="{Binding GlucoseShortcut3}" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="{Binding GlucoseShortcut3}" />
+                            <Button Grid.Column="3" Text="{Binding GlucoseShortcut4}" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="{Binding GlucoseShortcut4}" />
                         </Grid>
 
                         <Button Text="Получить совет  ›" Command="{Binding SendMeasurementCommand}"
@@ -148,7 +149,12 @@
                         <Label Text="{Binding RecommendationText}" FontSize="15" TextColor="{DynamicResource TextPrimary}" />
                     </VerticalStackLayout>
                 </Border>
-                <GraphicsView x:Name="GlucoseGraphicsMini" HeightRequest="1" IsVisible="False" />
+                <Border Style="{StaticResource HomeCard}" IsVisible="{Binding ShowChart}" Padding="14,10">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Последние измерения" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <GraphicsView x:Name="GlucoseGraphicsMini" HeightRequest="96" />
+                    </VerticalStackLayout>
+                </Border>
             </VerticalStackLayout>
         </ScrollView>
 

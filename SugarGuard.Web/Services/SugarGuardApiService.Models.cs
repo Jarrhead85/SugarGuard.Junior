@@ -230,6 +230,11 @@ internal sealed class AdminUserResponseDto
     public string   Role          { get; init; } = string.Empty;
     public bool     IsActive      { get; init; }
     public DateTime CreatedAt     { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? PhotoUrl { get; init; }
+    public string? Specialty { get; init; }
+    public string? LicenseNumber { get; init; }
+    public bool IsEmailVerified { get; init; }
 }
 
 internal sealed class AdminSystemStatsDto
@@ -282,6 +287,9 @@ internal sealed class LinkedAccessUserApiDto
     public long? TelegramId { get; init; }
     public string UserRole { get; init; } = string.Empty;
     public DateTime LinkedAt { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? PhotoUrl { get; init; }
+    public string? Specialty { get; init; }
 }
 
 // REQUEST MODELS

@@ -16,6 +16,7 @@ public class ParentController : ControllerBase
 {
     private readonly IParentDashboardService _dashboard;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<ParentController> _logger;
 
     /// <summary>
@@ -24,10 +25,12 @@ public class ParentController : ControllerBase
     public ParentController(
         IParentDashboardService dashboard,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         ILogger<ParentController> logger)
     {
         _dashboard = dashboard;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -47,7 +50,7 @@ public class ParentController : ControllerBase
         {
             _logger.LogWarning(
                 "GetSummary: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -98,7 +101,7 @@ public class ParentController : ControllerBase
         {
             _logger.LogWarning(
                 "GetStatistics: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -158,7 +161,7 @@ public class ParentController : ControllerBase
         {
             _logger.LogWarning(
                 "GetComparison: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -219,7 +222,7 @@ public class ParentController : ControllerBase
         {
             _logger.LogWarning(
                 "GetTimeline: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }
@@ -258,7 +261,7 @@ public class ParentController : ControllerBase
         {
             _logger.LogWarning(
                 "GetPatterns: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
-                _childAccess.GetCurrentUserId(), childId);
+                _currentUser.GetUserId(), childId);
 
             return Forbid();
         }

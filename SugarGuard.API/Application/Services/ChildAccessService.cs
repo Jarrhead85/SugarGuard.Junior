@@ -1,304 +1,197 @@
-﻿using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using SugarGuard.API.Data;
 using SugarGuard.Domain.Enums;
 
-namespace SugarGuard.API.Services
+namespace SugarGuard.API.Services;
+
+/// <summary>
+/// Checks whether the current authenticated user can access child data.
+/// User identity extraction is owned by <see cref="ICurrentUserContext"/>.
+/// </summary>
+public sealed class ChildAccessService : IChildAccessService
 {
-    /// <summary>
-    /// Реализация провенрки к данным ребенка
-    /// </summary>
+    private static readonly HashSet<UserRole> AdminRoles =
+    [
+        UserRole.Admin,
+        UserRole.SupportAdmin,
+        UserRole.ServiceAccount
+    ];
 
-    public class ChildAccessService : IChildAccessService
+    private static readonly TimeSpan RoleCacheTtl = TimeSpan.FromMinutes(10);
+    private const string RoleCacheKeyPrefix = "ChildAccess:Role:";
+
+    private readonly ICurrentUserContext _currentUser;
+    private readonly AppDbContext _context;
+    private readonly IMemoryCache _memoryCache;
+
+    public ChildAccessService(
+        ICurrentUserContext currentUser,
+        AppDbContext context,
+        IMemoryCache memoryCache)
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly AppDbContext _context;
-        private readonly IMemoryCache _memoryCache;
+        _currentUser = currentUser;
+        _context = context;
+        _memoryCache = memoryCache;
+    }
 
-        /// <summary>
-        /// Множество ролей с доступом ко всем детям без проверки связки
-        /// </summary>
-        private static readonly HashSet<UserRole> _adminRoles = new()
+    public async Task<bool> CanAccessChildAsync(
+        Guid childId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUser.GetUserId();
+        if (!userId.HasValue)
         {
-            UserRole.Admin,
-            UserRole.SupportAdmin,
-            UserRole.ServiceAccount
+            return false;
+        }
+
+        var role = await GetRoleFromDbAsync(userId.Value, cancellationToken);
+        if (!role.HasValue)
+        {
+            return false;
+        }
+
+        if (AdminRoles.Contains(role.Value))
+        {
+            return true;
+        }
+
+        return role.Value switch
+        {
+            UserRole.Doctor => await _context.DoctorChildLinks
+                .AsNoTracking()
+                .AnyAsync(link => link.DoctorUserId == userId.Value
+                                  && link.ChildId == childId
+                                  && link.IsActive,
+                    cancellationToken),
+            UserRole.Parent => await _context.ParentChildLinks
+                .AsNoTracking()
+                .AnyAsync(link => link.ParentUserId == userId.Value && link.ChildId == childId,
+                    cancellationToken),
+            UserRole.ChildDevice => await HasChildDeviceAccessAsync(userId.Value, childId, cancellationToken),
+            _ => false
         };
+    }
 
-        /// <summary>
-        /// Префикс ключа кеша роли пользователя
-        /// </summary>
-        private const string RoleCacheKeyPrefix = "ChildAccess:Role:";
-
-        /// <summary>
-        /// Префикс ключа кеша проверки доступа к ребёнку
-        /// </summary>
-        private const string CanAccessCacheKeyPrefix = "ChildAccess:CanAccess:";
-
-        /// <summary>
-        /// request кеша роли
-        /// </summary>
-        private static readonly TimeSpan RoleCacheTtl = TimeSpan.FromMinutes(10);
-
-        public ChildAccessService(
-            IHttpContextAccessor httpContextAccessor,
-            AppDbContext context,
-            IMemoryCache memoryCache)
+    public async Task<IReadOnlyList<Guid>> GetAccessibleChildIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUser.GetUserId();
+        if (!userId.HasValue)
         {
-            _httpContextAccessor = httpContextAccessor;
-            _context = context;
-            _memoryCache = memoryCache;
+            return [];
         }
 
-        // Вспомогательные методы чтения claims 
-        /// <inheritdoc/>
-        public Guid? GetCurrentUserId()
+        var role = await GetRoleFromDbAsync(userId.Value, cancellationToken);
+        if (!role.HasValue)
         {
-            var claim = _httpContextAccessor.HttpContext?.User
-                            ?.FindFirstValue(ClaimTypes.NameIdentifier)
-                        ?? _httpContextAccessor.HttpContext?.User
-                            ?.FindFirstValue("UserId");
-
-            if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var userId))
-                return null;
-
-            return userId;
+            return [];
         }
 
-        /// <inheritdoc/>
-        public UserRole? GetCurrentUserRole()
+        if (AdminRoles.Contains(role.Value))
         {
-            var roleClaim = _httpContextAccessor.HttpContext?.User
-                                ?.FindFirstValue(ClaimTypes.Role)
-                            ?? _httpContextAccessor.HttpContext?.User
-                                ?.FindFirstValue("role");
-
-            if (string.IsNullOrEmpty(roleClaim))
-                return null;
-
-            return Enum.TryParse<UserRole>(roleClaim, ignoreCase: true, out var role)
-                ? role
-                : null;
-        }
-
-        private UserRole? GetCachedRole(Guid userId)
-        {
-            var ctx = _httpContextAccessor.HttpContext;
-            if (ctx?.Items.TryGetValue(RoleCacheKeyPrefix + userId, out var v) == true
-                && v is UserRole r)
-            {
-                return r;
-            }
-            return null;
-        }
-
-        private void SetCachedRole(Guid userId, UserRole role)
-        {
-            var ctx = _httpContextAccessor.HttpContext;
-            if (ctx is not null)
-            {
-                ctx.Items[RoleCacheKeyPrefix + userId] = role;
-            }
-        }
-
-        private bool? GetCachedCanAccess(Guid userId, Guid childId)
-        {
-            var ctx = _httpContextAccessor.HttpContext;
-            if (ctx?.Items.TryGetValue(CanAccessCacheKeyPrefix + userId + ":" + childId, out var v) == true
-                && v is bool b)
-            {
-                return b;
-            }
-            return null;
-        }
-
-        private void SetCachedCanAccess(Guid userId, Guid childId, bool result)
-        {
-            var ctx = _httpContextAccessor.HttpContext;
-            if (ctx is not null)
-            {
-                ctx.Items[CanAccessCacheKeyPrefix + userId + ":" + childId] = result;
-            }
-        }
-
-        /// <summary>
-        /// Загружает роль пользователя из БД
-        /// </summary>
-        private async Task<UserRole?> GetRoleFromDbAsync(Guid userId, CancellationToken cancellationToken)
-        {
-            var cached = GetCachedRole(userId);
-            if (cached.HasValue)
-                return cached;
-
-            var memoryKey = RoleCacheKeyPrefix + userId;
-            if (_memoryCache.TryGetValue(memoryKey, out UserRole? memoryCached)
-                && memoryCached.HasValue)
-            {
-                SetCachedRole(userId, memoryCached.Value);
-                return memoryCached;
-            }
-
-            var role = await _context.Users
-                .AsNoTracking()
-                .Where(u => u.UserId == userId)
-                .Select(u => (UserRole?)u.Role)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (role.HasValue)
-            {
-                SetCachedRole(userId, role.Value);
-                _memoryCache.Set(memoryKey, role.Value, RoleCacheTtl);
-            }
-            return role;
-        }
-
-        // Основные методы доступа
-        /// <inheritdoc/>
-        public async Task<bool> CanAccessChildAsync(
-            Guid childId,
-            CancellationToken cancellationToken = default)
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue)
-                return false;
-
-            var cached = GetCachedCanAccess(userId.Value, childId);
-            if (cached.HasValue)
-                return cached.Value;
-
-            var role = await GetRoleFromDbAsync(userId.Value, cancellationToken);
-            if (!role.HasValue)
-                return CacheAndReturn(userId.Value, childId, false);
-
-            // Admin-роли видят всех детей
-            if (_adminRoles.Contains(role.Value))
-                return CacheAndReturn(userId.Value, childId, true);
-
-            // Проверяем только нужную таблицу в зависимости от роли
-            bool hasLink = role.Value switch
-            {
-                UserRole.Doctor => await _context.DoctorChildLinks
-                    .AsNoTracking()
-                    .AnyAsync(l => l.DoctorUserId == userId.Value
-                                   && l.ChildId == childId
-                                   && l.IsActive,
-                              cancellationToken),
-                UserRole.Parent => await _context.ParentChildLinks
-                    .AsNoTracking()
-                    .AnyAsync(l => l.ParentUserId == userId.Value
-                                   && l.ChildId == childId,
-                              cancellationToken),
-                UserRole.ChildDevice => await HasChildDeviceAccessAsync(userId.Value, childId, cancellationToken),
-                _ => false
-            };
-
-            return CacheAndReturn(userId.Value, childId, hasLink);
-        }
-
-        private bool CacheAndReturn(Guid userId, Guid childId, bool result)
-        {
-            SetCachedCanAccess(userId, childId, result);
-            return result;
-        }
-
-        /// <inheritdoc/>
-        public async Task<IReadOnlyList<Guid>> GetAccessibleChildIdsAsync(
-            CancellationToken cancellationToken = default)
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue)
-                return Array.Empty<Guid>();
-
-            var role = await GetRoleFromDbAsync(userId.Value, cancellationToken);
-            if (!role.HasValue)
-                return Array.Empty<Guid>();
-
-            // Admin видит всех
-            if (_adminRoles.Contains(role.Value))
-                return await _context.Children
-                    .AsNoTracking()
-                    .Select(c => c.ChildId)
-                    .ToListAsync(cancellationToken);
-
-            if (role.Value == UserRole.Doctor)
-                return await _context.DoctorChildLinks
-                    .AsNoTracking()
-                    .Where(l => l.DoctorUserId == userId.Value && l.IsActive)
-                    .Select(l => l.ChildId)
-                    .ToListAsync(cancellationToken);
-
-            if (role.Value == UserRole.ChildDevice)
-                return await GetChildDeviceChildIdsAsync(userId.Value, cancellationToken);
-
-            // Parent links are real caregiver links. ChildDevice access is handled above.
-            return await _context.ParentChildLinks
-                .AsNoTracking()
-                .Where(l => l.ParentUserId == userId.Value)
-                .Select(l => l.ChildId)
+            return await _context.Children.AsNoTracking()
+                .Select(child => child.ChildId)
                 .ToListAsync(cancellationToken);
         }
 
-        private async Task<bool> HasChildDeviceAccessAsync(
-            Guid userId,
-            Guid childId,
-            CancellationToken cancellationToken)
+        if (role.Value == UserRole.Doctor)
         {
-            var hasSelfLink = await _context.ParentChildLinks
-                .AsNoTracking()
-                .AnyAsync(l => l.ParentUserId == userId
-                               && l.ChildId == childId
-                               && l.Notes == "Self-link for child mobile account",
-                    cancellationToken);
-
-            if (hasSelfLink)
-                return true;
-
-            var childIdText = childId.ToString();
-            var userIdText = userId.ToString();
-
-            return await _context.AuditLogs
-                .AsNoTracking()
-                .AnyAsync(l => l.Action == "child.created"
-                               && l.TargetType == "Child"
-                               && l.TargetId == childIdText
-                               && l.Details != null
-                               && l.Details.Contains($"Parent={userIdText}")
-                               && l.Details.Contains("Role=ChildDevice"),
-                    cancellationToken);
+            return await _context.DoctorChildLinks.AsNoTracking()
+                .Where(link => link.DoctorUserId == userId.Value && link.IsActive)
+                .Select(link => link.ChildId)
+                .ToListAsync(cancellationToken);
         }
 
-        private async Task<IReadOnlyList<Guid>> GetChildDeviceChildIdsAsync(
-            Guid userId,
-            CancellationToken cancellationToken)
+        if (role.Value == UserRole.ChildDevice)
         {
-            var linkedIds = await _context.ParentChildLinks
-                .AsNoTracking()
-                .Where(l => l.ParentUserId == userId
-                            && l.Notes == "Self-link for child mobile account")
-                .Select(l => l.ChildId)
-                .ToListAsync(cancellationToken);
+            return await GetChildDeviceChildIdsAsync(userId.Value, cancellationToken);
+        }
 
-            var userIdText = userId.ToString();
+        return await _context.ParentChildLinks.AsNoTracking()
+            .Where(link => link.ParentUserId == userId.Value)
+            .Select(link => link.ChildId)
+            .ToListAsync(cancellationToken);
+    }
 
-            var auditIds = await _context.AuditLogs
-                .AsNoTracking()
-                .Where(l => l.Action == "child.created"
-                            && l.TargetType == "Child"
-                            && l.TargetId != null
-                            && l.Details != null
-                            && l.Details.Contains($"Parent={userIdText}")
-                            && l.Details.Contains("Role=ChildDevice"))
-                .Select(l => l.TargetId!)
-                .ToListAsync(cancellationToken);
+    private async Task<UserRole?> GetRoleFromDbAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var cacheKey = RoleCacheKeyPrefix + userId;
+        if (_memoryCache.TryGetValue(cacheKey, out UserRole cachedRole))
+        {
+            return cachedRole;
+        }
 
-            foreach (var raw in auditIds)
+        var role = await _context.Users.AsNoTracking()
+            .Where(user => user.UserId == userId)
+            .Select(user => (UserRole?)user.Role)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (role.HasValue)
+        {
+            _memoryCache.Set(cacheKey, role.Value, RoleCacheTtl);
+        }
+
+        return role;
+    }
+
+    private async Task<bool> HasChildDeviceAccessAsync(
+        Guid userId,
+        Guid childId,
+        CancellationToken cancellationToken)
+    {
+        var hasSelfLink = await _context.ParentChildLinks.AsNoTracking()
+            .AnyAsync(link => link.ParentUserId == userId
+                              && link.ChildId == childId
+                              && link.Notes == "Self-link for child mobile account",
+                cancellationToken);
+
+        if (hasSelfLink)
+        {
+            return true;
+        }
+
+        var childIdText = childId.ToString();
+        var userIdText = userId.ToString();
+        return await _context.AuditLogs.AsNoTracking()
+            .AnyAsync(log => log.Action == "child.created"
+                             && log.TargetType == "Child"
+                             && log.TargetId == childIdText
+                             && log.Details != null
+                             && log.Details.Contains($"Parent={userIdText}")
+                             && log.Details.Contains("Role=ChildDevice"),
+                cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<Guid>> GetChildDeviceChildIdsAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var linkedIds = await _context.ParentChildLinks.AsNoTracking()
+            .Where(link => link.ParentUserId == userId
+                           && link.Notes == "Self-link for child mobile account")
+            .Select(link => link.ChildId)
+            .ToListAsync(cancellationToken);
+
+        var userIdText = userId.ToString();
+        var auditIds = await _context.AuditLogs.AsNoTracking()
+            .Where(log => log.Action == "child.created"
+                          && log.TargetType == "Child"
+                          && log.TargetId != null
+                          && log.Details != null
+                          && log.Details.Contains($"Parent={userIdText}")
+                          && log.Details.Contains("Role=ChildDevice"))
+            .Select(log => log.TargetId!)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rawId in auditIds)
+        {
+            if (Guid.TryParse(rawId, out var childId))
             {
-                if (Guid.TryParse(raw, out var childId))
-                    linkedIds.Add(childId);
+                linkedIds.Add(childId);
             }
-
-            return linkedIds.Distinct().ToList();
         }
+
+        return linkedIds.Distinct().ToList();
     }
 }

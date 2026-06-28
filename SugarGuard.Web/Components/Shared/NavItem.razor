@@ -12,6 +12,10 @@
         @GetIcon(Icon)
     </span>
     <span class="nav-item-label">@Label</span>
+    @if (!string.IsNullOrWhiteSpace(Badge))
+    {
+        <span class="nav-item-badge @BadgeClass">@Badge</span>
+    }
 </NavLink>
 
 @code {   
@@ -20,6 +24,10 @@
     [Parameter, EditorRequired] public string Icon  { get; set; } = string.Empty; // Название иконки из набора Lucide
    
     [Parameter, EditorRequired] public string Label { get; set; } = string.Empty; // Текст пункта меню
+
+    [Parameter] public string? Badge { get; set; }
+
+    [Parameter] public string BadgeClass { get; set; } = string.Empty;
    
     [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix; // Стратегия сопоставления URL
 

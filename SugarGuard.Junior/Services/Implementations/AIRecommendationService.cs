@@ -118,9 +118,12 @@ public class AIRecommendationService : IAIRecommendationService
         RecommendationResponse apiResponse,
         string childId)
     {
-        var urgency = Enum.TryParse<RecommendationUrgency>(apiResponse.Urgency, ignoreCase: true, out var parsed)
-            ? parsed
-            : RecommendationUrgency.Normal;
+        var urgency = apiResponse.Urgency?.Trim().ToUpperInvariant() switch
+        {
+            "CRITICAL" => RecommendationUrgency.Critical,
+            "HIGH" or "MEDIUM" or "WARNING" => RecommendationUrgency.Warning,
+            _ => RecommendationUrgency.Normal
+        };
 
         return new AIRecommendation
         {
@@ -196,14 +199,14 @@ public class AIRecommendationService : IAIRecommendationService
                     $"Проверьте дозу инсулина. Предложите пить воду.\n" +
                     $"Обратитесь к врачу!";
             }
-            else if (status == Models.Enums.GlucoseStatus.High && trend == "rising")
+            else if (status == Models.Enums.GlucoseStatus.High)
             {
-                // РАСТУЩАЯ ГИПЕРГЛИКЕМИЯ
                 recommendation.Urgency = RecommendationUrgency.Warning;
-                recommendation.RecommendationText =
-                    $"� Глюкоза растёт ({currentGlucose} ммоль/л и растёт).\n" +
-                    $"Возможно, нужна коррекция инсулина.\n" +
-                    $"Предложите воду, спорт может помочь.";
+                recommendation.RecommendationText = currentGlucose >= 14.0
+                    ? $"Глюкоза очень высокая: {currentGlucose:0.0} ммоль/л. Сразу сообщи взрослому, пей воду и проверь кетоны по своему плану; при плохом самочувствии нужна срочная медицинская помощь."
+                    : trend == "rising"
+                        ? $"Глюкоза повышена и растёт: {currentGlucose:0.0} ммоль/л. Сообщи взрослому, пей воду и следуй своему плану коррекции."
+                        : $"Глюкоза повышена: {currentGlucose:0.0} ммоль/л. Сообщи взрослому, пей воду и следуй своему плану коррекции.";
             }
             else if (status == Models.Enums.GlucoseStatus.Normal)
             {

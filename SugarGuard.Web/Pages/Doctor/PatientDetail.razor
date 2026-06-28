@@ -35,7 +35,7 @@
                 <p>@_loadError</p>
             </div>
             <div class="doctor-detail-error__actions">
-                <button class="doctor-detail-btn doctor-detail-btn--soft" type="button" @onclick="LoadAllAsync">
+                <button class="doctor-detail-btn doctor-detail-btn--soft" type="button" @onclick="() => LoadAllAsync()">
                     Повторить
                 </button>
                 <button class="doctor-detail-btn doctor-detail-btn--ghost" type="button" @onclick="GoBack">
@@ -89,13 +89,13 @@
             <section class="doctor-chart-card" aria-labelledby="chartTitle">
                 <div class="doctor-chart-card__header">
                     <div>
-                        <h2 id="chartTitle">График глюкозы за 24 часа</h2>
+                        <h2 id="chartTitle">График глюкозы за @ChartPeriodLabel</h2>
                         <p>@ChartSubtitle</p>
                     </div>
                     <div class="doctor-period-pills" aria-label="Период графика">
-                        <span class="doctor-period-pill active">24ч</span>
-                        <span class="doctor-period-pill">7д</span>
-                        <span class="doctor-period-pill">30д</span>
+                        <button class="doctor-period-pill @GetPeriodClass(24)" type="button" @onclick="() => SetChartPeriodAsync(24)">24ч</button>
+                        <button class="doctor-period-pill @GetPeriodClass(168)" type="button" @onclick="() => SetChartPeriodAsync(168)">7д</button>
+                        <button class="doctor-period-pill @GetPeriodClass(720)" type="button" @onclick="() => SetChartPeriodAsync(720)">30д</button>
                     </div>
                 </div>
 
@@ -119,6 +119,13 @@
                                 <circle cx="@point.XText" cy="@point.YText" r="4" class="doctor-chart-point @point.Tone" />
                             }
                         </svg>
+                        <div class="doctor-chart-y-labels" aria-hidden="true"><span>10,0</span><span>4,0</span></div>
+                        <div class="doctor-chart-time-labels" aria-hidden="true">
+                            @foreach (var label in ChartTimeLabels)
+                            {
+                                <span>@label</span>
+                            }
+                        </div>
                     }
                     else
                     {
@@ -127,6 +134,11 @@
                             <span>Когда ребёнок внесёт несколько измерений, линия появится здесь.</span>
                         </div>
                     }
+                </div>
+                <div class="doctor-chart-legend" aria-label="Легенда графика">
+                    <span><i class="success"></i>Норма 4,0–10,0</span>
+                    <span><i class="warning"></i>Вне диапазона</span>
+                    <span><i class="danger"></i>Критично</span>
                 </div>
             </section>
 
@@ -206,7 +218,10 @@
     [Parameter] public Guid ChildId { get; set; }
 
     private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+    private static readonly TimeZoneInfo MoscowTimeZone = ResolveMoscowTimeZone();
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private Task? _refreshTask;
 
     private bool _isLoading = true;
     private string? _loadError;
@@ -219,6 +234,7 @@
     private bool _noteIsImportant;
     private bool _isNoteSubmitting;
     private string? _noteError;
+    private int _chartPeriodHours = 24;
 
     private string PatientPageTitle => _patient is null
         ? "Пациент — SugarGuard"
@@ -230,15 +246,43 @@
 
     private string HypoHyperLabel => _measurements.Count == 0
         ? "— / —"
-        : $"{_measurements.Count(m => m.GlucoseValue < 3.9m)} / {_measurements.Count(m => m.GlucoseValue > 10m)}";
+        : $"{_measurements.Count(m => m.GlucoseValue < 4.0m)} / {_measurements.Count(m => m.GlucoseValue > 10m)}";
 
     private string ChartSubtitle => ChartPoints.Count >= 2
         ? $"{ChartPoints.Count} точек за выбранный период"
         : "Недостаточно измерений для линии";
 
+    private string ChartPeriodLabel => _chartPeriodHours switch
+    {
+        168 => "7 дней",
+        720 => "30 дней",
+        _ => "24 часа"
+    };
+
     private IReadOnlyList<ChartPoint> ChartPoints => BuildChartPoints();
 
     private string ChartPolyline => string.Join(" ", ChartPoints.Select(p => $"{p.XText},{p.YText}"));
+
+    private IReadOnlyList<string> ChartTimeLabels
+    {
+        get
+        {
+            if (_measurements.Count == 0)
+            {
+                return [];
+            }
+
+            var ordered = _measurements.OrderBy(m => m.MeasurementTime).ToList();
+            var middle = ordered[ordered.Count / 2].MeasurementTime;
+            var format = _chartPeriodHours <= 24 ? "HH:mm" : "dd.MM";
+            return
+            [
+                ToMoscowTime(ordered[0].MeasurementTime).ToString(format, RuCulture),
+                ToMoscowTime(middle).ToString(format, RuCulture),
+                ToMoscowTime(ordered[^1].MeasurementTime).ToString(format, RuCulture)
+            ];
+        }
+    }
 
     private string ChartAreaPath
     {
@@ -260,11 +304,29 @@
         await LoadAllAsync();
     }
 
-    private async Task LoadAllAsync()
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        _isLoading = true;
-        _loadError = null;
-        _noteError = null;
+        if (firstRender)
+        {
+            _refreshTask = RunLiveRefreshAsync(_cts.Token);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadAllAsync(bool showLoading = true)
+    {
+        if (!await _refreshGate.WaitAsync(0, _cts.Token))
+        {
+            return;
+        }
+
+        if (showLoading)
+        {
+            _isLoading = true;
+            _loadError = null;
+            _noteError = null;
+        }
 
         try
         {
@@ -278,7 +340,7 @@
             }
 
             var to = DateTime.UtcNow;
-            var from = to.AddHours(-24);
+            var from = to.AddHours(-_chartPeriodHours);
             var measurementsTask = ApiService.GetMeasurementsAsync(ChildId, from, to, _cts.Token);
             var notesTask = LoadNotesCoreAsync();
 
@@ -293,12 +355,44 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Ошибка загрузки детальной карточки пациента {ChildId}.", ChildId);
-            _loadError = "Не удалось загрузить данные пациента. Попробуйте обновить страницу.";
+            if (showLoading)
+            {
+                Logger.LogError(ex, "Ошибка загрузки детальной карточки пациента {ChildId}.", ChildId);
+                _loadError = "Не удалось загрузить данные пациента. Попробуйте обновить страницу.";
+            }
+            else
+            {
+                Logger.LogWarning(ex, "Не удалось автоматически обновить пациента {ChildId}.", ChildId);
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (showLoading)
+            {
+                _isLoading = false;
+            }
+
+            _refreshGate.Release();
+        }
+    }
+
+    private async Task RunLiveRefreshAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAllAsync(showLoading: false);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -373,6 +467,20 @@
         _showNotesList = !_showNotesList;
     }
 
+    private async Task SetChartPeriodAsync(int hours)
+    {
+        if (_chartPeriodHours == hours)
+        {
+            return;
+        }
+
+        _chartPeriodHours = hours;
+        await LoadAllAsync(showLoading: false);
+        StateHasChanged();
+    }
+
+    private string GetPeriodClass(int hours) => _chartPeriodHours == hours ? "active" : string.Empty;
+
     private void GoBack()
     {
         Navigation.NavigateTo("/doctor/patients");
@@ -438,9 +546,13 @@
             return "тип диабета не указан";
         }
 
-        return diabetesType.Contains("type", StringComparison.OrdinalIgnoreCase)
-            ? diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase).Trim()
-            : diabetesType;
+        return diabetesType.Trim().ToLowerInvariant() switch
+        {
+            "type1" => "СД1",
+            "type2" => "СД2",
+            "gestational" => "Гестационный диабет",
+            _ => diabetesType.Trim()
+        };
     }
 
     private static string FormatAge(DateOnly dateOfBirth)
@@ -501,13 +613,35 @@
     private static string FormatMeasurementTime(DateTime? time)
     {
         return time.HasValue
-            ? EnsureUtc(time.Value).ToLocalTime().ToString("dd.MM.yyyy HH:mm", RuCulture)
+            ? ToMoscowTime(time.Value).ToString("dd.MM.yyyy HH:mm", RuCulture)
             : "нет данных";
     }
 
     private static string FormatDateTime(DateTime time)
     {
-        return EnsureUtc(time).ToLocalTime().ToString("dd.MM.yyyy HH:mm", RuCulture);
+        return ToMoscowTime(time).ToString("dd.MM.yyyy HH:mm", RuCulture);
+    }
+
+    private static DateTime ToMoscowTime(DateTime value) =>
+        TimeZoneInfo.ConvertTimeFromUtc(EnsureUtc(value), MoscowTimeZone);
+
+    private static TimeZoneInfo ResolveMoscowTimeZone()
+    {
+        foreach (var id in new[] { "Europe/Moscow", "Russian Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Local;
     }
 
     private static DateTime EnsureUtc(DateTime value)
@@ -567,7 +701,7 @@
     private static bool IsAttentionPatient(DoctorPatientSummaryVm patient)
     {
         return IsUiState(patient.LatestGlucoseUiState, "Warning", "Attention")
-            || patient.LatestGlucose is < 3.9m or > 10m
+            || patient.LatestGlucose is < 4.0m or > 10m
             || patient.TimeInTargetRange is > 0 and < 70
             || patient.MeasurementsLast7Days == 0;
     }
@@ -584,7 +718,7 @@
             return "danger";
         }
 
-        if (value is < 3.9m or > 10m)
+        if (value is < 4.0m or > 10m)
         {
             return "warning";
         }
@@ -608,4 +742,5 @@
         public string XText => X.ToString("0.##", CultureInfo.InvariantCulture);
         public string YText => Y.ToString("0.##", CultureInfo.InvariantCulture);
     }
+
 }

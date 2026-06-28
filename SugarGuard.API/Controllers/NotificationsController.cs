@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
+using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.API.Controllers;
 
@@ -18,17 +19,20 @@ public class NotificationsController : ControllerBase
     private readonly ITelegramNotificationService _notificationService;
     private readonly ILogger<NotificationsController> _logger;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IDashboardService _dashboardService;
 
     public NotificationsController(
         ITelegramNotificationService notificationService,
         ILogger<NotificationsController> logger,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         IDashboardService dashboardService)
     {
         _notificationService = notificationService;
         _logger = logger;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _dashboardService = dashboardService;
     }
 
@@ -45,6 +49,24 @@ public class NotificationsController : ControllerBase
             var result = new List<UserNotificationDto>();
             var now = DateTime.UtcNow;
             var since = now.AddHours(-24);
+
+            // Administrators monitor platform health and access, not children's
+            // medical events. Clinical alerts remain visible to parents and doctors.
+            var currentRole = _currentUser.GetRole();
+            if (currentRole is UserRole.Admin or UserRole.SupportAdmin)
+            {
+                return Ok(new List<UserNotificationDto>
+                {
+                    new()
+                    {
+                        Title = "Система работает",
+                        Description = "Новых административных уведомлений нет",
+                        Time = "только что",
+                        Type = "ok",
+                        IsUnread = false
+                    }
+                });
+            }
 
             foreach (var childId in children)
             {

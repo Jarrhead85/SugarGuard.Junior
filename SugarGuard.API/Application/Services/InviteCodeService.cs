@@ -5,6 +5,7 @@ using SugarGuard.Domain.Entities;
 using SugarGuard.Application.Audit;
 using SugarGuard.Domain.Enums;
 using SugarGuard.Shared.Constants;
+using SugarGuard.API.Security;
 
 namespace SugarGuard.API.Services
 {
@@ -28,14 +29,17 @@ namespace SugarGuard.API.Services
         private readonly AppDbContext _context;
         private readonly IAuditService _auditService;
         private readonly ILogger<InviteCodeService> _logger;
+        private readonly ICryptoService _crypto;
 
         public InviteCodeService(
             AppDbContext context,
             IAuditService auditService,
+            ICryptoService crypto,
             ILogger<InviteCodeService> logger)
         {
             _context = context;
             _auditService = auditService;
+            _crypto = crypto;
             _logger = logger;
         }
 
@@ -339,36 +343,24 @@ namespace SugarGuard.API.Services
             Guid childId,
             CancellationToken cancellationToken = default)
         {
-            var parentLinks = await _context.ParentChildLinks
+            var parentEntities = await _context.ParentChildLinks
                 .AsNoTracking()
+                .Include(l => l.ParentUser)
                 .Where(l => l.ChildId == childId)
                 .Where(l => l.ParentUser.Role == UserRole.Parent)
-                .Select(l => new LinkedAccessUserResponse
-                {
-                    LinkId = l.LinkId,
-                    UserId = l.ParentUserId,
-                    EmailForLogin = l.ParentUser.EmailForLogin,
-                    TelegramId = l.ParentUser.TelegramId,
-                    UserRole = l.ParentUser.Role.ToString(),
-                    LinkedAt = l.CreatedAt
-                })
-                .OrderBy(l => l.LinkedAt)
+                .OrderBy(l => l.CreatedAt)
                 .ToListAsync(cancellationToken);
 
-            var doctorLinks = await _context.DoctorChildLinks
+            var parentLinks = parentEntities.Select(l => MapLinkedUser(l.LinkId, l.ParentUser, l.CreatedAt)).ToList();
+
+            var doctorEntities = await _context.DoctorChildLinks
                 .AsNoTracking()
+                .Include(l => l.DoctorUser)
                 .Where(l => l.ChildId == childId)
-                .Select(l => new LinkedAccessUserResponse
-                {
-                    LinkId = l.LinkId,
-                    UserId = l.DoctorUserId,
-                    EmailForLogin = l.DoctorUser.EmailForLogin,
-                    TelegramId = l.DoctorUser.TelegramId,
-                    UserRole = l.DoctorUser.Role.ToString(),
-                    LinkedAt = l.CreatedAt
-                })
-                .OrderBy(l => l.LinkedAt)
+                .OrderBy(l => l.CreatedAt)
                 .ToListAsync(cancellationToken);
+
+            var doctorLinks = doctorEntities.Select(l => MapLinkedUser(l.LinkId, l.DoctorUser, l.CreatedAt)).ToList();
 
             return new ChildAccessLinksResponse
             {
@@ -476,6 +468,32 @@ namespace SugarGuard.API.Services
             }
 
             throw new InvalidOperationException("Не удалось сгенерировать уникальный код приглашения.");
+        }
+
+        private LinkedAccessUserResponse MapLinkedUser(Guid linkId, User user, DateTime linkedAt)
+        {
+            var firstName = Decrypt(user.EncryptedFirstName);
+            var lastName = Decrypt(user.EncryptedLastName);
+            var displayName = string.Join(' ', new[] { firstName, lastName }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            return new LinkedAccessUserResponse
+            {
+                LinkId = linkId,
+                UserId = user.UserId,
+                EmailForLogin = user.EmailForLogin,
+                TelegramId = user.TelegramId,
+                UserRole = user.Role.ToString(),
+                LinkedAt = linkedAt,
+                DisplayName = displayName,
+                PhotoUrl = user.ProfilePhotoUrl,
+                Specialty = user.DoctorSpecialty
+            };
+        }
+
+        private string Decrypt(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            try { return _crypto.Decrypt(value); }
+            catch (Exception exception) when (exception is FormatException or System.Security.Cryptography.CryptographicException) { return value; }
         }
 
         private static string GenerateCode()

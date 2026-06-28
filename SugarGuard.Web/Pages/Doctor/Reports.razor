@@ -1,6 +1,7 @@
 @page "/doctor/reports"
 @attribute [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
 @rendermode InteractiveServer
+@implements IDisposable
 
 @using System.Globalization
 @using Microsoft.AspNetCore.Authorization
@@ -20,9 +21,7 @@
             <h1>Отчёты и динамика</h1>
             <p>Срез по пациентам врача на основе реальных измерений, связей и рассчитанных показателей.</p>
         </div>
-        <button class="doctor-report-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-            @(_isLoading ? "Обновляем..." : "Обновить")
-        </button>
+        <span class="doctor-live-state">Данные обновляются автоматически</span>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -131,6 +130,9 @@
     private string _search = string.Empty;
     private string _sortBy = "lastmeasurement";
     private List<DoctorPatientSummaryVm> _patients = [];
+    private readonly CancellationTokenSource _disposeCts = new();
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private Task? _refreshTask;
 
     private List<DoctorPatientSummaryVm> FilteredPatients
     {
@@ -164,25 +166,71 @@
     private int StalePatientsCount => _patients.Count(p =>
         p.LatestMeasurementTime is null || p.LatestMeasurementTime.Value < DateTime.UtcNow.AddHours(-24));
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
-    private async Task LoadAsync()
+    protected override async Task OnInitializedAsync()
     {
-        _isLoading = true;
-        _error = null;
+        await LoadAsync();
+        _refreshTask = RunLiveRefreshAsync(_disposeCts.Token);
+    }
+
+    private Task LoadAsync() => RefreshAsync(showLoading: true);
+
+    private async Task RefreshAsync(bool showLoading)
+    {
+        if (!await _refreshGate.WaitAsync(0, _disposeCts.Token))
+        {
+            return;
+        }
+
+        if (showLoading)
+        {
+            _isLoading = true;
+            _error = null;
+        }
 
         try
         {
-            _patients = await ApiService.GetDoctorPatientsAsync(_sortBy);
+            _patients = await ApiService.GetDoctorPatientsAsync(_sortBy, _disposeCts.Token);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Не удалось загрузить врачебный отчёт.");
-            _error = "Не удалось загрузить отчёт. Попробуйте обновить страницу.";
+            if (showLoading)
+            {
+                Logger.LogError(ex, "Не удалось загрузить врачебный отчёт.");
+                _error = "Не удалось загрузить отчёт. Попробуйте обновить страницу.";
+            }
+            else
+            {
+                Logger.LogWarning(ex, "Не удалось автоматически обновить аналитику врача.");
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (showLoading)
+            {
+                _isLoading = false;
+            }
+
+            _refreshGate.Release();
+        }
+    }
+
+    private async Task RunLiveRefreshAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await RefreshAsync(showLoading: false);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -192,9 +240,20 @@
             : patient.FullName.Trim();
 
     private static string FormatDiabetesType(string diabetesType)
-        => string.IsNullOrWhiteSpace(diabetesType)
-            ? "тип диабета не указан"
-            : diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase).Trim();
+    {
+        if (string.IsNullOrWhiteSpace(diabetesType))
+        {
+            return "тип диабета не указан";
+        }
+
+        return diabetesType.Trim().ToLowerInvariant() switch
+        {
+            "type1" => "СД1",
+            "type2" => "СД2",
+            "gestational" => "Гестационный диабет",
+            _ => diabetesType.Trim()
+        };
+    }
 
     private static string FormatAge(DateOnly dateOfBirth)
     {
@@ -226,6 +285,12 @@
 
     private void NavigateToPatient(Guid childId)
         => Navigation.NavigateTo($"/doctor/patients/{childId:D}");
+
+    public void Dispose()
+    {
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
+    }
 }
 
 <style>

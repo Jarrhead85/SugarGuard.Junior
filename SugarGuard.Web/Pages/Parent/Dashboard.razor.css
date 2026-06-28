@@ -923,6 +923,70 @@
     margin-top: 10px;
 }
 
+.telegram-connect {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-divider);
+}
+
+.telegram-connect__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.telegram-connect__status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    background: var(--color-surface-2);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.telegram-connect__status.connected {
+    color: var(--color-glucose-normal);
+    background: var(--color-glucose-normal-soft);
+}
+
+.telegram-code {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(27, 142, 139, .24);
+    border-radius: 14px;
+    background: rgba(27, 142, 139, .08);
+}
+
+.telegram-code code {
+    color: var(--color-primary);
+    font-size: 21px;
+    font-weight: 900;
+    letter-spacing: .06em;
+}
+
+.telegram-code span,
+.telegram-connect__command {
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+.telegram-connect__command {
+    margin: 0;
+}
+
+.telegram-connect__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .empty-state--compact {
     padding: 14px;
     font-size: 13px;
@@ -1057,6 +1121,13 @@
     font-weight: 700;
     color: var(--color-primary);
     flex-shrink: 0;
+}
+
+.doctor-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
 }
 
 /* ПРОФИЛЬ */

@@ -165,6 +165,14 @@ deploy_one() {
     sudo rm -rf "`$target.new" "`$target.old"
     sudo mkdir -p "`$target.new"
     sudo tar -xzf "`$package" -C "`$target.new"
+
+    # User-uploaded photos are runtime data and must survive binary deployments.
+    if [ -d "`$target/wwwroot/uploads" ]; then
+        sudo mkdir -p "`$target.new/wwwroot"
+        sudo rm -rf "`$target.new/wwwroot/uploads"
+        sudo cp -a "`$target/wwwroot/uploads" "`$target.new/wwwroot/uploads"
+    fi
+
     sudo chown -R sugarguard:sugarguard "`$target.new"
     sudo chmod +x "`$target.new/`$executable" || true
 

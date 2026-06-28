@@ -24,17 +24,20 @@ public class ExportJobsController : ControllerBase
 
     private readonly IExportJobApiService _exportApi;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<ExportJobsController> _logger;
 
     public ExportJobsController(
         IExportJobApiService exportApi,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         IWebHostEnvironment environment,
         ILogger<ExportJobsController> logger)
     {
         _exportApi = exportApi;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _environment = environment;
         _logger = logger;
     }
@@ -53,7 +56,7 @@ public class ExportJobsController : ControllerBase
         [FromBody] CreateExportJobRequest request,
         CancellationToken cancellationToken)
     {
-        var currentUserId = _childAccess.GetCurrentUserId();
+        var currentUserId = _currentUser.GetUserId();
         if (!currentUserId.HasValue)
         {
             return this.ProblemWithCode(401, "Unauthorized",
@@ -110,7 +113,7 @@ public class ExportJobsController : ControllerBase
         [FromQuery] int limit = 100,
         CancellationToken cancellationToken = default)
     {
-        var currentUserId = _childAccess.GetCurrentUserId();
+        var currentUserId = _currentUser.GetUserId();
         if (!currentUserId.HasValue)
         {
             return this.ProblemWithCode(401, "Unauthorized",

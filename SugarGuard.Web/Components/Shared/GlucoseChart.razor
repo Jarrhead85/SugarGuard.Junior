@@ -177,7 +177,11 @@
         _tirPercent = ComputeTir(_sortedPoints, TargetMin, TargetMax);
         _chartPayload = _sortedPoints.Count == 0 ? null : BuildChartPayload(_sortedPoints);
 
-        if (_chartInitialized && _chartPayload is not null)
+        if (_chartPayload is null)
+        {
+            await DestroyChartAsync();
+        }
+        else if (_chartInitialized)
         {
             await UpdateChartAsync();
         }
@@ -332,6 +336,11 @@
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        await DestroyChartAsync();
+    }
+
+    private async Task DestroyChartAsync()
+    {
         if (!_chartInitialized)
             return;
 
@@ -341,6 +350,10 @@
         }
         catch
         {
+        }
+        finally
+        {
+            _chartInitialized = false;
         }
     }
 

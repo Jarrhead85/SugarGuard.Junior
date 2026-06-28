@@ -29,7 +29,7 @@
         <div class="child-banner-avatar" aria-hidden="true">🧒</div>
         <div class="child-banner-info">
             <span class="child-banner-name">@_childProfile.Name</span>
-            <span class="child-banner-sub">@_childProfile.Age лет · @_childProfile.DiabetesType</span>
+            <span class="child-banner-sub">@_childProfile.Age лет</span>
             @if (_availableChildren.Count > 1)
             {
                 <select class="child-banner-select"
@@ -189,7 +189,7 @@
             <div class="chart-legend" aria-hidden="true">
                 <span class="legend-item">
                     <span class="legend-dot" style="background:var(--color-glucose-normal)"></span>
-                    @_targetMin.ToString("0.0")–@_targetMax.ToString("0.0")
+                    Норма
                 </span>
                 <span class="legend-item">
                     <span class="legend-dot" style="background:var(--color-glucose-warning)"></span>
@@ -776,10 +776,25 @@
                         @foreach (var doctor in _linkedDoctors)
                         {
                             <div class="setting-row" role="listitem">
-                                <div class="doctor-avatar" aria-hidden="true">@GetInitials(doctor.EmailForLogin)</div>
+                                <div class="doctor-avatar" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(doctor.PhotoUrl))
+                                    {
+                                        <img src="@doctor.PhotoUrl" alt="" />
+                                    }
+                                    else
+                                    {
+                                        @GetInitials(string.IsNullOrWhiteSpace(doctor.DisplayName) ? doctor.EmailForLogin : doctor.DisplayName)
+                                    }
+                                </div>
                                 <div class="setting-text">
-                                    <div class="setting-label">@GetDisplayName(doctor.EmailForLogin, doctor.TelegramId)</div>
-                                    <div class="setting-desc">Подключён @doctor.LinkedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+                                    <div class="setting-label">@(string.IsNullOrWhiteSpace(doctor.DisplayName) ? GetDisplayName(doctor.EmailForLogin, doctor.TelegramId) : doctor.DisplayName)</div>
+                                    <div class="setting-desc">
+                                        @if (!string.IsNullOrWhiteSpace(doctor.Specialty))
+                                        {
+                                            <span>@doctor.Specialty · </span>
+                                        }
+                                        Подключён @doctor.LinkedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -808,7 +823,7 @@
         <div class="profile-info">
             <h2 class="profile-name">@_childProfile.Name</h2>
             <p class="profile-sub">
-                @_childProfile.Age лет · @_childProfile.DiabetesType · Диагноз: @_childProfile.DiagnosisDate
+                @_childProfile.Age лет · Диагноз: @_childProfile.DiagnosisDate
             </p>
         <div class="profile-chips">
             <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
@@ -922,6 +937,59 @@
                     </div>
                 }
             </div>
+
+            <section class="telegram-connect" aria-labelledby="telegramConnectTitle">
+                <div class="telegram-connect__head">
+                    <div>
+                        <div class="setting-label" id="telegramConnectTitle">Telegram-бот</div>
+                        <div class="setting-desc">
+                            @(_telegramConnected
+                                ? "Подключён: уведомления будут приходить в Telegram"
+                                : "Подключите бота, чтобы получать критические уведомления и сводки")
+                        </div>
+                    </div>
+                    <span class="telegram-connect__status @(_telegramConnected ? "connected" : "")">
+                        @(_telegramConnected ? "Подключён" : "Не подключён")
+                    </span>
+                </div>
+
+                @if (_telegramConnectionCode is not null && !_telegramConnected)
+                {
+                    <div class="telegram-code" role="status">
+                        <code>@_telegramConnectionCode.Code</code>
+                        <span>Действует до @_telegramConnectionCode.ExpiresAt.ToLocalTime().ToString("HH:mm")</span>
+                    </div>
+                    <p class="telegram-connect__command">
+                        Отправьте боту команду <strong>@TelegramConnectCommand</strong>
+                    </p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_telegramConnectionError))
+                {
+                    <div class="form-error" role="alert">@_telegramConnectionError</div>
+                }
+
+                <div class="telegram-connect__actions">
+                    @if (!_telegramConnected)
+                    {
+                        <button class="btn btn--primary btn--sm"
+                                disabled="@_isCreatingTelegramCode"
+                                @onclick="CreateTelegramConnectionCodeAsync">
+                            @(_isCreatingTelegramCode ? "Создаём код..." : "Получить код")
+                        </button>
+                    }
+                    @if (_telegramConnectionCode is not null && !_telegramConnected)
+                    {
+                        <button class="btn btn--soft btn--sm" @onclick="CopyTelegramCommandAsync">
+                            Копировать команду
+                        </button>
+                    }
+                    <a class="btn btn--ghost btn--sm"
+                       href="https://t.me/SugarGuardBot"
+                       target="_blank"
+                       rel="noopener noreferrer">Открыть бота</a>
+                </div>
+            </section>
         </div>
 
         @* Устройства *@
@@ -1061,7 +1129,15 @@
     private decimal _targetMax = 10.0m;
     private decimal _insulinSensitivity = 2.5m;
     private decimal _carbRatio = 10.0m;
+    private readonly List<LinkedAccessUserVm> _linkedParents = new();
     private readonly List<LinkedAccessUserVm> _linkedDoctors = new();
+    private TelegramConnectionCodeVm? _telegramConnectionCode;
+    private string? _telegramConnectionError;
+    private bool _isCreatingTelegramCode;
+    private bool _telegramConnected => _linkedParents.Any(link => link.TelegramId.HasValue);
+    private string TelegramConnectCommand => _telegramConnectionCode is null
+        ? string.Empty
+        : $"/connect {_telegramConnectionCode.Code}";
 
     // Вкладки / панели
     private string TabClass(string tab) => _activeTab == tab ? "active" : "";
@@ -1084,7 +1160,7 @@
         var url = query.Count == 0
             ? "/parent/dashboard"
             : $"/parent/dashboard?{string.Join('&', query)}";
-        Navigation.NavigateTo(url, forceLoad: false);
+        Navigation.NavigateTo(url, forceLoad: false, replace: false);
     }
 
     // Инициализация
@@ -1164,7 +1240,6 @@
             }
 
             await RefreshLiveDataAsync(childId, CancellationToken.None, resetPages: true);
-            await LoadAccessLinksAsync(childId);
         }
         catch (Exception ex)
         {
@@ -1213,8 +1288,7 @@
                 DateTime.UtcNow.AddDays(-7),
                 DateTime.UtcNow,
                 cancellationToken);
-            _allAlerts = alerts
-                .OrderByDescending(entry => entry.OccurredAt)
+            _allAlerts = RemoveDuplicateCriticalAlerts(alerts)
                 .Where(entry => !_dismissedAlertIds.Contains(entry.EventId))
                 .Select(MapTimelineEvent)
                 .ToList();
@@ -1234,6 +1308,7 @@
                     cancellationToken: cancellationToken);
             }
             await LoadBackpackFromApiAsync(childId);
+            await LoadAccessLinksAsync(childId, cancellationToken);
 
             _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
             _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
@@ -1305,19 +1380,29 @@
         string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToUpperInvariant();
 
-    private async Task LoadAccessLinksAsync(Guid childId)
+    private async Task LoadAccessLinksAsync(Guid childId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var links = await Api.GetChildAccessLinksAsync(childId, CancellationToken.None);
+            var links = await Api.GetChildAccessLinksAsync(childId, cancellationToken);
+            _linkedParents.Clear();
             _linkedDoctors.Clear();
             if (links is not null)
             {
+                _linkedParents.AddRange(links.ParentLinks);
                 _linkedDoctors.AddRange(links.DoctorLinks);
                 var firstDoctor = _linkedDoctors.FirstOrDefault();
                 _childProfile.Endocrinologist = firstDoctor is null
                     ? "Врач не привязан"
-                    : GetDisplayName(firstDoctor.EmailForLogin, firstDoctor.TelegramId);
+                    : string.IsNullOrWhiteSpace(firstDoctor.DisplayName)
+                        ? GetDisplayName(firstDoctor.EmailForLogin, firstDoctor.TelegramId)
+                        : firstDoctor.DisplayName;
+
+                if (_telegramConnected)
+                {
+                    _telegramConnectionCode = null;
+                    _telegramConnectionError = null;
+                }
             }
         }
         catch (Exception ex)
@@ -1406,6 +1491,21 @@
                 "•",
                 entry.IsImportant)
         };
+    }
+
+    private static IEnumerable<TimelineEventDto> RemoveDuplicateCriticalAlerts(
+        IReadOnlyList<TimelineEventDto> timeline)
+    {
+        var ordered = timeline.OrderByDescending(entry => entry.OccurredAt).ToList();
+        var measurements = ordered
+            .Where(entry => entry.EventType is TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement)
+            .ToList();
+
+        return ordered.Where(entry =>
+            entry.EventType is not (TimelineEventType.Alert or TimelineEventType.CriticalAlert)
+            || !measurements.Any(measurement =>
+                measurement.GlucoseValue == entry.GlucoseValue
+                && Math.Abs((measurement.OccurredAt - entry.OccurredAt).TotalMinutes) <= 2));
     }
 
     private string GetMeasurementEventTitle(decimal? value)
@@ -1614,6 +1714,54 @@
                 resetPage: true);
         }
 
+    }
+
+    private async Task CreateTelegramConnectionCodeAsync()
+    {
+        if (_selectedChildId == Guid.Empty || _isCreatingTelegramCode)
+        {
+            return;
+        }
+
+        _isCreatingTelegramCode = true;
+        _telegramConnectionError = null;
+
+        try
+        {
+            _telegramConnectionCode = await Api.CreateTelegramConnectionCodeAsync(_selectedChildId);
+            if (_telegramConnectionCode is null)
+            {
+                _telegramConnectionError = "Не удалось создать код. Обновите страницу и попробуйте снова.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось создать код Telegram. ChildId={ChildId}", _selectedChildId);
+            _telegramConnectionError = "Не удалось создать код подключения Telegram.";
+        }
+        finally
+        {
+            _isCreatingTelegramCode = false;
+        }
+    }
+
+    private async Task CopyTelegramCommandAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TelegramConnectCommand))
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", TelegramConnectCommand);
+            _noticeMessage = "Команда для Telegram скопирована.";
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось скопировать команду Telegram.");
+            _telegramConnectionError = "Скопируйте команду вручную.";
+        }
     }
 
     // Измерения

@@ -38,6 +38,15 @@ public class GigaChatService : IGigaChatService
     public async Task<GigaChatResponse> GetRecommendationAsync(GigaChatRequest request)
     {
         var startTime = DateTime.UtcNow;
+
+        // Safety-critical ranges must never depend on an external model response.
+        // The model remains useful for routine, non-urgent guidance.
+        var safetyResponse = GetSafetyRecommendation(request);
+        if (safetyResponse is not null)
+        {
+            safetyResponse.LatencyMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
+            return safetyResponse;
+        }
         
         try
         {
@@ -61,6 +70,37 @@ public class GigaChatService : IGigaChatService
         localResponse.LatencyMs = totalLatency;
         
         return localResponse;
+    }
+
+    private static GigaChatResponse? GetSafetyRecommendation(GigaChatRequest request)
+    {
+        if (request.CurrentGlucose <= 3.9)
+        {
+            return new GigaChatResponse
+            {
+                RecommendationText = request.CurrentGlucose < 3.1
+                    ? "Глюкоза критически низкая. Немедленно позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10–15 минут."
+                    : "Глюкоза низкая. Позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10–15 минут.",
+                ModelUsed = "SafetyRules",
+                IsLocalFallback = true,
+                IsSuccess = true,
+                Urgency = request.CurrentGlucose < 3.1 ? "CRITICAL" : "HIGH"
+            };
+        }
+
+        if (request.CurrentGlucose >= 14.0)
+        {
+            return new GigaChatResponse
+            {
+                RecommendationText = "Глюкоза очень высокая. Сразу сообщи взрослому, пей воду и проверь кетоны по своему плану; при тошноте, рвоте или сильной слабости нужна срочная медицинская помощь.",
+                ModelUsed = "SafetyRules",
+                IsLocalFallback = true,
+                IsSuccess = true,
+                Urgency = request.CurrentGlucose > 15.0 ? "CRITICAL" : "HIGH"
+            };
+        }
+
+        return null;
     }
 
     /// <summary>

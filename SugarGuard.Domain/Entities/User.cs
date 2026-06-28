@@ -25,6 +25,18 @@ public class User
     [MaxLength(500)]
     public string? EncryptedLastName { get; set; }
 
+    [Column("profile_photo_url")]
+    [MaxLength(512)]
+    public string? ProfilePhotoUrl { get; set; }
+
+    [Column("doctor_specialty")]
+    [MaxLength(200)]
+    public string? DoctorSpecialty { get; set; }
+
+    [Column("encrypted_doctor_license")]
+    [MaxLength(500)]
+    public string? EncryptedDoctorLicense { get; set; }
+
     [Column("encrypted_email")]
     [MaxLength(500)]
     public string? EncryptedEmail { get; set; }

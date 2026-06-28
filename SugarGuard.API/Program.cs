@@ -358,6 +358,7 @@ builder.Services.AddScoped<IPasswordVerificationService, PasswordVerificationSer
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
+builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 builder.Services.AddScoped<IChildAccessService, ChildAccessService>();
 
 if (builder.Environment.IsDevelopment())
@@ -382,6 +383,7 @@ builder.Services.AddScoped<IInviteCodeService, InviteCodeService>();
 builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IChildrenService, ChildrenService>();
+builder.Services.AddScoped<IAccountProfileService, AccountProfileService>();
 builder.Services.AddScoped<IDiabetesSettingsService, DiabetesSettingsService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -595,6 +597,8 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    context.Response.Headers["Content-Security-Policy"] =
+        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
     await next();
 });
 
@@ -602,6 +606,36 @@ app.UseCors("WebClient");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
+
+app.MapGet("/uploads/profiles/{fileName}", (string fileName, IWebHostEnvironment environment) =>
+{
+    if (string.IsNullOrWhiteSpace(fileName)
+        || fileName != Path.GetFileName(fileName)
+        || fileName.Any(character => !(char.IsLetterOrDigit(character) || character is '-' or '_' or '.')))
+    {
+        return Results.BadRequest();
+    }
+
+    var extension = Path.GetExtension(fileName).ToLowerInvariant();
+    var contentType = extension switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        _ => null
+    };
+
+    if (contentType is null)
+    {
+        return Results.BadRequest();
+    }
+
+    var path = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "profiles", fileName);
+    return File.Exists(path)
+        ? Results.File(path, contentType, enableRangeProcessing: false)
+        : Results.NotFound();
+}).AllowAnonymous();
+
 app.MapControllers();
 
 if (!useSqlite)

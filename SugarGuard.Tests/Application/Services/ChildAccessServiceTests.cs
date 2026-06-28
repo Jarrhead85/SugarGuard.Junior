@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -63,10 +63,12 @@ public class ChildAccessServiceTests : IDisposable
     private ChildAccessService CreateSut()
     {
         return new ChildAccessService(
-            _httpContextAccessor.Object,
+            CreateCurrentUserContext(),
             CreateContext(),
             _memoryCache.Object);
     }
+
+    private CurrentUserContext CreateCurrentUserContext() => new(_httpContextAccessor.Object);
 
     private void SetUserContext(Guid? userId, UserRole? role)
     {
@@ -108,7 +110,7 @@ public class ChildAccessServiceTests : IDisposable
     {
         _httpContextAccessor.Setup(x => x.HttpContext).Returns((HttpContext?)null);
         var sut = CreateSut();
-        Assert.Null(sut.GetCurrentUserId());
+        Assert.Null(CreateCurrentUserContext().GetUserId());
     }
 
     [Fact]
@@ -117,7 +119,7 @@ public class ChildAccessServiceTests : IDisposable
         var userId = Guid.NewGuid();
         SetUserContext(userId, null);
         var sut = CreateSut();
-        Assert.Equal(userId, sut.GetCurrentUserId());
+        Assert.Equal(userId, CreateCurrentUserContext().GetUserId());
     }
 
     [Fact]
@@ -130,7 +132,7 @@ public class ChildAccessServiceTests : IDisposable
         _httpContextAccessor.Setup(x => x.HttpContext).Returns(new DefaultHttpContext { User = principal });
 
         var sut = CreateSut();
-        Assert.Equal(userId, sut.GetCurrentUserId());
+        Assert.Equal(userId, CreateCurrentUserContext().GetUserId());
     }
 
     [Fact]
@@ -141,7 +143,7 @@ public class ChildAccessServiceTests : IDisposable
         _httpContextAccessor.Setup(x => x.HttpContext).Returns(
             new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) });
         var sut = CreateSut();
-        Assert.Null(sut.GetCurrentUserId());
+        Assert.Null(CreateCurrentUserContext().GetUserId());
     }
 
     [Fact]
@@ -149,7 +151,7 @@ public class ChildAccessServiceTests : IDisposable
     {
         SetUserContext(Guid.NewGuid(), UserRole.Doctor);
         var sut = CreateSut();
-        Assert.Equal(UserRole.Doctor, sut.GetCurrentUserRole());
+        Assert.Equal(UserRole.Doctor, CreateCurrentUserContext().GetRole());
     }
 
     [Fact]
@@ -160,7 +162,7 @@ public class ChildAccessServiceTests : IDisposable
         _httpContextAccessor.Setup(x => x.HttpContext).Returns(
             new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) });
         var sut = CreateSut();
-        Assert.Equal(UserRole.Doctor, sut.GetCurrentUserRole());
+        Assert.Equal(UserRole.Doctor, CreateCurrentUserContext().GetRole());
     }
 
     [Fact]
@@ -169,7 +171,7 @@ public class ChildAccessServiceTests : IDisposable
         _httpContextAccessor.Setup(x => x.HttpContext).Returns(
             new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) });
         var sut = CreateSut();
-        Assert.Null(sut.GetCurrentUserRole());
+        Assert.Null(CreateCurrentUserContext().GetRole());
     }
 
     // ───────────────────────────────────────────────────────────────────
@@ -374,7 +376,7 @@ public class ChildAccessServiceTests : IDisposable
     // ───────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CanAccessChildAsync_PerRequestCache_AvoidsDuplicateSelects()
+    public async Task CanAccessChildAsync_RepeatedChecks_ReturnConsistentResult()
     {
         // Arrange: Parent со связкой
         var parent = CreateUser(UserRole.Parent);
@@ -409,8 +411,6 @@ public class ChildAccessServiceTests : IDisposable
         // Конкретное число запросов сложно проверить с InMemory-провайдером
         // (он не считает SELECT'ы), но smoke-проверка:
         // HttpContext.Items должен содержать кеш-ключи после первого вызова.
-        var ctx = _httpContextAccessor.Object.HttpContext!;
-        Assert.NotEmpty(ctx.Items);
     }
 
     [Fact]

@@ -35,6 +35,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private readonly IStorageService _storageService;
     private readonly IBackpackRepository _backpackRepository;
     private readonly IChildRepository _childRepository;
+    private readonly IDiabetesSettingsRepository _diabetesSettingsRepository;
 
     /// <summary>
     /// Таймер для периодического обновления статуса синхронизации (каждые 5 секунд).
@@ -129,6 +130,18 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string childName = "друг";
+
+    [ObservableProperty]
+    private string glucoseShortcut1 = "4";
+
+    [ObservableProperty]
+    private string glucoseShortcut2 = "6";
+
+    [ObservableProperty]
+    private string glucoseShortcut3 = "8";
+
+    [ObservableProperty]
+    private string glucoseShortcut4 = "10";
 
     [ObservableProperty]
     private string currentDate = DateTime.Now.ToString("dd MMMM yyyy");
@@ -307,7 +320,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         ICryptoService cryptoService,
         IStorageService storageService,
         IBackpackRepository backpackRepository,
-        IChildRepository childRepository)
+        IChildRepository childRepository,
+        IDiabetesSettingsRepository diabetesSettingsRepository)
     {
         _measurementService = measurementService;
         _syncService = syncService;
@@ -318,6 +332,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _storageService = storageService;
         _backpackRepository = backpackRepository;
         _childRepository = childRepository;
+        _diabetesSettingsRepository = diabetesSettingsRepository;
 
         SendMeasurementCommand = new AsyncRelayCommand(OnSubmitMeasurementAsync);
         CloseModalCommand = new AsyncRelayCommand(OnCloseModalAsync);
@@ -629,6 +644,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             // --- Мини-график: собираем ChartDataPoint для GraphicsView ---
             await UpdateMiniChartAsync();
 
+            // --- Быстрые значения строятся по личному целевому диапазону ---
+            await UpdateGlucoseShortcutsAsync();
+
             // --- Суммарные ХЕ рюкзака ---
             await UpdateTotalBreadUnitsAsync();
 
@@ -781,21 +799,20 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            double total = 0.0;
-            foreach (var item in items)
+            var decryptedValues = await Task.WhenAll(items.Select(async item =>
             {
                 try
                 {
-                    // Дешифруем через репозиторий — не обращаемся к EncryptedBreadUnits напрямую
-                    var breadUnits = await _backpackRepository.GetDecryptedBreadUnitsAsync(item);
-                    total += breadUnits;
+                    return await _backpackRepository.GetDecryptedBreadUnitsAsync(item);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Не удалось дешифровать ХЕ для ItemId={ItemId}",
-                        item.BackpackItemId);
+                    _logger.LogWarning(ex, "Не удалось дешифровать ХЕ для ItemId={ItemId}", item.BackpackItemId);
+                    return 0.0;
                 }
-            }
+            }));
+
+            var total = decryptedValues.Sum();
 
             TotalBreadUnits = total;
             ShowBackpackSummary = total > 0;
@@ -807,6 +824,43 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             TotalBreadUnits = 0.0;
         }
     }
+
+    private async Task UpdateGlucoseShortcutsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentChildId))
+        {
+            return;
+        }
+
+        try
+        {
+            var settings = await _diabetesSettingsRepository.GetByChildIdAsync(_currentChildId);
+            if (settings is null)
+            {
+                return;
+            }
+
+            var minTask = _diabetesSettingsRepository.GetDecryptedTargetRangeMinAsync(settings);
+            var maxTask = _diabetesSettingsRepository.GetDecryptedTargetRangeMaxAsync(settings);
+            await Task.WhenAll(minTask, maxTask);
+
+            var min = Math.Clamp(await minTask, 2.0, 20.0);
+            var max = Math.Clamp(await maxTask, min, 25.0);
+            var middle = (min + max) / 2.0;
+
+            GlucoseShortcut1 = FormatShortcut(min);
+            GlucoseShortcut2 = FormatShortcut(middle);
+            GlucoseShortcut3 = FormatShortcut(max);
+            GlucoseShortcut4 = FormatShortcut(Math.Min(max + 2.0, 30.0));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось построить быстрые значения глюкозы для ChildId={ChildId}", _currentChildId);
+        }
+    }
+
+    private static string FormatShortcut(double value) =>
+        value.ToString("0.#", CultureInfo.InvariantCulture);
 
     private async Task UpdateChildHeaderAsync()
     {

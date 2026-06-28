@@ -76,10 +76,14 @@ public class AdminUserResponse
     public string Role { get; init; } = string.Empty;
     public bool IsActive { get; init; }
     public DateTime CreatedAt { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
+    public string? PhotoUrl { get; init; }
+    public string? Specialty { get; init; }
+    public string? LicenseNumber { get; init; }
+    public bool IsEmailVerified { get; init; }
 }
 
 public class UpdateUserRoleRequest
 {
     public string NewRole { get; init; } = string.Empty;
 }
-

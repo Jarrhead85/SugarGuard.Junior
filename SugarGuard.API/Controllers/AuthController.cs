@@ -26,6 +26,7 @@ public sealed class AuthController : ControllerBase
     private readonly IRolePermissionService _rolePermissionService;
     private readonly IVerificationService _verificationService;
     private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<AuthController> _logger;
 
     /// <summary>
@@ -38,6 +39,7 @@ public sealed class AuthController : ControllerBase
         IRolePermissionService rolePermissionService,
         IVerificationService verificationService,
         IConfiguration configuration,
+        IWebHostEnvironment environment,
         ILogger<AuthController> logger)
     {
         _auth = auth;
@@ -46,6 +48,7 @@ public sealed class AuthController : ControllerBase
         _rolePermissionService = rolePermissionService;
         _verificationService = verificationService;
         _configuration = configuration;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -624,6 +627,11 @@ public sealed class AuthController : ControllerBase
 
     private bool IsDemoEmailBypassEnabled()
     {
+        if (!_environment.IsDevelopment())
+        {
+            return false;
+        }
+
         return _configuration.GetValue<bool>("DemoEmailBypass:Enabled")
             || string.Equals(
                 Environment.GetEnvironmentVariable("DEMO_EMAIL_BYPASS_ENABLED"),

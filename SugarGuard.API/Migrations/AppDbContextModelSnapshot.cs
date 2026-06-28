@@ -1076,6 +1076,11 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deactivatedat");
 
+                    b.Property<string>("DoctorSpecialty")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("doctor_specialty");
+
                     b.Property<string>("EmailForLogin")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -1084,6 +1089,11 @@ namespace SugarGuard.API.Migrations
                     b.Property<DateTime?>("EmailVerifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("emailverifiedat");
+
+                    b.Property<string>("EncryptedDoctorLicense")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("encrypted_doctor_license");
 
                     b.Property<string>("EncryptedEmail")
                         .HasMaxLength(500)
@@ -1137,6 +1147,11 @@ namespace SugarGuard.API.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("password_salt");
+
+                    b.Property<string>("ProfilePhotoUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("profile_photo_url");
 
                     b.Property<string>("Role")
                         .IsRequired()

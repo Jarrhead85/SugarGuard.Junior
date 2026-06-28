@@ -5,7 +5,9 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
 
 @inject AuthenticationStateProvider AuthStateProvider
 @inject SugarGuardApiService ApiService
@@ -20,9 +22,7 @@
             <h1>Профиль врача</h1>
             <p>Данные текущей учётной записи и рабочая сводка по прикреплённым пациентам.</p>
         </div>
-        <button class="doctor-profile-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-            @(_isLoading ? "Обновляем..." : "Обновить")
-        </button>
+        <span class="doctor-live-state">Профиль синхронизирован</span>
     </header>
 
     @if (_isLoading)
@@ -32,14 +32,57 @@
     else
     {
         <section class="doctor-profile-card doctor-profile-card--identity">
-            <div class="doctor-profile-avatar">@Initials</div>
+            <div class="doctor-profile-avatar">
+                @if (!string.IsNullOrWhiteSpace(_profile?.PhotoUrl))
+                {
+                    <img src="@_profile.PhotoUrl" alt="Фотография врача" />
+                }
+                else
+                {
+                    @Initials
+                }
+            </div>
             <div>
                 <span>Учётная запись</span>
                 <h2>@DisplayName</h2>
                 <p>@Email</p>
+                @if (!string.IsNullOrWhiteSpace(_profile?.Specialty))
+                {
+                    <p>@_profile.Specialty</p>
+                }
             </div>
-            <strong>@FormatRole(Role)</strong>
+            <div class="doctor-profile-identity-actions">
+                <strong>@FormatRole(Role)</strong>
+                <button class="doctor-profile-button doctor-profile-button--soft" type="button" @onclick="BeginEdit">Редактировать</button>
+            </div>
         </section>
+
+        @if (_isEditing)
+        {
+            <section class="doctor-profile-card doctor-profile-editor" aria-label="Редактирование профиля врача">
+                <h2>Данные врача</h2>
+                <div class="doctor-profile-form-grid">
+                    <label><span>Имя</span><input maxlength="80" @bind="_firstName" /></label>
+                    <label><span>Фамилия</span><input maxlength="80" @bind="_lastName" /></label>
+                    <label><span>Специальность</span><input maxlength="200" @bind="_specialty" placeholder="Эндокринолог" /></label>
+                    <label><span>Номер лицензии</span><input maxlength="120" @bind="_licenseNumber" /></label>
+                </div>
+                <label class="doctor-photo-picker">
+                    <span>Фотография JPEG, PNG или WebP до 5 МБ</span>
+                    <InputFile OnChange="UploadPhotoAsync" accept="image/jpeg,image/png,image/webp" />
+                </label>
+                @if (!string.IsNullOrWhiteSpace(_profileError))
+                {
+                    <p class="doctor-profile-error" role="alert">@_profileError</p>
+                }
+                <div class="doctor-profile-editor-actions">
+                    <button class="doctor-profile-button doctor-profile-button--soft" type="button" @onclick="CancelEdit">Отмена</button>
+                    <button class="doctor-profile-button" type="button" @onclick="SaveProfileAsync" disabled="@_isSaving">
+                        @(_isSaving ? "Сохраняем..." : "Сохранить")
+                    </button>
+                </div>
+            </section>
+        }
 
         <section class="doctor-profile-grid" aria-label="Рабочая сводка врача">
             <article class="doctor-profile-card">
@@ -75,16 +118,33 @@
     private int _patientsCount;
     private int _criticalToday;
     private double? _averageTir;
+    private AccountProfileVm? _profile;
+    private bool _isEditing;
+    private bool _isSaving;
+    private string _firstName = string.Empty;
+    private string _lastName = string.Empty;
+    private string _specialty = string.Empty;
+    private string _licenseNumber = string.Empty;
+    private string? _profileError;
+    private readonly CancellationTokenSource _profileRefreshCts = new();
+    private Task? _profileRefreshTask;
 
     private string Initials => string.IsNullOrWhiteSpace(Email) || Email == "—"
         ? "DR"
         : Email[0].ToString().ToUpperInvariant();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
-    private async Task LoadAsync()
+    protected override async Task OnInitializedAsync()
     {
-        _isLoading = true;
+        await LoadAsync();
+        _profileRefreshTask = RunProfileRefreshAsync(_profileRefreshCts.Token);
+    }
+
+    private async Task LoadAsync(bool showLoading = true)
+    {
+        if (showLoading)
+        {
+            _isLoading = true;
+        }
 
         try
         {
@@ -98,6 +158,14 @@
             DisplayName = user.Identity?.Name is { Length: > 0 } name && !name.Contains('@', StringComparison.Ordinal)
                 ? name
                 : Email;
+
+            _profile = await ApiService.GetAccountProfileAsync();
+            if (_profile is not null)
+            {
+                DisplayName = _profile.DisplayName;
+                Email = _profile.Email;
+                Role = _profile.Role;
+            }
 
             var cohort = await ApiService.GetDoctorCohortSummaryAsync();
             if (cohort is not null)
@@ -114,6 +182,106 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task RunProfileRefreshAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (_isEditing || _isSaving)
+                {
+                    continue;
+                }
+
+                await InvokeAsync(() => LoadAsync(showLoading: false));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void BeginEdit()
+    {
+        _firstName = _profile?.FirstName ?? string.Empty;
+        _lastName = _profile?.LastName ?? string.Empty;
+        _specialty = _profile?.Specialty ?? string.Empty;
+        _licenseNumber = _profile?.LicenseNumber ?? string.Empty;
+        _profileError = null;
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _profileError = null;
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_firstName))
+        {
+            _profileError = "Укажите имя врача.";
+            return;
+        }
+
+        _isSaving = true;
+        _profileError = null;
+        try
+        {
+            _profile = await ApiService.UpdateAccountProfileAsync(new UpdateAccountProfileVmRequest
+            {
+                FirstName = _firstName.Trim(),
+                LastName = _lastName.Trim(),
+                Specialty = _specialty.Trim(),
+                LicenseNumber = _licenseNumber.Trim()
+            });
+            DisplayName = _profile.DisplayName;
+            _isEditing = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось сохранить профиль врача.");
+            _profileError = "Не удалось сохранить профиль. Проверьте данные и повторите попытку.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task UploadPhotoAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        _profileError = null;
+        try
+        {
+            await using var stream = file.OpenReadStream(5L * 1024 * 1024);
+            var photoUrl = await ApiService.UploadAccountPhotoAsync(stream, file.Name, file.ContentType);
+            if (_profile is not null)
+            {
+                _profile = new AccountProfileVm
+                {
+                    UserId = _profile.UserId,
+                    Email = _profile.Email,
+                    Role = _profile.Role,
+                    FirstName = _profile.FirstName,
+                    LastName = _profile.LastName,
+                    DisplayName = _profile.DisplayName,
+                    PhotoUrl = photoUrl,
+                    Specialty = _profile.Specialty,
+                    LicenseNumber = _profile.LicenseNumber
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Не удалось загрузить фотографию врача.");
+            _profileError = "Не удалось загрузить фотографию. Используйте JPEG, PNG или WebP до 5 МБ.";
         }
     }
 
@@ -199,6 +367,58 @@
         font-weight: 900;
     }
 
+    .doctor-profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+    }
+
+    .doctor-profile-identity-actions,
+    .doctor-profile-editor-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .doctor-profile-button--soft {
+        color: #1b8e8b;
+        background: rgba(27, 142, 139, .12);
+    }
+
+    .doctor-profile-editor {
+        display: grid;
+        gap: 16px;
+    }
+
+    .doctor-profile-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .doctor-profile-form-grid label,
+    .doctor-photo-picker {
+        display: grid;
+        gap: 7px;
+        color: #667694;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .doctor-profile-form-grid input,
+    .doctor-photo-picker input {
+        min-height: 44px;
+        border: 1px solid rgba(148, 163, 184, .3);
+        border-radius: 12px;
+        padding: 9px 12px;
+        background: var(--color-surface);
+        color: var(--color-text);
+    }
+
+    .doctor-profile-error { color: #c43d4d !important; }
+
     .doctor-profile-card span {
         color: #96a2b8;
         font-size: 12px;
@@ -233,7 +453,8 @@
 
     @@media (max-width: 860px) {
         .doctor-profile-card--identity,
-        .doctor-profile-grid {
+        .doctor-profile-grid,
+        .doctor-profile-form-grid {
             grid-template-columns: 1fr;
         }
     }

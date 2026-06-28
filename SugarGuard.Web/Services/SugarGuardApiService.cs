@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using SugarGuard.Domain.Enums;
+using SugarGuard.Shared.Constants;
 using SugarGuard.Shared.Dto;
 using SugarGuard.Web.Models.Analytics;
 using SugarGuard.Web.ViewModels;
@@ -70,6 +71,45 @@ namespace SugarGuard.Web.Services
             return client;
         }
 
+        public async Task<AccountProfileVm?> GetAccountProfileAsync(CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await client.GetFromJsonAsync<AccountProfileVm>("api/account/profile", _jsonOptions, cancellationToken);
+        }
+
+        public async Task<AccountProfileVm> UpdateAccountProfileAsync(
+            UpdateAccountProfileVmRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PutAsJsonAsync("api/account/profile", request, _jsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<AccountProfileVm>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустой профиль.");
+        }
+
+        public async Task<string> UploadAccountPhotoAsync(
+            Stream stream,
+            string fileName,
+            string contentType,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var content = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+            content.Add(fileContent, "file", fileName);
+            using var response = await client.PostAsync("api/account/profile/photo", content, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AccountPhotoUploadApiDto>(_jsonOptions, cancellationToken);
+            return result?.PhotoUrl ?? throw new InvalidOperationException("API не вернул адрес фотографии.");
+        }
+
+        private sealed class AccountPhotoUploadApiDto
+        {
+            public string PhotoUrl { get; init; } = string.Empty;
+        }
+
         // Разрешение ChildId
         /// <summary>
         /// Пытается получить ChildId из конфигурации
@@ -93,9 +133,6 @@ namespace SugarGuard.Web.Services
         {
             if (!TryResolveChildId(out var childId))
             {
-                if (IsDemoModeEnabled)
-                    return DashboardSummaryVm.Sample;
-
                 throw new InvalidOperationException(
                     "ChildId не удалось определить. Проверьте ApiDemoChildId в конфигурации.");
             }
@@ -697,6 +734,37 @@ namespace SugarGuard.Web.Services
             {
                 return null;
             }
+        }
+
+        public async Task<TelegramConnectionCodeVm?> CreateTelegramConnectionCodeAsync(
+            Guid childId,
+            CancellationToken cancellationToken = default)
+        {
+            var code = ConnectionCodeFormat.Format(ConnectionCodeFormat.Generate());
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PostAsJsonAsync(
+                "api/parent-link/code",
+                new { childId, code },
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<SaveConnectionCodeApiDto>(
+                _jsonOptions,
+                cancellationToken);
+
+            return result is { Success: true }
+                ? new TelegramConnectionCodeVm(code, result.ExpiresAt)
+                : null;
+        }
+
+        private sealed class SaveConnectionCodeApiDto
+        {
+            public bool Success { get; init; }
+            public DateTime ExpiresAt { get; init; }
         }
 
         // INVITE CODES
@@ -1902,7 +1970,10 @@ namespace SugarGuard.Web.Services
             EmailForLogin = dto.EmailForLogin,
             TelegramId = dto.TelegramId,
             UserRole = dto.UserRole,
-            LinkedAt = dto.LinkedAt
+            LinkedAt = dto.LinkedAt,
+            DisplayName = dto.DisplayName,
+            PhotoUrl = dto.PhotoUrl,
+            Specialty = dto.Specialty
         };
 
         private static InviteCodeVm MapInviteCode(InviteCodeApiDto dto) => new()
@@ -2104,6 +2175,9 @@ namespace SugarGuard.Web.Services
             public long? TelegramId { get; init; }
             public string UserRole { get; init; } = string.Empty;
             public DateTime LinkedAt { get; init; }
+            public string DisplayName { get; init; } = string.Empty;
+            public string? PhotoUrl { get; init; }
+            public string? Specialty { get; init; }
         }
 
         private sealed class InviteCodeApiDto

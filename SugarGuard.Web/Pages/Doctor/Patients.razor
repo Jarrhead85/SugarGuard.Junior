@@ -9,6 +9,7 @@
 @implements IDisposable
 @inject SugarGuardApiService ApiService
 @inject NavigationManager Nav
+@inject ILogger<Patients> Logger
 
 <PageTitle>Мои пациенты — SugarGuard</PageTitle>
 
@@ -78,7 +79,7 @@
                 <strong>Не удалось загрузить пациентов</strong>
                 <p>@_errorMessage</p>
             </div>
-            <button class="doctor-btn doctor-btn--soft" type="button" @onclick="LoadDataAsync">
+            <button class="doctor-btn doctor-btn--soft" type="button" @onclick="() => LoadDataAsync()">
                 Повторить
             </button>
         </div>
@@ -117,8 +118,8 @@
                 <input id="doctorPatientSearch"
                        type="search"
                        placeholder="Поиск пациента..."
-                       @bind="_searchQuery"
-                       @bind:event="oninput" />
+                       value="@_searchQuery"
+                       @oninput="OnSearchChanged" />
             </label>
 
             <div class="doctor-filters" role="group" aria-label="Фильтр пациентов">
@@ -315,6 +316,7 @@
 
 @code {
     private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+    private static readonly TimeZoneInfo MoscowTimeZone = ResolveMoscowTimeZone();
     private const string FilterAll = "all";
     private const string FilterCritical = "critical";
     private const string FilterAttention = "attention";
@@ -330,6 +332,8 @@
     ];
 
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private Task? _refreshTask;
 
     private bool _isLoading = true;
     private string? _errorMessage;
@@ -369,7 +373,7 @@
 
     private string PatientsCsvHref => ExportDisabled
         ? "#"
-        : $"data:text/csv;charset=utf-8,{Uri.EscapeDataString(BuildPatientsCsv())}";
+        : $"data:text/csv;charset=utf-8,{Uri.EscapeDataString("\uFEFF" + BuildPatientsCsv())}";
 
     private List<DoctorPatientSummaryVm> FilteredPatients => _patients
         .Where(MatchesSearch)
@@ -379,6 +383,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
+        _refreshTask = RunLiveRefreshAsync(_cts.Token);
     }
 
     public void Dispose()
@@ -387,10 +392,18 @@
         _cts.Dispose();
     }
 
-    private async Task LoadDataAsync()
+    private async Task LoadDataAsync(bool showLoading = true)
     {
-        _isLoading = true;
-        _errorMessage = null;
+        if (!await _refreshGate.WaitAsync(0, _cts.Token))
+        {
+            return;
+        }
+
+        if (showLoading)
+        {
+            _isLoading = true;
+            _errorMessage = null;
+        }
 
         try
         {
@@ -401,7 +414,7 @@
 
             _patients = (await patientsTask).ToList();
             _cohortSummary = await cohortTask;
-            _lastLoadedAt = (_cohortSummary?.GeneratedAt ?? DateTime.UtcNow).ToLocalTime();
+            _lastLoadedAt = ToMoscowTime(_cohortSummary?.GeneratedAt ?? DateTime.UtcNow);
 
             await LoadLatestNotesAsync();
         }
@@ -410,11 +423,43 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
+            if (showLoading)
+            {
+                _errorMessage = ex.Message;
+            }
+            else
+            {
+                Logger.LogWarning(ex, "Не удалось автоматически обновить список пациентов врача.");
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (showLoading)
+            {
+                _isLoading = false;
+            }
+
+            _refreshGate.Release();
+        }
+    }
+
+    private async Task RunLiveRefreshAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadDataAsync(showLoading: false);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -605,7 +650,7 @@
         }
 
         return string.Equals(patient.LatestGlucoseUiState, "Warning", StringComparison.OrdinalIgnoreCase)
-            || patient.LatestGlucose is < 3.9m or > 10m;
+            || patient.LatestGlucose is < 4.0m or > 10m;
     }
 
     private static bool HasFreshMeasurement(DoctorPatientSummaryVm patient)
@@ -645,9 +690,13 @@
             return "тип диабета не указан";
         }
 
-        return diabetesType.Contains("type", StringComparison.OrdinalIgnoreCase)
-            ? diabetesType.Replace("Type", "СД ", StringComparison.OrdinalIgnoreCase)
-            : diabetesType;
+        return diabetesType.Trim().ToLowerInvariant() switch
+        {
+            "type1" => "СД1",
+            "type2" => "СД2",
+            "gestational" => "Гестационный диабет",
+            _ => diabetesType.Trim()
+        };
     }
 
     private static string FormatAge(DateOnly dateOfBirth)
@@ -706,7 +755,7 @@
         var diff = DateTime.UtcNow - measurementUtc;
         if (diff.TotalSeconds < 0)
         {
-            return measurementUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm", RuCulture);
+            return ToMoscowTime(measurementUtc).ToString("dd.MM.yyyy HH:mm", RuCulture);
         }
 
         if (diff.TotalMinutes < 1) return "только что";
@@ -714,7 +763,43 @@
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч назад";
         if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн назад";
 
-        return measurementUtc.ToLocalTime().ToString("dd.MM.yyyy", RuCulture);
+        return ToMoscowTime(measurementUtc).ToString("dd.MM.yyyy", RuCulture);
+    }
+
+    private void OnSearchChanged(ChangeEventArgs args)
+    {
+        _searchQuery = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private static DateTime ToMoscowTime(DateTime value)
+    {
+        var utc = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, MoscowTimeZone);
+    }
+
+    private static TimeZoneInfo ResolveMoscowTimeZone()
+    {
+        foreach (var id in new[] { "Europe/Moscow", "Russian Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Local;
     }
 
     private static string FormatHypoHyper(DoctorPatientSummaryVm patient)
@@ -724,7 +809,7 @@
             return "— / —";
         }
 
-        var hypo = patient.LatestGlucose < 3.9m ? 1 : 0;
+        var hypo = patient.LatestGlucose < 4.0m ? 1 : 0;
         var hyper = patient.LatestGlucose > 10m ? 1 : 0;
         return $"{hypo} / {hyper}";
     }

@@ -22,6 +22,7 @@ public class ChildrenController : ControllerBase
     private readonly IChildrenService _childrenService;
     private readonly IDiabetesSettingsService _diabetesSettings;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ChildrenController> _logger;
 
@@ -29,12 +30,14 @@ public class ChildrenController : ControllerBase
         IChildrenService childrenService,
         IDiabetesSettingsService diabetesSettings,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         IWebHostEnvironment env,
         ILogger<ChildrenController> logger)
     {
         _childrenService = childrenService;
         _diabetesSettings = diabetesSettings;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _env = env;
         _logger = logger;
     }
@@ -69,8 +72,8 @@ public class ChildrenController : ControllerBase
             });
         }
 
-        var userId = _childAccess.GetCurrentUserId();
-        var role = _childAccess.GetCurrentUserRole();
+        var userId = _currentUser.GetUserId();
+        var role = _currentUser.GetRole();
 
         if (!userId.HasValue || !role.HasValue)
             return Unauthorized(new { error = "unauthorized", message = "Пользователь не авторизован." });
@@ -148,8 +151,8 @@ public class ChildrenController : ControllerBase
             return BadRequest(new { error = "validation_error", details = errors });
         }
 
-        var userId = _childAccess.GetCurrentUserId();
-        var role = _childAccess.GetCurrentUserRole();
+        var userId = _currentUser.GetUserId();
+        var role = _currentUser.GetRole();
 
         if (!userId.HasValue || !role.HasValue)
             return Unauthorized(new { error = "unauthorized", message = "Пользователь не авторизован." });

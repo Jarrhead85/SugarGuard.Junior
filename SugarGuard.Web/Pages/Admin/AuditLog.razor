@@ -168,7 +168,7 @@
                     else
                     {
                         <div class="sg-audit-list">
-                            @foreach (var log in _logs)
+                            @foreach (var log in PagedLogs)
                             {
                                 <article class="sg-audit-card" @key="log.AuditLogId">
                                     <div class="sg-audit-card-header">
@@ -218,6 +218,11 @@
                                     </div>
                                 </article>
                             }
+                        </div>
+                        <div class="sg-audit-pagination" aria-label="Страницы журнала аудита">
+                            <span>Страница @_page из @PageCount</span>
+                            <button class="sg-btn sg-btn-soft" type="button" @onclick="PreviousPage" disabled="@(_page <= 1)">Назад</button>
+                            <button class="sg-btn sg-btn-soft" type="button" @onclick="NextPage" disabled="@(_page >= PageCount)">Далее</button>
                         </div>
                     }
                 </section>
@@ -928,6 +933,18 @@
     }
 
     }
+    .sg-audit-pagination {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        margin-top: 16px;
+        color: var(--color-text-muted);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .sg-audit-pagination .sg-btn { width: auto; }
 </style>
 
 @code {
@@ -935,6 +952,17 @@
 
     private readonly List<AuditLogVm> _logs = [];
     private readonly AuditLogFilterModel _filter = new();
+    private const int PageSize = 20;
+    private int _page = 1;
+
+    private int PageCount => Math.Max(1, (int)Math.Ceiling(_logs.Count / (double)PageSize));
+    private IReadOnlyList<AuditLogVm> PagedLogs => _logs
+        .Skip((_page - 1) * PageSize)
+        .Take(PageSize)
+        .ToList();
+
+    private void PreviousPage() => _page = Math.Max(1, _page - 1);
+    private void NextPage() => _page = Math.Min(PageCount, _page + 1);
 
     private static readonly int[] _availableLimits = [50, 100, 200, 500, 1000];
 
@@ -1002,6 +1030,7 @@
 
             _logs.Clear();
             _logs.AddRange(logs.OrderByDescending(x => x.CreatedAt));
+            _page = 1;
 
             SetStatus($"Загружено записей: {_logs.Count}.", StatusTone.Success);
         }

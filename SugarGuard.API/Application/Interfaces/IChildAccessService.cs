@@ -7,10 +7,6 @@ namespace SugarGuard.API.Services
     /// </summary>
     public interface IChildAccessService
     {
-        Guid? GetCurrentUserId(); // Возвращает UserId текущего пользователя из JWT-токена
-
-        UserRole? GetCurrentUserRole(); // Возвращает роль текущего пользователя из JWT-токена
-
         /// <summary>
         /// Проверяет, имеет ли текущий пользователь доступ к данным ребёнка
         /// </summary>

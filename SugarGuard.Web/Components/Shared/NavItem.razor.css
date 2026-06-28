@@ -57,6 +57,27 @@
     text-overflow: ellipsis;
 }
 
+.nav-item-badge {
+    min-width: 24px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    color: var(--color-primary);
+    background: rgba(27, 142, 139, .12);
+    font-size: 11px;
+    font-weight: 850;
+    text-align: center;
+}
+
+.nav-item-badge.warning {
+    color: var(--color-glucose-warning);
+    background: var(--color-glucose-warning-soft);
+}
+
+.nav-item-badge.danger {
+    color: var(--color-glucose-danger);
+    background: var(--color-glucose-danger-soft);
+}
+
 /* Фокус клавиатуры */
 .nav-item:focus-visible {
     outline: 2px solid var(--color-primary);

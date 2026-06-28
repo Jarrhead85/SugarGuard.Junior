@@ -20,6 +20,7 @@ public sealed class OnboardingController : ControllerBase
     private readonly IChildrenService _childrenService;
     private readonly IDiabetesSettingsService _diabetesSettings;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<OnboardingController> _logger;
 
     /// <summary>
@@ -30,12 +31,14 @@ public sealed class OnboardingController : ControllerBase
         IChildrenService childrenService,
         IDiabetesSettingsService diabetesSettings,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         ILogger<OnboardingController> logger)
     {
         _onboarding = onboarding;
         _childrenService = childrenService;
         _diabetesSettings = diabetesSettings;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -60,8 +63,8 @@ public sealed class OnboardingController : ControllerBase
             });
         }
 
-        var userId = _childAccess.GetCurrentUserId();
-        var role = _childAccess.GetCurrentUserRole();
+        var userId = _currentUser.GetUserId();
+        var role = _currentUser.GetRole();
 
         if (!userId.HasValue || !role.HasValue)
         {
@@ -212,7 +215,7 @@ public sealed class OnboardingController : ControllerBase
     public async Task<ActionResult<OnboardingStatusResponse>> GetStatusAsync(
         CancellationToken cancellationToken)
     {
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (!userId.HasValue)
             return Unauthorized(new { error = "unauthorized", message = "Пользователь не аутентифицирован." });
 
@@ -245,7 +248,7 @@ public sealed class OnboardingController : ControllerBase
         [FromRoute] int step,
         CancellationToken cancellationToken)
     {
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (!userId.HasValue)
             return Unauthorized(new { error = "unauthorized", message = "Пользователь не аутентифицирован." });
 
@@ -280,7 +283,7 @@ public sealed class OnboardingController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SkipAsync(CancellationToken cancellationToken)
     {
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (!userId.HasValue)
             return Unauthorized(new { error = "unauthorized", message = "Пользователь не аутентифицирован." });
 

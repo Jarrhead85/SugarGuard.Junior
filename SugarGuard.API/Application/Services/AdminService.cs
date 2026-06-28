@@ -8,6 +8,7 @@ using SugarGuard.API.Services;
 using SugarGuard.Application.Audit;
 using SugarGuard.Application.Repositories;
 using SugarGuard.Domain.Enums;
+using SugarGuard.API.Security;
 
 namespace SugarGuard.API.Application.Services;
 
@@ -29,6 +30,7 @@ public sealed class AdminService : IAdminService
     private readonly IInviteCodeService _inviteCodeService;
     private readonly IAuditService _audit;
     private readonly ILogger<AdminService> _logger;
+    private readonly ICryptoService _crypto;
 
     /// <summary>
     /// Допустимые роли, которым можно назначить связь врач-ребёнок
@@ -53,6 +55,7 @@ public sealed class AdminService : IAdminService
         IExportJobRepository exportJobs,
         IInviteCodeService inviteCodeService,
         IAuditService audit,
+        ICryptoService crypto,
         ILogger<AdminService> logger)
     {
         _users = users;
@@ -67,6 +70,7 @@ public sealed class AdminService : IAdminService
         _exportJobs = exportJobs;
         _inviteCodeService = inviteCodeService;
         _audit = audit;
+        _crypto = crypto;
         _logger = logger;
     }
 
@@ -83,18 +87,11 @@ public sealed class AdminService : IAdminService
         if (role.HasValue)
             query = query.Where(u => u.Role == role.Value);
 
-        return await query
+        var users = await query
             .Take(safeLimit)
-            .Select(u => new AdminUserResponse
-            {
-                UserId = u.UserId,
-                EmailForLogin = u.EmailForLogin,
-                TelegramId = u.TelegramId,
-                Role = u.Role.ToString(),
-                IsActive = u.IsActive,
-                CreatedAt = u.CreatedAt
-            })
             .ToListAsync(cancellationToken);
+
+        return users.Select(MapAdminUser).ToList();
     }
 
     public async Task<AdminUserResponse?> UpdateUserRoleAsync(
@@ -129,14 +126,46 @@ public sealed class AdminService : IAdminService
             "Роль пользователя {UserId} изменена: {OldRole} → {NewRole}.",
             userId, oldRole, parsedRole);
 
+        return MapAdminUser(user);
+    }
+
+    private AdminUserResponse MapAdminUser(User user)
+    {
+        var firstName = Decrypt(user.EncryptedFirstName);
+        var lastName = Decrypt(user.EncryptedLastName);
+        var displayName = string.Join(' ', new[] { firstName, lastName }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
         return new AdminUserResponse
         {
             UserId = user.UserId,
             EmailForLogin = user.EmailForLogin,
             TelegramId = user.TelegramId,
             Role = user.Role.ToString(),
-            CreatedAt = user.CreatedAt
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt,
+            DisplayName = displayName,
+            PhotoUrl = user.ProfilePhotoUrl,
+            Specialty = user.DoctorSpecialty,
+            LicenseNumber = Decrypt(user.EncryptedDoctorLicense),
+            IsEmailVerified = user.IsEmailVerified
         };
+    }
+
+    private string Decrypt(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return _crypto.Decrypt(value);
+        }
+        catch (Exception exception) when (exception is FormatException or System.Security.Cryptography.CryptographicException)
+        {
+            return value;
+        }
     }
 
     public async Task<bool> DeactivateUserAsync(

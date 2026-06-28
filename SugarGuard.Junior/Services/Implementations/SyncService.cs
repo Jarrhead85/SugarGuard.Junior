@@ -439,6 +439,7 @@ public class SyncService : ISyncService
                 entityType, entityId);
 
             await using var ctx = await _factory.CreateDbContextAsync();
+            var hasChanges = false;
             switch (entityType)
             {
                 case "Measurement":
@@ -457,7 +458,7 @@ public class SyncService : ISyncService
                             existingMeasurement.IsSynced = true;
                             
                             ctx.Set<MeasurementEntity>().Update(existingMeasurement);
-                            await ctx.SaveChangesAsync();
+                            hasChanges = true;
                             
                             _logger.LogInformation(
                                 "Локальное измерение {EntityId} обновлено после разрешения конфликта (MeasurementTime: {Time})",
@@ -483,7 +484,7 @@ public class SyncService : ISyncService
                             existingItem.IsSynced = true;
                             
                             ctx.Set<BackpackItem>().Update(existingItem);
-                            await ctx.SaveChangesAsync();
+                            hasChanges = true;
                             
                             _logger.LogInformation(
                                 "Локальный элемент рюкзака {EntityId} обновлён после разрешения конфликта",
@@ -511,7 +512,7 @@ public class SyncService : ISyncService
                             existingSettings.UpdatedAt = DateTime.UtcNow;
                             
                             ctx.Set<DiabetesSettings>().Update(existingSettings);
-                            await ctx.SaveChangesAsync();
+                            hasChanges = true;
                             
                             _logger.LogInformation(
                                 "Настройки диабета для ребёнка {EntityId} обновлены после разрешения конфликта",
@@ -527,6 +528,11 @@ public class SyncService : ISyncService
                 default:
                     _logger.LogWarning("Неизвестный тип сущности для обновления: {EntityType}", entityType);
                     break;
+            }
+
+            if (hasChanges)
+            {
+                await ctx.SaveChangesAsync();
             }
         }
         catch (Exception ex)

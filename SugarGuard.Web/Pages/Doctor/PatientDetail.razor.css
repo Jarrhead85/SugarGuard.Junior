@@ -264,7 +264,56 @@
     color: var(--doctor-muted);
     font-size: 12px;
     font-weight: 900;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
 }
+
+.doctor-chart-y-labels {
+    position: absolute;
+    inset: 42px auto 48px 9px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--doctor-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.doctor-chart-time-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 38px 10px;
+    color: var(--doctor-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.doctor-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 10px;
+    color: var(--doctor-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.doctor-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.doctor-chart-legend i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.doctor-chart-legend i.success { background: var(--doctor-success); }
+.doctor-chart-legend i.warning { background: var(--doctor-warning); }
+.doctor-chart-legend i.danger { background: var(--doctor-danger); }
 
 .doctor-period-pill.active {
     color: var(--doctor-primary);
@@ -272,6 +321,7 @@
 }
 
 .doctor-chart {
+    position: relative;
     margin-top: 16px;
     border: 1px solid var(--doctor-border);
     border-radius: 18px;

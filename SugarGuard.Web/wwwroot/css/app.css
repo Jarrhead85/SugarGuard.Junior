@@ -25,6 +25,109 @@
     padding: 0;
 }
 
+/* Shared care-portal navigation. NavLink's generated anchor does not receive
+   the component CSS isolation attribute, so these rules intentionally live
+   in the global stylesheet. */
+.app-shell--doctor .nav-item,
+.app-shell--admin .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    color: #4f6387;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+
+.app-shell--doctor .nav-item:hover,
+.app-shell--admin .nav-item:hover {
+    color: #16213e;
+    background: rgba(22, 33, 62, .05);
+}
+
+.app-shell--doctor .nav-item.active,
+.app-shell--admin .nav-item.active {
+    color: #087f7d;
+    background: rgba(27, 142, 139, .12);
+    box-shadow: inset 3px 0 0 #159a96;
+}
+
+.app-shell--doctor .nav-item-icon,
+.app-shell--admin .nav-item-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    display: grid;
+    place-items: center;
+}
+
+.app-shell--doctor .nav-item-label,
+.app-shell--admin .nav-item-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-shell--doctor .nav-item-badge,
+.app-shell--admin .nav-item-badge {
+    min-width: 22px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    color: #087f7d;
+    background: rgba(27, 142, 139, .12);
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.app-shell--doctor .nav-item-badge.danger,
+.app-shell--admin .nav-item-badge.danger {
+    color: #c94152;
+    background: rgba(219, 89, 103, .14);
+}
+
+.app-shell--doctor .nav-item-badge.warning,
+.app-shell--admin .nav-item-badge.warning {
+    color: #b57400;
+    background: rgba(227, 163, 43, .15);
+}
+
+[data-theme="dark"] .app-shell--doctor .nav-item,
+[data-theme="dark"] .app-shell--admin .nav-item {
+    color: #9eaed0;
+}
+
+[data-theme="dark"] .app-shell--doctor .nav-item:hover,
+[data-theme="dark"] .app-shell--admin .nav-item:hover {
+    color: #edf4ff;
+    background: rgba(237, 244, 255, .07);
+}
+
+.doctor-live-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #667694;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.doctor-live-state::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #55c58a;
+    box-shadow: 0 0 0 5px rgba(85, 197, 138, .13);
+}
+
 html {
     -moz-text-size-adjust: none;
     -webkit-text-size-adjust: none;

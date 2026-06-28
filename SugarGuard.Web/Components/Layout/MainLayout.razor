@@ -118,8 +118,8 @@
                 <Authorized>
                     <div class="doctor-nav-block">
                         <span class="doctor-nav-caption">Рабочее пространство</span>
-                        <NavItem Href="/doctor/patients" Icon="users" Label="Мои пациенты" />
-                        <NavItem Href="/doctor/alerts" Icon="bell" Label="Группы риска" />
+                        <NavItem Href="/doctor/patients" Icon="users" Label="Мои пациенты" Badge="@doctorPatientCount.ToString()" />
+                        <NavItem Href="/doctor/alerts" Icon="bell" Label="Группы риска" Badge="@doctorRiskCount.ToString()" BadgeClass="danger" />
                         <NavItem Href="/doctor/reports" Icon="activity" Label="Аналитика группы" />
                     </div>
                     <div class="doctor-nav-block">
@@ -130,7 +130,8 @@
                 </Authorized>
             </AuthorizeView>
 
-            <AdminNavMenu />
+            <AdminNavMenu UserCount="@adminUserCount.ToString()"
+                          PendingDoctorCount="@adminPendingDoctorCount.ToString()" />
         </nav>
 
         <div class="sidebar-footer">
@@ -138,13 +139,24 @@
                 <Authorized>
                     <div class="sidebar-user">
                         <div class="sidebar-user-avatar" aria-hidden="true">
-                            @GetInitials(context.User.Identity?.Name ?? context.User.FindFirst("email")?.Value)
+                            @if (!string.IsNullOrWhiteSpace(currentAccountProfile?.PhotoUrl))
+                            {
+                                <img src="@currentAccountProfile.PhotoUrl" alt="" />
+                            }
+                            else
+                            {
+                                @GetInitials(GetSidebarUserName(context.User))
+                            }
                         </div>
                         <div class="sidebar-user-info">
                             <span class="sidebar-user-name">
-                                @(context.User.Identity?.Name ?? context.User.FindFirst("email")?.Value ?? "Пользователь")
+                                @GetSidebarUserName(context.User)
                             </span>
-                            <span class="sidebar-user-role">@GetRoleLabel(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)</span>
+                            <span class="sidebar-user-role">
+                                @(string.IsNullOrWhiteSpace(currentAccountProfile?.Specialty)
+                                    ? GetRoleLabel(context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)
+                                    : currentAccountProfile.Specialty)
+                            </span>
                         </div>
                     </div>
                     <button class="sidebar-theme-btn" @onclick="ToggleTheme" title="Сменить тему" aria-label="Сменить тему">
@@ -251,24 +263,6 @@
                     }
                 </div>
 
-                <button class="icon-btn"
-                        @onclick="ToggleTheme"
-                        title="Сменить тему"
-                        aria-label="@(isDarkTheme ? "Переключить на светлую тему" : "Переключить на тёмную тему")">
-                    @if (isDarkTheme)
-                    {
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="12" cy="12" r="5"/>
-                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                        </svg>
-                    }
-                    else
-                    {
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                        </svg>
-                    }
-                </button>
             </div>
         </header>
 
@@ -296,9 +290,14 @@
     private bool sidebarOpen;
     private bool isDarkTheme;
     private List<UserNotificationItem> notifications = new();
+    private AccountProfileVm? currentAccountProfile;
     private ParentSidebarChild? parentSidebarChild;
-    private CancellationTokenSource? parentSidebarRefreshCts;
-    private Task? parentSidebarRefreshTask;
+    private int doctorPatientCount;
+    private int doctorRiskCount;
+    private int adminUserCount;
+    private int adminPendingDoctorCount;
+    private CancellationTokenSource? sidebarRefreshCts;
+    private Task? sidebarRefreshTask;
     private int unreadCount => notifications.Count(n => n.IsUnread);
     private bool HasUnread => unreadCount > 0;
     private string PortalClass => GetPortalClass(Navigation.Uri);
@@ -313,12 +312,13 @@
     {
         if (!firstRender) return;
         await LoadThemeAsync();
-        await LoadParentSidebarChildAsync();
-        parentSidebarRefreshCts = new CancellationTokenSource();
-        parentSidebarRefreshTask = RefreshParentSidebarPeriodicallyAsync(parentSidebarRefreshCts.Token);
+        await LoadPortalSidebarDataAsync();
+        await LoadNotifications();
+        sidebarRefreshCts = new CancellationTokenSource();
+        sidebarRefreshTask = RefreshSidebarPeriodicallyAsync(sidebarRefreshCts.Token);
     }
 
-    private async Task RefreshParentSidebarPeriodicallyAsync(CancellationToken cancellationToken)
+    private async Task RefreshSidebarPeriodicallyAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
 
@@ -326,7 +326,8 @@
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await InvokeAsync(LoadParentSidebarChildAsync);
+                await InvokeAsync(LoadPortalSidebarDataAsync);
+                await InvokeAsync(LoadNotifications);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -365,7 +366,83 @@
         notifOpen = false;
         sidebarOpen = false;
         UpdatePageInfo(e.Location);
-        _ = InvokeAsync(LoadParentSidebarChildAsync);
+        _ = InvokeAsync(LoadPortalSidebarDataAsync);
+        StateHasChanged();
+    }
+
+    private async Task LoadPortalSidebarDataAsync()
+    {
+        var path = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath;
+        var role = await CurrentUser.GetRoleAsync();
+
+        try
+        {
+            currentAccountProfile = await Api.GetAccountProfileAsync();
+        }
+        catch
+        {
+            currentAccountProfile = null;
+        }
+
+        if (path.StartsWith("/parent", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(role, "Parent", StringComparison.OrdinalIgnoreCase))
+        {
+            await LoadParentSidebarChildAsync();
+            return;
+        }
+
+        parentSidebarChild = null;
+
+        if (path.StartsWith("/doctor", StringComparison.OrdinalIgnoreCase)
+            && role is "Doctor" or "Admin" or "SupportAdmin")
+        {
+            await LoadDoctorSidebarDataAsync();
+            return;
+        }
+
+        if (path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
+            && role is "Admin" or "SupportAdmin")
+        {
+            await LoadAdminSidebarDataAsync();
+        }
+    }
+
+    private async Task LoadDoctorSidebarDataAsync()
+    {
+        try
+        {
+            var patients = await Api.GetDoctorPatientsAsync("lastmeasurement");
+            doctorPatientCount = patients.Count;
+            doctorRiskCount = patients.Count(patient =>
+                patient.CriticalEventsLast7Days > 0
+                || patient.LatestGlucoseUiState is "Critical" or "Danger"
+                || patient.TimeInTargetRange is > 0 and < 70
+                || patient.MeasurementsLast7Days == 0);
+        }
+        catch
+        {
+            doctorPatientCount = 0;
+            doctorRiskCount = 0;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task LoadAdminSidebarDataAsync()
+    {
+        try
+        {
+            var users = await Api.GetAdminUsersAsync(limit: 500);
+            adminUserCount = users.Count;
+            adminPendingDoctorCount = users.Count(user =>
+                string.Equals(user.Role, "DoctorPending", StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            adminUserCount = 0;
+            adminPendingDoctorCount = 0;
+        }
+
         StateHasChanged();
     }
 
@@ -398,7 +475,11 @@
             {
                 var summary = await Api.GetDashboardSummaryAsync(child.ChildId);
                 latestGlucose = summary.LatestGlucose;
-                measurementsCount = summary.TotalMeasurements;
+                var recentMeasurements = await Api.GetMeasurementsAsync(
+                    child.ChildId,
+                    DateTime.UtcNow.AddHours(-1),
+                    DateTime.UtcNow);
+                measurementsCount = recentMeasurements.Count;
                 glucoseClass = summary.LatestGlucoseUiState switch
                 {
                     "Critical" or "Danger" => "danger",
@@ -410,8 +491,7 @@
                     child.ChildId,
                     DateTime.UtcNow.AddDays(-7),
                     DateTime.UtcNow);
-                alertsCount = timeline.Count(entry =>
-                    entry.IsImportant || entry.EventType is TimelineEventType.Alert or TimelineEventType.CriticalAlert);
+                alertsCount = CountDistinctCriticalEvents(timeline);
 
                 var backpack = await Api.GetBackpackAsync(child.ChildId);
                 lowBackpackCount = backpack
@@ -425,7 +505,7 @@
 
             parentSidebarChild = new ParentSidebarChild(
                 string.IsNullOrWhiteSpace(child.FullName) ? "Ребёнок" : child.FullName,
-                $"{GetAge(child.DateOfBirth)} лет · {child.DiabetesType}",
+                $"{GetAge(child.DateOfBirth)} лет",
                 latestGlucose,
                 glucoseClass,
                 measurementsCount,
@@ -494,7 +574,30 @@
 
     private async Task LoadNotifications()
     {
-        notifications = await Api.GetNotificationsAsync();
+        try
+        {
+            notifications = await Api.GetNotificationsAsync();
+            StateHasChanged();
+        }
+        catch
+        {
+            // Keep the previous snapshot when a background refresh fails.
+        }
+    }
+
+    private static int CountDistinctCriticalEvents(IReadOnlyList<TimelineEventDto> timeline)
+    {
+        var measurements = timeline
+            .Where(entry => entry.EventType is TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement)
+            .ToList();
+
+        return timeline.Count(entry =>
+            entry.EventType is TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement
+                ? entry.GlucoseUiState is "Critical" or "Danger"
+                : entry.EventType is TimelineEventType.Alert or TimelineEventType.CriticalAlert
+                  && !measurements.Any(measurement =>
+                      measurement.GlucoseValue == entry.GlucoseValue
+                      && Math.Abs((measurement.OccurredAt - entry.OccurredAt).TotalMinutes) <= 2));
     }
 
     private Task MarkAllReadAsync()
@@ -525,6 +628,18 @@
         return parts.Length >= 2
             ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
             : parts[0][0].ToString().ToUpper();
+    }
+
+    private string GetSidebarUserName(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (!string.IsNullOrWhiteSpace(currentAccountProfile?.DisplayName))
+        {
+            return currentAccountProfile.DisplayName;
+        }
+
+        return user.Identity?.Name
+               ?? user.FindFirst("email")?.Value
+               ?? "Пользователь";
     }
 
     private static int GetAge(DateOnly dateOfBirth)
@@ -589,8 +704,8 @@
     public void Dispose()
     {
         Navigation.LocationChanged -= OnLocationChanged;
-        parentSidebarRefreshCts?.Cancel();
-        parentSidebarRefreshCts?.Dispose();
+        sidebarRefreshCts?.Cancel();
+        sidebarRefreshCts?.Dispose();
     }
 
     private sealed record ParentSidebarChild(

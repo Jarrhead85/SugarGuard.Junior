@@ -666,7 +666,9 @@ public class MeasurementService : IMeasurementService
                 (RecommendationUrgency.Normal, "✅ Сахар в норме. Молодец! Продолжай так держать!"),
 
             GlucoseStatus.High =>
-                (RecommendationUrgency.Warning, " Сахар повышен. Подумайте о подколке инсулина согласно коэффициенту."),
+                (RecommendationUrgency.Warning, glucoseValue >= 14.0
+                    ? $"Глюкоза очень высокая: {glucoseValue:0.0} ммоль/л. Сразу сообщи взрослому, пей воду и проверь кетоны по своему плану."
+                    : $"Глюкоза повышена: {glucoseValue:0.0} ммоль/л. Сообщи взрослому, пей воду и следуй своему плану коррекции."),
 
             GlucoseStatus.CriticallyHigh =>
                 (RecommendationUrgency.Critical, " КРИТИЧЕСКИ ВЫСОКИЙ САХАР! Срочно сделайте подколку инсулина!"),

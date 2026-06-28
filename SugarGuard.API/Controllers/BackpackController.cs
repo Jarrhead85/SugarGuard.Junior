@@ -19,17 +19,20 @@ public class BackpackController : ControllerBase
     private readonly IBackpackService _backpack;
     private readonly ITelegramNotificationService _notificationService;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<BackpackController> _logger;
 
     public BackpackController(
         IBackpackService backpack,
         ITelegramNotificationService notificationService,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         ILogger<BackpackController> logger)
     {
         _backpack = backpack;
         _notificationService = notificationService;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -113,7 +116,7 @@ public class BackpackController : ControllerBase
 
         try
         {
-            var actorId = _childAccess.GetCurrentUserId() ?? Guid.Empty;
+            var actorId = _currentUser.GetUserId() ?? Guid.Empty;
             var response = await _backpack.AddAsync(request, actorId, cancellationToken);
             return CreatedAtAction(nameof(GetBackpack),
                 new { childId = request.ChildId }, response);
@@ -155,7 +158,7 @@ public class BackpackController : ControllerBase
             });
         }
 
-        var currentUserId = _childAccess.GetCurrentUserId();
+        var currentUserId = _currentUser.GetUserId();
         if (!currentUserId.HasValue)
             return Unauthorized();
 
@@ -205,7 +208,7 @@ public class BackpackController : ControllerBase
         Guid itemId,
         CancellationToken cancellationToken)
     {
-        var currentUserId = _childAccess.GetCurrentUserId();
+        var currentUserId = _currentUser.GetUserId();
         if (!currentUserId.HasValue)
             return Unauthorized();
 
@@ -252,7 +255,7 @@ public class BackpackController : ControllerBase
         [FromQuery] double currentGlucose,
         CancellationToken cancellationToken)
     {
-        var actorId = _childAccess.GetCurrentUserId();
+        var actorId = _currentUser.GetUserId();
         if (!actorId.HasValue)
         {
             return Unauthorized();

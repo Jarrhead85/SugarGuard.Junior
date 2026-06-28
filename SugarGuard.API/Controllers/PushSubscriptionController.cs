@@ -14,16 +14,16 @@ namespace SugarGuard.API.Controllers;
 public class PushSubscriptionController : ControllerBase
 {
     private readonly IWebPushService _webPush;
-    private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<PushSubscriptionController> _logger;
 
     public PushSubscriptionController(
         IWebPushService webPush,
-        IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         ILogger<PushSubscriptionController> logger)
     {
         _webPush = webPush;
-        _childAccess = childAccess;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -35,7 +35,7 @@ public class PushSubscriptionController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (userId is not Guid uid)
             return Unauthorized();
 
@@ -58,7 +58,7 @@ public class PushSubscriptionController : ControllerBase
         [FromBody] UnsubscribePushRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = _childAccess.GetCurrentUserId();
+        var userId = _currentUser.GetUserId();
         if (userId is not Guid uid)
             return Unauthorized();
 
