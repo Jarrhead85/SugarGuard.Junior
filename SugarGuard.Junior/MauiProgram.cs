@@ -36,8 +36,10 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                fonts.AddFont("OpenSans-Regular.ttf", "Satoshi");
-                fonts.AddFont("OpenSans-Semibold.ttf", "ClashDisplay");
+                fonts.AddFont("SugarGuardBody.ttf", "SugarGuardBody");
+                fonts.AddFont("SugarGuardDisplay.ttf", "SugarGuardDisplay");
+                fonts.AddFont("SugarGuardBody.ttf", "Satoshi");
+                fonts.AddFont("SugarGuardDisplay.ttf", "ClashDisplay");
             });
 
         // ЛОГИРОВАНИЕ

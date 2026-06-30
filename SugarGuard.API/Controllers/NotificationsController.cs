@@ -19,21 +19,18 @@ public class NotificationsController : ControllerBase
     private readonly ITelegramNotificationService _notificationService;
     private readonly ILogger<NotificationsController> _logger;
     private readonly IChildAccessService _childAccess;
-    private readonly ICurrentUserContext _currentUser;
-    private readonly IDashboardService _dashboardService;
+    private readonly IUserNotificationService _userNotificationService;
 
     public NotificationsController(
         ITelegramNotificationService notificationService,
         ILogger<NotificationsController> logger,
         IChildAccessService childAccess,
-        ICurrentUserContext currentUser,
-        IDashboardService dashboardService)
+        IUserNotificationService userNotificationService)
     {
         _notificationService = notificationService;
         _logger = logger;
         _childAccess = childAccess;
-        _currentUser = currentUser;
-        _dashboardService = dashboardService;
+        _userNotificationService = userNotificationService;
     }
 
     /// <summary>
@@ -45,105 +42,8 @@ public class NotificationsController : ControllerBase
     {
         try
         {
-            var children = await _childAccess.GetAccessibleChildIdsAsync(cancellationToken);
-            var result = new List<UserNotificationDto>();
-            var now = DateTime.UtcNow;
-            var since = now.AddHours(-24);
-
-            // Administrators monitor platform health and access, not children's
-            // medical events. Clinical alerts remain visible to parents and doctors.
-            var currentRole = _currentUser.GetRole();
-            if (currentRole is UserRole.Admin or UserRole.SupportAdmin)
-            {
-                return Ok(new List<UserNotificationDto>
-                {
-                    new()
-                    {
-                        Title = "Система работает",
-                        Description = "Новых административных уведомлений нет",
-                        Time = "только что",
-                        Type = "ok",
-                        IsUnread = false
-                    }
-                });
-            }
-
-            foreach (var childId in children)
-            {
-                try
-                {
-                    var summary = await _dashboardService.GetSummaryAsync(childId, cancellationToken);
-
-                    if (summary.LatestGlucose is not null && summary.LatestMeasurementTime is not null)
-                    {
-                        var timeAgo = GetRelativeTime(summary.LatestMeasurementTime.Value, now);
-                        var isCritical = summary.LatestGlucoseUiState == "Critical" || summary.LatestGlucoseUiState == "Danger";
-
-                        result.Add(new UserNotificationDto
-                        {
-                            Title = isCritical ? "Критический уровень глюкозы" : "Уровень глюкозы",
-                            Description = $"{summary.LatestGlucose:F1} ммоль/л {(!isCritical ? "— в пределах нормы" : "— требуется внимание!")}",
-                            Time = timeAgo,
-                            Type = isCritical ? "danger" : "info",
-                            IsUnread = isCritical
-                        });
-                    }
-
-                    if (summary.CriticalEvents > 0)
-                    {
-                        result.Add(new UserNotificationDto
-                        {
-                            Title = "Критические эпизоды",
-                            Description = $"Зафиксировано {summary.CriticalEvents} критических эпизодов за последние 24 часа",
-                            Time = "за сутки",
-                            Type = "danger",
-                            IsUnread = true
-                        });
-                    }
-
-                    if (summary.PendingSyncConflicts > 0)
-                    {
-                        result.Add(new UserNotificationDto
-                        {
-                            Title = "Конфликты синхронизации",
-                            Description = $"{summary.PendingSyncConflicts} неразрешённых конфликтов",
-                            Time = "требуют внимания",
-                            Type = "warn",
-                            IsUnread = true
-                        });
-                    }
-
-                    if (summary.PendingExportJobs > 0)
-                    {
-                        result.Add(new UserNotificationDto
-                        {
-                            Title = "Экспорт данных",
-                            Description = $"{summary.PendingExportJobs} заданий на экспорт в очереди",
-                            Time = "в обработке",
-                            Type = "info",
-                            IsUnread = false
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Ошибка получения сводки для ChildId={ChildId}", childId);
-                }
-            }
-
-            if (result.Count == 0)
-            {
-                result.Add(new UserNotificationDto
-                {
-                    Title = "Всё в порядке",
-                    Description = "Критических событий нет",
-                    Time = "только что",
-                    Type = "ok",
-                    IsUnread = false
-                });
-            }
-
-            return Ok(result.OrderByDescending(n => n.IsUnread).ThenBy(n => n.Type).ToList());
+            var result = await _userNotificationService.GetForCurrentUserAsync(cancellationToken);
+            return Ok(result);
         }
         catch (Exception ex)
         {
@@ -152,13 +52,11 @@ public class NotificationsController : ControllerBase
         }
     }
 
-    private static string GetRelativeTime(DateTime utcTime, DateTime now)
+    [HttpPost("read-all")]
+    public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)
     {
-        var diff = now - utcTime;
-        if (diff.TotalMinutes < 1) return "только что";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин назад";
-        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч назад";
-        return $"{(int)diff.TotalDays} дн назад";
+        var updated = await _userNotificationService.MarkAllAsReadAsync(cancellationToken);
+        return Ok(new { updated });
     }
 
     /// <summary>

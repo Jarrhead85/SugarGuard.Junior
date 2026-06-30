@@ -12,14 +12,25 @@ public class GlucoseChartDrawable : IDrawable
     private static readonly Color ColorDanger  = Color.FromArgb("#DB5967");
     private static readonly Color ColorPrimary = Color.FromArgb("#1B8E8B");
 
+    private readonly object _dataPointsLock = new();
     private IReadOnlyList<ChartDataPoint> _dataPoints = Array.Empty<ChartDataPoint>();
 
     public IReadOnlyList<ChartDataPoint> DataPoints
     {
-        get => _dataPoints;
+        get
+        {
+            lock (_dataPointsLock)
+            {
+                return _dataPoints;
+            }
+        }
         set
         {
-            _dataPoints = value;
+            lock (_dataPointsLock)
+            {
+                _dataPoints = value.ToArray();
+            }
+
             InvalidateCallback?.Invoke();
         }
     }
@@ -33,11 +44,23 @@ public class GlucoseChartDrawable : IDrawable
     private const float PulseMaxRadius = 14f;
     private const float PulseStep = 0.8f;
 
+    public bool ShowAxes { get; init; }
+
+    public bool ShowValueLabels { get; init; }
+
     /// <summary>Привязывает GraphicsView-хост для инвалидации при анимации.</summary>
     public void AttachHost(GraphicsView view)
     {
         _hostView = new WeakReference<GraphicsView>(view);
         _pulseTimer?.Dispose();
+        if (Microsoft.Maui.Storage.Preferences.Get("ui_reduce_motion", false))
+        {
+            _pulseTimer = null;
+            _pulseRadius = 0;
+            view.Invalidate();
+            return;
+        }
+
         _pulseTimer = new System.Threading.Timer(_ =>
         {
             _pulseRadius = (_pulseRadius + PulseStep) % PulseMaxRadius;
@@ -66,14 +89,19 @@ public class GlucoseChartDrawable : IDrawable
 
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
-        var points = _dataPoints;
+        IReadOnlyList<ChartDataPoint> points;
+        lock (_dataPointsLock)
+        {
+            points = _dataPoints.ToArray();
+        }
+
         if (points.Count < 2) return;
 
-        const float padding = 24f;
-        float chartLeft   = dirtyRect.Left   + padding;
-        float chartRight  = dirtyRect.Right  - padding;
-        float chartTop    = dirtyRect.Top    + padding;
-        float chartBottom = dirtyRect.Bottom - padding;
+        var colorPrimary = ResolveResourceColor("ChartLineColor", ColorPrimary);
+        float chartLeft   = dirtyRect.Left   + (ShowAxes ? 38f : 24f);
+        float chartRight  = dirtyRect.Right  - 12f;
+        float chartTop    = dirtyRect.Top    + (ShowValueLabels ? 30f : 24f);
+        float chartBottom = dirtyRect.Bottom - (ShowAxes ? 28f : 24f);
         float chartWidth  = chartRight  - chartLeft;
         float chartHeight = chartBottom - chartTop;
 
@@ -93,6 +121,11 @@ public class GlucoseChartDrawable : IDrawable
         float yTargetMin = ToY((decimal)GlucoseLevels.TargetRangeMin);
         float yTargetMax = ToY((decimal)GlucoseLevels.TargetRangeMax);
         float yHigh = ToY((decimal)GlucoseLevels.HighThreshold);
+
+        if (ShowAxes)
+        {
+            DrawAxes(canvas, dirtyRect, chartLeft, chartRight, chartTop, chartBottom, yMin, yMax, points, ToY);
+        }
 
         // ─── Цветные зоны диапазона ───
         canvas.SaveState();
@@ -145,9 +178,9 @@ public class GlucoseChartDrawable : IDrawable
             EndPoint = new PointF(0, 1),
             GradientStops = new PaintGradientStop[]
             {
-                new(0f, ColorPrimary.WithAlpha(0.25f)),
-                new(0.5f, ColorPrimary.WithAlpha(0.05f)),
-                new(1f, ColorPrimary.WithAlpha(0f)),
+                new(0f, colorPrimary.WithAlpha(0.25f)),
+                new(0.5f, colorPrimary.WithAlpha(0.05f)),
+                new(1f, colorPrimary.WithAlpha(0f)),
             }
         };
         canvas.SetFillPaint(gradient, gradientRect);
@@ -156,7 +189,7 @@ public class GlucoseChartDrawable : IDrawable
 
         // ─── Полилиния ───
         canvas.SaveState();
-        canvas.StrokeColor = ColorPrimary;
+        canvas.StrokeColor = colorPrimary;
         canvas.StrokeSize  = 2.5f;
         canvas.StrokeDashPattern = null;
         var path = new PathF();
@@ -178,7 +211,7 @@ public class GlucoseChartDrawable : IDrawable
                 GlucoseUiState.Normal    => ColorSuccess,
                 GlucoseUiState.Attention => ColorWarning,
                 GlucoseUiState.Critical  => ColorDanger,
-                _                        => ColorPrimary
+                _                        => colorPrimary
             };
 
             // Последняя точка — крупнее, с ореолом
@@ -210,6 +243,99 @@ public class GlucoseChartDrawable : IDrawable
                 canvas.StrokeSize = 1.5f;
                 canvas.DrawCircle(cx, cy, 4f);
             }
+
+            if (ShowValueLabels && ShouldLabelPoint(idx, points.Count))
+            {
+                canvas.FontColor = pointColor;
+                canvas.FontSize = 10f;
+                canvas.Font = null;
+                canvas.DrawString(
+                    pt.GlucoseValue.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
+                    cx - 22f,
+                    Math.Max(dirtyRect.Top, cy - 23f),
+                    44f,
+                    16f,
+                    HorizontalAlignment.Center,
+                    VerticalAlignment.Center);
+            }
         }
+    }
+
+    private static bool ShouldLabelPoint(int index, int count)
+    {
+        if (count <= 8)
+        {
+            return true;
+        }
+
+        var interval = Math.Max(1, (int)Math.Ceiling((count - 1) / 6d));
+        return index == 0 || index == count - 1 || index % interval == 0;
+    }
+
+    private static void DrawAxes(
+        ICanvas canvas,
+        RectF dirtyRect,
+        float chartLeft,
+        float chartRight,
+        float chartTop,
+        float chartBottom,
+        double yMin,
+        double yMax,
+        IReadOnlyList<ChartDataPoint> points,
+        Func<decimal, float> toY)
+    {
+        var axisColor = ResolveResourceColor("TextSecondary", Color.FromArgb("#667694"));
+        var gridColor = ResolveResourceColor("DividerColor", Color.FromArgb("#D8E1EE"));
+        var ticks = new[]
+            {
+                Math.Floor(yMin),
+                GlucoseLevels.TargetRangeMin,
+                GlucoseLevels.TargetRangeMax,
+                Math.Ceiling(yMax)
+            }
+            .Distinct()
+            .OrderBy(value => value)
+            .ToArray();
+
+        canvas.SaveState();
+        canvas.FontColor = axisColor;
+        canvas.FontSize = 9f;
+        canvas.StrokeColor = gridColor.WithAlpha(0.65f);
+        canvas.StrokeSize = 0.8f;
+
+        foreach (var tick in ticks)
+        {
+            var y = toY((decimal)tick);
+            if (y < chartTop - 1f || y > chartBottom + 1f)
+            {
+                continue;
+            }
+
+            canvas.DrawLine(chartLeft, y, chartRight, y);
+            canvas.DrawString(
+                tick.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture),
+                dirtyRect.Left,
+                y - 7f,
+                chartLeft - dirtyRect.Left - 5f,
+                14f,
+                HorizontalAlignment.Right,
+                VerticalAlignment.Center);
+        }
+
+        var first = points[0].Timestamp.ToLocalTime();
+        var last = points[^1].Timestamp.ToLocalTime();
+        var xLabelFormat = first.Date == last.Date ? "HH:mm" : "dd.MM";
+        canvas.DrawString(first.ToString(xLabelFormat), chartLeft, chartBottom + 5f, 62f, 16f,
+            HorizontalAlignment.Left, VerticalAlignment.Top);
+        canvas.DrawString(last.ToString(xLabelFormat), chartRight - 62f, chartBottom + 5f, 62f, 16f,
+            HorizontalAlignment.Right, VerticalAlignment.Top);
+        canvas.RestoreState();
+    }
+
+    private static Color ResolveResourceColor(string key, Color fallback)
+    {
+        return Application.Current?.Resources.TryGetValue(key, out var value) == true && value is Color color
+            ? color
+            : fallback;
     }
 }

@@ -96,9 +96,9 @@
             aria-controls="pane-alerts"
             @onclick='() => SwitchTab("alerts")'>
         Уведомления
-        @if (_criticalAlertsCount > 0)
+        @if (_unreadNotificationsCount > 0)
         {
-            <span class="tab-badge danger" aria-label="@_criticalAlertsCount критических">@_criticalAlertsCount</span>
+            <span class="tab-badge danger" aria-label="@_unreadNotificationsCount непрочитанных">@_unreadNotificationsCount</span>
         }
     </button>
 
@@ -212,10 +212,10 @@
                     <div class="card-title">Недавние события</div>
                     <div class="card-sub">Последние уведомления</div>
                 </div>
-                @if (_criticalAlertsCount > 0)
+                @if (_unreadNotificationsCount > 0)
                 {
-                    <span class="badge badge--danger" aria-label="@_criticalAlertsCount критических">
-                        @_criticalAlertsCount
+                    <span class="badge badge--danger" aria-label="@_unreadNotificationsCount непрочитанных">
+                        @_unreadNotificationsCount
                     </span>
                 }
             </div>
@@ -1111,7 +1111,7 @@
     private string _avgGlucose = "—";
     private int _totalMeas;
     private int _newMeasurementsCount => _measurements.Count(m => m.IsNew);
-    private int _criticalAlertsCount => _allAlerts.Count(a => a.Type == "danger" && a.IsUnread);
+    private int _unreadNotificationsCount;
     private int _lowStockCount => _backpackItems.Count(i => i.StatusClass is "low" or "empty");
     private bool _browserStateLoaded;
     private bool _isBackpackEditorOpen;
@@ -1298,6 +1298,9 @@
                 alert.IsUnread = !_readAlertIds.Contains(alert.EventId);
             }
 
+            var notifications = await Api.GetNotificationsAsync(cancellationToken);
+            _unreadNotificationsCount = notifications.Count(notification => notification.IsUnread);
+
             if (resetPages || _activeTab == "overview")
             {
                 await LoadMeasurementsAsync(
@@ -1309,6 +1312,7 @@
             }
             await LoadBackpackFromApiAsync(childId);
             await LoadAccessLinksAsync(childId, cancellationToken);
+            await LoadDoctorNotesAsync(childId, cancellationToken);
 
             _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
             _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
@@ -1335,16 +1339,16 @@
         };
     }
 
-    private Task OnSelectedChildChangedAsync(ChangeEventArgs args)
+    private async Task OnSelectedChildChangedAsync(ChangeEventArgs args)
     {
         if (!Guid.TryParse(args.Value?.ToString(), out var childId) || childId == _selectedChildId)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var tabQuery = _activeTab == "overview" ? "" : $"&tab={Uri.EscapeDataString(_activeTab)}";
-        Navigation.NavigateTo($"/parent/dashboard?childId={childId}{tabQuery}", forceLoad: true);
-        return Task.CompletedTask;
+        Navigation.NavigateTo($"/parent/dashboard?childId={childId}{tabQuery}", forceLoad: false, replace: false);
+        await LoadDashboardDataAsync();
     }
 
     private static string GetChildDisplayName(ChildProfileVm child)
@@ -1379,6 +1383,26 @@
     private static string NormalizeBackpackName(string value) =>
         string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToUpperInvariant();
+
+    private async Task LoadDoctorNotesAsync(Guid childId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var notes = await Api.GetDoctorNotesAsync(
+                childId,
+                page: 1,
+                pageSize: 5,
+                onlyImportant: false,
+                cancellationToken);
+
+            _doctorNotes.Clear();
+            _doctorNotes.AddRange(notes.Items.Select(MapDoctorNote));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить заметки врача. ChildId={ChildId}", childId);
+        }
+    }
 
     private async Task LoadAccessLinksAsync(Guid childId, CancellationToken cancellationToken = default)
     {
@@ -1445,6 +1469,26 @@
 
     private static string FormatGlucoseDelta(decimal delta) =>
         delta > 0 ? $"+{delta:0.0}" : delta.ToString("0.0");
+
+    private static DoctorNote MapDoctorNote(DoctorNoteVm note)
+    {
+        var tags = new List<string>();
+        if (note.IsImportant)
+        {
+            tags.Add("важно");
+        }
+
+        if (note.MeasurementId.HasValue)
+        {
+            tags.Add("к измерению");
+        }
+
+        return new DoctorNote(
+            string.IsNullOrWhiteSpace(note.DoctorName) ? "Врач" : note.DoctorName,
+            note.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+            string.IsNullOrWhiteSpace(note.NoteText) ? "Без текста" : note.NoteText,
+            tags);
+    }
 
     private AlertItem MapTimelineEvent(TimelineEventDto entry)
     {
@@ -2209,6 +2253,7 @@
         _tirLow = 0;
         _avgGlucose = "—";
         _totalMeas = 0;
+        _unreadNotificationsCount = 0;
         _allAlerts.Clear();
         _measurements.Clear();
         _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();

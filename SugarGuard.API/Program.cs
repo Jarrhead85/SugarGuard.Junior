@@ -381,9 +381,11 @@ builder.Services.AddSingleton<IAuditDetailsRedactor, AuditDetailsRedactor>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IInviteCodeService, InviteCodeService>();
 builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
+builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IChildrenService, ChildrenService>();
 builder.Services.AddScoped<IAccountProfileService, AccountProfileService>();
+builder.Services.AddSingleton<IUploadPathProvider, UploadPathProvider>();
 builder.Services.AddScoped<IDiabetesSettingsService, DiabetesSettingsService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -607,7 +609,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapGet("/uploads/profiles/{fileName}", (string fileName, IWebHostEnvironment environment) =>
+app.MapGet("/uploads/profiles/{fileName}", (string fileName, IUploadPathProvider uploadPaths) =>
 {
     if (string.IsNullOrWhiteSpace(fileName)
         || fileName != Path.GetFileName(fileName)
@@ -630,7 +632,7 @@ app.MapGet("/uploads/profiles/{fileName}", (string fileName, IWebHostEnvironment
         return Results.BadRequest();
     }
 
-    var path = Path.Combine(environment.ContentRootPath, "wwwroot", "uploads", "profiles", fileName);
+    var path = uploadPaths.GetProfileFilePath(fileName);
     return File.Exists(path)
         ? Results.File(path, contentType, enableRangeProcessing: false)
         : Results.NotFound();

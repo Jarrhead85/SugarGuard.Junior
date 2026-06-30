@@ -48,8 +48,8 @@
                 <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="156">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#39C7A5" Offset="0" />
-                            <GradientStop Color="#2688E8" Offset="1" />
+                            <GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" />
+                            <GradientStop Color="{DynamicResource BrandBlue}" Offset="1" />
                         </LinearGradientBrush>
                     </Border.Background>
                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
@@ -75,7 +75,7 @@
                         </VerticalStackLayout>
                         <Border Grid.Column="1" Margin="0" Padding="0" Background="Transparent"
                                 StrokeThickness="0" StrokeShape="RoundRectangle 18">
-                            <Image Source="junior_mascot.png" Aspect="AspectFit" />
+                            <Image Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" />
                         </Border>
                     </Grid>
                 </Border>
@@ -119,7 +119,7 @@
                                 BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 18">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Entry x:Name="GlucoseInput" Text="{Binding NewGlucoseValue}"
-                                       Placeholder="5.6" Keyboard="Text" MaxLength="4"
+                                       Placeholder="5.6" Keyboard="Text" MaxLength="5"
                                        ReturnType="Done" ClearButtonVisibility="WhileEditing"
                                        FontFamily="{StaticResource ClashDisplay}" FontSize="29"
                                        TextColor="{DynamicResource TextPrimary}" />
@@ -153,6 +153,20 @@
                     <VerticalStackLayout Spacing="6">
                         <Label Text="Последние измерения" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
                         <GraphicsView x:Name="GlucoseGraphicsMini" HeightRequest="96" />
+                        <HorizontalStackLayout Spacing="12" HorizontalOptions="Center">
+                            <HorizontalStackLayout Spacing="4">
+                                <Border WidthRequest="8" HeightRequest="8" BackgroundColor="{DynamicResource GlucoseNormalColor}" StrokeThickness="0" StrokeShape="RoundRectangle 4" VerticalOptions="Center" />
+                                <Label Text="Норма" FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="4">
+                                <Border WidthRequest="8" HeightRequest="8" BackgroundColor="{DynamicResource GlucoseWarningColor}" StrokeThickness="0" StrokeShape="RoundRectangle 4" VerticalOptions="Center" />
+                                <Label Text="Внимание" FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="4">
+                                <Border WidthRequest="8" HeightRequest="8" BackgroundColor="{DynamicResource GlucoseDangerColor}" StrokeThickness="0" StrokeShape="RoundRectangle 4" VerticalOptions="Center" />
+                                <Label Text="Критично" FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                            </HorizontalStackLayout>
+                        </HorizontalStackLayout>
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>

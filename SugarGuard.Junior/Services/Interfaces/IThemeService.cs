@@ -11,10 +11,14 @@ public interface IThemeService
     /// </summary>
     void ApplyScale(ScalePreset preset);
 
+    void ApplySkin(InterfaceSkin skin);
+
     /// <summary>
     /// Текущий активный пресет масштаба.
     /// </summary>
     ScalePreset CurrentScale { get; }
+
+    InterfaceSkin CurrentSkin { get; }
 
     /// <summary>
     /// Коэффициент масштабирования относительно Default (1.0).

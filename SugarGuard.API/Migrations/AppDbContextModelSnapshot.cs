@@ -1179,6 +1179,75 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("users");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("NotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.Property<Guid?>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_read");
+
+                    b.Property<Guid>("RecipientUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_user_id");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
+
+                    b.HasKey("NotificationId");
+
+                    b.HasIndex("ChildId");
+
+                    b.HasIndex("RecipientUserId", "IsRead", "CreatedAt")
+                        .HasDatabaseName("ix_user_notifications_recipient_unread");
+
+                    b.HasIndex("RecipientUserId", "SourceType", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_notifications_recipient_source");
+
+                    b.ToTable("user_notifications");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.AIRecommendation", b =>
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
@@ -1395,6 +1464,24 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("AIRecommendation");
 
                     b.Navigation("Child");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.UserNotification", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("SugarGuard.Domain.Entities.User", "RecipientUser")
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+
+                    b.Navigation("RecipientUser");
                 });
 
             modelBuilder.Entity("SugarGuard.Domain.Entities.Child", b =>

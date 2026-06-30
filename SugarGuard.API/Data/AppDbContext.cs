@@ -52,6 +52,8 @@ namespace SugarGuard.API.Data
 
         public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>(); // Web Push-подписки пользователей
 
+        public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -155,6 +157,38 @@ namespace SugarGuard.API.Data
                  .WithMany()
                  .HasForeignKey(s => s.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<UserNotification>(entity =>
+            {
+                entity.HasKey(notification => notification.NotificationId);
+                entity.Property(notification => notification.CreatedAt)
+                    .HasDefaultValueSql("NOW()");
+                entity.Property(notification => notification.IsRead)
+                    .HasDefaultValue(false);
+                entity.HasIndex(notification => new
+                    {
+                        notification.RecipientUserId,
+                        notification.IsRead,
+                        notification.CreatedAt
+                    })
+                    .HasDatabaseName("ix_user_notifications_recipient_unread");
+                entity.HasIndex(notification => new
+                    {
+                        notification.RecipientUserId,
+                        notification.SourceType,
+                        notification.SourceId
+                    })
+                    .IsUnique()
+                    .HasDatabaseName("ux_user_notifications_recipient_source");
+                entity.HasOne(notification => notification.RecipientUser)
+                    .WithMany()
+                    .HasForeignKey(notification => notification.RecipientUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(notification => notification.Child)
+                    .WithMany()
+                    .HasForeignKey(notification => notification.ChildId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // InviteCodes

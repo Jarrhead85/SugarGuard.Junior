@@ -14,10 +14,10 @@
     -->
 
     <!-- РћСЃРЅРѕРІРЅРѕР№ display-С€СЂРёС„С‚ РґР»СЏ hero, KPI Рё СЌРєСЂР°РЅРЅС‹С… Р·Р°РіРѕР»РѕРІРєРѕРІ -->
-    <x:String x:Key="FontFamilyDisplay">ClashDisplay</x:String>
+    <x:String x:Key="FontFamilyDisplay">SugarGuardDisplay</x:String>
 
     <!-- РћСЃРЅРѕРІРЅРѕР№ UI/body-С€СЂРёС„С‚ РґР»СЏ РёРЅС‚РµСЂС„РµР№СЃР° -->
-    <x:String x:Key="FontFamilyBody">Satoshi</x:String>
+    <x:String x:Key="FontFamilyBody">SugarGuardBody</x:String>
 
     <!--
         Р’СЂРµРјРµРЅРЅС‹Р№ legacy/fallback-РєР»СЋС‡.
@@ -27,8 +27,8 @@
     <x:String x:Key="FontFamilyLegacy">OpenSansRegular</x:String>
 
     <!-- РђР»РёР°СЃС‹ РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё СЃРѕ СЃС‚Р°СЂС‹Рј XAML -->
-    <x:String x:Key="ClashDisplay">ClashDisplay</x:String>
-    <x:String x:Key="Satoshi">Satoshi</x:String>
+    <x:String x:Key="ClashDisplay">SugarGuardDisplay</x:String>
+    <x:String x:Key="Satoshi">SugarGuardBody</x:String>
     <x:String x:Key="OpenSansRegular">OpenSansRegular</x:String>
 
     <!-- 2. Р Р°Р·РјРµСЂС‹ С‚РµРєСЃС‚Р° -->

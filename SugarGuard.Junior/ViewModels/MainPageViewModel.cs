@@ -14,6 +14,8 @@ using SugarGuard.Junior.Views.Components;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using SugarGuard.Junior.Utilities;
+using SugarGuard.Junior.Core.Validation;
+using SugarGuard.Shared.Constants;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
 namespace SugarGuard.Junior.ViewModels;
@@ -33,14 +35,10 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private readonly ILogger<MainPageViewModel> _logger;
     private readonly ICryptoService _cryptoService;
     private readonly IStorageService _storageService;
+    private readonly IMeasurementRepository _measurementRepository;
     private readonly IBackpackRepository _backpackRepository;
     private readonly IChildRepository _childRepository;
     private readonly IDiabetesSettingsRepository _diabetesSettingsRepository;
-
-    /// <summary>
-    /// Таймер для периодического обновления статуса синхронизации (каждые 5 секунд).
-    /// </summary>
-    private readonly Timer _statusUpdateTimer;
 
     /// <summary>
     /// ID текущего ребёнка — загружается из хранилища при инициализации.
@@ -57,40 +55,11 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     partial void OnNewGlucoseValueChanged(string value)
     {
-        var normalized = NormalizeGlucoseInput(value);
+        var normalized = GlucoseInputNormalizer.Normalize(value);
         if (!string.Equals(value, normalized, StringComparison.Ordinal))
         {
             NewGlucoseValue = normalized;
         }
-    }
-
-    internal static string NormalizeGlucoseInput(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        var normalized = value.Replace(',', '.');
-        var result = new System.Text.StringBuilder(normalized.Length);
-        var hasDecimalSeparator = false;
-
-        foreach (var character in normalized)
-        {
-            if (char.IsDigit(character))
-            {
-                result.Append(character);
-                continue;
-            }
-
-            if (character == '.' && !hasDecimalSeparator)
-            {
-                result.Append(character);
-                hasDecimalSeparator = true;
-            }
-        }
-
-        return result.ToString();
     }
 
     [ObservableProperty]
@@ -319,6 +288,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         ILogger<MainPageViewModel> logger,
         ICryptoService cryptoService,
         IStorageService storageService,
+        IMeasurementRepository measurementRepository,
         IBackpackRepository backpackRepository,
         IChildRepository childRepository,
         IDiabetesSettingsRepository diabetesSettingsRepository)
@@ -330,6 +300,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _logger = logger;
         _cryptoService = cryptoService;
         _storageService = storageService;
+        _measurementRepository = measurementRepository;
         _backpackRepository = backpackRepository;
         _childRepository = childRepository;
         _diabetesSettingsRepository = diabetesSettingsRepository;
@@ -342,9 +313,6 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         NavigateToChartCommand = new AsyncRelayCommand(NavigateToChartAsync);
         NavigateToScheduleCommand = new AsyncRelayCommand(NavigateToScheduleAsync);
         NavigateToBackpackCommand = new AsyncRelayCommand(NavigateToBackpackAsync);
-
-        // Таймер не используется — заменён на Connectivity.Current.ConnectivityChanged
-        _statusUpdateTimer = null!;
 
         // Подписываемся на события MAUI Connectivity API
         Connectivity.Current.ConnectivityChanged += OnPlatformConnectivityChanged;
@@ -424,6 +392,13 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             {
                 ShowError("Введите корректное число");
                 _logger.LogWarning("Некорректное значение глюкозы: {Value}", NewGlucoseValue);
+                return;
+            }
+
+            if (!GlucoseLevels.IsValidInput(glucoseValue))
+            {
+                ShowError("Введите значение от 0.5 до 35.0 ммоль/л");
+                _logger.LogWarning("Значение глюкозы вне допустимого диапазона: {Value}", glucoseValue);
                 return;
             }
 
@@ -730,7 +705,19 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task UpdateMiniChartAsync()
     {
-        var ordered = Measurements.OrderBy(x => x.MeasurementTime).ToList();
+        var rangeEnd = DateTime.UtcNow;
+        var rangeStart = rangeEnd.AddHours(-24);
+        var ordered = await _measurementRepository.GetByDateRangeAsync(
+            _currentChildId!,
+            rangeStart,
+            rangeEnd,
+            page: 1,
+            pageSize: 48);
+
+        ordered = ordered
+            .OrderBy(x => x.MeasurementTime)
+            .ToList();
+
         if (ordered.Count == 0)
         {
             MiniChartPoints.Clear();
@@ -890,8 +877,22 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     private void ApplyInlineRecommendation(RecommendationResponse recommendation)
     {
+        var fallbackText = GlucoseClassifier.Classify(recommendation.GlucoseValueAtRequest) switch
+        {
+            GlucoseStatus.CriticallyLow =>
+                "Глюкоза критически низкая. Немедленно позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10-15 минут.",
+            GlucoseStatus.Low =>
+                "Глюкоза низкая. Позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10-15 минут.",
+            GlucoseStatus.High =>
+                "Глюкоза выше цели. Сообщи взрослому, пей воду и действуй по своему плану коррекции. Не ешь дополнительные углеводы без взрослого.",
+            GlucoseStatus.CriticallyHigh =>
+                "Глюкоза очень высокая. Сразу сообщи взрослому, пей воду и проверь кетоны по своему плану.",
+            _ =>
+                "Измерение сохранено. Сахар в целевом диапазоне, продолжай обычный режим."
+        };
+
         RecommendationText = string.IsNullOrWhiteSpace(recommendation.RecommendationText)
-            ? "Измерение сохранено. Следи за самочувствием и держи взрослого в курсе."
+            ? fallbackText
             : recommendation.RecommendationText;
 
         RecommendationUrgency = string.IsNullOrWhiteSpace(recommendation.Urgency)
@@ -964,8 +965,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     // ========== СТАТУС СИНХРОНИЗАЦИИ ==========
 
     /// <summary>
-    /// Вызывается таймером (_statusUpdateTimer) каждые 5 секунд,
-    /// а также при изменении состояния соединения через события ISyncService.
+    /// Обновляет отображаемое состояние синхронизации после операций с данными
+    /// и при изменении сетевого подключения.
     /// </summary>
     private async Task UpdateSyncStatusAsync()
     {

@@ -1700,7 +1700,7 @@ namespace SugarGuard.Web.Services
                 var url = "api/notifications";
                 var dtos = await GetRequiredAsync<List<UserNotificationItemDto>>(client, url, cancellationToken);
                 return dtos.Select(d => new UserNotificationItem(
-                    d.Title, d.Description, d.Time, d.Type, d.IsUnread)).ToList();
+                    d.Title, d.Description, d.Time, d.Type, d.IsUnread, d.NotificationId)).ToList();
             }
             catch (Exception ex)
                 when (ex is HttpRequestException
@@ -1717,11 +1717,23 @@ namespace SugarGuard.Web.Services
 
         public sealed class UserNotificationItemDto
         {
+            public Guid? NotificationId { get; init; }
             public string Title { get; init; } = string.Empty;
             public string Description { get; init; } = string.Empty;
             public string Time { get; init; } = string.Empty;
             public string Type { get; init; } = "info";
             public bool IsUnread { get; init; }
+        }
+
+        public async Task MarkAllNotificationsAsReadAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PostAsync(
+                "api/notifications/read-all",
+                content: null,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
         }
 
         // USER PREFERENCES

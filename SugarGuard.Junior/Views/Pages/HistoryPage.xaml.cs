@@ -23,16 +23,16 @@ public partial class HistoryPage : SwipeablePage
 
         try
         {
-            // Загружаем или обновляем историю при появлении страницы.
-            await _viewModel.InitializeAsync();
             _viewModel.ChartDrawable.InvalidateCallback = () =>
                 MainThread.BeginInvokeOnMainThread(() => HistoryChart?.Invalidate());
             _viewModel.ChartDrawable.AttachHost(HistoryChart);
+            await _viewModel.InitializeAsync();
             HistoryChart.Invalidate();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"HistoryPage OnAppearing error: {ex}");
+            _viewModel.SetLoadError("Не удалось загрузить историю. Проверь подключение и открой экран ещё раз.");
         }
     }
 

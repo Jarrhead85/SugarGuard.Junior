@@ -209,7 +209,10 @@ public partial class HistoryPageViewModel : ObservableObject
     private string? _currentChildId;
     private int _currentPage;
     private const int PageSize = 5;
+    private const int ChartPointLimit = 500;
     private bool _isNormalizingCustomRange;
+    private int _chartPointCount;
+    private decimal? _chartAverageGlucose;
 
     /// <summary>
     /// Идёт загрузка следующей страницы (infinite scroll).
@@ -248,6 +251,12 @@ public partial class HistoryPageViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsEmptyStateVisible))]
     [NotifyPropertyChangedFor(nameof(ResultsSummaryText))]
     private bool isLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoadErrorVisible))]
+    private string? loadErrorMessage;
+
+    public bool IsLoadErrorVisible => !string.IsNullOrWhiteSpace(LoadErrorMessage);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanGoNextPage))]
@@ -297,13 +306,17 @@ public partial class HistoryPageViewModel : ObservableObject
     /// </summary>
     public bool HasMeasurements => Measurements.Count > 0;
 
-    public bool HasChart => Measurements.Count >= 2;
+    public bool HasChart => _chartPointCount >= 2;
 
-    public string AverageGlucose => Measurements.Count == 0
+    public string AverageGlucose => !_chartAverageGlucose.HasValue
         ? "—"
-        : Measurements.Average(item => item.GlucoseValue).ToString("0.0", CultureInfo.InvariantCulture);
+        : _chartAverageGlucose.Value.ToString("0.0", CultureInfo.InvariantCulture);
 
-    public GlucoseChartDrawable ChartDrawable { get; } = new();
+    public GlucoseChartDrawable ChartDrawable { get; } = new()
+    {
+        ShowAxes = true,
+        ShowValueLabels = true
+    };
 
     /// <summary>
     /// Видимость busy-состояния.
@@ -456,8 +469,18 @@ public partial class HistoryPageViewModel : ObservableObject
     /// </summary>
     public async Task InitializeAsync()
     {
+        LoadErrorMessage = null;
         _currentChildId = await _storageService.GetAsync(AppConstants.StorageKeyCurrentChildId);
+        _currentPage = 0;
+        HasMorePages = true;
         await ReloadCurrentFilterAsync();
+    }
+
+    public void SetLoadError(string message)
+    {
+        LoadErrorMessage = message;
+        IsLoading = false;
+        IsLoadingMore = false;
     }
 
     /// <summary>
@@ -468,6 +491,7 @@ public partial class HistoryPageViewModel : ObservableObject
         _currentPage = 0;
         HasMorePages = true;
         Measurements.Clear();
+        await LoadChartDataAsync(range);
         await LoadMeasurementsPageAsync(range, _currentPage, replace: true);
     }
 
@@ -518,6 +542,7 @@ public partial class HistoryPageViewModel : ObservableObject
         {
             _logger.LogInformation("Текущий ребёнок не выбран — история не загружена.");
             ReplaceMeasurements(Array.Empty<MeasurementDisplayItem>());
+            SetChartData(Array.Empty<ChartDataPoint>());
             RefreshPresentationState();
             return;
         }
@@ -575,6 +600,69 @@ public partial class HistoryPageViewModel : ObservableObject
                 IsLoading = false;
             RefreshPresentationState();
         }
+    }
+
+    private async Task LoadChartDataAsync(DateRange range)
+    {
+        if (string.IsNullOrWhiteSpace(_currentChildId))
+        {
+            SetChartData(Array.Empty<ChartDataPoint>());
+            return;
+        }
+
+        try
+        {
+            var rawMeasurements = await _measurementRepository.GetByDateRangeAsync(
+                _currentChildId,
+                range.From,
+                range.To,
+                page: 1,
+                pageSize: ChartPointLimit);
+
+            var pointTasks = rawMeasurements.Select(BuildChartPointAsync);
+            var points = (await Task.WhenAll(pointTasks))
+                .Where(point => point is not null)
+                .Select(point => point!)
+                .OrderBy(point => point.Timestamp)
+                .ToList();
+
+            SetChartData(points);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при загрузке точек графика истории.");
+            SetChartData(Array.Empty<ChartDataPoint>());
+        }
+    }
+
+    private async Task<ChartDataPoint?> BuildChartPointAsync(
+        SugarGuard.Junior.Models.Core.Measurement measurement)
+    {
+        var glucoseValue = await ResolveGlucoseValueAsync(
+            measurement.EncryptedGlucoseValue,
+            measurement.MeasurementId);
+
+        if (glucoseValue <= 0)
+        {
+            return null;
+        }
+
+        return new ChartDataPoint(
+            measurement.MeasurementTime,
+            Convert.ToDecimal(glucoseValue),
+            ResolveUiState(glucoseValue));
+    }
+
+    private void SetChartData(IReadOnlyList<ChartDataPoint> points)
+    {
+        ChartDrawable.DataPoints = points;
+        _chartPointCount = points.Count;
+        _chartAverageGlucose = points.Count == 0
+            ? null
+            : points.Average(point => point.GlucoseValue);
+
+        OnPropertyChanged(nameof(HasChart));
+        OnPropertyChanged(nameof(AverageGlucose));
     }
 
     /// <summary>
@@ -895,12 +983,6 @@ public partial class HistoryPageViewModel : ObservableObject
     /// </summary>
     private void OnMeasurementsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        ChartDrawable.DataPoints = Measurements
-            .OrderBy(item => item.MeasurementTime)
-            .Select(item => new ChartDataPoint(item.MeasurementTime, item.GlucoseValue, item.UiState))
-            .ToList();
-        OnPropertyChanged(nameof(HasChart));
-        OnPropertyChanged(nameof(AverageGlucose));
         RefreshPresentationState();
     }
 

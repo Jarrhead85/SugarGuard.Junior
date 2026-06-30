@@ -78,7 +78,7 @@ public class GigaChatService : IGigaChatService
                     new { role = "user", content = prompt }
                 },
                 temperature = 0.3, // Низкая температура для более предсказуемых ответов
-                max_tokens = 200   // Ограничиваем длину ответа
+                max_tokens = 120   // Короткий детский совет без лишних токенов
             };
 
             var json = JsonSerializer.Serialize(chatRequest);
@@ -256,12 +256,12 @@ public class GigaChatService : IGigaChatService
             Текущий уровень глюкозы: {request.CurrentGlucose:F1} ммоль/л ({request.GlucoseStatus}).
             В последние 3 часа: {recentValuesText} (тренд {trendText}).
             Целевой диапазон: {request.TargetRangeMin:F1}-{request.TargetRangeMax:F1} ммоль/л.
-            Используемый инсулин: {request.InsulinScheme}.
-            Чувствительность: 1 ед на {request.InsulinSensitivity:F1} ммоль/л.
             Рюкзак (доступные перекусы): {snacksText}.
             
-            Дай краткий совет на русском языке (1-2 предложения).
-            ВАЖНО: Это не медицинская консультация, а помощь!
+            Дай краткий совет ребёнку на русском языке: максимум 2 предложения.
+            Если сахар выше цели, НЕ советуй перекусы; советуй сообщить взрослому, пить воду и следовать плану коррекции.
+            Если сахар ниже цели, советуй только перекусы из рюкзака; если рюкзак пуст, скажи срочно позвать взрослого.
+            Не называй это медицинской консультацией и не выдумывай продукты, которых нет в рюкзаке.
             """;
     }
 

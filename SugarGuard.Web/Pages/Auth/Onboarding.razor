@@ -9,7 +9,6 @@
 @using static SugarGuard.Web.Services.SugarGuardApiService
 
 @attribute [Authorize]
-@using Microsoft.AspNetCore.Components.Authorization
 @using SugarGuard.Web.Utilities
 @inject IAuthApiClient AuthApiClient
 @inject NavigationManager Navigation
@@ -782,10 +781,7 @@ else
             if (result.Success)
             {
                 await LoadStatusAsync();
-
-                if (result.NextAction == "NavigateToDashboard")
-                    await NavigateToDashboard();
-                NavigateToDashboard();
+                await NavigateToDashboard();
             }
             else
             {

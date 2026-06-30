@@ -127,10 +127,10 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddPresentationServices(this IServiceCollection services)
     {
         services.AddSingleton<MainPageViewModel>();
-        services.AddTransient<ProfilePageViewModel>();
-        services.AddTransient<BackpackPageViewModel>();
-        services.AddTransient<ChartPageViewModel>();
-        services.AddTransient<SchedulePageViewModel>();
+        services.AddSingleton<ProfilePageViewModel>();
+        services.AddSingleton<BackpackPageViewModel>();
+        services.AddSingleton<ChartPageViewModel>();
+        services.AddSingleton<SchedulePageViewModel>();
         services.AddTransient<AddSnackDialogViewModel>();
         services.AddTransient<RecommendationModalViewModel>();
         services.AddTransient<EditProfilePageViewModel>();
@@ -141,7 +141,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<OnboardingPageViewModel>();
         services.AddTransient<AccessManagementPageViewModel>();
         services.AddTransient<HelpAlertPageViewModel>();
-        services.AddTransient<HistoryPageViewModel>();
+        services.AddSingleton<HistoryPageViewModel>();
 
         // Pages (Singleton for main pages, Transient for dialogs and pushed pages)
         services.AddSingleton<MainPage>();

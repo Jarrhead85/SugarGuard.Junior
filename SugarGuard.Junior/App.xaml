@@ -97,6 +97,7 @@
             <!-- Конвертеры масштаба и синхронизации -->
             <converters:PendingSyncToBoolConverter x:Key="PendingSyncToBoolConverter" />
             <converters:ScalePresetToBoolConverter x:Key="ScalePresetToBoolConverter" />
+            <x:String x:Key="JuniorMascot">junior_mascot.png</x:String>
 
         </ResourceDictionary>
     </Application.Resources>

@@ -28,9 +28,10 @@
         </ResourceDictionary>
     </pages:SwipeablePage.Resources>
 
-    <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsLoading}">
-        <CollectionView ItemsSource="{Binding Measurements}"
-                        SelectionMode="None" VerticalScrollBarVisibility="Default">
+    <Grid>
+        <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsLoading}">
+            <CollectionView ItemsSource="{Binding Measurements}"
+                            SelectionMode="None" VerticalScrollBarVisibility="Default">
             <CollectionView.Header>
                 <VerticalStackLayout Padding="16,30,16,12" Spacing="12">
                     <Label Text="История" FontFamily="{StaticResource ClashDisplay}" FontSize="30"
@@ -74,7 +75,25 @@
                                 <Label Grid.Column="1" Text="Цель 4.0–10.0" FontSize="12" TextColor="{DynamicResource GlucoseNormalColor}" VerticalOptions="Center" />
                             </Grid>
                             <GraphicsView x:Name="HistoryChart" Drawable="{Binding ChartDrawable}"
-                                          HeightRequest="180" IsVisible="{Binding HasChart}" />
+                                          HeightRequest="224" IsVisible="{Binding HasChart}" />
+                            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="12"
+                                  IsVisible="{Binding HasChart}">
+                                <HorizontalStackLayout Spacing="5">
+                                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                                             Color="{DynamicResource GlucoseNormalColor}" VerticalOptions="Center" />
+                                    <Label Text="Норма 4.0–10.0" FontSize="10" TextColor="{DynamicResource TextSecondary}" />
+                                </HorizontalStackLayout>
+                                <HorizontalStackLayout Grid.Column="1" Spacing="5">
+                                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                                             Color="{DynamicResource GlucoseWarningColor}" VerticalOptions="Center" />
+                                    <Label Text="Вне цели" FontSize="10" TextColor="{DynamicResource TextSecondary}" />
+                                </HorizontalStackLayout>
+                                <HorizontalStackLayout Grid.Column="2" Spacing="5">
+                                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                                             Color="{DynamicResource GlucoseCriticalColor}" VerticalOptions="Center" />
+                                    <Label Text="Критично" FontSize="10" TextColor="{DynamicResource TextSecondary}" />
+                                </HorizontalStackLayout>
+                            </Grid>
                             <Label Text="{Binding ResultsSummaryText}" FontSize="12" TextColor="{DynamicResource TextSecondary}" />
                         </VerticalStackLayout>
                     </Border>
@@ -120,6 +139,20 @@
                             IsEnabled="{Binding CanGoNextPage}" />
                 </Grid>
             </CollectionView.Footer>
-        </CollectionView>
-    </RefreshView>
+            </CollectionView>
+        </RefreshView>
+
+        <Border IsVisible="{Binding IsLoadErrorVisible}"
+                Margin="16,30,16,0"
+                Padding="14"
+                VerticalOptions="Start"
+                BackgroundColor="{DynamicResource DangerSoft}"
+                Stroke="{DynamicResource Danger}"
+                StrokeShape="RoundRectangle 16"
+                ZIndex="2">
+            <Label Text="{Binding LoadErrorMessage}"
+                   TextColor="{DynamicResource Danger}"
+                   FontSize="14" />
+        </Border>
+    </Grid>
 </pages:SwipeablePage>

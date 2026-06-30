@@ -54,7 +54,10 @@ public class AIRecommendationService : IAIRecommendationService
         {
             _logger.LogInformation(" Получение рекомендации: глюкоза={Glucose}, состояние={State}", currentGlucose, childState);
 
-            var cached = forceNew
+            var currentStatus = GlucoseClassifier.Classify(currentGlucose);
+            var canUseCache = currentStatus == Models.Enums.GlucoseStatus.Normal;
+
+            var cached = forceNew || !canUseCache
                 ? null
                 : await _cacheService.FindNearestRecommendation(childId, currentGlucose);
             if (cached != null)

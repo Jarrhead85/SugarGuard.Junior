@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using SugarGuard.Junior.Models.Enums;
 using SugarGuard.Junior.ViewModels;
 
 namespace SugarGuard.Junior.Views.Pages;
@@ -63,12 +64,18 @@ public partial class ProfilePage : SwipeablePage
             _isApplyingLocalSettings = true;
 
             var isDarkTheme = Preferences.Get("dark_theme_enabled", false);
+            var notificationsEnabled = Preferences.Get("notifications_enabled", true);
             var compactMode = Preferences.Get("ui_compact_mode", false);
             var reduceMotion = Preferences.Get("ui_reduce_motion", false);
 
             if (ThemeSwitch is not null)
             {
                 ThemeSwitch.IsToggled = isDarkTheme;
+            }
+
+            if (NotificationsSwitch is not null)
+            {
+                NotificationsSwitch.IsToggled = notificationsEnabled;
             }
 
             if (CompactModeSwitch is not null)
@@ -105,6 +112,7 @@ public partial class ProfilePage : SwipeablePage
         try
         {
             Preferences.Set("ui_compact_mode", e.Value);
+            _viewModel.SetScale(e.Value ? ScalePreset.Small : ScalePreset.Default);
             _logger?.LogInformation("ProfilePage: компактный режим изменён. Enabled={Enabled}", e.Value);
         }
         catch (Exception ex)
@@ -189,5 +197,34 @@ public partial class ProfilePage : SwipeablePage
         {
             _logger?.LogError(ex, "ProfilePage: ошибка при переключении темы");
         }
+    }
+
+    private async void OnNotificationsToggled(object sender, ToggledEventArgs e)
+    {
+        if (_isApplyingLocalSettings)
+        {
+            return;
+        }
+
+        var applied = await _viewModel.SetNotificationsEnabledAsync(e.Value);
+        if (applied || !e.Value)
+        {
+            return;
+        }
+
+        try
+        {
+            _isApplyingLocalSettings = true;
+            NotificationsSwitch.IsToggled = false;
+        }
+        finally
+        {
+            _isApplyingLocalSettings = false;
+        }
+
+        await DisplayAlert(
+            "Уведомления",
+            "Разрешение не выдано. Его можно включить в системных настройках приложения.",
+            "ОК");
     }
 }

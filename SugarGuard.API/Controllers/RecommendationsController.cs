@@ -5,6 +5,7 @@ using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
 using SugarGuard.API.Services;
 using SugarGuard.Domain.Entities;
+using SugarGuard.Shared.Constants;
 
 namespace SugarGuard.API.Controllers;
 
@@ -63,7 +64,11 @@ public class RecommendationsController : ControllerBase
                 return Forbid();
             }
 
-            if (!request.ForceNew)
+            var canUseCache =
+                request.GlucoseValue >= (decimal)GlucoseLevels.TargetRangeMin &&
+                request.GlucoseValue <= (decimal)GlucoseLevels.TargetRangeMax;
+
+            if (!request.ForceNew && canUseCache)
             {
                 var cached = await _recommendationService.FindCachedRecommendationAsync(
                     request.ChildId, request.GlucoseValue, cancellationToken);

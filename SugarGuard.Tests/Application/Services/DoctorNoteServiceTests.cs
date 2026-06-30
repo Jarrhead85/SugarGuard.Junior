@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SugarGuard.API.Data;
 using SugarGuard.API.Services;
 using SugarGuard.API.DTOs;
+using SugarGuard.API.Security;
 using SugarGuard.Domain.Entities;
 
 namespace SugarGuard.Tests.Application.Services;
@@ -50,7 +51,7 @@ public class DoctorNoteServiceTests : IDisposable
     private AppDbContext NewDb() => new(_dbOptions);
 
     private DoctorNoteService CreateSut() =>
-        new(NewDb(), NullLogger<DoctorNoteService>.Instance);
+        new(NewDb(), NullLogger<DoctorNoteService>.Instance, new PassthroughCryptoService());
 
     private static User CreateDoctor(string firstName = "Доктор", string lastName = "Иванов") => new()
     {
@@ -81,6 +82,16 @@ public class DoctorNoteServiceTests : IDisposable
         ChildId = childId,
         CreatedAt = DateTime.UtcNow,
         IsActive = isActive
+    };
+
+    private static User CreateParent() => new()
+    {
+        UserId = Guid.NewGuid(),
+        EmailForLogin = $"parent-{Guid.NewGuid():N}@test.local",
+        Role = Domain.Enums.UserRole.Parent,
+        IsActive = true,
+        IsEmailVerified = true,
+        CreatedAt = DateTime.UtcNow
     };
 
     private static DoctorNote CreateNote(
@@ -582,6 +593,65 @@ public class DoctorNoteServiceTests : IDisposable
         Assert.Equal(measurement.MeasurementId, result.MeasurementId);
     }
 
+    [Fact]
+    public async Task CreateAsync_WithLinkedParents_CreatesUnreadNotificationForEachParent()
+    {
+        var child = CreateChild();
+        var doctor = CreateDoctor();
+        var firstParent = CreateParent();
+        var secondParent = CreateParent();
+        var link = CreateLink(doctor.UserId, child.ChildId);
+        using (var db = NewDb())
+        {
+            db.Users.AddRange(doctor, firstParent, secondParent);
+            db.Children.Add(child);
+            db.DoctorChildLinks.Add(link);
+            db.ParentChildLinks.AddRange(
+                new ParentChildLink
+                {
+                    LinkId = Guid.NewGuid(),
+                    ParentUserId = firstParent.UserId,
+                    ChildId = child.ChildId,
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ParentChildLink
+                {
+                    LinkId = Guid.NewGuid(),
+                    ParentUserId = secondParent.UserId,
+                    ChildId = child.ChildId,
+                    CreatedAt = DateTime.UtcNow
+                });
+            await db.SaveChangesAsync();
+        }
+
+        var result = await CreateSut().CreateAsync(
+            doctor.UserId,
+            new CreateDoctorNoteRequest
+            {
+                ChildId = child.ChildId,
+                NoteText = "Новая рекомендация",
+                IsImportant = true
+            });
+
+        using var verifyDb = NewDb();
+        var notifications = await verifyDb.UserNotifications
+            .OrderBy(notification => notification.RecipientUserId)
+            .ToListAsync();
+
+        Assert.Equal(2, notifications.Count);
+        Assert.All(notifications, notification =>
+        {
+            Assert.Equal(child.ChildId, notification.ChildId);
+            Assert.Equal("DoctorNote", notification.SourceType);
+            Assert.Equal(result.NoteId, notification.SourceId);
+            Assert.Equal("warn", notification.Type);
+            Assert.False(notification.IsRead);
+        });
+        Assert.Equal(
+            new[] { firstParent.UserId, secondParent.UserId }.OrderBy(id => id),
+            notifications.Select(notification => notification.RecipientUserId));
+    }
+
     // ───────────────────────────────────────────────────────────────────
     // UpdateAsync — author guard
     // ───────────────────────────────────────────────────────────────────
@@ -733,5 +803,12 @@ public class DoctorNoteServiceTests : IDisposable
         using var verifyDb = NewDb();
         var saved = await verifyDb.DoctorNotes.FindAsync(note.NoteId);
         Assert.Null(saved);
+    }
+
+    private sealed class PassthroughCryptoService : ICryptoService
+    {
+        public string Encrypt(string plainText) => plainText;
+
+        public string Decrypt(string cipherText) => cipherText;
     }
 }

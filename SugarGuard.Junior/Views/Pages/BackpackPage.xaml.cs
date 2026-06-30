@@ -1,16 +1,19 @@
-﻿namespace SugarGuard.Junior.Views.Pages;
+using Microsoft.Extensions.Logging;
+using SugarGuard.Junior.ViewModels;
+
+namespace SugarGuard.Junior.Views.Pages;
 
 public partial class BackpackPage : SwipeablePage
 {
     private readonly BackpackPageViewModel _viewModel;
-
-    // Защита от повторного одновременного запуска инициализации.
+    private readonly ILogger<BackpackPage>? _logger;
     private bool _isInitializing;
 
-    public BackpackPage(BackpackPageViewModel viewModel)
+    public BackpackPage(BackpackPageViewModel viewModel, ILogger<BackpackPage>? logger = null)
     {
         InitializeComponent();
         _viewModel = viewModel;
+        _logger = logger;
         BindingContext = viewModel;
     }
 
@@ -18,9 +21,10 @@ public partial class BackpackPage : SwipeablePage
     {
         base.OnAppearing();
 
-        // Если экран уже загружается, повторно инициализацию не запускаем.
         if (_isInitializing)
+        {
             return;
+        }
 
         _isInitializing = true;
 
@@ -30,8 +34,8 @@ public partial class BackpackPage : SwipeablePage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"BackpackPage OnAppearing error: {ex}");
-            await DisplayAlert("Ошибка", $"Не удалось загрузить рюкзак: {ex.Message}", "ОК");
+            _logger?.LogError(ex, "BackpackPage failed to load.");
+            await DisplayAlert("Рюкзак", "Не удалось загрузить рюкзак. Попробуй обновить экран ещё раз.", "ОК");
         }
         finally
         {

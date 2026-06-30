@@ -1,5 +1,6 @@
 ﻿// Адаптер для IRecommendationCache, использующий существующий IRecommendationCacheService
 using SugarGuard.Junior.Services.Interfaces;
+using SugarGuard.Junior.Utilities;
 
 namespace SugarGuard.Junior.Services.Implementations;
 
@@ -30,13 +31,22 @@ public class RecommendationCacheAdapter : IRecommendationCache
     /// </summary>
     public async Task SetAsync(string childId, double glucoseValue, string recommendation)
     {
+        var urgency = GlucoseClassifier.Classify(glucoseValue) switch
+        {
+            SugarGuard.Junior.Models.Enums.GlucoseStatus.CriticallyLow => RecommendationUrgency.Critical,
+            SugarGuard.Junior.Models.Enums.GlucoseStatus.CriticallyHigh => RecommendationUrgency.Critical,
+            SugarGuard.Junior.Models.Enums.GlucoseStatus.Low => RecommendationUrgency.Warning,
+            SugarGuard.Junior.Models.Enums.GlucoseStatus.High => RecommendationUrgency.Warning,
+            _ => RecommendationUrgency.Normal
+        };
+
         var aiRecommendation = new AIRecommendation
         {
             RecommendationId = Guid.NewGuid().ToString(),
             ChildId = childId,
             GlucoseValueAtRequest = glucoseValue,
             RecommendationText = recommendation,
-            Urgency = RecommendationUrgency.Normal,
+            Urgency = urgency,
             ModelUsed = "Cache",
             IsFromCache = false,
             CreatedAt = DateTime.UtcNow

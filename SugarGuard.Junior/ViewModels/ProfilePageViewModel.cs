@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.ApplicationModel;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Models.Enums;
@@ -18,6 +19,7 @@ public partial class ProfilePageViewModel : ObservableObject
 {
     private readonly ILogger<ProfilePageViewModel> _logger;
     private readonly IChildRepository _childRepository;
+    private readonly IDiabetesSettingsRepository _diabetesSettingsRepository;
     private readonly IStorageService _storageService;
     private readonly ISyncService _syncService;
     private readonly IEditProfilePageFactory _editProfilePageFactory;
@@ -26,6 +28,8 @@ public partial class ProfilePageViewModel : ObservableObject
     private readonly IApiClient _apiClient;
     private readonly IAuthenticationService _authenticationService;
     private readonly IThemeService _themeService;
+    private readonly INotificationService _notificationService;
+    private bool _isLoadingPreferences;
 
     // OBSERVABLE PROPERTIES
 
@@ -92,7 +96,31 @@ public partial class ProfilePageViewModel : ObservableObject
     private bool isEmailVerified = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSmallScaleSelected))]
+    [NotifyPropertyChangedFor(nameof(IsDefaultScaleSelected))]
+    [NotifyPropertyChangedFor(nameof(IsLargeScaleSelected))]
     private ScalePreset currentScale = ScalePreset.Default;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentSkinText))]
+    [NotifyPropertyChangedFor(nameof(IsNeutralSkinSelected))]
+    [NotifyPropertyChangedFor(nameof(IsBoySkinSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGirlSkinSelected))]
+    private InterfaceSkin currentSkin = InterfaceSkin.Neutral;
+
+    public bool IsSmallScaleSelected => CurrentScale == ScalePreset.Small;
+    public bool IsDefaultScaleSelected => CurrentScale == ScalePreset.Default;
+    public bool IsLargeScaleSelected => CurrentScale == ScalePreset.Large;
+    public bool IsNeutralSkinSelected => CurrentSkin == InterfaceSkin.Neutral;
+    public bool IsBoySkinSelected => CurrentSkin == InterfaceSkin.Boy;
+    public bool IsGirlSkinSelected => CurrentSkin == InterfaceSkin.Girl;
+
+    public string CurrentSkinText => CurrentSkin switch
+    {
+        InterfaceSkin.Boy => "Для мальчика",
+        InterfaceSkin.Girl => "Для девочки",
+        _ => "Нейтральный"
+    };
 
     // --- Контекст ---
     private string _currentChildId = string.Empty;
@@ -100,6 +128,7 @@ public partial class ProfilePageViewModel : ObservableObject
     public ProfilePageViewModel(
         ILogger<ProfilePageViewModel> logger,
         IChildRepository childRepository,
+        IDiabetesSettingsRepository diabetesSettingsRepository,
         IStorageService storageService,
         ISyncService syncService,
         IEditProfilePageFactory editProfilePageFactory,
@@ -107,10 +136,12 @@ public partial class ProfilePageViewModel : ObservableObject
         IAccessManagementPageFactory accessManagementPageFactory,
         IApiClient apiClient,
         IAuthenticationService authenticationService,
-        IThemeService themeService)
+        IThemeService themeService,
+        INotificationService notificationService)
     {
         _logger = logger;
         _childRepository = childRepository;
+        _diabetesSettingsRepository = diabetesSettingsRepository;
         _storageService = storageService;
         _syncService = syncService;
         _editProfilePageFactory = editProfilePageFactory;
@@ -119,6 +150,7 @@ public partial class ProfilePageViewModel : ObservableObject
         _apiClient = apiClient;
         _authenticationService = authenticationService;
         _themeService = themeService;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -126,13 +158,26 @@ public partial class ProfilePageViewModel : ObservableObject
     /// </summary>
     public async Task InitializeAsync()
     {
-        // Синхронизируем переключатель темы с сохранённым значением
-        DarkThemeEnabled = Preferences.Get("dark_theme_enabled", false);
+        AppVersion = AppInfo.Current.VersionString;
 
-        // Восстанавливаем сохранённый масштаб
-        var savedScale = (ScalePreset)Preferences.Get("interface_scale", (int)ScalePreset.Default);
-        CurrentScale = savedScale;
-        _themeService.ApplyScale(savedScale);
+        _isLoadingPreferences = true;
+        try
+        {
+            DarkThemeEnabled = Preferences.Get("dark_theme_enabled", false);
+            NotificationsEnabled = Preferences.Get("notifications_enabled", true);
+
+            var savedScale = (ScalePreset)Preferences.Get("interface_scale", (int)ScalePreset.Default);
+            CurrentScale = savedScale;
+            _themeService.ApplyScale(savedScale);
+
+            var savedSkin = (InterfaceSkin)Preferences.Get("interface_skin", (int)InterfaceSkin.Neutral);
+            CurrentSkin = savedSkin;
+            _themeService.ApplySkin(savedSkin);
+        }
+        finally
+        {
+            _isLoadingPreferences = false;
+        }
 
         var lastSync = await _storageService.GetAsync("last_sync_time");
         if (DateTime.TryParse(lastSync, null, DateTimeStyles.RoundtripKind, out var lastSyncUtc))
@@ -310,7 +355,10 @@ public partial class ProfilePageViewModel : ObservableObject
                 return;
             }
 
-            await DisplayAlert("Скоро", "Подключение к Apple Health будет доступно в следующем обновлении. Статус не будет отображаться как «подключено» до реальной проверки доступа.", "ОК");
+            await DisplayAlert(
+                "Apple Health",
+                "На этом устройстве Apple Health недоступен. На iPhone приложение запросит разрешение и покажет статус подключения здесь.",
+                "ОК");
         }
         catch (Exception ex)
         {
@@ -357,6 +405,51 @@ public partial class ProfilePageViewModel : ObservableObject
         _themeService.ApplyScale(preset);
         Preferences.Set("interface_scale", (int)preset);
         _logger.LogInformation("Scale set to {Preset}", preset);
+    }
+
+    [RelayCommand]
+    public void SetSkin(InterfaceSkin skin)
+    {
+        CurrentSkin = skin;
+        _themeService.ApplySkin(skin);
+        Preferences.Set("interface_skin", (int)skin);
+        _logger.LogInformation("Interface skin set to {Skin}", skin);
+    }
+
+    public async Task<bool> SetNotificationsEnabledAsync(bool enabled)
+    {
+        try
+        {
+            if (enabled)
+            {
+                var permission = await Permissions.RequestAsync<Permissions.PostNotifications>();
+                if (permission != PermissionStatus.Granted)
+                {
+                    NotificationsEnabled = false;
+                    Preferences.Set("notifications_enabled", false);
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_currentChildId))
+                {
+                    await _notificationService.ScheduleAllRemindersAsync(_currentChildId);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(_currentChildId))
+            {
+                await _notificationService.CancelAllRemindersAsync(_currentChildId);
+            }
+
+            NotificationsEnabled = enabled;
+            Preferences.Set("notifications_enabled", enabled);
+            _logger.LogInformation("Notifications setting changed. Enabled={Enabled}", enabled);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing notifications setting");
+            return false;
+        }
     }
 
     /// <summary>
@@ -408,12 +501,15 @@ public partial class ProfilePageViewModel : ObservableObject
 
             if (confirmed)
             {
-                // Очищаем данные из хранилища
+                await _authenticationService.LogoutAsync();
                 await _storageService.ClearAsync();
-                
+
                 _logger.LogInformation("Logout completed");
-                
-                // Переход на экран входа будет обработан в App.xaml.cs
+
+                if (Shell.Current is not null)
+                {
+                    await Shell.Current.GoToAsync("//loginpage");
+                }
             }
         }
         catch (Exception ex)
@@ -431,9 +527,17 @@ public partial class ProfilePageViewModel : ObservableObject
     /// </summary>
     partial void OnDarkThemeEnabledChanged(bool value)
     {
+        if (_isLoadingPreferences)
+        {
+            return;
+        }
+
         try
         {
-            Preferences.Set("dark_theme_enabled", value);
+            if (Application.Current is App app)
+            {
+                app.SwitchTheme(value);
+            }
             _logger.LogInformation("Theme changed. Dark={IsDark}", value);
         }
         catch (Exception ex)
@@ -463,6 +567,14 @@ public partial class ProfilePageViewModel : ObservableObject
                 ChildDiagnosis = child.DiabetesType == Models.Enums.DiabetesType.Type1 
                     ? "Диабет 1 типа" 
                     : "Диабет 2 типа";
+
+                var settings = await _diabetesSettingsRepository.GetByChildIdAsync(_currentChildId);
+                if (settings is not null)
+                {
+                    var targetMin = await _diabetesSettingsRepository.GetDecryptedTargetRangeMinAsync(settings);
+                    var targetMax = await _diabetesSettingsRepository.GetDecryptedTargetRangeMaxAsync(settings);
+                    TargetRangeText = $"{targetMin:0.0} - {targetMax:0.0} ммоль/л";
+                }
                 
                 _logger.LogInformation("Profile data loaded for {ChildName}", firstName);
             }

@@ -241,17 +241,14 @@ public class MeasurementService : IMeasurementService
             }
 
             // 6⃣ ОТМЕЧАЕМ ИЗМЕРЕНИЕ КАК ВЫПОЛНЕННОЕ (останавливает повторные напоминания)
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await _notificationService.MarkMeasurementCompletedAsync(childId);
-                }
-                catch (Exception notificationEx)
-                {
-                    _logger.LogError(notificationEx, "Ошибка при отметке измерения как выполненного");
-                }
-            });
+                await _notificationService.MarkMeasurementCompletedAsync(childId);
+            }
+            catch (Exception notificationEx)
+            {
+                _logger.LogError(notificationEx, "Ошибка при отметке измерения как выполненного");
+            }
 
             // 7⃣ КОНВЕРТИРУЕМ В ОТВЕТ
             var recommendation = ConvertAIRecommendationToResponse(aiRecommendation, glucoseValue, status);
@@ -671,7 +668,7 @@ public class MeasurementService : IMeasurementService
                     : $"Глюкоза повышена: {glucoseValue:0.0} ммоль/л. Сообщи взрослому, пей воду и следуй своему плану коррекции."),
 
             GlucoseStatus.CriticallyHigh =>
-                (RecommendationUrgency.Critical, " КРИТИЧЕСКИ ВЫСОКИЙ САХАР! Срочно сделайте подколку инсулина!"),
+                (RecommendationUrgency.Critical, "Критически высокий сахар. Срочно позови взрослого, пей воду и проверь кетоны по своему плану."),
 
             _ => (RecommendationUrgency.Normal, "Неизвестный статус")
         };

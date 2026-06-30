@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
+using SugarGuard.API.Security;
 using SugarGuard.Domain.Entities;
 
 namespace SugarGuard.API.Services
@@ -12,11 +13,16 @@ namespace SugarGuard.API.Services
     {
         private readonly AppDbContext _db;
         private readonly ILogger<DoctorNoteService> _logger;
+        private readonly ICryptoService _crypto;
 
-        public DoctorNoteService(AppDbContext db, ILogger<DoctorNoteService> logger)
+        public DoctorNoteService(
+            AppDbContext db,
+            ILogger<DoctorNoteService> logger,
+            ICryptoService crypto)
         {
             _db = db;
             _logger = logger;
+            _crypto = crypto;
         }
 
         /// <inheritdoc/>
@@ -41,12 +47,13 @@ namespace SugarGuard.API.Services
 
             var totalCount = await query.CountAsync(cancellationToken);
 
-            var items = await query
+            var notes = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(n => MapToDto(n))
                 .ToListAsync(cancellationToken);
+
+            var items = notes.Select(MapToDto).ToList();
 
             _logger.LogDebug(
                 "GetByChild: ChildId={ChildId} Page={Page} PageSize={PageSize} Total={Total}",
@@ -71,10 +78,9 @@ namespace SugarGuard.API.Services
                 .Include(n => n.DoctorUser)
                 .Where(n => n.MeasurementId == measurementId)
                 .OrderByDescending(n => n.CreatedAt)
-                .Select(n => MapToDto(n))
                 .ToListAsync(cancellationToken);
 
-            return notes;
+            return notes.Select(MapToDto).ToList();
         }
 
         /// <inheritdoc/>
@@ -140,11 +146,36 @@ namespace SugarGuard.API.Services
             };
 
             _db.DoctorNotes.Add(note);
+
+            var parentUserIds = await _db.ParentChildLinks
+                .AsNoTracking()
+                .Where(link => link.ChildId == request.ChildId)
+                .Select(link => link.ParentUserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            foreach (var parentUserId in parentUserIds)
+            {
+                _db.UserNotifications.Add(new UserNotification
+                {
+                    NotificationId = Guid.NewGuid(),
+                    RecipientUserId = parentUserId,
+                    ChildId = request.ChildId,
+                    Type = request.IsImportant ? "warn" : "info",
+                    Title = request.IsImportant ? "Важная запись врача" : "Новая запись врача",
+                    Description = "Врач оставил новую запись в карте ребёнка.",
+                    SourceType = "DoctorNote",
+                    SourceId = note.NoteId,
+                    CreatedAt = note.CreatedAt,
+                    IsRead = false
+                });
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
-                "Создана врачебная заметка. NoteId={NoteId} DoctorId={DoctorId} ChildId={ChildId}",
-                note.NoteId, doctorUserId, request.ChildId);
+                "Создана врачебная заметка. NoteId={NoteId} DoctorId={DoctorId} ChildId={ChildId} ParentNotifications={ParentNotifications}",
+                note.NoteId, doctorUserId, request.ChildId, parentUserIds.Count);
 
             var created = await _db.DoctorNotes
                 .AsNoTracking()
@@ -227,11 +258,11 @@ namespace SugarGuard.API.Services
         /// <summary>
         /// Преобразует <see cref="DoctorNote"/> в <see cref="DoctorNoteDto"/>.
         /// </summary>
-        private static DoctorNoteDto MapToDto(DoctorNote note) => new()
+        private DoctorNoteDto MapToDto(DoctorNote note) => new()
         {
             NoteId = note.NoteId,
             DoctorUserId = note.DoctorUserId,
-            DoctorName = $"{note.DoctorUser.EncryptedFirstName} {note.DoctorUser.EncryptedLastName}".Trim(),
+            DoctorName = GetDoctorDisplayName(note.DoctorUser),
             ChildId = note.ChildId,
             MeasurementId = note.MeasurementId,
             NoteText = note.NoteText,
@@ -239,5 +270,34 @@ namespace SugarGuard.API.Services
             CreatedAt = note.CreatedAt,
             UpdatedAt = note.UpdatedAt
         };
+
+        private string GetDoctorDisplayName(User user)
+        {
+            var firstName = Decrypt(user.EncryptedFirstName);
+            var lastName = Decrypt(user.EncryptedLastName);
+            var displayName = string.Join(' ', new[] { firstName, lastName }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            return string.IsNullOrWhiteSpace(displayName)
+                ? user.EmailForLogin ?? "Врач SugarGuard"
+                : displayName;
+        }
+
+        private string Decrypt(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                return _crypto.Decrypt(value);
+            }
+            catch (Exception exception) when (exception is FormatException or System.Security.Cryptography.CryptographicException)
+            {
+                return value;
+            }
+        }
     }
 }

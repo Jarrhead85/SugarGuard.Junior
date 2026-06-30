@@ -322,7 +322,8 @@
                     {
                         NoteText = _model.NoteText!.Trim(),
                         IsImportant = _model.IsImportant,
-                    });
+                    })
+                    ?? throw new InvalidOperationException("Сервер не вернул обновлённую заметку.");
             }
             else
             {

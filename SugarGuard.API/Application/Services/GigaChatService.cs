@@ -287,7 +287,7 @@ public class GigaChatService : IGigaChatService
                 break;
 
             case "ВЫСОКО":
-                recommendationText = "Повышенный сахар. Проверь, не пора ли сделать инсулин. Пей больше воды.";
+                recommendationText = "Повышенный сахар. Сообщи взрослому, пей воду и действуй по своему плану коррекции. Не ешь дополнительные углеводы.";
                 urgency = "MEDIUM";
                 break;
 

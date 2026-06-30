@@ -46,8 +46,13 @@ public class RecommendationOrchestrator : IRecommendationOrchestrator
                 "Запрос рекомендации: ребёнок={ChildId}, глюкоза={Glucose}",
                 request.ChildId, request.GlucoseValue);
 
-            // Этап 1: Проверить кэш
-            var cached = await _cache.GetAsync(request.ChildId, request.GlucoseValue);
+            var status = GlucoseClassifier.Classify(request.GlucoseValue);
+
+            // Этап 1: Проверить кэш. Для опасных значений нужен свежий ответ,
+            // чтобы ребёнок не получил старую мягкую рекомендацию.
+            var cached = status == SugarGuard.Junior.Models.Enums.GlucoseStatus.Normal
+                ? await _cache.GetAsync(request.ChildId, request.GlucoseValue)
+                : null;
             if (cached != null)
             {
                 stopwatch.Stop();
@@ -120,7 +125,6 @@ public class RecommendationOrchestrator : IRecommendationOrchestrator
                 };
             }
 
-            var status = GlucoseClassifier.Classify(request.GlucoseValue);
             var localRec = _fallback.GetRecommendation(status, child, request.AvailableSnacks);
 
             stopwatch.Stop();

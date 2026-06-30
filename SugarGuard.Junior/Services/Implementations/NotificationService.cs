@@ -171,7 +171,7 @@ public class NotificationService : INotificationService
     /// <summary>
     /// Отменяет запланированное уведомление.
     /// </summary>
-    public async Task<bool> CancelNotificationAsync(string notificationId)
+    public Task<bool> CancelNotificationAsync(string notificationId)
     {
         try
         {
@@ -186,12 +186,12 @@ public class NotificationService : INotificationService
                 _missedMeasurements.TryRemove(childId, out _);
             }
 
-            return true;
+            return Task.FromResult(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка отмены уведомления {NotificationId}", notificationId);
-            return false;
+            return Task.FromResult(false);
         }
     }
 

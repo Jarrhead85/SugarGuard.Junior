@@ -145,6 +145,7 @@ deploy_web="$($deployWeb.ToString().ToLowerInvariant())"
 
 backup_dir="/opt/sugarguard/backups"
 sudo mkdir -p "`$backup_dir"
+sudo install -d -o sugarguard -g sugarguard -m 0750 /var/lib/sugarguard/uploads/profiles
 
 deploy_one() {
     local service="`$1"

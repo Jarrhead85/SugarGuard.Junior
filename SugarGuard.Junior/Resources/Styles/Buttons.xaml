@@ -145,16 +145,8 @@
     <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
         <Setter Property="Background" Value="{x:Null}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="TextColor">
-            <Setter.Value>
-                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
-            </Setter.Value>
-        </Setter>
-        <Setter Property="BorderColor">
-            <Setter.Value>
-                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
-            </Setter.Value>
-        </Setter>
+        <Setter Property="TextColor" Value="{DynamicResource InteractivePrimary}" />
+        <Setter Property="BorderColor" Value="{DynamicResource InteractivePrimary}" />
         <Setter Property="BorderWidth" Value="1.5" />
 
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -164,11 +156,7 @@
 
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor">
-                                <Setter.Value>
-                                    <AppThemeBinding Light="#141B8E8B" Dark="#1456D0BF" />
-                                </Setter.Value>
-                            </Setter>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" />
                             <Setter Property="Scale" Value="0.985" />
                             <Setter Property="Opacity" Value="1" />
                         </VisualState.Setters>
@@ -176,11 +164,7 @@
 
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor">
-                                <Setter.Value>
-                                    <AppThemeBinding Light="#141B8E8B" Dark="#1456D0BF" />
-                                </Setter.Value>
-                            </Setter>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" />
                             <Setter Property="Opacity" Value="1" />
                         </VisualState.Setters>
                     </VisualState>
@@ -211,16 +195,8 @@
     <!-- 5. Soft button -->
     <Style x:Key="SoftButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
         <Setter Property="Background" Value="{x:Null}" />
-        <Setter Property="BackgroundColor">
-            <Setter.Value>
-                <AppThemeBinding Light="#1F1B8E8B" Dark="#1F56D0BF" />
-            </Setter.Value>
-        </Setter>
-        <Setter Property="TextColor">
-            <Setter.Value>
-                <AppThemeBinding Light="#1B8E8B" Dark="#56D0BF" />
-            </Setter.Value>
-        </Setter>
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfacePrimarySoft}" />
+        <Setter Property="TextColor" Value="{DynamicResource InteractivePrimary}" />
         <Setter Property="BorderWidth" Value="0" />
         <Setter Property="BorderColor" Value="Transparent" />
 
@@ -231,11 +207,7 @@
 
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor">
-                                <Setter.Value>
-                                    <AppThemeBinding Light="#331B8E8B" Dark="#3356D0BF" />
-                                </Setter.Value>
-                            </Setter>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" />
                             <Setter Property="Scale" Value="0.985" />
                             <Setter Property="Opacity" Value="1" />
                         </VisualState.Setters>
@@ -243,11 +215,7 @@
 
                     <VisualState x:Name="PointerOver">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor">
-                                <Setter.Value>
-                                    <AppThemeBinding Light="#331B8E8B" Dark="#3356D0BF" />
-                                </Setter.Value>
-                            </Setter>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" />
                             <Setter Property="Opacity" Value="1" />
                         </VisualState.Setters>
                     </VisualState>

@@ -577,6 +577,10 @@
         try
         {
             notifications = await Api.GetNotificationsAsync();
+            if (parentSidebarChild is not null)
+            {
+                parentSidebarChild = parentSidebarChild with { AlertsCount = unreadCount };
+            }
             StateHasChanged();
         }
         catch
@@ -600,11 +604,25 @@
                       && Math.Abs((measurement.OccurredAt - entry.OccurredAt).TotalMinutes) <= 2));
     }
 
-    private Task MarkAllReadAsync()
+    private async Task MarkAllReadAsync()
     {
-        foreach (var n in notifications)
-            n.IsUnread = false;
-        return Task.CompletedTask;
+        try
+        {
+            await Api.MarkAllNotificationsAsReadAsync();
+            foreach (var notification in notifications.Where(item => item.NotificationId.HasValue))
+            {
+                notification.IsUnread = false;
+            }
+
+            if (parentSidebarChild is not null)
+            {
+                parentSidebarChild = parentSidebarChild with { AlertsCount = unreadCount };
+            }
+        }
+        catch
+        {
+            // Keep the current unread state if the API did not persist the change.
+        }
     }
 
     private async Task ToggleTheme()

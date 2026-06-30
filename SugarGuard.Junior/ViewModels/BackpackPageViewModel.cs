@@ -9,7 +9,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
-namespace SugarGuard.Junior.Views.Pages;
+namespace SugarGuard.Junior.ViewModels;
 
 /// <summary>
 /// Страницы «Мой рюкзак».
@@ -843,20 +843,21 @@ public partial class BackpackPageViewModel : ObservableObject
 
         return lower switch
         {
-            _ when lower.Contains("яблоко") => "�",
-            _ when lower.Contains("груша") => "�",
-            _ when lower.Contains("банан") => "�",
-            _ when lower.Contains("апельсин") => "�",
-            _ when lower.Contains("сок") => "�",
-            _ when lower.Contains("хлеб") => "�",
-            _ when lower.Contains("печенье") => "�",
-            _ when lower.Contains("бутерброд") => "�",
-            _ when lower.Contains("конфета") => "�",
-            _ when lower.Contains("конфет") => "�",
-            _ when lower.Contains("сахар") => "�",
-            _ when lower.Contains("молоко") => "�",
-            _ when lower.Contains("йогурт") => "�",
-            _ => "�"
+            _ when lower.Contains("яблоко") => "🍎",
+            _ when lower.Contains("груша") => "🍐",
+            _ when lower.Contains("банан") => "🍌",
+            _ when lower.Contains("апельсин") || lower.Contains("мандарин") => "🍊",
+            _ when lower.Contains("сок") => "🧃",
+            _ when lower.Contains("вода") => "💧",
+            _ when lower.Contains("хлеб") || lower.Contains("бутерброд") || lower.Contains("сэндвич") => "🥪",
+            _ when lower.Contains("печенье") || lower.Contains("крекер") => "🍪",
+            _ when lower.Contains("конфет") || lower.Contains("шоколад") || lower.Contains("сахар") => "🍬",
+            _ when lower.Contains("молоко") => "🥛",
+            _ when lower.Contains("йогурт") || lower.Contains("творог") => "🥣",
+            _ when lower.Contains("глюкометр") => "🩸",
+            _ when lower.Contains("полоск") => "📋",
+            _ when lower.Contains("инсулин") || lower.Contains("помпа") => "💉",
+            _ => "🎒"
         };
     }
 

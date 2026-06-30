@@ -30,8 +30,8 @@
                 <Border Padding="18" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="190">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#3BC9A6" Offset="0" />
-                            <GradientStop Color="#277FE5" Offset="1" />
+                            <GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" />
+                            <GradientStop Color="{DynamicResource BrandBlue}" Offset="1" />
                         </LinearGradientBrush>
                     </Border.Background>
                     <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,112">
@@ -42,7 +42,7 @@
                         <Button Grid.Column="1" Text="Добавить  +" Command="{Binding AddSnackCommand}"
                                 Background="White" TextColor="#177D84" FontAttributes="Bold"
                                 CornerRadius="18" HeightRequest="42" Padding="10,5" />
-                        <Image Grid.Row="1" Grid.Column="1" Source="mascot.png" Aspect="AspectFit" Margin="4" />
+                        <Image Grid.Row="1" Grid.Column="1" Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" Margin="4" />
                         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*" ColumnSpacing="7">
                             <Border Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
                                 <Label Text="{Binding TotalBreadUnitsText}" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />

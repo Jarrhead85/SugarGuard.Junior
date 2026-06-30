@@ -37,14 +37,13 @@ public partial class MainPage : SwipeablePage
         {
             if (!_isInitialized)
             {
-                // Первичная инициализация: загрузить данные и подготовить график.
-                await _viewModel.InitializeAsync();
                 AttachMiniChart();
+                await _viewModel.InitializeAsync();
                 _isInitialized = true;
             }
             else
             {
-                // Возврат на страницу: перерисовать график с актуальными данными.
+                await _viewModel.LoadDataCommand.ExecuteAsync(null);
                 InvalidateMiniChart();
             }
 

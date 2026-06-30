@@ -10,6 +10,7 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Storage;
 using SugarGuard.Junior.Database;
+using SugarGuard.Junior.Models.Enums;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.ViewModels;
@@ -53,6 +54,8 @@ public partial class App : Application
     /// <summary>Сервис проверки текущей сессии и состояния авторизации.</summary>
     private readonly IAuthenticationService _authenticationService;
 
+    private readonly IThemeService _themeService;
+
     /// <summary>DI-контейнер для получения зарегистрированных сервисов (включая AppShell).</summary>
     private readonly IServiceProvider _serviceProvider;
 
@@ -79,6 +82,7 @@ public partial class App : Application
         ICryptoService cryptoService,
         IStorageService storageService,
         IAuthenticationService authenticationService,
+        IThemeService themeService,
         MauiReEncryptJob reEncryptJob,
         IServiceProvider serviceProvider)
     {
@@ -91,6 +95,7 @@ public partial class App : Application
         _cryptoService = cryptoService;
         _storageService = storageService;
         _authenticationService = authenticationService;
+        _themeService = themeService;
         _reEncryptJob = reEncryptJob;
         _serviceProvider = serviceProvider;
     }
@@ -141,6 +146,7 @@ public partial class App : Application
 
             // 1. Применяем сохранённую тему интерфейса (светлая/тёмная).
             ApplySavedTheme();
+            ApplySavedInterfaceSkin();
 
             // 2. Инициализируем криптографию до любых операций с локальными PHI-данными.
             await InitializeCryptoAsync();
@@ -244,6 +250,7 @@ public partial class App : Application
         {
             Preferences.Set(DarkThemePreferenceKey, isDark);
             ApplySavedTheme();
+            ApplySavedInterfaceSkin();
 
             _logger.LogInformation("Тема переключена пользователем на: {Theme}.", isDark ? "Dark" : "Light");
         }
@@ -320,6 +327,19 @@ public partial class App : Application
         {
             _logger.LogError(ex, "Ошибка при инициализации локальной базы данных.");
             throw;
+        }
+    }
+
+    private void ApplySavedInterfaceSkin()
+    {
+        try
+        {
+            var skin = (InterfaceSkin)Preferences.Get("interface_skin", (int)InterfaceSkin.Neutral);
+            _themeService.ApplySkin(skin);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось применить сохранённый стиль интерфейса.");
         }
     }
 
