@@ -113,15 +113,19 @@
         }
     </button>
 
+    <button class="tab" role="tab"
+            aria-selected="false"
+            @onclick='() => Navigation.NavigateTo("/parent/nutrition")'>Дневник питания</button>
+
     <button class="tab @TabClass("doctor")" role="tab"
             aria-selected="@(_activeTab == "doctor")"
             aria-controls="pane-doctor"
-            @onclick='() => SwitchTab("doctor")'>Врач</button>
+            @onclick='() => SwitchTab("doctor")'>Записки врача</button>
 
     <button class="tab @TabClass("profile")" role="tab"
             aria-selected="@(_activeTab == "profile")"
             aria-controls="pane-profile"
-            @onclick='() => SwitchTab("profile")'>Профиль</button>
+            @onclick='() => SwitchTab("profile")'>Профиль ребёнка</button>
 
     <button class="tab @TabClass("settings")" role="tab"
             aria-selected="@(_activeTab == "settings")"
