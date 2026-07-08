@@ -1,11 +1,522 @@
 @page "/parent/nutrition"
-@attribute [Authorize(Roles = "Parent,Doctor,Admin,SupportAdmin")]
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Parent,Admin,SupportAdmin")]
 @using Microsoft.AspNetCore.Authorization
-@inject NavigationManager Navigation
+@using SugarGuard.Domain.Enums
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+@inject SugarGuardApiService Api
+@inject IJSRuntime JS
+
+<PageTitle>Дневник питания — SugarGuard</PageTitle>
+
+<main class="nutrition-page">
+    <header class="nutrition-hero">
+        <div>
+            <span class="nutrition-eyebrow">Питание и инсулин</span>
+            <h1>Дневник питания</h1>
+            <p>ХЕ, фактически введённый инсулин и расписание еды. Эти данные синхронизируются с мобильным приложением ребёнка.</p>
+        </div>
+
+        @if (_children.Count > 1)
+        {
+            <label class="nutrition-child-select">
+                <span>Ребёнок</span>
+                <select @bind="_selectedChildId" @bind:after="LoadAsync">
+                    @foreach (var child in _children)
+                    {
+                        <option value="@child.ChildId">@child.FullName</option>
+                    }
+                </select>
+            </label>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="nutrition-alert nutrition-alert--danger" role="alert">@_error</div>
+    }
+
+    @if (_loading)
+    {
+        <div class="nutrition-panel nutrition-state">Загружаем дневник...</div>
+    }
+    else if (_selectedChildId == Guid.Empty)
+    {
+        <div class="nutrition-panel nutrition-state">Сначала привяжите профиль ребёнка.</div>
+    }
+    else
+    {
+        <section class="nutrition-summary" aria-label="Сводка за 30 дней">
+            <article class="nutrition-stat nutrition-stat--accent">
+                <span>Съедено за 30 дней</span>
+                <strong>@_summary.TotalBreadUnits.ToString("0.##")</strong>
+                <small>ХЕ</small>
+            </article>
+            <article class="nutrition-stat">
+                <span>Инсулин</span>
+                <strong>@_summary.TotalInsulinUnits.ToString("0.##")</strong>
+                <small>единиц введено</small>
+            </article>
+            <article class="nutrition-stat">
+                <span>Среднее за день</span>
+                <strong>@_summary.AverageBreadUnitsPerDay.ToString("0.##")</strong>
+                <small>ХЕ в день</small>
+            </article>
+            <article class="nutrition-stat">
+                <span>Средний инсулин</span>
+                <strong>@_summary.AverageInsulinUnitsPerDay.ToString("0.##")</strong>
+                <small>ед. в день</small>
+            </article>
+        </section>
+
+        <section class="nutrition-grid">
+            <article class="nutrition-panel nutrition-log">
+                <div class="nutrition-panel-head">
+                    <div>
+                        <span class="nutrition-section-label">Журнал</span>
+                        <h2>Записи дневника</h2>
+                        <p>Приёмы пищи, перекусы, ХЕ и фактические инъекции.</p>
+                    </div>
+                    <button class="nutrition-btn nutrition-btn--primary" @onclick="NewEntry">+ Новая запись</button>
+                </div>
+
+                @if (_showEntryForm)
+                {
+                    <div class="nutrition-form nutrition-form--entry">
+                        <label>
+                            <span>Дата и время</span>
+                            <input type="datetime-local" @bind="_entry.RecordedAt" @bind:format="yyyy-MM-ddTHH:mm" />
+                        </label>
+                        <label>
+                            <span>Тип</span>
+                            <select @bind="_entry.MealType">
+                                @foreach (var type in Enum.GetValues<MealType>())
+                                {
+                                    <option value="@type">@MealLabel(type)</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="wide">
+                            <span>Что съел ребёнок</span>
+                            <input maxlength="120" @bind="_entry.MealName" placeholder="Например, каша и яблоко" />
+                        </label>
+                        <label>
+                            <span>Хлебные единицы</span>
+                            <input type="number" min="0" max="50" step="0.1" @bind="_entry.BreadUnits" />
+                        </label>
+                        <label>
+                            <span>Инсулин, ед.</span>
+                            <input type="number" min="0" max="100" step="0.1" @bind="_entry.InsulinUnits" />
+                        </label>
+                        <label>
+                            <span>Глюкоза до еды</span>
+                            <input type="number" min="1" max="33" step="0.1" @bind="_entry.GlucoseBefore" />
+                        </label>
+                        <label class="wide">
+                            <span>Заметка</span>
+                            <input maxlength="500" @bind="_entry.Notes" placeholder="Необязательно" />
+                        </label>
+                        <p class="nutrition-medical-note wide">Указывайте только фактически введённую дозу. SugarGuard не назначает инсулин.</p>
+                        <div class="nutrition-form-actions wide">
+                            <button class="nutrition-btn nutrition-btn--soft" @onclick="CancelEntry">Отмена</button>
+                            <button class="nutrition-btn nutrition-btn--primary" @onclick="SaveEntryAsync">Сохранить</button>
+                        </div>
+                    </div>
+                }
+
+                @if (_pagedEntries.Count == 0)
+                {
+                    <div class="nutrition-empty">
+                        <strong>Записей пока нет</strong>
+                        <span>Добавьте первый приём пищи или дождитесь синхронизации из мобильного приложения.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="nutrition-entry-list">
+                        @foreach (var item in _pagedEntries)
+                        {
+                            <article class="nutrition-entry-card">
+                                <div class="nutrition-entry-icon" aria-hidden="true">@MealIcon(item.MealType)</div>
+                                <div class="nutrition-entry-main">
+                                    <div class="nutrition-entry-top">
+                                        <span class="nutrition-meal-pill">@MealLabel(item.MealType)</span>
+                                        <time>@item.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm")</time>
+                                    </div>
+                                    <strong>@item.MealName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(item.Notes))
+                                    {
+                                        <small>@item.Notes</small>
+                                    }
+                                </div>
+                                <div class="nutrition-entry-metrics">
+                                    <span><strong>@item.BreadUnits.ToString("0.##")</strong> ХЕ</span>
+                                    <span><strong>@item.InsulinUnits.ToString("0.##")</strong> ед.</span>
+                                    @if (item.GlucoseBefore.HasValue)
+                                    {
+                                        <span><strong>@item.GlucoseBefore.Value.ToString("0.0")</strong> ммоль/л</span>
+                                    }
+                                </div>
+                                <div class="nutrition-row-actions">
+                                    <button title="Редактировать" @onclick="() => EditEntry(item)">Изменить</button>
+                                    <button class="danger" title="Удалить" @onclick="() => DeleteEntryAsync(item)">Удалить</button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                    <div class="nutrition-pager">
+                        <span>@(_entryPage + 1) из @EntryPages</span>
+                        <button disabled="@(_entryPage == 0)" @onclick="PrevPage">←</button>
+                        <button disabled="@(_entryPage + 1 >= EntryPages)" @onclick="NextPage">→</button>
+                    </div>
+                }
+            </article>
+
+            <aside class="nutrition-panel nutrition-schedule">
+                <div class="nutrition-panel-head">
+                    <div>
+                        <span class="nutrition-section-label">План</span>
+                        <h2>Расписание</h2>
+                        <p>Приёмы пищи и напоминания для ребёнка.</p>
+                    </div>
+                    <button class="nutrition-round-btn" @onclick="NewSchedule" aria-label="Добавить время">+</button>
+                </div>
+
+                @if (_showScheduleForm)
+                {
+                    <div class="nutrition-form nutrition-form--schedule">
+                        <label>
+                            <span>Название</span>
+                            <input maxlength="80" @bind="_schedule.Title" placeholder="Завтрак" />
+                        </label>
+                        <label>
+                            <span>Время</span>
+                            <input type="time" @bind="_schedule.ScheduledTime" />
+                        </label>
+                        <label>
+                            <span>План ХЕ</span>
+                            <input type="number" min="0" max="50" step="0.1" @bind="_schedule.PlannedBreadUnits" />
+                        </label>
+                        <label class="nutrition-checkbox">
+                            <input type="checkbox" @bind="_schedule.ReminderEnabled" />
+                            <span>Напоминать</span>
+                        </label>
+                        @if (_schedule.ReminderEnabled)
+                        {
+                            <label>
+                                <span>За сколько минут</span>
+                                <input type="number" min="0" max="180" @bind="_schedule.ReminderMinutesBefore" />
+                            </label>
+                        }
+                        <div class="nutrition-form-actions">
+                            <button class="nutrition-btn nutrition-btn--soft" @onclick="CancelSchedule">Отмена</button>
+                            <button class="nutrition-btn nutrition-btn--primary" @onclick="SaveScheduleAsync">Сохранить</button>
+                        </div>
+                    </div>
+                }
+
+                <div class="nutrition-schedule-list">
+                    @foreach (var item in _schedules)
+                    {
+                        <article class="nutrition-schedule-card">
+                            <time>@item.ScheduledTime.ToString("HH:mm")</time>
+                            <div>
+                                <strong>@item.Title</strong>
+                                <span>@MealLabel(item.MealType) · @FormatBreadUnits(item.PlannedBreadUnits) ХЕ</span>
+                                <small>@(item.ReminderEnabled ? $"Напомнить за {item.ReminderMinutesBefore} мин." : "Без напоминания")</small>
+                            </div>
+                            <button @onclick="() => EditSchedule(item)" title="Редактировать">✎</button>
+                            <button class="danger" @onclick="() => DeleteScheduleAsync(item)" title="Удалить">×</button>
+                        </article>
+                    }
+
+                    @if (_schedules.Count == 0)
+                    {
+                        <div class="nutrition-empty compact">
+                            <strong>Расписание пока пусто</strong>
+                            <span>Добавьте завтрак, обед, ужин или перекусы.</span>
+                        </div>
+                    }
+                </div>
+            </aside>
+        </section>
+
+        <section class="nutrition-panel nutrition-chart">
+            <div class="nutrition-panel-head">
+                <div>
+                    <span class="nutrition-section-label">Статистика</span>
+                    <h2>Динамика за 30 дней</h2>
+                    <p>Сравнение ХЕ и фактически введённого инсулина.</p>
+                </div>
+                <div class="nutrition-export-actions">
+                    <button @onclick='() => ExportAsync("csv")'>CSV</button>
+                    <button @onclick='() => ExportAsync("pdf")'>PDF</button>
+                </div>
+            </div>
+
+            <div class="nutrition-bars" role="img" aria-label="График ХЕ и инсулина по дням">
+                @foreach (var day in _summary.Days.TakeLast(14))
+                {
+                    <div class="nutrition-bar-row">
+                        <time>@day.Date.ToString("dd.MM")</time>
+                        <div class="nutrition-bar-track">
+                            <span class="xe" style="width:@BarWidth(day.BreadUnits)%" title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
+                            <span class="insulin" style="width:@BarWidth(day.InsulinUnits)%" title="@day.InsulinUnits.ToString("0.##") ед."></span>
+                        </div>
+                        <strong>@day.BreadUnits.ToString("0.#") / @day.InsulinUnits.ToString("0.#")</strong>
+                    </div>
+                }
+
+                @if (_summary.Days.Count == 0)
+                {
+                    <div class="nutrition-empty">Для графика пока нет данных.</div>
+                }
+            </div>
+
+            <div class="nutrition-legend">
+                <span><i class="xe"></i>ХЕ</span>
+                <span><i class="insulin"></i>Инсулин, ед.</span>
+            </div>
+        </section>
+    }
+</main>
 
 @code {
-    protected override void OnInitialized()
+    private readonly List<ChildProfileVm> _children = [];
+    private List<NutritionEntryVm> _entries = [];
+    private List<MealScheduleVm> _schedules = [];
+    private NutritionSummaryVm _summary = new();
+    private SaveNutritionEntryVm _entry = new();
+    private MealScheduleVm _schedule = new();
+    private Guid _selectedChildId;
+    private Guid _editingEntryId;
+    private Guid _editingScheduleId;
+    private bool _loading = true;
+    private bool _showEntryForm;
+    private bool _showScheduleForm;
+    private string _error = string.Empty;
+    private int _entryPage;
+    private const int PageSize = 8;
+
+    private IReadOnlyList<NutritionEntryVm> _pagedEntries => _entries
+        .Skip(_entryPage * PageSize)
+        .Take(PageSize)
+        .ToList();
+
+    private int EntryPages => Math.Max(1, (int)Math.Ceiling(_entries.Count / (double)PageSize));
+
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/parent/dashboard?tab=backpack", replace: true);
+        _children.AddRange(await Api.GetMyChildrenAsync());
+        _selectedChildId = _children.FirstOrDefault()?.ChildId ?? Guid.Empty;
+        await LoadAsync();
     }
+
+    private async Task LoadAsync()
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            _loading = false;
+            return;
+        }
+
+        try
+        {
+            _loading = true;
+            _error = string.Empty;
+            var from = DateTime.Today.AddDays(-29);
+            var to = DateTime.Today.AddDays(1).AddTicks(-1);
+            var entries = Api.GetNutritionEntriesAsync(_selectedChildId, from, to);
+            var schedules = Api.GetMealScheduleAsync(_selectedChildId);
+            var summary = Api.GetNutritionSummaryAsync(_selectedChildId, from, to);
+
+            await Task.WhenAll(entries, schedules, summary);
+
+            _entries = entries.Result;
+            _schedules = schedules.Result;
+            _summary = summary.Result;
+            _entryPage = Math.Min(_entryPage, EntryPages - 1);
+        }
+        catch (Exception)
+        {
+            _error = "Не удалось загрузить дневник.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void NewEntry()
+    {
+        _editingEntryId = Guid.Empty;
+        _entry = new SaveNutritionEntryVm { RecordedAt = DateTime.Now };
+        _showEntryForm = true;
+    }
+
+    private void EditEntry(NutritionEntryVm item)
+    {
+        _editingEntryId = item.NutritionEntryId;
+        _entry = new SaveNutritionEntryVm
+        {
+            RecordedAt = item.RecordedAt.ToLocalTime(),
+            MealType = item.MealType,
+            MealName = item.MealName,
+            BreadUnits = item.BreadUnits,
+            InsulinUnits = item.InsulinUnits,
+            GlucoseBefore = item.GlucoseBefore,
+            Notes = item.Notes
+        };
+        _showEntryForm = true;
+    }
+
+    private void CancelEntry() => _showEntryForm = false;
+
+    private async Task SaveEntryAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_entry.MealName))
+        {
+            _error = "Укажите описание приёма пищи.";
+            return;
+        }
+
+        try
+        {
+            await Api.SaveNutritionEntryAsync(
+                _selectedChildId,
+                _editingEntryId == Guid.Empty ? null : _editingEntryId,
+                _entry);
+            _showEntryForm = false;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _error = "Не удалось сохранить запись.";
+        }
+    }
+
+    private async Task DeleteEntryAsync(NutritionEntryVm item)
+    {
+        if (await Api.DeleteNutritionEntryAsync(_selectedChildId, item.NutritionEntryId))
+            await LoadAsync();
+    }
+
+    private void NewSchedule()
+    {
+        _editingScheduleId = Guid.Empty;
+        _schedule = new MealScheduleVm
+        {
+            ScheduledTime = new TimeOnly(8, 0),
+            ReminderEnabled = true,
+            ReminderMinutesBefore = 10,
+            IsActive = true
+        };
+        _showScheduleForm = true;
+    }
+
+    private void EditSchedule(MealScheduleVm item)
+    {
+        _editingScheduleId = item.MealScheduleId;
+        _schedule = new MealScheduleVm
+        {
+            MealType = item.MealType,
+            Title = item.Title,
+            ScheduledTime = item.ScheduledTime,
+            PlannedBreadUnits = item.PlannedBreadUnits,
+            DaysOfWeekMask = item.DaysOfWeekMask,
+            ReminderEnabled = item.ReminderEnabled,
+            ReminderMinutesBefore = item.ReminderMinutesBefore,
+            IsActive = item.IsActive
+        };
+        _showScheduleForm = true;
+    }
+
+    private void CancelSchedule() => _showScheduleForm = false;
+
+    private async Task SaveScheduleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_schedule.Title))
+        {
+            _error = "Укажите название приёма пищи.";
+            return;
+        }
+
+        try
+        {
+            await Api.SaveMealScheduleAsync(
+                _selectedChildId,
+                _editingScheduleId == Guid.Empty ? null : _editingScheduleId,
+                _schedule);
+            _showScheduleForm = false;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _error = "Не удалось сохранить расписание.";
+        }
+    }
+
+    private async Task DeleteScheduleAsync(MealScheduleVm item)
+    {
+        if (await Api.DeleteMealScheduleAsync(_selectedChildId, item.MealScheduleId))
+            await LoadAsync();
+    }
+
+    private void PrevPage() => _entryPage = Math.Max(0, _entryPage - 1);
+
+    private void NextPage() => _entryPage = Math.Min(EntryPages - 1, _entryPage + 1);
+
+    private decimal BarWidth(decimal value)
+    {
+        var max = _summary.Days
+            .SelectMany(day => new[] { day.BreadUnits, day.InsulinUnits })
+            .DefaultIfEmpty(1)
+            .Max();
+
+        return max <= 0 ? 0 : Math.Round(value / max * 100, 1);
+    }
+
+    private async Task ExportAsync(string format)
+    {
+        try
+        {
+            var bytes = await Api.ExportNutritionAsync(
+                _selectedChildId,
+                DateTime.Today.AddDays(-29),
+                DateTime.Today.AddDays(1).AddTicks(-1),
+                format);
+
+            await JS.InvokeVoidAsync(
+                "SugarGuard.downloadBase64",
+                $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
+                format == "csv" ? "text/csv;charset=utf-8" : "application/pdf",
+                Convert.ToBase64String(bytes));
+        }
+        catch (Exception)
+        {
+            _error = "Не удалось сформировать файл.";
+        }
+    }
+
+    private static string MealLabel(MealType type) => type switch
+    {
+        MealType.Breakfast => "Завтрак",
+        MealType.Lunch => "Обед",
+        MealType.Dinner => "Ужин",
+        MealType.Snack => "Перекус",
+        _ => "Другое"
+    };
+
+    private static string MealIcon(MealType type) => type switch
+    {
+        MealType.Breakfast => "☀",
+        MealType.Lunch => "🍽",
+        MealType.Dinner => "☾",
+        MealType.Snack => "✦",
+        _ => "•"
+    };
+
+    private static string FormatBreadUnits(decimal? value) =>
+        value.HasValue ? value.Value.ToString("0.#") : "—";
 }

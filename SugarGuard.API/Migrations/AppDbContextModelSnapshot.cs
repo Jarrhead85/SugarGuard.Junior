@@ -329,6 +329,36 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("children");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.ChildAchievement", b =>
+                {
+                    b.Property<Guid>("ChildAchievementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_achievement_id");
+
+                    b.Property<string>("AchievementCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("achievement_code");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unlocked_at");
+
+                    b.HasKey("ChildAchievementId");
+
+                    b.HasIndex("ChildId", "AchievementCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_child_achievements_child_code");
+
+                    b.ToTable("child_achievements");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.ConnectionCode", b =>
                 {
                     b.Property<Guid>("CodeId")
@@ -654,6 +684,70 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("invitationcodes");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.MealSchedule", b =>
+                {
+                    b.Property<Guid>("MealScheduleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("meal_schedule_id");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DaysOfWeekMask")
+                        .HasColumnType("integer")
+                        .HasColumnName("days_of_week_mask");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("meal_type");
+
+                    b.Property<decimal?>("PlannedBreadUnits")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("planned_bread_units");
+
+                    b.Property<bool>("ReminderEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("reminder_enabled");
+
+                    b.Property<int>("ReminderMinutesBefore")
+                        .HasColumnType("integer")
+                        .HasColumnName("reminder_minutes_before");
+
+                    b.Property<TimeOnly>("ScheduledTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("scheduled_time");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("MealScheduleId");
+
+                    b.HasIndex("ChildId", "ScheduledTime", "Title")
+                        .IsUnique()
+                        .HasDatabaseName("ux_meal_schedules_child_time_title");
+
+                    b.ToTable("meal_schedules");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.Measurement", b =>
                 {
                     b.Property<Guid>("MeasurementId")
@@ -746,6 +840,76 @@ namespace SugarGuard.API.Migrations
                         .HasDatabaseName("idx_schedule_child");
 
                     b.ToTable("measurement_schedules");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.NutritionEntry", b =>
+                {
+                    b.Property<Guid>("NutritionEntryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("nutrition_entry_id");
+
+                    b.Property<decimal>("BreadUnits")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("bread_units");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<decimal?>("GlucoseBefore")
+                        .HasColumnType("decimal(4,1)")
+                        .HasColumnName("glucose_before");
+
+                    b.Property<decimal>("InsulinUnits")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("insulin_units");
+
+                    b.Property<string>("MealName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("meal_name");
+
+                    b.Property<string>("MealType")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("meal_type");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("NutritionEntryId");
+
+                    b.HasIndex("ChildId", "RecordedAt")
+                        .HasDatabaseName("ix_nutrition_entries_child_recorded");
+
+                    b.ToTable("nutrition_entries");
                 });
 
             modelBuilder.Entity("SugarGuard.Domain.Entities.OnboardingEvent", b =>
@@ -1296,6 +1460,17 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("CurrentChild");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.ChildAchievement", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany("Achievements")
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.ConnectionCode", b =>
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
@@ -1380,6 +1555,17 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("ClaimedByUser");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.MealSchedule", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany("MealSchedules")
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.Measurement", b =>
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
@@ -1401,6 +1587,17 @@ namespace SugarGuard.API.Migrations
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
                         .WithMany("MeasurementSchedules")
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.NutritionEntry", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany("NutritionEntries")
                         .HasForeignKey("ChildId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1488,6 +1685,8 @@ namespace SugarGuard.API.Migrations
                 {
                     b.Navigation("AIRecommendations");
 
+                    b.Navigation("Achievements");
+
                     b.Navigation("BackpackHistory");
 
                     b.Navigation("BackpackItems");
@@ -1498,9 +1697,13 @@ namespace SugarGuard.API.Migrations
 
                     b.Navigation("DoctorChildLinks");
 
+                    b.Navigation("MealSchedules");
+
                     b.Navigation("MeasurementSchedules");
 
                     b.Navigation("Measurements");
+
+                    b.Navigation("NutritionEntries");
 
                     b.Navigation("ParentChildLinks");
 

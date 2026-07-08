@@ -91,6 +91,12 @@
                             <span class="parent-nav-badge parent-nav-badge--warn">@parentSidebarChild.LowBackpackCount</span>
                         }
                     </a>
+                    <a class="parent-nav-item @(Navigation.Uri.Contains("/parent/nutrition", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/parent/nutrition">
+                        <span class="parent-nav-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3h16v18H4z"/><path d="M8 8h8M8 12h3M8 16h5"/></svg>
+                        </span>
+                        <span>Дневник питания</span>
+                    </a>
                     <a class="parent-nav-item @ParentNavClass("doctor")" href="/parent/dashboard?tab=doctor">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-3-3v6m-7 4h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>

@@ -172,7 +172,7 @@ public partial class ProfilePageViewModel : ObservableObject
 
             var savedSkin = (InterfaceSkin)Preferences.Get("interface_skin", (int)InterfaceSkin.Neutral);
             CurrentSkin = savedSkin;
-            _themeService.ApplySkin(savedSkin);
+            _themeService.ApplySkin(savedSkin, DarkThemeEnabled);
         }
         finally
         {
@@ -411,7 +411,7 @@ public partial class ProfilePageViewModel : ObservableObject
     public void SetSkin(InterfaceSkin skin)
     {
         CurrentSkin = skin;
-        _themeService.ApplySkin(skin);
+        _themeService.ApplySkin(skin, DarkThemeEnabled);
         Preferences.Set("interface_skin", (int)skin);
         _logger.LogInformation("Interface skin set to {Skin}", skin);
     }

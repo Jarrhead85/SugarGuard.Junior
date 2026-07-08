@@ -397,7 +397,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
             if (!GlucoseLevels.IsValidInput(glucoseValue))
             {
-                ShowError("Введите значение от 0.5 до 35.0 ммоль/л");
+                ShowError(
+                    $"Введите значение от {GlucoseLevels.InputMinValue:0.0} " +
+                    $"до {GlucoseLevels.InputMaxValue:0.0} ммоль/л");
                 _logger.LogWarning("Значение глюкозы вне допустимого диапазона: {Value}", glucoseValue);
                 return;
             }

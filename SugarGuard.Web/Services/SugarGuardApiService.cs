@@ -223,6 +223,72 @@ namespace SugarGuard.Web.Services
             }
         }
 
+        public async Task<List<NutritionEntryVm>> GetNutritionEntriesAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var url = BuildUrl($"api/children/{childId}/nutrition/entries", ("from", from.ToUniversalTime().ToString("O")), ("to", to.ToUniversalTime().ToString("O")));
+            return await GetRequiredAsync<List<NutritionEntryVm>>(client, url, cancellationToken);
+        }
+
+        public async Task<NutritionEntryVm> SaveNutritionEntryAsync(Guid childId, Guid? entryId, SaveNutritionEntryVm request, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var url = entryId.HasValue ? $"api/children/{childId}/nutrition/entries/{entryId}" : $"api/children/{childId}/nutrition/entries";
+            using var response = entryId.HasValue
+                ? await client.PutAsJsonAsync(url, request, _jsonOptions, cancellationToken)
+                : await client.PostAsJsonAsync(url, request, _jsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<NutritionEntryVm>(_jsonOptions, cancellationToken) ?? throw new InvalidOperationException("API вернул пустую запись дневника.");
+        }
+
+        public async Task<bool> DeleteNutritionEntryAsync(Guid childId, Guid entryId, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.DeleteAsync($"api/children/{childId}/nutrition/entries/{entryId}", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<MealScheduleVm>> GetMealScheduleAsync(Guid childId, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await GetRequiredAsync<List<MealScheduleVm>>(client, $"api/children/{childId}/nutrition/schedule", cancellationToken);
+        }
+
+        public async Task<MealScheduleVm> SaveMealScheduleAsync(Guid childId, Guid? scheduleId, MealScheduleVm request, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var url = scheduleId.HasValue ? $"api/children/{childId}/nutrition/schedule/{scheduleId}" : $"api/children/{childId}/nutrition/schedule";
+            using var response = scheduleId.HasValue
+                ? await client.PutAsJsonAsync(url, request, _jsonOptions, cancellationToken)
+                : await client.PostAsJsonAsync(url, request, _jsonOptions, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<MealScheduleVm>(_jsonOptions, cancellationToken) ?? throw new InvalidOperationException("API вернул пустое расписание.");
+        }
+
+        public async Task<bool> DeleteMealScheduleAsync(Guid childId, Guid scheduleId, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.DeleteAsync($"api/children/{childId}/nutrition/schedule/{scheduleId}", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<NutritionSummaryVm> GetNutritionSummaryAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var url = BuildUrl($"api/children/{childId}/nutrition/summary", ("from", from.ToUniversalTime().ToString("O")), ("to", to.ToUniversalTime().ToString("O")));
+            return await GetRequiredAsync<NutritionSummaryVm>(client, url, cancellationToken);
+        }
+
+        public async Task<byte[]> ExportNutritionAsync(Guid childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var safeFormat = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase) ? "csv" : "pdf";
+            var url = BuildUrl($"api/children/{childId}/nutrition/export.{safeFormat}", ("from", from.ToUniversalTime().ToString("O")), ("to", to.ToUniversalTime().ToString("O")));
+            using var response = await client.GetAsync(url, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        }
+
         private static (DateTime From, DateTime To) ResolveStatisticsPeriod(string period)
         {
             var to = DateTime.UtcNow;

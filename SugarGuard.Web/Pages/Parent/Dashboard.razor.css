@@ -1465,6 +1465,81 @@
     .child-banner-select {
         max-width: 100%;
     }
+
+    .editor-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .bp-item {
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        align-items: start;
+        padding: 11px;
+    }
+
+    .bp-qty {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .bp-status {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .bp-actions {
+        grid-column: 2 / -1;
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .bp-actions .btn {
+        min-height: 36px;
+        padding: 7px 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-head {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .card-head .btn {
+        white-space: normal;
+        text-align: center;
+    }
+
+    .editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .editor-span {
+        grid-column: auto;
+    }
+
+    .editor-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .bp-item {
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 8px;
+    }
+
+    .bp-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .bp-sub {
+        overflow-wrap: anywhere;
+    }
+
+    .bp-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 /* Соблюдаем prefers-reduced-motion */

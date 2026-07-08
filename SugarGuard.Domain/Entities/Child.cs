@@ -79,4 +79,7 @@ public class Child
     public virtual ICollection<MeasurementSchedule> MeasurementSchedules { get; set; } = new List<MeasurementSchedule>();
     public virtual ICollection<ConnectionCode> ConnectionCodes { get; set; } = new List<ConnectionCode>();
     public virtual ICollection<SnackConsumptionLog> SnackConsumptionLogs { get; set; } = new List<SnackConsumptionLog>();
+    public virtual ICollection<NutritionEntry> NutritionEntries { get; set; } = new List<NutritionEntry>();
+    public virtual ICollection<MealSchedule> MealSchedules { get; set; } = new List<MealSchedule>();
+    public virtual ICollection<ChildAchievement> Achievements { get; set; } = new List<ChildAchievement>();
 }

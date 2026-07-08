@@ -103,9 +103,9 @@
                                     BackgroundColor="{DynamicResource Primary}" TextColor="White" FontAttributes="Bold"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.ConsumeSnackCommand}"
                                     CommandParameter="{Binding .}" />
-                            <Button Text="Убрать" HeightRequest="30" Padding="8,2" CornerRadius="12"
-                                    Style="{StaticResource GhostButton}" TextColor="{DynamicResource TextSecondary}"
-                                    FontSize="11" BorderColor="{DynamicResource BorderDefault}" BorderWidth="1"
+                            <Button Text="Удалить" HeightRequest="30" Padding="8,2" CornerRadius="12"
+                                    Style="{StaticResource GhostButton}" TextColor="{DynamicResource Danger}"
+                                    FontSize="11" BorderColor="{DynamicResource DangerSoft}" BorderWidth="1"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"
                                     CommandParameter="{Binding BackpackItemId}" />
                         </VerticalStackLayout>

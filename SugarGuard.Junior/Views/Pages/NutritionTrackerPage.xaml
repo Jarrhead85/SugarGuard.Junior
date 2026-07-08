@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<pages:SwipeablePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
+                     x:Class="SugarGuard.Junior.Views.Pages.NutritionTrackerPage"
+                     Title="Дневник"
+                     BackgroundColor="{DynamicResource BackgroundPage}">
+    <pages:SwipeablePage.Resources>
+        <Style x:Key="TrackerCard" TargetType="Border">
+            <Setter Property="Padding" Value="16" /><Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+            <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" /><Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+        </Style>
+        <Style x:Key="TrackerField" TargetType="Entry">
+            <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" /><Setter Property="PlaceholderColor" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceOffset}" /><Setter Property="HeightRequest" Value="48" />
+        </Style>
+    </pages:SwipeablePage.Resources>
+    <Grid>
+        <ScrollView VerticalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="16,30,16,28" Spacing="12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Дневник" FontFamily="{StaticResource ClashDisplay}" FontSize="30" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <Label Text="Еда, ХЕ и введённый инсулин" FontSize="13" TextColor="{DynamicResource TextSecondary}" />
+                    </VerticalStackLayout>
+                    <Image Grid.Column="1" Source="{DynamicResource JuniorMascot}" WidthRequest="70" HeightRequest="70" Aspect="AspectFit" />
+                </Grid>
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 22" Padding="18">
+                    <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" /><GradientStop Color="{DynamicResource BrandBlue}" Offset="1" /></LinearGradientBrush></Border.Background>
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" ColumnSpacing="14" RowSpacing="12">
+                        <Label Grid.ColumnSpan="2" Text="За последние 30 дней" TextColor="White" FontSize="15" FontAttributes="Bold" />
+                        <VerticalStackLayout Grid.Row="1"><Label Text="СЪЕДЕНО" TextColor="White" Opacity="0.8" FontSize="11" /><Label Text="{Binding TotalBreadUnits, StringFormat='{0:0.##} ХЕ'}" TextColor="White" FontFamily="{StaticResource ClashDisplay}" FontSize="26" FontAttributes="Bold" /></VerticalStackLayout>
+                        <VerticalStackLayout Grid.Row="1" Grid.Column="1"><Label Text="ИНСУЛИН" TextColor="White" Opacity="0.8" FontSize="11" /><Label Text="{Binding TotalInsulinUnits, StringFormat='{0:0.##} ед.'}" TextColor="White" FontFamily="{StaticResource ClashDisplay}" FontSize="26" FontAttributes="Bold" /></VerticalStackLayout>
+                    </Grid>
+                </Border>
+                <Button Text="+ Записать приём пищи" Command="{Binding ToggleEntryFormCommand}" Style="{StaticResource PrimaryButton}" HeightRequest="52" />
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding ShowEntryForm}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Новая запись" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <Picker Title="Тип приёма пищи" ItemsSource="{Binding MealTypeOptions}" SelectedIndex="{Binding SelectedMealTypeIndex}" TextColor="{DynamicResource TextPrimary}" />
+                        <Entry Placeholder="Что ты ел?" Text="{Binding MealName}" Style="{StaticResource TrackerField}" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><Entry Placeholder="ХЕ" Text="{Binding BreadUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /><Entry Grid.Column="1" Placeholder="Инсулин, ед." Text="{Binding InsulinUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /></Grid>
+                        <Entry Placeholder="Сахар до еды (необязательно)" Text="{Binding GlucoseBeforeText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" />
+                        <Entry Placeholder="Заметка (необязательно)" Text="{Binding Notes}" Style="{StaticResource TrackerField}" />
+                        <Label Text="Указывай фактически введённую дозу. SugarGuard не назначает инсулин." FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                        <Button Text="{Binding EntryButtonText}" Command="{Binding SaveEntryCommand}" Style="{StaticResource PrimaryButton}" />
+                    </VerticalStackLayout>
+                </Border>
+                <Label Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" TextColor="{DynamicResource Danger}" FontSize="13" />
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding HasEntries}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Последние записи" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Entries}" Spacing="8">
+                            <BindableLayout.ItemTemplate><DataTemplate>
+                                <Border Padding="12" BackgroundColor="{DynamicResource SurfaceOffset}" Stroke="{DynamicResource BorderDefault}" StrokeShape="RoundRectangle 16">
+                                    <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
+                                        <Label Text="🍽" FontSize="20" HorizontalOptions="Center" VerticalOptions="Center" />
+                                        <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center"><Label Text="{Binding MealName}" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" LineBreakMode="TailTruncation" /><Label Text="{Binding DetailsLabel}" FontSize="12" TextColor="{DynamicResource BrandPrimary}" /><Label Text="{Binding MealTypeLabel}" FontSize="11" TextColor="{DynamicResource TextSecondary}" /></VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" Spacing="2"><Label Text="{Binding TimeLabel}" FontSize="12" TextColor="{DynamicResource TextSecondary}" HorizontalTextAlignment="End" /><HorizontalStackLayout Spacing="0"><Button Text="✎" Command="{Binding Source={RelativeSource AncestorType={x:Type pages:NutritionTrackerPage}}, Path=BindingContext.EditEntryCommand}" CommandParameter="{Binding .}" BackgroundColor="Transparent" TextColor="{DynamicResource BrandPrimary}" WidthRequest="36" HeightRequest="34" Padding="0" /><Button Text="×" Command="{Binding Source={RelativeSource AncestorType={x:Type pages:NutritionTrackerPage}}, Path=BindingContext.DeleteEntryCommand}" CommandParameter="{Binding .}" BackgroundColor="Transparent" TextColor="{DynamicResource Danger}" WidthRequest="36" HeightRequest="34" Padding="0" /></HorizontalStackLayout></VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate></BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding Days.Count, Converter={StaticResource CountToBoolConverter}}">
+                    <VerticalStackLayout Spacing="9">
+                        <Label Text="Динамика за 7 дней" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <Grid ColumnDefinitions="52,*,50,58" ColumnSpacing="8"><Label Text="Дата" FontSize="11" TextColor="{DynamicResource TextSecondary}" /><Label Grid.Column="1" Text="Объём" FontSize="11" TextColor="{DynamicResource TextSecondary}" /><Label Grid.Column="2" Text="ХЕ" FontSize="11" TextColor="{DynamicResource TextSecondary}" HorizontalTextAlignment="End" /><Label Grid.Column="3" Text="Инс." FontSize="11" TextColor="{DynamicResource TextSecondary}" HorizontalTextAlignment="End" /></Grid>
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Days}" Spacing="7"><BindableLayout.ItemTemplate><DataTemplate>
+                            <Grid ColumnDefinitions="52,*,50,58" ColumnSpacing="8"><Label Text="{Binding Date}" FontSize="12" TextColor="{DynamicResource TextPrimary}" VerticalOptions="Center" /><VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center"><ProgressBar Progress="{Binding BreadUnitsProgress}" ProgressColor="{DynamicResource BrandSecondary}" HeightRequest="5" /><ProgressBar Progress="{Binding InsulinUnitsProgress}" ProgressColor="{DynamicResource BrandBlue}" HeightRequest="5" /></VerticalStackLayout><Label Grid.Column="2" Text="{Binding BreadUnits, StringFormat='{0:0.##}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource BrandSecondary}" /><Label Grid.Column="3" Text="{Binding InsulinUnits, StringFormat='{0:0.##}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource BrandBlue}" /></Grid>
+                        </DataTemplate></BindableLayout.ItemTemplate></VerticalStackLayout>
+                        <HorizontalStackLayout Spacing="14"><Label Text="● ХЕ" FontSize="11" TextColor="{DynamicResource BrandSecondary}" /><Label Text="● Инсулин" FontSize="11" TextColor="{DynamicResource BrandBlue}" /></HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+                <Grid ColumnDefinitions="*,Auto"><Label Text="Расписание" FontFamily="{StaticResource ClashDisplay}" FontSize="22" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" VerticalOptions="Center" /><Button Grid.Column="1" Text="+ Добавить" Command="{Binding ToggleScheduleFormCommand}" Style="{StaticResource SecondaryButton}" Padding="14,6" /></Grid>
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding ShowScheduleForm}">
+                    <VerticalStackLayout Spacing="8">
+                        <Entry Placeholder="Например, завтрак" Text="{Binding ScheduleTitle}" Style="{StaticResource TrackerField}" /><TimePicker Time="{Binding ScheduleTime}" TextColor="{DynamicResource TextPrimary}" /><Entry Placeholder="План ХЕ (необязательно)" Text="{Binding PlannedBreadUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" />
+                        <Grid ColumnDefinitions="*,Auto"><Label Text="Напоминать" TextColor="{DynamicResource TextPrimary}" VerticalOptions="Center" /><Switch Grid.Column="1" IsToggled="{Binding ReminderEnabled}" /></Grid>
+                        <Grid ColumnDefinitions="*,100" IsVisible="{Binding ReminderEnabled}"><Label Text="За сколько минут" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" /><Entry Grid.Column="1" Text="{Binding ReminderMinutesBefore}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /></Grid>
+                        <Button Text="{Binding ScheduleButtonText}" Command="{Binding SaveScheduleCommand}" Style="{StaticResource PrimaryButton}" />
+                    </VerticalStackLayout>
+                </Border>
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Schedules}" Spacing="8"><BindableLayout.ItemTemplate><DataTemplate>
+                    <Border Style="{StaticResource TrackerCard}" Padding="13"><Grid ColumnDefinitions="58,*,Auto" ColumnSpacing="10"><Label Text="{Binding TimeLabel}" FontFamily="{StaticResource ClashDisplay}" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource BrandPrimary}" VerticalOptions="Center" /><VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center"><Label Text="{Binding Title}" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" /><Label Text="{Binding ReminderLabel}" FontSize="11" TextColor="{DynamicResource TextSecondary}" /></VerticalStackLayout><HorizontalStackLayout Grid.Column="2"><Button Text="✎" Command="{Binding Source={RelativeSource AncestorType={x:Type pages:NutritionTrackerPage}}, Path=BindingContext.EditScheduleCommand}" CommandParameter="{Binding .}" BackgroundColor="Transparent" TextColor="{DynamicResource BrandPrimary}" WidthRequest="36" Padding="0" /><Button Text="×" Command="{Binding Source={RelativeSource AncestorType={x:Type pages:NutritionTrackerPage}}, Path=BindingContext.DeleteScheduleCommand}" CommandParameter="{Binding .}" BackgroundColor="Transparent" TextColor="{DynamicResource Danger}" WidthRequest="36" Padding="0" /></HorizontalStackLayout></Grid></Border>
+                </DataTemplate></BindableLayout.ItemTemplate></VerticalStackLayout>
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding HasAchievements}">
+                    <VerticalStackLayout Spacing="10"><Label Text="Мои достижения" FontFamily="{StaticResource ClashDisplay}" FontSize="22" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" /><FlexLayout BindableLayout.ItemsSource="{Binding Achievements}" Direction="Row" Wrap="Wrap" JustifyContent="SpaceAround"><BindableLayout.ItemTemplate><DataTemplate><VerticalStackLayout WidthRequest="100" Margin="3,6" Spacing="4"><Image Source="{Binding ImageName}" WidthRequest="64" HeightRequest="64" /><Label Text="{Binding Title}" FontSize="11" FontAttributes="Bold" HorizontalTextAlignment="Center" TextColor="{DynamicResource TextPrimary}" MaxLines="2" /><ProgressBar Progress="{Binding ProgressValue}" ProgressColor="{DynamicResource BrandSecondary}" /></VerticalStackLayout></DataTemplate></BindableLayout.ItemTemplate></FlexLayout></VerticalStackLayout>
+                </Border>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><Button Text="CSV" Command="{Binding ExportCommand}" CommandParameter="csv" Style="{StaticResource SecondaryButton}" /><Button Grid.Column="1" Text="PDF" Command="{Binding ExportCommand}" CommandParameter="pdf" Style="{StaticResource SecondaryButton}" /></Grid>
+            </VerticalStackLayout>
+        </ScrollView>
+        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="{DynamicResource BrandPrimary}" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</pages:SwipeablePage>

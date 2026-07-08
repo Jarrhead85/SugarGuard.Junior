@@ -153,6 +153,16 @@ public interface IApiClient
     /// <returns>PDF-файл в виде массива байт</returns>
     Task<byte[]> ExportStatisticsToPdfAsync(string childId, string period = "day", bool detailed = false);
 
+    Task<List<NutritionEntryApiModel>> GetNutritionEntriesAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<NutritionEntryApiModel?> SaveNutritionEntryAsync(string childId, Guid? entryId, SaveNutritionEntryApiRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeleteNutritionEntryAsync(string childId, Guid entryId, CancellationToken cancellationToken = default);
+    Task<List<MealScheduleApiModel>> GetMealScheduleAsync(string childId, CancellationToken cancellationToken = default);
+    Task<MealScheduleApiModel?> SaveMealScheduleAsync(string childId, Guid? scheduleId, SaveMealScheduleApiRequest request, CancellationToken cancellationToken = default);
+    Task<bool> DeleteMealScheduleAsync(string childId, Guid scheduleId, CancellationToken cancellationToken = default);
+    Task<NutritionSummaryApiModel?> GetNutritionSummaryAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<List<AchievementApiModel>> GetAchievementsAsync(string childId, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportNutritionAsync(string childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default);
+
     // ========== ПРОВЕРКА СОЕДИНЕНИЯ ==========
     /// <summary>
     /// Проверяет доступность сервера

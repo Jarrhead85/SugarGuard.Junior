@@ -1,64 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<Shell
-    x:Class="SugarGuard.Junior.AppShell"
-    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:SugarGuard.Junior.Views.Pages"
-    FlyoutBehavior="Disabled"
-    Shell.NavBarIsVisible="False"
-    TabBarBackgroundColor="{DynamicResource TabBarBackgroundColor}"
-    TabBarForegroundColor="{DynamicResource TabBarSelectedColor}"
-    TabBarUnselectedColor="{DynamicResource TabBarUnselectedColor}"
-    TabBarTitleColor="{DynamicResource TabBarSelectedColor}">
-
-    <ShellContent
-        Route="loginpage"
-        Shell.TabBarIsVisible="False"
-        ContentTemplate="{DataTemplate local:LoginPage}" />
-    <ShellContent
-        Route="registerpage"
-        Shell.TabBarIsVisible="False"
-        ContentTemplate="{DataTemplate local:RegisterPage}" />
-    <ShellContent
-        Route="verifypage"
-        Shell.TabBarIsVisible="False"
-        ContentTemplate="{DataTemplate local:VerifyPage}" />
-    <ShellContent
-        Route="onboardingpage"
-        Shell.TabBarIsVisible="False"
-        ContentTemplate="{DataTemplate local:OnboardingPage}" />
-    <ShellContent
-        Route="accessmanagementpage"
-        Shell.TabBarIsVisible="False"
-        ContentTemplate="{DataTemplate local:AccessManagementPage}" />
-
+<Shell x:Class="SugarGuard.Junior.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:local="clr-namespace:SugarGuard.Junior.Views.Pages"
+       FlyoutBehavior="Disabled"
+       Shell.NavBarIsVisible="False"
+       TabBarBackgroundColor="{DynamicResource TabBarBackgroundColor}"
+       TabBarForegroundColor="{DynamicResource TabBarSelectedColor}"
+       TabBarUnselectedColor="{DynamicResource TabBarUnselectedColor}"
+       TabBarTitleColor="{DynamicResource TabBarSelectedColor}">
+    <ShellContent Route="loginpage" Shell.TabBarIsVisible="False" ContentTemplate="{DataTemplate local:LoginPage}" />
+    <ShellContent Route="registerpage" Shell.TabBarIsVisible="False" ContentTemplate="{DataTemplate local:RegisterPage}" />
+    <ShellContent Route="verifypage" Shell.TabBarIsVisible="False" ContentTemplate="{DataTemplate local:VerifyPage}" />
+    <ShellContent Route="onboardingpage" Shell.TabBarIsVisible="False" ContentTemplate="{DataTemplate local:OnboardingPage}" />
+    <ShellContent Route="accessmanagementpage" Shell.TabBarIsVisible="False" ContentTemplate="{DataTemplate local:AccessManagementPage}" />
     <TabBar>
-        <ShellContent
-            Title="Главная"
-            Route="mainpage"
-            ContentTemplate="{DataTemplate local:MainPage}">
-            <ShellContent.Icon><FileImageSource File="nav_home.svg" /></ShellContent.Icon>
-        </ShellContent>
-
-        <ShellContent
-            Title="История"
-            Route="historypage"
-            ContentTemplate="{DataTemplate local:HistoryPage}">
-            <ShellContent.Icon><FileImageSource File="nav_history.svg" /></ShellContent.Icon>
-        </ShellContent>
-
-        <ShellContent
-            Title="Рюкзак"
-            Route="backpackpage"
-            ContentTemplate="{DataTemplate local:BackpackPage}">
-            <ShellContent.Icon><FileImageSource File="nav_backpack.svg" /></ShellContent.Icon>
-        </ShellContent>
-
-        <ShellContent
-            Title="Профиль"
-            Route="profilepage"
-            ContentTemplate="{DataTemplate local:ProfilePage}">
-            <ShellContent.Icon><FileImageSource File="nav_profile.svg" /></ShellContent.Icon>
-        </ShellContent>
+        <ShellContent Title="Главная" Route="mainpage" ContentTemplate="{DataTemplate local:MainPage}"><ShellContent.Icon><FileImageSource File="nav_home.svg" /></ShellContent.Icon></ShellContent>
+        <ShellContent Title="История" Route="historypage" ContentTemplate="{DataTemplate local:HistoryPage}"><ShellContent.Icon><FileImageSource File="nav_history.svg" /></ShellContent.Icon></ShellContent>
+        <ShellContent Title="Рюкзак" Route="backpackpage" ContentTemplate="{DataTemplate local:BackpackPage}"><ShellContent.Icon><FileImageSource File="nav_backpack.svg" /></ShellContent.Icon></ShellContent>
+        <ShellContent Title="Дневник" Route="nutritiontrackerpage" ContentTemplate="{DataTemplate local:NutritionTrackerPage}"><ShellContent.Icon><FileImageSource File="nav_tracker.svg" /></ShellContent.Icon></ShellContent>
+        <ShellContent Title="Профиль" Route="profilepage" ContentTemplate="{DataTemplate local:ProfilePage}"><ShellContent.Icon><FileImageSource File="nav_profile.svg" /></ShellContent.Icon></ShellContent>
     </TabBar>
 </Shell>

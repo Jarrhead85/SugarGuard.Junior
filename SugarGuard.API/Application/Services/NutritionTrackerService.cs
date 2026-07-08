@@ -1,0 +1,215 @@
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Data;
+using SugarGuard.API.DTOs;
+using SugarGuard.API.Services;
+using SugarGuard.Domain.Entities;
+using SugarGuard.Domain.Enums;
+
+namespace SugarGuard.API.Application.Services;
+
+public sealed class NutritionTrackerService : INutritionTrackerService
+{
+    private static readonly AchievementDefinition[] AchievementDefinitions =
+    [
+        new("first_steps", "Первые шаги", "Заполни первые 3 записи дневника", "achievement_first_steps.png", 3),
+        new("food_week", "Неделя порядка", "Заполняй питание 7 разных дней", "achievement_food_week.png", 7),
+        new("insulin_20", "Ответственный герой", "Отметь 20 введений инсулина", "achievement_insulin_20.png", 20),
+        new("target_10", "Десять точных дней", "10 дней с измерениями в целевом диапазоне", "achievement_target_10.png", 10),
+        new("schedule_7", "По расписанию", "7 дней отмечай приёмы пищи", "achievement_schedule_7.png", 7),
+        new("backpack_10", "Запасливый путешественник", "Отметь 10 съеденных перекусов", "achievement_backpack_10.png", 10)
+    ];
+
+    private readonly AppDbContext _context;
+    private readonly ICurrentUserContext _currentUser;
+
+    public NutritionTrackerService(AppDbContext context, ICurrentUserContext currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
+
+    public async Task<IReadOnlyList<NutritionEntryResponse>> GetEntriesAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken) =>
+        await _context.NutritionEntries.AsNoTracking()
+            .Where(entry => entry.ChildId == childId && entry.RecordedAt >= from && entry.RecordedAt <= to)
+            .OrderByDescending(entry => entry.RecordedAt)
+            .Select(entry => MapEntry(entry))
+            .ToListAsync(cancellationToken);
+
+    public async Task<NutritionEntryResponse> CreateEntryAsync(Guid childId, Guid actorId, SaveNutritionEntryRequest request, CancellationToken cancellationToken)
+    {
+        var entity = new NutritionEntry { ChildId = childId, CreatedByUserId = actorId };
+        Apply(entity, request);
+        entity.Source = ResolveSource();
+        _context.NutritionEntries.Add(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+        await RefreshAchievementsAsync(childId, cancellationToken);
+        return MapEntry(entity);
+    }
+
+    public async Task<NutritionEntryResponse?> UpdateEntryAsync(Guid childId, Guid entryId, SaveNutritionEntryRequest request, CancellationToken cancellationToken)
+    {
+        var entity = await _context.NutritionEntries.FirstOrDefaultAsync(entry => entry.ChildId == childId && entry.NutritionEntryId == entryId, cancellationToken);
+        if (entity is null) return null;
+        Apply(entity, request);
+        await _context.SaveChangesAsync(cancellationToken);
+        return MapEntry(entity);
+    }
+
+    public async Task<bool> DeleteEntryAsync(Guid childId, Guid entryId, CancellationToken cancellationToken)
+    {
+        var deleted = await _context.NutritionEntries.Where(entry => entry.ChildId == childId && entry.NutritionEntryId == entryId).ExecuteDeleteAsync(cancellationToken);
+        return deleted > 0;
+    }
+
+    public async Task<IReadOnlyList<MealScheduleResponse>> GetSchedulesAsync(Guid childId, CancellationToken cancellationToken) =>
+        await _context.MealSchedules.AsNoTracking().Where(schedule => schedule.ChildId == childId)
+            .OrderBy(schedule => schedule.ScheduledTime).Select(schedule => MapSchedule(schedule)).ToListAsync(cancellationToken);
+
+    public async Task<MealScheduleResponse> CreateScheduleAsync(Guid childId, SaveMealScheduleRequest request, CancellationToken cancellationToken)
+    {
+        var entity = new MealSchedule { ChildId = childId };
+        Apply(entity, request);
+        _context.MealSchedules.Add(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+        return MapSchedule(entity);
+    }
+
+    public async Task<MealScheduleResponse?> UpdateScheduleAsync(Guid childId, Guid scheduleId, SaveMealScheduleRequest request, CancellationToken cancellationToken)
+    {
+        var entity = await _context.MealSchedules.FirstOrDefaultAsync(schedule => schedule.ChildId == childId && schedule.MealScheduleId == scheduleId, cancellationToken);
+        if (entity is null) return null;
+        Apply(entity, request);
+        await _context.SaveChangesAsync(cancellationToken);
+        return MapSchedule(entity);
+    }
+
+    public async Task<bool> DeleteScheduleAsync(Guid childId, Guid scheduleId, CancellationToken cancellationToken) =>
+        await _context.MealSchedules.Where(schedule => schedule.ChildId == childId && schedule.MealScheduleId == scheduleId).ExecuteDeleteAsync(cancellationToken) > 0;
+
+    public async Task<NutritionSummaryResponse> GetSummaryAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        var rows = await _context.NutritionEntries.AsNoTracking()
+            .Where(entry => entry.ChildId == childId && entry.RecordedAt >= from && entry.RecordedAt <= to)
+            .Select(entry => new { entry.RecordedAt, entry.BreadUnits, entry.InsulinUnits }).ToListAsync(cancellationToken);
+        var days = rows.GroupBy(row => DateOnly.FromDateTime(row.RecordedAt))
+            .OrderBy(group => group.Key)
+            .Select(group => new NutritionDailySummary(group.Key, group.Sum(row => row.BreadUnits), group.Sum(row => row.InsulinUnits), group.Count())).ToList();
+        var calendarDays = Math.Max(1, (to.Date - from.Date).Days + 1);
+        var totalXe = rows.Sum(row => row.BreadUnits);
+        var totalInsulin = rows.Sum(row => row.InsulinUnits);
+        return new NutritionSummaryResponse(from, to, totalXe, totalInsulin,
+            Math.Round(totalXe / calendarDays, 2), Math.Round(totalInsulin / calendarDays, 2), days);
+    }
+
+    public async Task<IReadOnlyList<AchievementResponse>> GetAchievementsAsync(Guid childId, CancellationToken cancellationToken)
+    {
+        await RefreshAchievementsAsync(childId, cancellationToken);
+        var progress = await GetAchievementProgressAsync(childId, cancellationToken);
+        var unlocked = await _context.ChildAchievements.AsNoTracking().Where(item => item.ChildId == childId)
+            .ToDictionaryAsync(item => item.AchievementCode, item => item.UnlockedAt, cancellationToken);
+        return AchievementDefinitions.Select(definition => new AchievementResponse(definition.Code, definition.Title, definition.Description,
+            definition.ImageName, Math.Min(progress[definition.Code], definition.Target), definition.Target,
+            unlocked.ContainsKey(definition.Code), unlocked.GetValueOrDefault(definition.Code))).ToList();
+    }
+
+    public async Task<byte[]> ExportCsvAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        var entries = await GetEntriesAsync(childId, from, to, cancellationToken);
+        var builder = new StringBuilder("Дата и время;Приём пищи;Описание;ХЕ;Инсулин, ед.;Глюкоза до;Источник;Заметка\r\n");
+        foreach (var entry in entries.OrderBy(entry => entry.RecordedAt))
+        {
+            builder.AppendLine(string.Join(';', entry.RecordedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"), entry.MealType,
+                Csv(entry.MealName), entry.BreadUnits.ToString("0.##"), entry.InsulinUnits.ToString("0.##"),
+                entry.GlucoseBefore?.ToString("0.0") ?? string.Empty, entry.Source, Csv(entry.Notes)));
+        }
+        return new UTF8Encoding(true).GetBytes(builder.ToString());
+    }
+
+    public async Task<byte[]> ExportPdfAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
+    {
+        var entries = await GetEntriesAsync(childId, from, to, cancellationToken);
+        var childName = await _context.Children.AsNoTracking().Where(child => child.ChildId == childId)
+            .Select(child => child.FirstName + " " + child.LastName).SingleAsync(cancellationToken);
+        return Document.Create(document => document.Page(page =>
+        {
+            page.Size(PageSizes.A4); page.Margin(32); page.DefaultTextStyle(style => style.FontSize(10));
+            page.Header().Text($"SugarGuard: питание и инсулин — {childName}").Bold().FontSize(18).FontColor(Colors.Teal.Darken2);
+            page.Content().PaddingTop(16).Column(column =>
+            {
+                column.Item().Text($"Период: {from:dd.MM.yyyy} — {to:dd.MM.yyyy}");
+                column.Item().PaddingTop(12).Table(table =>
+                {
+                    table.ColumnsDefinition(columns => { columns.RelativeColumn(2); columns.RelativeColumn(2); columns.RelativeColumn(3); columns.RelativeColumn(); columns.RelativeColumn(); });
+                    foreach (var header in new[] { "Дата", "Тип", "Описание", "ХЕ", "Инсулин" }) table.Cell().Background(Colors.Teal.Lighten4).Padding(5).Text(header).Bold();
+                    foreach (var entry in entries.OrderBy(item => item.RecordedAt))
+                    {
+                        table.Cell().Padding(4).Text(entry.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm"));
+                        table.Cell().Padding(4).Text(MealLabel(entry.MealType));
+                        table.Cell().Padding(4).Text(entry.MealName);
+                        table.Cell().Padding(4).Text(entry.BreadUnits.ToString("0.##"));
+                        table.Cell().Padding(4).Text(entry.InsulinUnits.ToString("0.##"));
+                    }
+                });
+            });
+            page.Footer().AlignCenter().Text(text => { text.Span("Сформировано SugarGuard · "); text.CurrentPageNumber(); });
+        })).GeneratePdf();
+    }
+
+    private async Task RefreshAchievementsAsync(Guid childId, CancellationToken cancellationToken)
+    {
+        var progress = await GetAchievementProgressAsync(childId, cancellationToken);
+        var existing = await _context.ChildAchievements.Where(item => item.ChildId == childId).Select(item => item.AchievementCode).ToListAsync(cancellationToken);
+        var additions = AchievementDefinitions.Where(definition => progress[definition.Code] >= definition.Target && !existing.Contains(definition.Code))
+            .Select(definition => new ChildAchievement { ChildId = childId, AchievementCode = definition.Code });
+        _context.ChildAchievements.AddRange(additions);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<Dictionary<string, int>> GetAchievementProgressAsync(Guid childId, CancellationToken cancellationToken)
+    {
+        var nutritionCount = await _context.NutritionEntries.CountAsync(entry => entry.ChildId == childId, cancellationToken);
+        var nutritionDays = await _context.NutritionEntries.Where(entry => entry.ChildId == childId).Select(entry => entry.RecordedAt.Date).Distinct().CountAsync(cancellationToken);
+        var insulinCount = await _context.NutritionEntries.CountAsync(entry => entry.ChildId == childId && entry.InsulinUnits > 0, cancellationToken);
+        var targetDays = await _context.Measurements.Where(measurement => measurement.ChildId == childId && measurement.GlucoseValue >= 4m && measurement.GlucoseValue <= 10m)
+            .Select(measurement => measurement.MeasurementTime.Date).Distinct().CountAsync(cancellationToken);
+        var snacks = await _context.SnackConsumptionLogs.CountAsync(log => log.ChildId == childId, cancellationToken);
+        return new Dictionary<string, int> { ["first_steps"] = nutritionCount, ["food_week"] = nutritionDays, ["insulin_20"] = insulinCount,
+            ["target_10"] = targetDays, ["schedule_7"] = nutritionDays, ["backpack_10"] = snacks };
+    }
+
+    private NutritionEntrySource ResolveSource() => _currentUser.GetRole() switch
+    {
+        UserRole.ChildDevice => NutritionEntrySource.Child,
+        UserRole.Parent => NutritionEntrySource.Parent,
+        UserRole.Doctor => NutritionEntrySource.Doctor,
+        _ => NutritionEntrySource.Admin
+    };
+
+    private static void Apply(NutritionEntry entity, SaveNutritionEntryRequest request)
+    {
+        entity.RecordedAt = request.RecordedAt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(request.RecordedAt, DateTimeKind.Utc) : request.RecordedAt.ToUniversalTime();
+        entity.MealType = request.MealType; entity.MealName = request.MealName.Trim(); entity.BreadUnits = request.BreadUnits;
+        entity.InsulinUnits = request.InsulinUnits; entity.GlucoseBefore = request.GlucoseBefore; entity.Notes = request.Notes?.Trim(); entity.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static void Apply(MealSchedule entity, SaveMealScheduleRequest request)
+    {
+        entity.MealType = request.MealType; entity.Title = request.Title.Trim(); entity.ScheduledTime = request.ScheduledTime;
+        entity.PlannedBreadUnits = request.PlannedBreadUnits; entity.DaysOfWeekMask = request.DaysOfWeekMask; entity.ReminderEnabled = request.ReminderEnabled;
+        entity.ReminderMinutesBefore = request.ReminderMinutesBefore; entity.IsActive = request.IsActive; entity.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static NutritionEntryResponse MapEntry(NutritionEntry entry) => new(entry.NutritionEntryId, entry.ChildId, entry.RecordedAt, entry.MealType,
+        entry.MealName, entry.BreadUnits, entry.InsulinUnits, entry.GlucoseBefore, entry.Notes, entry.Source, entry.UpdatedAt);
+    private static MealScheduleResponse MapSchedule(MealSchedule schedule) => new(schedule.MealScheduleId, schedule.ChildId, schedule.MealType, schedule.Title,
+        schedule.ScheduledTime, schedule.PlannedBreadUnits, schedule.DaysOfWeekMask, schedule.ReminderEnabled, schedule.ReminderMinutesBefore, schedule.IsActive, schedule.UpdatedAt);
+    private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+    private static string MealLabel(MealType type) => type switch { MealType.Breakfast => "Завтрак", MealType.Lunch => "Обед", MealType.Dinner => "Ужин", MealType.Snack => "Перекус", _ => "Другое" };
+    private sealed record AchievementDefinition(string Code, string Title, string Description, string ImageName, int Target);
+}

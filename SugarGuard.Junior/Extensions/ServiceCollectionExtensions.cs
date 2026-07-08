@@ -142,6 +142,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<AccessManagementPageViewModel>();
         services.AddTransient<HelpAlertPageViewModel>();
         services.AddSingleton<HistoryPageViewModel>();
+        services.AddSingleton<NutritionTrackerPageViewModel>();
 
         // Pages (Singleton for main pages, Transient for dialogs and pushed pages)
         services.AddSingleton<MainPage>();
@@ -160,6 +161,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<AccessManagementPage>();
         services.AddTransient<HelpAlertPage>();
         services.AddSingleton<HistoryPage>();
+        services.AddSingleton<NutritionTrackerPage>();
 
         // Page factories (for navigation with childId)
         services.AddSingleton<IEditProfilePageFactory, EditProfilePageFactory>();

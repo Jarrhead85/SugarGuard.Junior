@@ -53,6 +53,9 @@ namespace SugarGuard.API.Data
         public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>(); // Web Push-подписки пользователей
 
         public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+        public DbSet<NutritionEntry> NutritionEntries => Set<NutritionEntry>();
+        public DbSet<MealSchedule> MealSchedules => Set<MealSchedule>();
+        public DbSet<ChildAchievement> ChildAchievements => Set<ChildAchievement>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -189,6 +192,33 @@ namespace SugarGuard.API.Data
                     .WithMany()
                     .HasForeignKey(notification => notification.ChildId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<NutritionEntry>(entity =>
+            {
+                entity.Property(entry => entry.MealType).HasConversion<string>().HasMaxLength(24);
+                entity.Property(entry => entry.Source).HasConversion<string>().HasMaxLength(24);
+                entity.HasIndex(entry => new { entry.ChildId, entry.RecordedAt })
+                    .HasDatabaseName("ix_nutrition_entries_child_recorded");
+                entity.HasOne(entry => entry.Child).WithMany(child => child.NutritionEntries)
+                    .HasForeignKey(entry => entry.ChildId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<MealSchedule>(entity =>
+            {
+                entity.Property(schedule => schedule.MealType).HasConversion<string>().HasMaxLength(24);
+                entity.HasIndex(schedule => new { schedule.ChildId, schedule.ScheduledTime, schedule.Title })
+                    .IsUnique().HasDatabaseName("ux_meal_schedules_child_time_title");
+                entity.HasOne(schedule => schedule.Child).WithMany(child => child.MealSchedules)
+                    .HasForeignKey(schedule => schedule.ChildId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ChildAchievement>(entity =>
+            {
+                entity.HasIndex(achievement => new { achievement.ChildId, achievement.AchievementCode })
+                    .IsUnique().HasDatabaseName("ux_child_achievements_child_code");
+                entity.HasOne(achievement => achievement.Child).WithMany(child => child.Achievements)
+                    .HasForeignKey(achievement => achievement.ChildId).OnDelete(DeleteBehavior.Cascade);
             });
 
             // InviteCodes

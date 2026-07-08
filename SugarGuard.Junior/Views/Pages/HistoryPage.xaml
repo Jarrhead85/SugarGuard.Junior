@@ -128,16 +128,39 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.Footer>
-                <Grid Padding="16,6,16,24" ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
-                    <Button Grid.Column="0" Text="← Назад" Style="{StaticResource SecondaryButton}"
-                            Command="{Binding LoadPreviousPageCommand}"
-                            IsEnabled="{Binding CanGoPreviousPage}" />
-                    <Label Grid.Column="1" Text="{Binding PageLabel}" VerticalOptions="Center"
-                           TextColor="{DynamicResource TextSecondary}" FontSize="12" />
-                    <Button Grid.Column="2" Text="Вперёд →" Style="{StaticResource SecondaryButton}"
-                            Command="{Binding LoadNextPageCommand}"
-                            IsEnabled="{Binding CanGoNextPage}" />
-                </Grid>
+                <VerticalStackLayout Padding="16,6,16,24" Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                        <Button Grid.Column="0" Text="← Назад" Style="{StaticResource SecondaryButton}"
+                                Command="{Binding LoadPreviousPageCommand}"
+                                IsEnabled="{Binding CanGoPreviousPage}" />
+                        <Label Grid.Column="1" Text="{Binding PageLabel}" VerticalOptions="Center"
+                               TextColor="{DynamicResource TextSecondary}" FontSize="12" />
+                        <Button Grid.Column="2" Text="Вперёд →" Style="{StaticResource SecondaryButton}"
+                                Command="{Binding LoadNextPageCommand}"
+                                IsEnabled="{Binding CanGoNextPage}" />
+                    </Grid>
+
+                    <Border IsVisible="{Binding ShowEncouragementBanner}"
+                            Padding="14" StrokeThickness="0" StrokeShape="RoundRectangle 20">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" />
+                                <GradientStop Color="{DynamicResource BrandBlue}" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid ColumnDefinitions="72,*" ColumnSpacing="12">
+                            <Image Source="{DynamicResource JuniorMascot}"
+                                   Aspect="AspectFit" HeightRequest="68" />
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="3">
+                                <Label Text="{Binding EncouragementTitle}"
+                                       FontFamily="{StaticResource ClashDisplay}"
+                                       FontSize="19" FontAttributes="Bold" TextColor="White" />
+                                <Label Text="{Binding EncouragementMessage}"
+                                       FontSize="13" TextColor="White" Opacity="0.92" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
             </CollectionView.Footer>
             </CollectionView>
         </RefreshView>

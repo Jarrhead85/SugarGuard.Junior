@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Collections.Concurrent;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -213,6 +214,8 @@ public partial class HistoryPageViewModel : ObservableObject
     private bool _isNormalizingCustomRange;
     private int _chartPointCount;
     private decimal? _chartAverageGlucose;
+    private double _timeInTargetRangePercent;
+    private readonly ConcurrentDictionary<string, double> _glucoseValueCache = new();
 
     /// <summary>
     /// Идёт загрузка следующей страницы (infinite scroll).
@@ -311,6 +314,15 @@ public partial class HistoryPageViewModel : ObservableObject
     public string AverageGlucose => !_chartAverageGlucose.HasValue
         ? "—"
         : _chartAverageGlucose.Value.ToString("0.0", CultureInfo.InvariantCulture);
+
+    public bool ShowEncouragementBanner =>
+        _chartPointCount > 0 && _timeInTargetRangePercent >= 70d;
+
+    public string EncouragementTitle =>
+        _timeInTargetRangePercent >= 85d ? "Отличная работа!" : "Так держать!";
+
+    public string EncouragementMessage =>
+        $"В целевом диапазоне {_timeInTargetRangePercent:0}% измерений.";
 
     public GlucoseChartDrawable ChartDrawable { get; } = new()
     {
@@ -491,6 +503,7 @@ public partial class HistoryPageViewModel : ObservableObject
         _currentPage = 0;
         HasMorePages = true;
         Measurements.Clear();
+        _glucoseValueCache.Clear();
         await LoadChartDataAsync(range);
         await LoadMeasurementsPageAsync(range, _currentPage, replace: true);
     }
@@ -660,9 +673,17 @@ public partial class HistoryPageViewModel : ObservableObject
         _chartAverageGlucose = points.Count == 0
             ? null
             : points.Average(point => point.GlucoseValue);
+        _timeInTargetRangePercent = points.Count == 0
+            ? 0d
+            : points.Count(point =>
+                (double)point.GlucoseValue >= GlucoseLevels.TargetRangeMin
+                && (double)point.GlucoseValue <= GlucoseLevels.TargetRangeMax) * 100d / points.Count;
 
         OnPropertyChanged(nameof(HasChart));
         OnPropertyChanged(nameof(AverageGlucose));
+        OnPropertyChanged(nameof(ShowEncouragementBanner));
+        OnPropertyChanged(nameof(EncouragementTitle));
+        OnPropertyChanged(nameof(EncouragementMessage));
     }
 
     /// <summary>
@@ -845,12 +866,18 @@ public partial class HistoryPageViewModel : ObservableObject
     /// </summary>
     private async Task<double> ResolveGlucoseValueAsync(string encryptedValue, string measurementId)
     {
+        if (_glucoseValueCache.TryGetValue(measurementId, out var cachedValue))
+        {
+            return cachedValue;
+        }
+
         try
         {
             var decrypted = await _cryptoService.DecryptAsync(encryptedValue);
 
             if (TryParseGlucoseValue(decrypted, out var glucose))
             {
+                _glucoseValueCache[measurementId] = glucose;
                 return glucose;
             }
 
@@ -868,6 +895,7 @@ public partial class HistoryPageViewModel : ObservableObject
 
         if (TryParseGlucoseValue(encryptedValue, out var fallbackValue))
         {
+            _glucoseValueCache[measurementId] = fallbackValue;
             return fallbackValue;
         }
 
@@ -875,6 +903,7 @@ public partial class HistoryPageViewModel : ObservableObject
             "Не удалось получить значение глюкозы даже через fallback для измерения {MeasurementId}. Возвращаем 0.",
             measurementId);
 
+        _glucoseValueCache[measurementId] = 0d;
         return 0d;
     }
 

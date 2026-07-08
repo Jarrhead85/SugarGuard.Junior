@@ -335,7 +335,8 @@ public partial class App : Application
         try
         {
             var skin = (InterfaceSkin)Preferences.Get("interface_skin", (int)InterfaceSkin.Neutral);
-            _themeService.ApplySkin(skin);
+            var isDarkTheme = Preferences.Get(DarkThemePreferenceKey, false);
+            _themeService.ApplySkin(skin, isDarkTheme);
         }
         catch (Exception ex)
         {
@@ -440,6 +441,7 @@ public partial class App : Application
 
         await _mainPageViewModel.InitializeAsync();
         await _syncService.InitializeAsync();
+        await _serviceProvider.GetRequiredService<NutritionTrackerPageViewModel>().InitializeAsync();
 
         _logger.LogInformation("Main page and sync services initialized after startup flow checks.");
         await NavigateOnMainThreadAsync(shell, "//mainpage");
@@ -451,6 +453,7 @@ public partial class App : Application
 
         await _mainPageViewModel.InitializeAsync();
         await _syncService.InitializeAsync();
+        await _serviceProvider.GetRequiredService<NutritionTrackerPageViewModel>().InitializeAsync();
 
         _logger.LogInformation("Главная ViewModel и сервис синхронизации успешно инициализированы.");
 

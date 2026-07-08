@@ -150,7 +150,7 @@ public class ThemeService : IThemeService
         _logger.LogInformation("Scale applied successfully");
     }
 
-    public void ApplySkin(InterfaceSkin skin)
+    public void ApplySkin(InterfaceSkin skin, bool isDarkTheme)
     {
         _currentSkin = skin;
 
@@ -161,7 +161,7 @@ public class ThemeService : IThemeService
             return;
         }
 
-        var palette = GetSkinPalette(skin);
+        var palette = GetSkinPalette(skin, isDarkTheme);
         foreach (var (key, value) in palette)
         {
             resources[key] = Color.FromArgb(value);
@@ -209,11 +209,59 @@ public class ThemeService : IThemeService
             Color.FromArgb(palette["PressedPrimary"]),
             Color.FromArgb(palette["PressedBlue"]));
 
-        _logger.LogInformation("Interface skin applied. Skin={Skin}", skin);
+        _logger.LogInformation(
+            "Interface skin applied. Skin={Skin} Theme={Theme}",
+            skin,
+            isDarkTheme ? "Dark" : "Light");
     }
 
-    private static IReadOnlyDictionary<string, string> GetSkinPalette(InterfaceSkin skin)
+    private static IReadOnlyDictionary<string, string> GetSkinPalette(
+        InterfaceSkin skin,
+        bool isDarkTheme)
     {
+        if (isDarkTheme)
+        {
+            return skin switch
+            {
+                InterfaceSkin.Boy => new Dictionary<string, string>
+                {
+                    ["BrandPrimary"] = "#55D8C4",
+                    ["BrandSecondary"] = "#79E6D5",
+                    ["BrandBlue"] = "#72ADFF",
+                    ["PressedPrimary"] = "#39B8A7",
+                    ["PressedBlue"] = "#548EDB",
+                    ["InteractivePrimary"] = "#55D8C4",
+                    ["InteractivePrimaryHover"] = "#79E6D5",
+                    ["SurfaceSelected"] = "#3355D8C4",
+                    ["BrandAccentBadgeBg"] = "#3355D8C4"
+                },
+                InterfaceSkin.Girl => new Dictionary<string, string>
+                {
+                    ["BrandPrimary"] = "#D58BE4",
+                    ["BrandSecondary"] = "#F4B0DA",
+                    ["BrandBlue"] = "#B2A7FF",
+                    ["PressedPrimary"] = "#B86FC9",
+                    ["PressedBlue"] = "#9185E1",
+                    ["InteractivePrimary"] = "#D58BE4",
+                    ["InteractivePrimaryHover"] = "#E4A3EF",
+                    ["SurfaceSelected"] = "#33D58BE4",
+                    ["BrandAccentBadgeBg"] = "#33D58BE4"
+                },
+                _ => new Dictionary<string, string>
+                {
+                    ["BrandPrimary"] = "#56D0BF",
+                    ["BrandSecondary"] = "#7BE1D2",
+                    ["BrandBlue"] = "#6DAEFF",
+                    ["PressedPrimary"] = "#3EB6A6",
+                    ["PressedBlue"] = "#528FD9",
+                    ["InteractivePrimary"] = "#56D0BF",
+                    ["InteractivePrimaryHover"] = "#76E0D0",
+                    ["SurfaceSelected"] = "#3356D0BF",
+                    ["BrandAccentBadgeBg"] = "#3356D0BF"
+                }
+            };
+        }
+
         return skin switch
         {
             InterfaceSkin.Boy => new Dictionary<string, string>

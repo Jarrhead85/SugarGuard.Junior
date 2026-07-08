@@ -134,16 +134,21 @@ builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? context.User.FindFirst("sub")?.Value;
         var ip = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
                      ?.Split(',')[0].Trim()
                  ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
                  ?? context.Connection.RemoteIpAddress?.ToString()
                  ?? "unknown";
+        var partitionKey = string.IsNullOrWhiteSpace(userId)
+            ? $"anonymous:{ip}"
+            : $"user:{userId}";
 
-        return RateLimitPartition.GetFixedWindowLimiter(ip, _ =>
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 100,
+                PermitLimit = string.IsNullOrWhiteSpace(userId) ? 100 : 300,
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
@@ -382,6 +387,7 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IInviteCodeService, InviteCodeService>();
 builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
 builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
+builder.Services.AddScoped<INutritionTrackerService, NutritionTrackerService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IChildrenService, ChildrenService>();
 builder.Services.AddScoped<IAccountProfileService, AccountProfileService>();

@@ -657,6 +657,68 @@ public class RealApiClient : IApiClient
             : Array.Empty<byte>();
     }
 
+    public async Task<List<NutritionEntryApiModel>> GetNutritionEntriesAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var url = $"api/children/{childId}/nutrition/entries?from={Uri.EscapeDataString(from.ToUniversalTime().ToString("O"))}&to={Uri.EscapeDataString(to.ToUniversalTime().ToString("O"))}";
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, url), cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<List<NutritionEntryApiModel>>(JsonOptions, cancellationToken) ?? [] : [];
+    }
+
+    public async Task<NutritionEntryApiModel?> SaveNutritionEntryAsync(string childId, Guid? entryId, SaveNutritionEntryApiRequest request, CancellationToken cancellationToken = default)
+    {
+        var method = entryId.HasValue ? HttpMethod.Put : HttpMethod.Post;
+        var url = entryId.HasValue ? $"api/children/{childId}/nutrition/entries/{entryId}" : $"api/children/{childId}/nutrition/entries";
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(method, url) { Content = JsonContent.Create(request, options: JsonOptions) }, cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<NutritionEntryApiModel>(JsonOptions, cancellationToken) : null;
+    }
+
+    public async Task<bool> DeleteNutritionEntryAsync(string childId, Guid entryId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Delete, $"api/children/{childId}/nutrition/entries/{entryId}"), cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<MealScheduleApiModel>> GetMealScheduleAsync(string childId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, $"api/children/{childId}/nutrition/schedule"), cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<List<MealScheduleApiModel>>(JsonOptions, cancellationToken) ?? [] : [];
+    }
+
+    public async Task<MealScheduleApiModel?> SaveMealScheduleAsync(string childId, Guid? scheduleId, SaveMealScheduleApiRequest request, CancellationToken cancellationToken = default)
+    {
+        var method = scheduleId.HasValue ? HttpMethod.Put : HttpMethod.Post;
+        var url = scheduleId.HasValue ? $"api/children/{childId}/nutrition/schedule/{scheduleId}" : $"api/children/{childId}/nutrition/schedule";
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(method, url) { Content = JsonContent.Create(request, options: JsonOptions) }, cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<MealScheduleApiModel>(JsonOptions, cancellationToken) : null;
+    }
+
+    public async Task<bool> DeleteMealScheduleAsync(string childId, Guid scheduleId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Delete, $"api/children/{childId}/nutrition/schedule/{scheduleId}"), cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<NutritionSummaryApiModel?> GetNutritionSummaryAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var url = $"api/children/{childId}/nutrition/summary?from={Uri.EscapeDataString(from.ToUniversalTime().ToString("O"))}&to={Uri.EscapeDataString(to.ToUniversalTime().ToString("O"))}";
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, url), cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<NutritionSummaryApiModel>(JsonOptions, cancellationToken) : null;
+    }
+
+    public async Task<List<AchievementApiModel>> GetAchievementsAsync(string childId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, $"api/children/{childId}/nutrition/achievements"), cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<List<AchievementApiModel>>(JsonOptions, cancellationToken) ?? [] : [];
+    }
+
+    public async Task<byte[]> ExportNutritionAsync(string childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default)
+    {
+        var safeFormat = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase) ? "csv" : "pdf";
+        var url = $"api/children/{childId}/nutrition/export.{safeFormat}?from={Uri.EscapeDataString(from.ToUniversalTime().ToString("O"))}&to={Uri.EscapeDataString(to.ToUniversalTime().ToString("O"))}";
+        using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, url), cancellationToken);
+        return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(cancellationToken) : [];
+    }
+
     public async Task<bool> HealthCheckAsync()
     {
         try

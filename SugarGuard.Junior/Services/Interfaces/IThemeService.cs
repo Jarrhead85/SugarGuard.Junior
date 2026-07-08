@@ -11,7 +11,7 @@ public interface IThemeService
     /// </summary>
     void ApplyScale(ScalePreset preset);
 
-    void ApplySkin(InterfaceSkin skin);
+    void ApplySkin(InterfaceSkin skin, bool isDarkTheme);
 
     /// <summary>
     /// Текущий активный пресет масштаба.

@@ -48,6 +48,8 @@ public class MockApiClient : IApiClient
     {
         { "child_001", new List<string> { "яблоко", "бутерброд" } }
     };
+    private static readonly Dictionary<string, List<NutritionEntryApiModel>> MockNutrition = new();
+    private static readonly Dictionary<string, List<MealScheduleApiModel>> MockMealSchedules = new();
 
     public MockApiClient(ILogger<MockApiClient> logger)
     {
@@ -576,6 +578,49 @@ public class MockApiClient : IApiClient
         _logger.LogInformation("[MOCK] PDF сгенерирован, размер: {Size} байт", mockPdfContent.Length);
         return mockPdfContent;
     }
+
+    public Task<List<NutritionEntryApiModel>> GetNutritionEntriesAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default) =>
+        Task.FromResult(MockNutrition.GetValueOrDefault(childId, []).Where(item => item.RecordedAt >= from && item.RecordedAt <= to).ToList());
+
+    public Task<NutritionEntryApiModel?> SaveNutritionEntryAsync(string childId, Guid? entryId, SaveNutritionEntryApiRequest request, CancellationToken cancellationToken = default)
+    {
+        var list = MockNutrition.GetValueOrDefault(childId);
+        if (list is null) MockNutrition[childId] = list = [];
+        var item = entryId.HasValue ? list.FirstOrDefault(entry => entry.NutritionEntryId == entryId) : null;
+        if (item is null) { item = new NutritionEntryApiModel { NutritionEntryId = Guid.NewGuid(), ChildId = Guid.TryParse(childId, out var id) ? id : Guid.Empty }; list.Add(item); }
+        item.RecordedAt = request.RecordedAt; item.MealType = request.MealType; item.MealName = request.MealName; item.BreadUnits = request.BreadUnits;
+        item.InsulinUnits = request.InsulinUnits; item.GlucoseBefore = request.GlucoseBefore; item.Notes = request.Notes;
+        return Task.FromResult<NutritionEntryApiModel?>(item);
+    }
+
+    public Task<bool> DeleteNutritionEntryAsync(string childId, Guid entryId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(MockNutrition.TryGetValue(childId, out var list) && list.RemoveAll(item => item.NutritionEntryId == entryId) > 0);
+
+    public Task<List<MealScheduleApiModel>> GetMealScheduleAsync(string childId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(MockMealSchedules.GetValueOrDefault(childId, []).OrderBy(item => item.ScheduledTime).ToList());
+
+    public Task<MealScheduleApiModel?> SaveMealScheduleAsync(string childId, Guid? scheduleId, SaveMealScheduleApiRequest request, CancellationToken cancellationToken = default)
+    {
+        var list = MockMealSchedules.GetValueOrDefault(childId);
+        if (list is null) MockMealSchedules[childId] = list = [];
+        var item = scheduleId.HasValue ? list.FirstOrDefault(schedule => schedule.MealScheduleId == scheduleId) : null;
+        if (item is null) { item = new MealScheduleApiModel { MealScheduleId = Guid.NewGuid(), ChildId = Guid.TryParse(childId, out var id) ? id : Guid.Empty }; list.Add(item); }
+        item.MealType = request.MealType; item.Title = request.Title; item.ScheduledTime = request.ScheduledTime; item.PlannedBreadUnits = request.PlannedBreadUnits;
+        item.DaysOfWeekMask = request.DaysOfWeekMask; item.ReminderEnabled = request.ReminderEnabled; item.ReminderMinutesBefore = request.ReminderMinutesBefore; item.IsActive = request.IsActive;
+        return Task.FromResult<MealScheduleApiModel?>(item);
+    }
+
+    public Task<bool> DeleteMealScheduleAsync(string childId, Guid scheduleId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(MockMealSchedules.TryGetValue(childId, out var list) && list.RemoveAll(item => item.MealScheduleId == scheduleId) > 0);
+
+    public async Task<NutritionSummaryApiModel?> GetNutritionSummaryAsync(string childId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var entries = await GetNutritionEntriesAsync(childId, from, to, cancellationToken);
+        return new NutritionSummaryApiModel { TotalBreadUnits = entries.Sum(item => item.BreadUnits), TotalInsulinUnits = entries.Sum(item => item.InsulinUnits) };
+    }
+
+    public Task<List<AchievementApiModel>> GetAchievementsAsync(string childId, CancellationToken cancellationToken = default) => Task.FromResult(new List<AchievementApiModel>());
+    public Task<byte[]> ExportNutritionAsync(string childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default) => Task.FromResult(Array.Empty<byte>());
 
     /// <summary>
     /// Имитирует проверку доступности сервера

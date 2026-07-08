@@ -596,4 +596,18 @@
     .doctor-detail-metrics {
         grid-template-columns: 1fr;
     }
+
+    .doctor-detail-chart-wrap,
+    .doctor-chart {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .doctor-note-field textarea {
+        min-height: 120px;
+    }
+
+    .doctor-detail-actions {
+        flex-wrap: wrap;
+    }
 }

@@ -42,7 +42,8 @@ public class GlucoseChartDrawable : IDrawable
     private System.Threading.Timer? _pulseTimer;
     private float _pulseRadius;
     private const float PulseMaxRadius = 14f;
-    private const float PulseStep = 0.8f;
+    private const float PulseStep = 2f;
+    private const int PulseFrameIntervalMilliseconds = 125;
 
     public bool ShowAxes { get; init; }
 
@@ -66,7 +67,7 @@ public class GlucoseChartDrawable : IDrawable
             _pulseRadius = (_pulseRadius + PulseStep) % PulseMaxRadius;
             if (_hostView.TryGetTarget(out var v))
                 MainThread.BeginInvokeOnMainThread(v.Invalidate);
-        }, null, 0, 50);
+        }, null, 0, PulseFrameIntervalMilliseconds);
     }
 
     /// <summary>Останавливает анимацию (вызывать при уходе со страницы).</summary>
