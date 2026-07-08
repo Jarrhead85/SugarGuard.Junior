@@ -186,6 +186,11 @@ public partial class ProfilePage : SwipeablePage
         try
         {
             var isDark = e.Value;
+            if (_viewModel.DarkThemeEnabled != isDark)
+            {
+                _viewModel.DarkThemeEnabled = isDark;
+            }
+
             if (Application.Current is App app)
             {
                 app.SwitchTheme(isDark);

@@ -127,7 +127,10 @@
                     <BoxView HeightRequest="1" />
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Text="Тёмная тема" VerticalOptions="Center" />
-                        <Switch x:Name="ThemeSwitch" Grid.Column="1" IsToggled="{Binding DarkThemeEnabled}" />
+                        <Switch x:Name="ThemeSwitch"
+                                Grid.Column="1"
+                                IsToggled="{Binding DarkThemeEnabled}"
+                                Toggled="OnThemeToggled" />
                     </Grid>
                     <BoxView HeightRequest="1" />
                     <Grid ColumnDefinitions="*,Auto">

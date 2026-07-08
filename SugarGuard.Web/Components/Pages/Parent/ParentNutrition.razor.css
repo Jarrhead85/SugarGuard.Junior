@@ -1,8 +1,112 @@
 .nutrition-page {
-    max-width: 1680px;
-    margin: 0 auto;
-    padding: 32px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px 36px;
     color: var(--color-text, #102044);
+}
+
+.nutrition-child-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 78px;
+    padding: 16px 22px;
+    margin-bottom: 14px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #dfe7f1);
+    box-shadow: 0 12px 30px rgba(44, 66, 99, .05);
+}
+
+.nutrition-child-avatar {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: color-mix(in oklab, var(--color-primary, #1B8E8B) 14%, #fff);
+    color: var(--color-primary, #1B8E8B);
+    font-weight: 900;
+    border: 2px solid var(--color-primary, #1B8E8B);
+}
+
+.nutrition-child-info {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.nutrition-child-info strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text, #102044);
+}
+
+.nutrition-child-info span {
+    color: var(--color-text-muted, #6b7a99);
+    font-size: 13px;
+}
+
+.nutrition-inline-select {
+    width: min(280px, 100%);
+    min-height: 36px;
+    border: 1px solid var(--color-border, #dce4ee);
+    border-radius: 12px;
+    padding: 0 10px;
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #102044);
+}
+
+.nutrition-link-child {
+    margin-left: auto;
+    padding: 10px 14px;
+    border-radius: 999px;
+    color: var(--color-text-muted, #6b7a99);
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.nutrition-link-child.primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--color-primary, #1B8E8B), #2b86e6);
+}
+
+.nutrition-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 10px 20px 0;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--color-divider, #dfe7f1);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.nutrition-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.nutrition-tab {
+    padding: 9px 16px;
+    border-radius: 8px 8px 0 0;
+    color: var(--color-text-muted, #6b7a99);
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.nutrition-tab:hover {
+    color: var(--color-text, #102044);
+    background: var(--color-surface-2, rgba(0,0,0,.04));
+}
+
+.nutrition-tab.active {
+    color: var(--color-primary, #1B8E8B);
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #dfe7f1);
+    border-bottom-color: transparent;
 }
 
 .nutrition-hero,
@@ -507,7 +611,21 @@
 
 @media (max-width: 760px) {
     .nutrition-page {
-        padding: 18px 12px 40px;
+        padding: 12px 10px 36px;
+    }
+
+    .nutrition-child-banner {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px;
+        border-radius: 22px;
+    }
+
+    .nutrition-link-child {
+        width: 100%;
+        margin-left: 0;
+        text-align: center;
+        background: color-mix(in oklab, var(--color-primary, #1B8E8B) 10%, #fff);
     }
 
     .nutrition-hero,
@@ -535,6 +653,10 @@
     .nutrition-row-actions {
         grid-column: 1 / -1;
         justify-content: flex-start;
+    }
+
+    .nutrition-row-actions button {
+        flex: 1 1 0;
     }
 }
 

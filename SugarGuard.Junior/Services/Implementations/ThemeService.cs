@@ -188,6 +188,10 @@ public class ThemeService : IThemeService
             InterfaceSkin.Boy => "#1F168F9B",
             _ => "#1F1B8E8B"
         });
+        resources["BackgroundPage"] = Color.FromArgb(palette["SkinBackgroundPage"]);
+        resources["BackgroundSubtle"] = Color.FromArgb(palette["SkinBackgroundSubtle"]);
+        resources["SurfaceOffset"] = Color.FromArgb(palette["SkinSurfaceOffset"]);
+        resources["TabBarActivePillBackground"] = Color.FromArgb(palette["SurfaceSelected"]);
         resources["JuniorMascot"] = new FileImageSource
         {
             File = skin switch
@@ -233,7 +237,10 @@ public class ThemeService : IThemeService
                     ["InteractivePrimary"] = "#55D8C4",
                     ["InteractivePrimaryHover"] = "#79E6D5",
                     ["SurfaceSelected"] = "#3355D8C4",
-                    ["BrandAccentBadgeBg"] = "#3355D8C4"
+                    ["BrandAccentBadgeBg"] = "#3355D8C4",
+                    ["SkinBackgroundPage"] = "#081424",
+                    ["SkinBackgroundSubtle"] = "#0D2036",
+                    ["SkinSurfaceOffset"] = "#132C44"
                 },
                 InterfaceSkin.Girl => new Dictionary<string, string>
                 {
@@ -245,7 +252,10 @@ public class ThemeService : IThemeService
                     ["InteractivePrimary"] = "#D58BE4",
                     ["InteractivePrimaryHover"] = "#E4A3EF",
                     ["SurfaceSelected"] = "#33D58BE4",
-                    ["BrandAccentBadgeBg"] = "#33D58BE4"
+                    ["BrandAccentBadgeBg"] = "#33D58BE4",
+                    ["SkinBackgroundPage"] = "#160D1E",
+                    ["SkinBackgroundSubtle"] = "#221329",
+                    ["SkinSurfaceOffset"] = "#2A1733"
                 },
                 _ => new Dictionary<string, string>
                 {
@@ -257,7 +267,10 @@ public class ThemeService : IThemeService
                     ["InteractivePrimary"] = "#56D0BF",
                     ["InteractivePrimaryHover"] = "#76E0D0",
                     ["SurfaceSelected"] = "#3356D0BF",
-                    ["BrandAccentBadgeBg"] = "#3356D0BF"
+                    ["BrandAccentBadgeBg"] = "#3356D0BF",
+                    ["SkinBackgroundPage"] = "#0B1018",
+                    ["SkinBackgroundSubtle"] = "#0F1520",
+                    ["SkinSurfaceOffset"] = "#10192A"
                 }
             };
         }
@@ -274,7 +287,10 @@ public class ThemeService : IThemeService
                 ["InteractivePrimary"] = "#168F9B",
                 ["InteractivePrimaryHover"] = "#127682",
                 ["SurfaceSelected"] = "#1F168F9B",
-                ["BrandAccentBadgeBg"] = "#1F168F9B"
+                ["BrandAccentBadgeBg"] = "#1F168F9B",
+                ["SkinBackgroundPage"] = "#EEF8FF",
+                ["SkinBackgroundSubtle"] = "#DCEFFF",
+                ["SkinSurfaceOffset"] = "#E3F4FF"
             },
             InterfaceSkin.Girl => new Dictionary<string, string>
             {
@@ -286,7 +302,10 @@ public class ThemeService : IThemeService
                 ["InteractivePrimary"] = "#B25AC7",
                 ["InteractivePrimaryHover"] = "#9347A6",
                 ["SurfaceSelected"] = "#20B25AC7",
-                ["BrandAccentBadgeBg"] = "#20B25AC7"
+                ["BrandAccentBadgeBg"] = "#20B25AC7",
+                ["SkinBackgroundPage"] = "#FFF3FA",
+                ["SkinBackgroundSubtle"] = "#FFE4F3",
+                ["SkinSurfaceOffset"] = "#FFF0F8"
             },
             _ => new Dictionary<string, string>
             {
@@ -298,7 +317,10 @@ public class ThemeService : IThemeService
                 ["InteractivePrimary"] = "#1B8E8B",
                 ["InteractivePrimaryHover"] = "#177D79",
                 ["SurfaceSelected"] = "#1F1B8E8B",
-                ["BrandAccentBadgeBg"] = "#1F1B8E8B"
+                ["BrandAccentBadgeBg"] = "#1F1B8E8B",
+                ["SkinBackgroundPage"] = "#F4F7FB",
+                ["SkinBackgroundSubtle"] = "#E9EFF9",
+                ["SkinSurfaceOffset"] = "#E9EFF9"
             }
         };
     }

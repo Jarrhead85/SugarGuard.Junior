@@ -166,9 +166,13 @@ public partial class ProfilePageViewModel : ObservableObject
             DarkThemeEnabled = Preferences.Get("dark_theme_enabled", false);
             NotificationsEnabled = Preferences.Get("notifications_enabled", true);
 
-            var savedScale = (ScalePreset)Preferences.Get("interface_scale", (int)ScalePreset.Default);
+            var compactModeEnabled = Preferences.Get("ui_compact_mode", false);
+            var savedScale = compactModeEnabled
+                ? ScalePreset.Small
+                : (ScalePreset)Preferences.Get("interface_scale", (int)ScalePreset.Default);
             CurrentScale = savedScale;
             _themeService.ApplyScale(savedScale);
+            Preferences.Set("interface_scale", (int)savedScale);
 
             var savedSkin = (InterfaceSkin)Preferences.Get("interface_skin", (int)InterfaceSkin.Neutral);
             CurrentSkin = savedSkin;

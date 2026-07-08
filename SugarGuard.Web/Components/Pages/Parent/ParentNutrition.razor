@@ -7,10 +7,55 @@
 @using SugarGuard.Web.ViewModels
 @inject SugarGuardApiService Api
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <PageTitle>Дневник питания — SugarGuard</PageTitle>
 
 <main class="nutrition-page">
+    <section class="nutrition-child-banner">
+        @if (SelectedChild is not null)
+        {
+            <div class="nutrition-child-avatar" aria-hidden="true">@GetInitials(SelectedChild.FullName)</div>
+            <div class="nutrition-child-info">
+                <strong>@SelectedChild.FullName</strong>
+                <span>@GetAge(SelectedChild.DateOfBirth) лет</span>
+                @if (_children.Count > 1)
+                {
+                    <select class="nutrition-inline-select"
+                            value="@_selectedChildId"
+                            aria-label="Выбрать ребёнка"
+                            @onchange="OnSelectedChildChangedAsync">
+                        @foreach (var child in _children)
+                        {
+                            <option value="@child.ChildId">@child.FullName</option>
+                        }
+                    </select>
+                }
+            </div>
+            <a class="nutrition-link-child" href="/parent/link-child">Привязать ещё</a>
+        }
+        else
+        {
+            <div class="nutrition-child-avatar" aria-hidden="true">+</div>
+            <div class="nutrition-child-info">
+                <strong>Ребёнок ещё не привязан</strong>
+                <span>Создайте код в мобильном приложении ребёнка и привяжите его здесь</span>
+            </div>
+            <a class="nutrition-link-child primary" href="/parent/link-child">Привязать ребёнка</a>
+        }
+    </section>
+
+    <nav class="nutrition-tabs" role="tablist" aria-label="Разделы кабинета родителя">
+        <a class="nutrition-tab" href="/parent/dashboard">Обзор</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=measurements">Измерения</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=alerts">Уведомления</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=backpack">Рюкзак</a>
+        <a class="nutrition-tab active" href="/parent/nutrition" aria-current="page">Дневник питания</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=doctor">Записки врача</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=profile">Профиль ребёнка</a>
+        <a class="nutrition-tab" href="/parent/dashboard?tab=settings">Настройки</a>
+    </nav>
+
     <header class="nutrition-hero">
         <div>
             <span class="nutrition-eyebrow">Питание и инсулин</span>
@@ -299,6 +344,8 @@
     private int _entryPage;
     private const int PageSize = 8;
 
+    private ChildProfileVm? SelectedChild => _children.FirstOrDefault(c => c.ChildId == _selectedChildId);
+
     private IReadOnlyList<NutritionEntryVm> _pagedEntries => _entries
         .Skip(_entryPage * PageSize)
         .Take(PageSize)
@@ -345,6 +392,15 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task OnSelectedChildChangedAsync(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var childId))
+        {
+            _selectedChildId = childId;
+            await LoadAsync();
         }
     }
 
@@ -519,4 +575,23 @@
 
     private static string FormatBreadUnits(decimal? value) =>
         value.HasValue ? value.Value.ToString("0.#") : "—";
+
+    private static int GetAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+            age--;
+
+        return Math.Max(0, age);
+    }
+
+    private static string GetInitials(string value)
+    {
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+            return "SG";
+
+        return string.Concat(parts.Take(2).Select(p => char.ToUpperInvariant(p[0])));
+    }
 }

@@ -1,46 +1,46 @@
 # SugarGuard Junior
 
-SugarGuard Junior is a child-focused diabetes monitoring system with a MAUI mobile app, ASP.NET Core API, Blazor web portals, and Telegram notifications.
+SugarGuard Junior — система сопровождения ребёнка с сахарным диабетом. В проект входят мобильное приложение на .NET MAUI, ASP.NET Core API, Blazor web-кабинеты и Telegram-уведомления.
 
-The product connects a child, parent, doctor, and administrator around one shared data model: glucose measurements, backpack snacks, nutrition and insulin diary, meal schedules, reminders, doctor notes, achievements, exports, and audit.
+Продукт объединяет ребёнка, родителя, врача и администратора вокруг единой модели данных: измерения глюкозы, рюкзак с перекусами, дневник питания и инсулина, расписание приёмов пищи, напоминания, заметки врача, ачивки, экспорт и аудит.
 
-## Projects
+## Состав решения
 
-| Project | Purpose |
+| Проект | Назначение |
 |---|---|
-| `SugarGuard.API` | ASP.NET Core Web API, auth, domain workflows, integrations |
-| `SugarGuard.Web` | Blazor Server web portals for Parent, Doctor, and Admin |
-| `SugarGuard.Junior` | .NET MAUI mobile app for the child |
-| `SugarGuard.Domain` | Domain entities and rules |
-| `SugarGuard.Application` | Application contracts and use cases |
-| `SugarGuard.Infrastructure` | EF Core repositories and infrastructure services |
-| `SugarGuard.Shared` | DTOs, validation, constants, shared helpers |
-| `SugarGuard.Tests` | xUnit test project |
+| `SugarGuard.API` | ASP.NET Core Web API: авторизация, бизнес-сценарии, интеграции |
+| `SugarGuard.Web` | Blazor Server: кабинеты родителя, врача и администратора |
+| `SugarGuard.Junior` | .NET MAUI: мобильное приложение ребёнка |
+| `SugarGuard.Domain` | Доменные сущности и правила |
+| `SugarGuard.Application` | Контракты приложения и use cases |
+| `SugarGuard.Infrastructure` | EF Core, репозитории и инфраструктурные сервисы |
+| `SugarGuard.Shared` | DTO, валидация, константы и общие утилиты |
+| `SugarGuard.Tests` | xUnit-тесты |
 
-## Main Features
+## Возможности
 
-- Child mobile app: glucose input, AI advice, backpack, nutrition/insulin diary, meal reminders, achievements, parent/doctor link codes.
-- Parent portal: live dashboard, measurements, notifications, backpack CRUD, nutrition diary and schedule, doctor notes, profile, access management, exports.
-- Doctor portal: patient list, risk groups, patient cards, glucose analytics, clinical notes, profile settings.
-- Admin portal: users, roles, doctor verification, role links, audit, sync/export logs, system status.
-- Integrations: SMTP email, Telegram bot, GigaChat recommendations, CSV/PDF exports.
-- Security: JWT + refresh tokens, role-based authorization, encrypted PHI fields, HMAC connection codes.
+- Мобильное приложение ребёнка: ввод глюкозы, AI-рекомендации, рюкзак, дневник питания/инсулина, напоминания, ачивки, коды привязки родителей и врачей.
+- Кабинет родителя: live-дашборд, измерения, уведомления, рюкзак, дневник питания, расписание, заметки врача, профиль ребёнка, управление доступом и экспорт.
+- Кабинет врача: список пациентов, группы риска, карточки пациентов, графики глюкозы, клинические заметки и профиль врача.
+- Кабинет администратора: пользователи, роли, верификация врачей, связи, аудит, журналы синхронизации/экспорта и состояние системы.
+- Интеграции: SMTP email, Telegram Bot API, GigaChat, экспорт CSV/PDF.
+- Безопасность: JWT + refresh-токены, RBAC, шифрование PHI-данных, HMAC для кодов подключения.
 
-All verification, reset, and linking codes use the unified `ABCD-1234` format.
+Все коды подтверждения, восстановления и привязки используют единый формат `ABCD-1234`.
 
-## Requirements
+## Требования
 
 - .NET SDK 9
-- PostgreSQL for production
-- Android SDK and MAUI workload for Android builds
-- macOS + Xcode for iOS builds
-- Optional: Telegram bot token, GigaChat credentials, SMTP account
+- PostgreSQL для production
+- Android SDK и MAUI workload для сборки Android
+- macOS + Xcode для сборки iOS
+- SMTP-аккаунт, Telegram bot token и GigaChat credentials для интеграций
 
-## Configuration
+## Конфигурация
 
-Use environment variables, user-secrets, or server configuration. Do not commit secrets.
+Секреты хранятся в переменных окружения, user-secrets или конфигурации сервера. Не коммитьте реальные ключи и пароли.
 
-Typical keys:
+Основные ключи:
 
 ```text
 ConnectionStrings__DefaultConnection
@@ -59,9 +59,9 @@ GigaChat__ClientId
 GigaChat__ClientSecret
 ```
 
-## Local Development
+## Локальный запуск
 
-Restore, build, and test:
+Восстановить зависимости, собрать решение и запустить тесты:
 
 ```powershell
 dotnet restore .\SugarGuard.Junior.slnx
@@ -69,42 +69,42 @@ dotnet build .\SugarGuard.Junior.slnx -v minimal
 dotnet test .\SugarGuard.Tests\SugarGuard.Tests.csproj -v minimal
 ```
 
-Run API:
+Запустить API:
 
 ```powershell
 dotnet run --project .\SugarGuard.API\SugarGuard.API.csproj
 ```
 
-Run Web:
+Запустить Web:
 
 ```powershell
 dotnet run --project .\SugarGuard.Web\SugarGuard.Web.csproj
 ```
 
-Build Android app:
+Собрать Android-приложение:
 
 ```powershell
 dotnet build .\SugarGuard.Junior\SugarGuard.Junior.csproj -f net9.0-android -v minimal
 ```
 
-## Deployment
+## Деплой
 
-The repository contains deployment scripts for the VDS environment.
+Для VDS используется скрипт:
 
 ```powershell
 .\scripts\deploy-vds.ps1
 ```
 
-Production services are expected to run behind HTTPS as separate systemd units for API and Web. Secrets are stored on the server, not in the repository.
+API и Web разворачиваются как отдельные systemd-сервисы за HTTPS. Серверные секреты должны оставаться на сервере и не попадать в репозиторий.
 
-## Documentation
+## Документация
 
-- [Project description](./Описание-v3.md)
+- [Описание проекта](./Описание-v3.md)
 - [UI Kit](./UIKit-v2.md)
 
-## Development Notes
+## Правила разработки
 
-- Keep Parent, Doctor, and Admin web portals on the shared visual system.
-- Parent sidebar and top tabs must use the same section names and order.
-- Prefer real persisted data over demo placeholders.
-- New API behavior should be covered with xUnit tests when it changes domain rules, authorization, synchronization, or exports.
+- Кабинеты родителя, врача и администратора должны использовать единый визуальный язык.
+- Левая панель и верхние вкладки родителя должны совпадать по названиям и порядку.
+- В production-интерфейсе используются только реальные данные, без демо-заглушек.
+- Изменения доменных правил, авторизации, синхронизации и экспорта должны сопровождаться xUnit-тестами.
