@@ -39,6 +39,8 @@ var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
     ?? builder.Configuration["Jwt:Secret"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SugarGuardAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "SugarGuardClients";
+var jwtExpiryHours = builder.Configuration.GetValue<int>("Jwt:ExpiryHours", 24);
+var refreshTokenExpiryDays = builder.Configuration.GetValue<int>("Jwt:RefreshTokenExpiryDays", 30);
 
 if (string.IsNullOrWhiteSpace(jwtSecret))
 {
@@ -61,9 +63,23 @@ if (string.IsNullOrWhiteSpace(jwtSecret))
     }
 }
 
-builder.Configuration["Jwt:Secret"] = jwtSecret;
-builder.Configuration["Jwt:Issuer"] = jwtIssuer;
-builder.Configuration["Jwt:Audience"] = jwtAudience;
+var jwtSettings = new JwtSettings
+{
+    Secret = jwtSecret,
+    Issuer = jwtIssuer,
+    Audience = jwtAudience,
+    ExpiryHours = jwtExpiryHours,
+    RefreshTokenExpiryDays = refreshTokenExpiryDays
+};
+
+var demoEmailBypassSettings = new DemoEmailBypassSettings
+{
+    Enabled = builder.Configuration.GetValue<bool>("DemoEmailBypass:Enabled")
+        || string.Equals(
+            Environment.GetEnvironmentVariable("DEMO_EMAIL_BYPASS_ENABLED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase)
+};
 
 var gigaChatClientId = Environment.GetEnvironmentVariable("GIGACHAT_CLIENT_ID")
     ?? builder.Configuration["GigaChat:ClientId"];
@@ -130,17 +146,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardLimit = 2;
 });
 
+builder.Services.AddSingleton(jwtSettings);
+builder.Services.AddSingleton(demoEmailBypassSettings);
+
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                      ?? context.User.FindFirst("sub")?.Value;
-        var ip = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                     ?.Split(',')[0].Trim()
-                 ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
-                 ?? context.Connection.RemoteIpAddress?.ToString()
-                 ?? "unknown";
+        var ip = Program.GetClientIp(context);
         var partitionKey = string.IsNullOrWhiteSpace(userId)
             ? $"anonymous:{ip}"
             : $"user:{userId}";
@@ -157,11 +172,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("auth-login", context =>
     {
-        var ip = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()
-                     ?.Split(',')[0].Trim()
-                 ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
-                 ?? context.Connection.RemoteIpAddress?.ToString()
-                 ?? "unknown";
+        var ip = Program.GetClientIp(context);
 
         return RateLimitPartition.GetFixedWindowLimiter($"login:{ip}", _ =>
             new FixedWindowRateLimiterOptions
@@ -249,7 +260,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(5)
+            ClockSkew = TimeSpan.Zero
         };
     });
 
@@ -278,6 +289,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     else
         options.UseNpgsql(connectionString);
 });
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
 {
@@ -296,38 +308,22 @@ builder.Services.AddDbContext<SyncDbContext>(options =>
 });
 
 // Репозитории
-builder.Services.AddScoped<IUserRepository, UserRepository>(sp =>
-    new UserRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IChildRepository, ChildRepository>(sp =>
-    new ChildRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IMeasurementRepository, MeasurementRepository>(sp =>
-    new MeasurementRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IParentChildLinkRepository, ParentChildLinkRepository>(sp =>
-    new ParentChildLinkRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IDoctorChildLinkRepository, DoctorChildLinkRepository>(sp =>
-    new DoctorChildLinkRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IInviteCodeRepository, InviteCodeRepository>(sp =>
-    new InviteCodeRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IDoctorNoteRepository, DoctorNoteRepository>(sp =>
-    new DoctorNoteRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>(sp =>
-    new AuditLogRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IOnboardingEventRepository, OnboardingEventRepository>(sp =>
-    new OnboardingEventRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IExportJobRepository, ExportJobRepository>(sp =>
-    new ExportJobRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>(sp =>
-    new SyncLogRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IAIRecommendationRepository, AIRecommendationRepository>(sp =>
-    new AIRecommendationRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>(sp =>
-    new RefreshTokenRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IBackpackItemRepository, BackpackItemRepository>(sp =>
-    new BackpackItemRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IDiabetesSettingsRepository, DiabetesSettingsRepository>(sp =>
-    new DiabetesSettingsRepository(sp.GetRequiredService<AppDbContext>()));
-builder.Services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>(sp =>
-    new PushSubscriptionRepository(sp.GetRequiredService<AppDbContext>()));
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IChildRepository, ChildRepository>();
+builder.Services.AddScoped<IMeasurementRepository, MeasurementRepository>();
+builder.Services.AddScoped<IParentChildLinkRepository, ParentChildLinkRepository>();
+builder.Services.AddScoped<IDoctorChildLinkRepository, DoctorChildLinkRepository>();
+builder.Services.AddScoped<IInviteCodeRepository, InviteCodeRepository>();
+builder.Services.AddScoped<IDoctorNoteRepository, DoctorNoteRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IOnboardingEventRepository, OnboardingEventRepository>();
+builder.Services.AddScoped<IExportJobRepository, ExportJobRepository>();
+builder.Services.AddScoped<ISyncLogRepository, SyncLogRepository>();
+builder.Services.AddScoped<IAIRecommendationRepository, AIRecommendationRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IBackpackItemRepository, BackpackItemRepository>();
+builder.Services.AddScoped<IDiabetesSettingsRepository, DiabetesSettingsRepository>();
+builder.Services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
 
 if (!useSqlite)
 {
@@ -368,11 +364,11 @@ builder.Services.AddScoped<IChildAccessService, ChildAccessService>();
 
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddSingleton<IEmailService, DevEmailService>();
+    builder.Services.AddScoped<IEmailService, DevEmailService>();
 }
 else
 {
-    builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
+    builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 }
 
 builder.Services.AddScoped<IVerificationService, VerificationService>();
@@ -408,7 +404,7 @@ builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddScoped<IFaqContentService, FaqContentService>();
 builder.Services.AddScoped<ISyncLogService, SyncLogService>();
 builder.Services.AddScoped<IExportJobApiService, ExportJobApiService>();
-builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
+builder.Services.AddScoped<ICsvExportService, CsvExportService>();
 builder.Services.AddScoped<IBotUserContextService, BotUserContextService>();
 builder.Services.AddScoped<IParentLinkService, ParentLinkService>();
 builder.Services.AddScoped<IMeasurementsService, MeasurementsService>();
@@ -436,7 +432,7 @@ builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationSer
 // Web Push
 builder.Services.AddScoped<IWebPushService, WebPushService>();
 
-builder.Services.AddTransient<ExportJobProcessor>();
+builder.Services.AddScoped<ExportJobProcessor>();
 
 if (!useSqlite)
 {
@@ -547,6 +543,8 @@ builder.Services.AddHttpLogging(logging =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     await Program.EnsureDevelopmentSeedDataAsync(app);
@@ -589,8 +587,6 @@ if (!app.Environment.IsDevelopment() && !useSqlite)
         IsReadOnlyFunc = ctx => !ctx.GetHttpContext()!.User.IsInRole("Admin")
     });
 }
-
-app.UseForwardedHeaders();
 
 app.UseHttpLogging();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -766,8 +762,8 @@ public partial class Program
         await db.SaveChangesAsync();
 
         app.Logger.LogWarning(
-            "Development test account ensured. Email: {Email}; Password: {Password}; ChildId: {ChildId}",
-            email, password, childId);
+            "Development test account ensured. Email: {Email}; ChildId: {ChildId}. Password is configured via DevSeed:TestParentPassword.",
+            email, childId);
     }
 
     /// <summary>
@@ -787,5 +783,26 @@ public partial class Program
 
         var hash = pbkdf2.GetBytes(hashSize);
         return (Convert.ToBase64String(hash), Convert.ToBase64String(salt));
+    }
+
+    internal static string GetClientIp(HttpContext context)
+    {
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var firstForwardedIp = forwardedFor.Split(',', StringSplitOptions.TrimEntries)[0];
+            if (!string.IsNullOrWhiteSpace(firstForwardedIp))
+            {
+                return firstForwardedIp;
+            }
+        }
+
+        var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(realIp))
+        {
+            return realIp;
+        }
+
+        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 }

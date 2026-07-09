@@ -5,7 +5,7 @@ namespace SugarGuard.API.Application.Services;
 /// <summary>
 /// Потокобезопасный кэш access-токена GigaChat
 /// </summary>
-public class GigaChatTokenCache : IGigaChatTokenCache
+public sealed class GigaChatTokenCache : IGigaChatTokenCache
 {
     /// <summary>
     /// TTL валидного токена
@@ -16,6 +16,9 @@ public class GigaChatTokenCache : IGigaChatTokenCache
 
     private string? _token;
     private DateTime _expiry;
+
+    // Singleton lifetime is intentional: the semaphore serializes refreshes and
+    // prevents concurrent callers from requesting several GigaChat tokens at once.
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public bool TryGet(out string? token)

@@ -9,7 +9,7 @@ namespace SugarGuard.API.Services
     /// Реализация отправки писем
     /// </summary>
 
-    public class SmtpEmailService : IEmailService
+    public sealed class SmtpEmailService : IEmailService
     {
         private readonly SmtpSettings _settings;
         private readonly ILogger<SmtpEmailService> _logger;

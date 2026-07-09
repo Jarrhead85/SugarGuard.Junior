@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SugarGuard.API.Exceptions;
 
 namespace SugarGuard.API.Middleware;
@@ -9,11 +10,20 @@ namespace SugarGuard.API.Middleware;
 /// <summary>
 /// Middleware для централизованной обработки исключений
 /// </summary>
-public class GlobalExceptionHandlerMiddleware
+public sealed class GlobalExceptionHandlerMiddleware
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
 
+    /// <summary>
+    /// Инициализирует middleware централизованной обработки исключений.
+    /// </summary>
     public GlobalExceptionHandlerMiddleware(
         RequestDelegate next,
         ILogger<GlobalExceptionHandlerMiddleware> logger)
@@ -54,10 +64,15 @@ public class GlobalExceptionHandlerMiddleware
                 "GIGACHAT_TIMEOUT",
                 ex.Message
             ),
-            DbUpdateException ex => (
+            DbUpdateException ex when IsUniqueConstraintViolation(ex) => (
                 HttpStatusCode.Conflict,
                 "CONFLICT",
                 "Произошёл конфликт при обновлении базы данных. Пожалуйста, попробуйте снова."
+            ),
+            DbUpdateException => (
+                HttpStatusCode.InternalServerError,
+                "DATABASE_ERROR",
+                "Произошла ошибка при обновлении базы данных. Пожалуйста, обратитесь в службу поддержки."
             ),
             ArgumentException ex => (
                 HttpStatusCode.BadRequest,
@@ -95,13 +110,20 @@ public class GlobalExceptionHandlerMiddleware
         context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = (int)statusCode;
 
-        var jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        };
-
-        var json = JsonSerializer.Serialize(problemDetails, jsonOptions);
+        var json = JsonSerializer.Serialize(problemDetails, JsonOptions);
         await context.Response.WriteAsync(json);
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        for (var current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -8,7 +8,7 @@ namespace SugarGuard.API.Application.Services;
 /// <summary>
 /// Реализация форматирования CSV
 /// </summary>
-public class CsvExportService : ICsvExportService
+public sealed class CsvExportService : ICsvExportService
 {
     /// <inheritdoc/>
     public string BuildMeasurementsCsv(IEnumerable<Measurement> measurements)

@@ -5,27 +5,24 @@ using Microsoft.IdentityModel.Tokens;
 using SugarGuard.Application.Security;
 using SugarGuard.Domain.Entities;
 using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Security;
 
 namespace SugarGuard.API.Application.Services;
 
 public class JwtTokenService : IJwtTokenService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtSettings _settings;
     private readonly IRolePermissionService _rolePermissionService;
 
-    public JwtTokenService(IConfiguration configuration, IRolePermissionService rolePermissionService)
+    public JwtTokenService(JwtSettings settings, IRolePermissionService rolePermissionService)
     {
-        _configuration = configuration;
+        _settings = settings;
         _rolePermissionService = rolePermissionService;
     }
 
     public string GenerateToken(User user)
     {
-        var secretKey = _configuration["Jwt:Secret"] ?? Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
-            ?? throw new InvalidOperationException("JWT SecretKey is not configured.");
-        var issuer = _configuration["Jwt:Issuer"] ?? "SugarGuardAPI";
-        var audience = _configuration["Jwt:Audience"] ?? "SugarGuardClients";
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -44,12 +41,11 @@ public class JwtTokenService : IJwtTokenService
             claims.Add(new Claim("permission", permission));
         }
 
-        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
         var token = new JwtSecurityToken(
-            issuer,
-            audience,
+            _settings.Issuer,
+            _settings.Audience,
             claims,
-            expires: DateTime.UtcNow.AddHours(expiryHours),
+            expires: DateTime.UtcNow.AddHours(_settings.ExpiryHours),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

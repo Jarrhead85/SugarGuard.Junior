@@ -86,7 +86,7 @@ public class AuthService : IAuthService
                     "User",
                     existingUser.UserId.ToString(),
                     "verification_resent",
-                    CancellationToken.None);
+                    cancellationToken);
 
                 _logger.LogInformation(
                     "Registration retried for unverified user. UserId={UserId}",
@@ -100,7 +100,7 @@ public class AuthService : IAuthService
                 "User",
                 existingUser.UserId.ToString(),
                 "email_already_registered",
-                CancellationToken.None);
+                cancellationToken);
 
             return new AuthRegistrationResult(
                 null,
@@ -135,7 +135,7 @@ public class AuthService : IAuthService
             "User",
             user.UserId.ToString(),
             $"role={role}",
-            CancellationToken.None);
+            cancellationToken);
 
         _logger.LogInformation("User registered. UserId={UserId} Role={Role}", user.UserId, role);
 
@@ -177,7 +177,7 @@ public class AuthService : IAuthService
             "User",
             user.UserId.ToString(),
             null,
-            CancellationToken.None);
+            cancellationToken);
 
         _logger.LogInformation(
             "Email confirmed. UserId={UserId} VerificationTokenPrefix={TokenPrefix}",
@@ -203,14 +203,14 @@ public class AuthService : IAuthService
         if (user is null)
         {
             await _audit.WriteAsync("auth.login.failed", "User", null,
-                $"email={emailForLogin}", CancellationToken.None);
+                $"email={emailForLogin}", cancellationToken);
             return new LoginResult(null, LoginFailureReason.UserNotFound);
         }
 
         if (!user.IsActive)
         {
             await _audit.WriteAsync("auth.login.failed", "User", user.UserId.ToString(),
-                "account_deactivated", CancellationToken.None);
+                "account_deactivated", cancellationToken);
             _logger.LogWarning(
                 "Попытка входа деактивированного аккаунта. UserId={UserId}", user.UserId);
             return new LoginResult(null, LoginFailureReason.AccountDeactivated);
@@ -219,14 +219,14 @@ public class AuthService : IAuthService
         if (string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.PasswordSalt))
         {
             await _audit.WriteAsync("auth.login.failed", "User", user.UserId.ToString(),
-                "password_not_configured", CancellationToken.None);
+                "password_not_configured", cancellationToken);
             return new LoginResult(null, LoginFailureReason.PasswordNotConfigured);
         }
 
         if (!_passwordVerification.VerifyPassword(password, user.PasswordHash, user.PasswordSalt))
         {
             await _audit.WriteAsync("auth.login.failed", "User", user.UserId.ToString(),
-                "password_mismatch", CancellationToken.None);
+                "password_mismatch", cancellationToken);
             return new LoginResult(null, LoginFailureReason.PasswordMismatch);
         }
 
@@ -237,14 +237,14 @@ public class AuthService : IAuthService
             && user.Role != UserRole.SupportAdmin)
         {
             await _audit.WriteAsync("auth.login.failed", "User", user.UserId.ToString(),
-                "email_not_verified", CancellationToken.None);
+                "email_not_verified", cancellationToken);
             _logger.LogWarning(
                 "Вход заблокирован: email не подтверждён. UserId={UserId}", user.UserId);
             return new LoginResult(null, LoginFailureReason.EmailNotVerified);
         }
 
         await _audit.WriteAsync("auth.login.success", "User", user.UserId.ToString(),
-            $"role={user.Role}", CancellationToken.None);
+            $"role={user.Role}", cancellationToken);
         _logger.LogInformation(
             "Успешный вход. UserId={UserId} Role={Role}", user.UserId, user.Role);
 
@@ -339,7 +339,7 @@ public class AuthService : IAuthService
         await db.SaveChangesAsync(cancellationToken);
 
         await _audit.WriteAsync("auth.reset-password.success", "User",
-            user.UserId.ToString(), null, CancellationToken.None);
+            user.UserId.ToString(), null, cancellationToken);
 
         _logger.LogInformation("Пароль сброшен. UserId={UserId}", user.UserId);
 

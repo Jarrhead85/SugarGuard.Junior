@@ -1,6 +1,6 @@
 ﻿using SugarGuard.Tests.Utilities;
 
-namespace SugarGuard.Tests;
+namespace SugarGuard.Tests.Unit.Validation;
 
 /// <summary>
 /// Тесты для валидации данных

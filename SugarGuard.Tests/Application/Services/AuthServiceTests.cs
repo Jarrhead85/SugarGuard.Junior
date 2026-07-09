@@ -326,9 +326,8 @@ public class AuthServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoginAsync_AuditUsesCancellationTokenNone_ForAllFailurePaths()
+    public async Task LoginAsync_AuditUsesProvidedCancellationToken_ForFailurePaths()
     {
-        // HIGH-4 contract: все audit-вызовы LoginAsync используют CT.None
         var user = CreateUser(UserRole.Parent, isActive: false);
         using (var db = new AppDbContext(_dbOptions))
         {
@@ -340,10 +339,9 @@ public class AuthServiceTests : IDisposable
 
         await sut.LoginAsync(user.EmailForLogin, "password", cts.Token);
 
-        // audit вызван с CT.None, а НЕ cts.Token
         _audit.Verify(a => a.WriteAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
-            It.IsAny<string?>(), CancellationToken.None), Times.AtLeastOnce);
+            It.IsAny<string?>(), cts.Token), Times.AtLeastOnce);
     }
 
     // ───────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
+using SugarGuard.API.Security;
 using SugarGuard.API.Services;
 using SugarGuard.Application.Security;
 using SugarGuard.Domain.Enums;
@@ -25,7 +26,8 @@ public sealed class AuthController : ControllerBase
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly IRolePermissionService _rolePermissionService;
     private readonly IVerificationService _verificationService;
-    private readonly IConfiguration _configuration;
+    private readonly JwtSettings _jwtSettings;
+    private readonly DemoEmailBypassSettings _demoEmailBypassSettings;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<AuthController> _logger;
 
@@ -38,7 +40,8 @@ public sealed class AuthController : ControllerBase
         IRefreshTokenService refreshTokenService,
         IRolePermissionService rolePermissionService,
         IVerificationService verificationService,
-        IConfiguration configuration,
+        JwtSettings jwtSettings,
+        DemoEmailBypassSettings demoEmailBypassSettings,
         IWebHostEnvironment environment,
         ILogger<AuthController> logger)
     {
@@ -47,7 +50,8 @@ public sealed class AuthController : ControllerBase
         _refreshTokenService = refreshTokenService;
         _rolePermissionService = rolePermissionService;
         _verificationService = verificationService;
-        _configuration = configuration;
+        _jwtSettings = jwtSettings;
+        _demoEmailBypassSettings = demoEmailBypassSettings;
         _environment = environment;
         _logger = logger;
     }
@@ -88,7 +92,6 @@ public sealed class AuthController : ControllerBase
 
         var user = result.User!;
         var accessToken = _jwtTokenService.GenerateToken(user);
-        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var userAgent = Request.Headers.UserAgent.ToString();
@@ -104,7 +107,7 @@ public sealed class AuthController : ControllerBase
             Permissions = _rolePermissionService.GetPermissions(user.Role),
             AccessToken = accessToken,
             RefreshToken = plainRefreshToken,
-            ExpiresAt = DateTime.UtcNow.AddHours(expiryHours),
+            ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpiryHours),
             Message = "Login successful"
         });
     }
@@ -276,7 +279,6 @@ public sealed class AuthController : ControllerBase
 
         var user = confirmResult.User!;
         var accessToken = _jwtTokenService.GenerateToken(user);
-        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var userAgent = Request.Headers.UserAgent.ToString();
@@ -294,7 +296,7 @@ public sealed class AuthController : ControllerBase
             accessToken,
             token = accessToken,
             refreshToken = plainRefreshToken,
-            expiresAt = DateTime.UtcNow.AddHours(expiryHours),
+            expiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpiryHours),
             message = "Email verified."
         });
     }
@@ -368,7 +370,7 @@ public sealed class AuthController : ControllerBase
         if (existingToken is null)
         {
             await _auth.WriteRefreshFailedAuditAsync(
-                userId, "invalid_or_revoked_refresh_token", CancellationToken.None);
+                userId, "invalid_or_revoked_refresh_token", cancellationToken);
             _logger.LogWarning("Refresh: невалидный/отозванный токен. UserId={UserId}", userId);
             return Unauthorized(new
             {
@@ -407,18 +409,16 @@ public sealed class AuthController : ControllerBase
 
         // Выпускаем новый access-токен
         var newAccessToken = _jwtTokenService.GenerateToken(user);
-        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
-        var refreshExpiryDays = _configuration.GetValue<int>("Jwt:RefreshTokenExpiryDays", 30);
 
-        await _auth.WriteRefreshSuccessAuditAsync(userId, CancellationToken.None);
+        await _auth.WriteRefreshSuccessAuditAsync(userId, cancellationToken);
         _logger.LogInformation("Refresh Token Rotation успешен. UserId={UserId}", userId);
 
         return Ok(new RefreshTokenResponse
         {
             AccessToken = newAccessToken,
             RefreshToken = newPlainRefreshToken,
-            AccessTokenExpiresAt = DateTime.UtcNow.AddHours(expiryHours),
-            RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(refreshExpiryDays)
+            AccessTokenExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpiryHours),
+            RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays)
         });
     }
 
@@ -441,7 +441,7 @@ public sealed class AuthController : ControllerBase
                 request.RefreshToken, userId, "logout", cancellationToken);
         }
 
-        await _auth.WriteLogoutAuditAsync(userId, CancellationToken.None);
+        await _auth.WriteLogoutAuditAsync(userId, cancellationToken);
         _logger.LogInformation("Выход выполнен. UserId={UserId}", userId);
 
         return NoContent();
@@ -471,12 +471,16 @@ public sealed class AuthController : ControllerBase
                     cancellationToken);
 
                 await _auth.WriteForgotPasswordAuditAsync(
-                    user.UserId.ToString(), CancellationToken.None);
+                    user.UserId.ToString(), cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
                     "ForgotPassword: ошибка отправки кода. Email={Email}", request.Email);
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = "Сейчас не удалось отправить код. Попробуйте позже."
+                });
             }
         }
 
@@ -559,7 +563,7 @@ public sealed class AuthController : ControllerBase
         {
             await _auth.WriteBotLoginAuditAsync(
                 success: false, serviceAccountUserId: null, reason: "invalid_api_key",
-                cancellationToken: CancellationToken.None);
+                cancellationToken: cancellationToken);
             return Unauthorized(new LoginResponse
             {
                 Success = false,
@@ -570,13 +574,12 @@ public sealed class AuthController : ControllerBase
         var serviceAccountUser = await _auth.GetOrCreateServiceAccountAsync(cancellationToken);
 
         var accessToken = _jwtTokenService.GenerateToken(serviceAccountUser);
-        var expiryHours = _configuration.GetValue<int>("Jwt:ExpiryHours", 24);
 
         await _auth.WriteBotLoginAuditAsync(
             success: true,
             serviceAccountUserId: serviceAccountUser.UserId.ToString(),
             reason: null,
-            cancellationToken: CancellationToken.None);
+            cancellationToken: cancellationToken);
 
         _logger.LogInformation("BotLogin успешен. UserId={UserId}", serviceAccountUser.UserId);
 
@@ -588,7 +591,7 @@ public sealed class AuthController : ControllerBase
             Permissions = _rolePermissionService.GetPermissions(serviceAccountUser.Role),
             AccessToken = accessToken,
             RefreshToken = null, 
-            ExpiresAt = DateTime.UtcNow.AddHours(expiryHours),
+            ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpiryHours),
             Message = "Bot login successful"
         });
     }
@@ -604,11 +607,11 @@ public sealed class AuthController : ControllerBase
                 ValidateAudience = true,
                 ValidateLifetime = false,   
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = _configuration["Jwt:Issuer"],
-                ValidAudience = _configuration["Jwt:Audience"],
+                ValidIssuer = _jwtSettings.Issuer,
+                ValidAudience = _jwtSettings.Audience,
                 IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                    System.Text.Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]!)),
-                ClockSkew = TimeSpan.FromMinutes(5)
+                    System.Text.Encoding.UTF8.GetBytes(_jwtSettings.Secret)),
+                ClockSkew = TimeSpan.Zero
             };
 
             var handler = new JwtSecurityTokenHandler();
@@ -632,10 +635,6 @@ public sealed class AuthController : ControllerBase
             return false;
         }
 
-        return _configuration.GetValue<bool>("DemoEmailBypass:Enabled")
-            || string.Equals(
-                Environment.GetEnvironmentVariable("DEMO_EMAIL_BYPASS_ENABLED"),
-                "true",
-                StringComparison.OrdinalIgnoreCase);
+        return _demoEmailBypassSettings.Enabled;
     }
 }
