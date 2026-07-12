@@ -34,4 +34,13 @@ public sealed class CreateSupportConversationVm
 {
     public string Subject { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
+    public string? ClientLogs { get; init; }
+    public SupportAttachmentVm? Attachment { get; init; }
+}
+
+public sealed class SupportAttachmentVm
+{
+    public string FileName { get; init; } = string.Empty;
+    public string ContentType { get; init; } = "application/octet-stream";
+    public byte[] Content { get; init; } = Array.Empty<byte>();
 }

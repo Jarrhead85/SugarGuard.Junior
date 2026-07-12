@@ -747,15 +747,41 @@ public class RealApiClient : IApiClient
     public async Task<SupportConversationDetailsApiModel?> CreateSupportConversationAsync(CreateSupportConversationApiRequest request, CancellationToken cancellationToken = default)
     {
         using var response = await SendWithRetryAsync(
-            () => new HttpRequestMessage(HttpMethod.Post, "api/support/conversations")
+            () => new HttpRequestMessage(HttpMethod.Post, "api/support/requests")
             {
-                Content = JsonContent.Create(request, options: JsonOptions)
+                Content = BuildSupportRequestContent(request)
             },
             cancellationToken);
 
         return response.IsSuccessStatusCode
             ? await response.Content.ReadFromJsonAsync<SupportConversationDetailsApiModel>(JsonOptions, cancellationToken)
             : null;
+    }
+
+    private static MultipartFormDataContent BuildSupportRequestContent(CreateSupportConversationApiRequest request)
+    {
+        var content = new MultipartFormDataContent
+        {
+            { new StringContent(request.Subject), "Subject" },
+            { new StringContent(request.Message), "Message" }
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.ClientLogs))
+        {
+            content.Add(new StringContent(request.ClientLogs), "ClientLogs");
+        }
+
+        if (request.Attachment is { Content.Length: > 0 } attachment)
+        {
+            var fileContent = new ByteArrayContent(attachment.Content);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(attachment.ContentType)
+                    ? "application/octet-stream"
+                    : attachment.ContentType);
+            content.Add(fileContent, "Attachment", attachment.FileName);
+        }
+
+        return content;
     }
 
     public async Task<SupportMessageApiModel?> AddSupportMessageAsync(Guid conversationId, string message, CancellationToken cancellationToken = default)

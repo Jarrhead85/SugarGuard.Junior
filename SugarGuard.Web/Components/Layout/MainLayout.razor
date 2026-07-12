@@ -25,8 +25,8 @@
         <nav class="sidebar-nav">
             <AuthorizeView Roles="Parent">
                 <Authorized>
-                    <div class="parent-child-card" role="region" aria-label="Ребёнок родителя">
-                        @if (parentSidebarChild is null)
+                    <div class="parent-child-card" role="region" aria-label="Дети родителя">
+                        @if (parentSidebarChildren.Count == 0)
                         {
                             <button class="parent-child-card-empty" @onclick='() => Navigation.NavigateTo("/parent/link-child")'>
                                 <span class="parent-child-avatar" aria-hidden="true">+</span>
@@ -38,30 +38,36 @@
                         }
                         else
                         {
-                            <button class="parent-child-card-button" @onclick='() => Navigation.NavigateTo("/parent/dashboard")'>
-                                <span class="parent-child-avatar" aria-hidden="true">@GetInitials(parentSidebarChild.Name)</span>
-                                <span class="parent-child-info">
-                                    <strong>@parentSidebarChild.Name</strong>
-                                    <small>@parentSidebarChild.Subtitle</small>
-                                </span>
-                                @if (parentSidebarChild.LatestGlucose.HasValue)
+                            <div class="parent-child-list">
+                                @foreach (var child in parentSidebarChildren)
                                 {
-                                    <span class="parent-child-glucose @parentSidebarChild.GlucoseClass">
-                                        @parentSidebarChild.LatestGlucose.Value.ToString("0.0")
-                                    </span>
+                                    <button class="parent-child-card-button @(child.ChildId == parentSidebarChild?.ChildId ? "active" : "")"
+                                            @onclick="() => NavigateToParentChild(child.ChildId)">
+                                        <span class="parent-child-avatar" aria-hidden="true">@GetInitials(child.Name)</span>
+                                        <span class="parent-child-info">
+                                            <strong>@child.Name</strong>
+                                            <small>@child.Subtitle</small>
+                                        </span>
+                                        @if (child.LatestGlucose.HasValue)
+                                        {
+                                            <span class="parent-child-glucose @child.GlucoseClass">
+                                                @child.LatestGlucose.Value.ToString("0.0")
+                                            </span>
+                                        }
+                                    </button>
                                 }
-                            </button>
+                            </div>
                         }
                     </div>
 
                     <span class="parent-nav-caption">Навигация</span>
-                    <a class="parent-nav-item @ParentNavClass("overview")" href="/parent/dashboard">
+                    <a class="parent-nav-item @ParentNavClass("overview")" href="@ParentNavHref("overview")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                         </span>
                         <span>Обзор</span>
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("measurements")" href="/parent/dashboard?tab=measurements">
+                    <a class="parent-nav-item @ParentNavClass("measurements")" href="@ParentNavHref("measurements")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                         </span>
@@ -71,7 +77,7 @@
                             <span class="parent-nav-badge parent-nav-badge--ok">@parentSidebarChild.MeasurementsCount</span>
                         }
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("alerts")" href="/parent/dashboard?tab=alerts">
+                    <a class="parent-nav-item @ParentNavClass("alerts")" href="@ParentNavHref("alerts")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                         </span>
@@ -81,7 +87,7 @@
                             <span class="parent-nav-badge parent-nav-badge--danger">@parentSidebarChild.AlertsCount</span>
                         }
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("backpack")" href="/parent/dashboard?tab=backpack">
+                    <a class="parent-nav-item @ParentNavClass("backpack")" href="@ParentNavHref("backpack")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10a8 8 0 0 1 16 0v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M9 2v2a3 3 0 0 0 6 0V2"/><path d="M8 14h8"/></svg>
                         </span>
@@ -91,19 +97,19 @@
                             <span class="parent-nav-badge parent-nav-badge--warn">@parentSidebarChild.LowBackpackCount</span>
                         }
                     </a>
-                    <a class="parent-nav-item @(Navigation.Uri.Contains("/parent/nutrition", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/parent/nutrition">
+                    <a class="parent-nav-item @ParentNavClass("nutrition")" href="@ParentNavHref("nutrition")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3h16v18H4z"/><path d="M8 8h8M8 12h3M8 16h5"/></svg>
                         </span>
                         <span>Дневник питания</span>
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("doctor")" href="/parent/dashboard?tab=doctor">
+                    <a class="parent-nav-item @ParentNavClass("doctor")" href="@ParentNavHref("doctor")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-3-3v6m-7 4h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>
                         </span>
                         <span>Записки врача</span>
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("profile")" href="/parent/dashboard?tab=profile">
+                    <a class="parent-nav-item @ParentNavClass("profile")" href="@ParentNavHref("profile")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                         </span>
@@ -117,7 +123,7 @@
                         </span>
                         <span>Поддержка</span>
                     </a>
-                    <a class="parent-nav-item @ParentNavClass("settings")" href="/parent/dashboard?tab=settings">
+                    <a class="parent-nav-item @ParentNavClass("settings")" href="@ParentNavHref("settings")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
                         </span>
@@ -304,6 +310,7 @@
     private bool isDarkTheme;
     private List<UserNotificationItem> notifications = new();
     private AccountProfileVm? currentAccountProfile;
+    private List<ParentSidebarChild> parentSidebarChildren = new();
     private ParentSidebarChild? parentSidebarChild;
     private int doctorPatientCount;
     private int doctorRiskCount;
@@ -407,6 +414,7 @@
             }
 
             parentSidebarChild = null;
+            parentSidebarChildren.Clear();
 
             if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
             {
@@ -471,59 +479,75 @@
             if (!await CurrentUser.IsParentAsync())
             {
                 parentSidebarChild = null;
+                parentSidebarChildren.Clear();
                 return;
             }
 
             var children = await Api.GetMyChildrenAsync();
-            var child = children.FirstOrDefault();
-            if (child is null)
+            if (children.Count == 0)
             {
                 parentSidebarChild = null;
+                parentSidebarChildren.Clear();
                 return;
             }
 
-            decimal? latestGlucose = null;
-            var glucoseClass = "normal";
-            var measurementsCount = 0;
-            var alertsCount = 0;
-            var lowBackpackCount = 0;
-            try
+            var selectedChildId = GetParentChildIdFromUri();
+            if (!selectedChildId.HasValue || children.All(child => child.ChildId != selectedChildId.Value))
             {
-                var summary = await Api.GetDashboardSummaryAsync(child.ChildId);
-                latestGlucose = summary.LatestGlucose;
-                var recentMeasurements = await Api.GetMeasurementsAsync(
-                    child.ChildId,
-                    DateTime.UtcNow.AddHours(-1),
-                    DateTime.UtcNow);
-                measurementsCount = recentMeasurements.Count;
-                glucoseClass = summary.LatestGlucoseUiState switch
+                selectedChildId = children[0].ChildId;
+            }
+
+            var notifications = await Api.GetNotificationsAsync();
+            var alertsCount = notifications.Count(notification => notification.IsUnread && notification.NotificationId.HasValue);
+            var snapshots = new List<ParentSidebarChild>(children.Count);
+
+            foreach (var child in children)
+            {
+                decimal? latestGlucose = null;
+                var glucoseClass = "normal";
+                var measurementsCount = 0;
+                var lowBackpackCount = 0;
+
+                try
                 {
-                    "Critical" or "Danger" => "danger",
-                    "Warning" or "Elevated" => "warn",
-                    _ => "normal"
-                };
+                    var summary = await Api.GetDashboardSummaryAsync(child.ChildId);
+                    latestGlucose = summary.LatestGlucose;
+                    var recentMeasurements = await Api.GetMeasurementsAsync(
+                        child.ChildId,
+                        DateTime.UtcNow.AddHours(-1),
+                        DateTime.UtcNow);
+                    measurementsCount = recentMeasurements.Count;
+                    glucoseClass = summary.LatestGlucoseUiState switch
+                    {
+                        "Critical" or "Danger" => "danger",
+                        "Warning" or "Elevated" => "warn",
+                        _ => "normal"
+                    };
 
-                var notifications = await Api.GetNotificationsAsync();
-                alertsCount = notifications.Count(notification => notification.IsUnread && notification.NotificationId.HasValue);
+                    var backpack = await Api.GetBackpackAsync(child.ChildId);
+                    lowBackpackCount = backpack
+                        .GroupBy(item => $"{item.SnackName.Trim().ToUpperInvariant()}|{item.BreadUnits:0.###}")
+                        .Count(group => group.Count() <= 2);
+                }
+                catch
+                {
+                    latestGlucose = null;
+                }
 
-                var backpack = await Api.GetBackpackAsync(child.ChildId);
-                lowBackpackCount = backpack
-                    .GroupBy(item => $"{item.SnackName.Trim().ToUpperInvariant()}|{item.BreadUnits:0.###}")
-                    .Count(group => group.Count() <= 2);
+                snapshots.Add(new ParentSidebarChild(
+                    child.ChildId,
+                    string.IsNullOrWhiteSpace(child.FullName) ? "Ребёнок" : child.FullName,
+                    $"{GetAge(child.DateOfBirth)} лет",
+                    latestGlucose,
+                    glucoseClass,
+                    measurementsCount,
+                    alertsCount,
+                    lowBackpackCount));
             }
-            catch
-            {
-                latestGlucose = null;
-            }
 
-            parentSidebarChild = new ParentSidebarChild(
-                string.IsNullOrWhiteSpace(child.FullName) ? "Ребёнок" : child.FullName,
-                $"{GetAge(child.DateOfBirth)} лет",
-                latestGlucose,
-                glucoseClass,
-                measurementsCount,
-                alertsCount,
-                lowBackpackCount);
+            parentSidebarChildren = snapshots;
+            parentSidebarChild = snapshots.FirstOrDefault(child => child.ChildId == selectedChildId.Value)
+                ?? snapshots.FirstOrDefault();
 
             StateHasChanged();
         }
@@ -593,6 +617,9 @@
             if (parentSidebarChild is not null)
             {
                 parentSidebarChild = parentSidebarChild with { AlertsCount = unreadCount };
+                parentSidebarChildren = parentSidebarChildren
+                    .Select(child => child.ChildId == parentSidebarChild.ChildId ? child with { AlertsCount = unreadCount } : child)
+                    .ToList();
             }
             StateHasChanged();
         }
@@ -630,6 +657,9 @@
             if (parentSidebarChild is not null)
             {
                 parentSidebarChild = parentSidebarChild with { AlertsCount = unreadCount };
+                parentSidebarChildren = parentSidebarChildren
+                    .Select(child => child.ChildId == parentSidebarChild.ChildId ? child with { AlertsCount = unreadCount } : child)
+                    .ToList();
             }
         }
         catch
@@ -703,6 +733,41 @@
         return activeTab == tab ? "active" : string.Empty;
     }
 
+    private string ParentNavHref(string tab)
+    {
+        var childId = parentSidebarChild?.ChildId ?? GetParentChildIdFromUri();
+        var query = new List<string>();
+        if (childId.HasValue)
+        {
+            query.Add($"childId={childId.Value:D}");
+        }
+
+        if (!string.Equals(tab, "overview", StringComparison.OrdinalIgnoreCase))
+        {
+            query.Add($"tab={Uri.EscapeDataString(tab)}");
+        }
+
+        return query.Count == 0 ? "/parent/dashboard" : $"/parent/dashboard?{string.Join('&', query)}";
+    }
+
+    private void NavigateToParentChild(Guid childId)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var tab = query["tab"];
+        var target = string.IsNullOrWhiteSpace(tab)
+            ? $"/parent/dashboard?childId={childId:D}"
+            : $"/parent/dashboard?childId={childId:D}&tab={Uri.EscapeDataString(tab)}";
+
+        Navigation.NavigateTo(target);
+    }
+
+    private Guid? GetParentChildIdFromUri()
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(Navigation.ToAbsoluteUri(Navigation.Uri).Query);
+        return Guid.TryParse(query["childId"], out var childId) ? childId : null;
+    }
+
     private static string GetPortalClass(string uri)
     {
         if (new Uri(uri).AbsolutePath.Trim('/').Equals("support", StringComparison.Ordinal))
@@ -750,6 +815,7 @@
     }
 
     private sealed record ParentSidebarChild(
+        Guid ChildId,
         string Name,
         string Subtitle,
         decimal? LatestGlucose,

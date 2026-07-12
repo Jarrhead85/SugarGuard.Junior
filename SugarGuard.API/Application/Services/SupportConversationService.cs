@@ -1,5 +1,10 @@
+using System.Net;
+using System.Text;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Configuration;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
@@ -8,22 +13,35 @@ using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.API.Application.Services;
 
+/// <summary>
+/// Сервис обращений в поддержку и email-уведомлений администраторов.
+/// </summary>
 public sealed class SupportConversationService : ISupportConversationService
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IEmailService _emailService;
+    private readonly SupportEmailOptions _supportEmailOptions;
     private readonly ILogger<SupportConversationService> _logger;
 
+    /// <summary>
+    /// Создаёт сервис обращений в поддержку.
+    /// </summary>
     public SupportConversationService(
         AppDbContext db,
         ICurrentUserContext currentUser,
+        IEmailService emailService,
+        IOptions<SupportEmailOptions> supportEmailOptions,
         ILogger<SupportConversationService> logger)
     {
         _db = db;
         _currentUser = currentUser;
+        _emailService = emailService;
+        _supportEmailOptions = supportEmailOptions.Value;
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<SupportConversationDto>> GetConversationsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -48,7 +66,7 @@ public sealed class SupportConversationService : ISupportConversationService
                 UpdatedAt = conversation.UpdatedAt,
                 LastMessagePreview = conversation.Messages
                     .OrderByDescending(message => message.CreatedAt)
-                    .Select(message => message.Body.Length > 120 ? message.Body.Substring(0, 120) + "…" : message.Body)
+                    .Select(message => message.Body.Length > 120 ? message.Body.Substring(0, 120) + "..." : message.Body)
                     .FirstOrDefault() ?? string.Empty,
                 UnreadCount = conversation.Messages.Count(message =>
                     isSupport ? !message.ReadBySupport : !message.ReadByRequester)
@@ -56,6 +74,7 @@ public sealed class SupportConversationService : ISupportConversationService
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc/>
     public async Task<SupportConversationDetailsDto> GetConversationAsync(
         Guid conversationId,
         CancellationToken cancellationToken = default)
@@ -65,39 +84,29 @@ public sealed class SupportConversationService : ISupportConversationService
         return MapDetails(conversation, userId, isSupport);
     }
 
+    /// <inheritdoc/>
     public async Task<SupportConversationDetailsDto> CreateConversationAsync(
         CreateSupportConversationRequest request,
         CancellationToken cancellationToken = default)
-    {
-        var (userId, isSupport) = GetCaller();
-        if (isSupport)
-        {
-            throw new InvalidOperationException("Обращение создается от имени пользователя.");
-        }
+        => await CreateConversationCoreAsync(
+            request.Subject,
+            request.Message,
+            clientLogs: null,
+            attachment: null,
+            cancellationToken);
 
-        var subject = NormalizeRequired(request.Subject, 180);
-        var body = NormalizeRequired(request.Message, 4000);
-        var now = DateTime.UtcNow;
-        var conversation = new SupportConversation
-        {
-            RequesterUserId = userId,
-            Subject = subject,
-            Status = SupportConversationStatus.WaitingForSupport,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-        var message = CreateMessage(conversation.ConversationId, userId, body, isSupport: false, now);
-        conversation.Messages.Add(message);
-        _db.SupportConversations.Add(conversation);
-        await NotifySupportAsync(conversation, message, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
+    /// <inheritdoc/>
+    public async Task<SupportConversationDetailsDto> CreateEmailRequestAsync(
+        CreateSupportEmailRequest request,
+        CancellationToken cancellationToken = default)
+        => await CreateConversationCoreAsync(
+            request.Subject,
+            request.Message,
+            request.ClientLogs,
+            request.Attachment,
+            cancellationToken);
 
-        _logger.LogInformation("Создано обращение в поддержку {ConversationId} пользователем {UserId}", conversation.ConversationId, userId);
-        conversation.RequesterUser = await _db.Users.AsNoTracking().SingleAsync(user => user.UserId == userId, cancellationToken);
-        message.AuthorUser = conversation.RequesterUser;
-        return MapDetails(conversation, userId, false);
-    }
-
+    /// <inheritdoc/>
     public async Task<SupportMessageDto> AddMessageAsync(
         Guid conversationId,
         AddSupportMessageRequest request,
@@ -148,6 +157,7 @@ public sealed class SupportConversationService : ISupportConversationService
         };
     }
 
+    /// <inheritdoc/>
     public async Task UpdateStatusAsync(
         Guid conversationId,
         SupportConversationStatus status,
@@ -171,6 +181,7 @@ public sealed class SupportConversationService : ISupportConversationService
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    /// <inheritdoc/>
     public async Task MarkReadAsync(Guid conversationId, CancellationToken cancellationToken = default)
     {
         var (userId, isSupport) = GetCaller();
@@ -186,6 +197,51 @@ public sealed class SupportConversationService : ISupportConversationService
             await query.Where(message => !message.ReadByRequester)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.ReadByRequester, true), cancellationToken);
         }
+    }
+
+    private async Task<SupportConversationDetailsDto> CreateConversationCoreAsync(
+        string requestSubject,
+        string requestMessage,
+        string? clientLogs,
+        IFormFile? attachment,
+        CancellationToken cancellationToken)
+    {
+        var (userId, isSupport) = GetCaller();
+        if (isSupport)
+        {
+            throw new InvalidOperationException("Обращение создаётся от имени пользователя.");
+        }
+
+        var subject = NormalizeRequired(requestSubject, 180);
+        var body = NormalizeRequired(requestMessage, 4000);
+        var now = DateTime.UtcNow;
+        var conversation = new SupportConversation
+        {
+            RequesterUserId = userId,
+            Subject = subject,
+            Status = SupportConversationStatus.WaitingForSupport,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var message = CreateMessage(conversation.ConversationId, userId, body, isSupport: false, now);
+        conversation.Messages.Add(message);
+        _db.SupportConversations.Add(conversation);
+
+        var requester = await _db.Users
+            .AsNoTracking()
+            .SingleAsync(user => user.UserId == userId, cancellationToken);
+        var attachments = await BuildSupportEmailAttachmentsAsync(attachment, clientLogs, cancellationToken);
+        await SendSupportEmailAsync(conversation, message, requester.EmailForLogin, attachments, cancellationToken);
+        await NotifySupportAsync(conversation, message, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Создано обращение в поддержку {ConversationId} пользователем {UserId}",
+            conversation.ConversationId,
+            userId);
+        conversation.RequesterUser = requester;
+        message.AuthorUser = requester;
+        return MapDetails(conversation, userId, false);
     }
 
     private async Task<SupportConversation> GetAccessibleConversationAsync(
@@ -206,6 +262,88 @@ public sealed class SupportConversationService : ISupportConversationService
 
         return await query.SingleOrDefaultAsync(conversation => conversation.ConversationId == conversationId, cancellationToken)
             ?? throw new KeyNotFoundException("Обращение не найдено.");
+    }
+
+    private async Task<IReadOnlyCollection<EmailAttachment>> BuildSupportEmailAttachmentsAsync(
+        IFormFile? attachment,
+        string? clientLogs,
+        CancellationToken cancellationToken)
+    {
+        var attachments = new List<EmailAttachment>();
+
+        if (attachment is not null)
+        {
+            if (attachment.Length > _supportEmailOptions.MaxAttachmentBytes)
+            {
+                throw new ArgumentException(
+                    $"Размер вложения не должен превышать {_supportEmailOptions.MaxAttachmentBytes / 1024 / 1024} МБ.");
+            }
+
+            await using var stream = attachment.OpenReadStream();
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory, cancellationToken);
+            attachments.Add(new EmailAttachment(
+                Path.GetFileName(attachment.FileName),
+                string.IsNullOrWhiteSpace(attachment.ContentType) ? "application/octet-stream" : attachment.ContentType,
+                memory.ToArray()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(clientLogs))
+        {
+            var bytes = Encoding.UTF8.GetBytes(clientLogs);
+            if (bytes.Length > _supportEmailOptions.MaxDiagnosticsBytes)
+            {
+                bytes = bytes.Take((int)_supportEmailOptions.MaxDiagnosticsBytes).ToArray();
+            }
+
+            attachments.Add(new EmailAttachment(
+                "sugarguard-mobile-logs-last-hour.txt",
+                "text/plain; charset=utf-8",
+                bytes));
+        }
+
+        return attachments;
+    }
+
+    private async Task SendSupportEmailAsync(
+        SupportConversation conversation,
+        SupportMessage message,
+        string? requesterEmail,
+        IReadOnlyCollection<EmailAttachment> attachments,
+        CancellationToken cancellationToken)
+    {
+        var requester = string.IsNullOrWhiteSpace(requesterEmail) ? "email не указан" : requesterEmail.Trim();
+        var plainText = $"""
+            Новое обращение в поддержку SugarGuard
+
+            Номер: {conversation.ConversationId}
+            Пользователь: {requester}
+            Тема: {conversation.Subject}
+            Дата: {message.CreatedAt:O}
+
+            Сообщение:
+            {message.Body}
+
+            Ответьте пользователю по email: {requester}
+            """;
+        var html = $"""
+            <h2>Новое обращение в поддержку SugarGuard</h2>
+            <p><strong>Номер:</strong> {conversation.ConversationId}</p>
+            <p><strong>Пользователь:</strong> {WebUtility.HtmlEncode(requester)}</p>
+            <p><strong>Тема:</strong> {WebUtility.HtmlEncode(conversation.Subject)}</p>
+            <p><strong>Дата:</strong> {message.CreatedAt:O}</p>
+            <h3>Сообщение</h3>
+            <pre style="white-space:pre-wrap;font-family:Arial,sans-serif">{WebUtility.HtmlEncode(message.Body)}</pre>
+            <p>Ответьте пользователю по email: <a href="mailto:{WebUtility.HtmlEncode(requester)}">{WebUtility.HtmlEncode(requester)}</a></p>
+            """;
+
+        await _emailService.SendAsync(
+            _supportEmailOptions.InboxEmail,
+            $"[SugarGuard Support] {conversation.Subject}",
+            html,
+            plainText,
+            attachments,
+            cancellationToken);
     }
 
     private async Task NotifySupportAsync(
@@ -278,7 +416,10 @@ public sealed class SupportConversationService : ISupportConversationService
         RequesterEmail = conversation.RequesterUser.EmailForLogin ?? string.Empty,
         CreatedAt = conversation.CreatedAt,
         UpdatedAt = conversation.UpdatedAt,
-        LastMessagePreview = conversation.Messages.OrderByDescending(message => message.CreatedAt).Select(message => message.Body).FirstOrDefault() ?? string.Empty,
+        LastMessagePreview = conversation.Messages
+            .OrderByDescending(message => message.CreatedAt)
+            .Select(message => message.Body)
+            .FirstOrDefault() ?? string.Empty,
         UnreadCount = conversation.Messages.Count(message => isSupport ? !message.ReadBySupport : !message.ReadByRequester),
         Messages = conversation.Messages.OrderBy(message => message.CreatedAt).Select(message => new SupportMessageDto
         {

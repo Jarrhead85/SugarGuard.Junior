@@ -18,14 +18,14 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="16,30,16,24" Spacing="12">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                 <VerticalStackLayout Spacing="2">
                     <Label Text="Поддержка"
                            FontFamily="{StaticResource ClashDisplay}"
                            FontSize="30"
                            FontAttributes="Bold"
                            TextColor="{DynamicResource TextPrimary}" />
-                    <Label Text="Напиши нам, если что-то не работает или нужна помощь."
+                    <Label Text="Опишите проблему, и мы ответим на email аккаунта. Логи за последний час приложатся автоматически."
                            FontSize="13"
                            TextColor="{DynamicResource TextSecondary}" />
                 </VerticalStackLayout>
@@ -50,6 +50,32 @@
                             AutoSize="TextChanges"
                             HeightRequest="94"
                             MaxLength="4000" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Вложение до 5 МБ"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource TextSecondary}" />
+                            <Label Text="{Binding AttachmentName}"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource Primary}"
+                                   LineBreakMode="TailTruncation"
+                                   IsVisible="{Binding HasAttachment}" />
+                        </VerticalStackLayout>
+                        <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                            <Button Text="Файл"
+                                    Command="{Binding PickAttachmentCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    HeightRequest="40" />
+                            <Button Text="Убрать"
+                                    Command="{Binding RemoveAttachmentCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    HeightRequest="40"
+                                    IsVisible="{Binding HasAttachment}" />
+                        </HorizontalStackLayout>
+                    </Grid>
+
                     <Button Text="Отправить"
                             Command="{Binding CreateCommand}"
                             Style="{StaticResource PrimaryButton}"

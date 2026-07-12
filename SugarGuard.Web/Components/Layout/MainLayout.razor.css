@@ -84,6 +84,12 @@
     margin: 12px 0 4px;
 }
 
+.parent-child-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .parent-child-card-button,
 .parent-child-card-empty {
     width: 100%;
@@ -111,6 +117,14 @@
 .parent-child-card-empty:hover {
     border-color: rgba(27, 142, 139, .32);
     transform: translateY(-1px);
+}
+
+.parent-child-card-button.active {
+    border-color: rgba(27, 142, 139, .55);
+    background:
+        linear-gradient(135deg, rgba(27,142,139,.16), rgba(45,126,226,.12)),
+        var(--color-surface);
+    box-shadow: 0 14px 32px rgba(27,142,139,.13);
 }
 
 .parent-child-avatar {

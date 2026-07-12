@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.API.DTOs;
@@ -10,6 +11,20 @@ public sealed class CreateSupportConversationRequest
 
     [Required, StringLength(4000, MinimumLength = 2)]
     public string Message { get; init; } = string.Empty;
+}
+
+public sealed class CreateSupportEmailRequest
+{
+    [Required, StringLength(180, MinimumLength = 3)]
+    public string Subject { get; init; } = string.Empty;
+
+    [Required, StringLength(4000, MinimumLength = 2)]
+    public string Message { get; init; } = string.Empty;
+
+    [StringLength(20000)]
+    public string? ClientLogs { get; init; }
+
+    public IFormFile? Attachment { get; init; }
 }
 
 public sealed class AddSupportMessageRequest

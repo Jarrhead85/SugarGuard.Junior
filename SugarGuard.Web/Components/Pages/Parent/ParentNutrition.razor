@@ -9,9 +9,14 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
-<PageTitle>Дневник питания — SugarGuard</PageTitle>
+@if (!Embedded)
+{
+    <PageTitle>Дневник питания — SugarGuard</PageTitle>
+}
 
-<main class="nutrition-page">
+<main class="nutrition-page @(Embedded ? "nutrition-page--embedded" : "")">
+    @if (!Embedded)
+    {
     <section class="nutrition-child-banner">
         @if (SelectedChild is not null)
         {
@@ -70,6 +75,7 @@
             <p>ХЕ, введённый инсулин и расписание приёмов пищи синхронизируются с приложением ребёнка.</p>
         </div>
     </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -322,6 +328,9 @@
 </main>
 
 @code {
+    [Parameter]
+    public bool Embedded { get; set; }
+
     private readonly List<ChildProfileVm> _children = [];
     private List<NutritionEntryVm> _entries = [];
     private List<MealScheduleVm> _schedules = [];

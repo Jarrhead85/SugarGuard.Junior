@@ -10,8 +10,13 @@ namespace SugarGuard.Junior.ViewModels;
 
 public partial class SupportPageViewModel : ObservableObject
 {
+    private const int MaxAttachmentBytes = 5 * 1024 * 1024;
     private readonly IApiClient _apiClient;
+    private readonly IAppDiagnosticsLogService _diagnosticsLogService;
     private readonly ILogger<SupportPageViewModel> _logger;
+    private byte[]? _attachmentContent;
+    private string? _attachmentContentType;
+    private string? _attachmentFileName;
 
     [ObservableProperty]
     private bool isBusy;
@@ -29,14 +34,23 @@ public partial class SupportPageViewModel : ObservableObject
     [ObservableProperty]
     private string statusMessage = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAttachment))]
+    private string attachmentName = string.Empty;
+
     public ObservableCollection<SupportConversationApiModel> Conversations { get; } = new();
     public ObservableCollection<SupportMessageApiModel> Messages { get; } = new();
 
     public bool HasSelectedConversation => SelectedConversation is not null;
+    public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentName);
 
-    public SupportPageViewModel(IApiClient apiClient, ILogger<SupportPageViewModel> logger)
+    public SupportPageViewModel(
+        IApiClient apiClient,
+        IAppDiagnosticsLogService diagnosticsLogService,
+        ILogger<SupportPageViewModel> logger)
     {
         _apiClient = apiClient;
+        _diagnosticsLogService = diagnosticsLogService;
         _logger = logger;
     }
 
@@ -82,12 +96,69 @@ public partial class SupportPageViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load support conversations");
-            StatusMessage = "Не удалось загрузить обращения. Проверь интернет и попробуй еще раз.";
+            StatusMessage = "Не удалось загрузить обращения. Проверь интернет и попробуй ещё раз.";
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    public async Task PickAttachmentAsync()
+    {
+        try
+        {
+            var file = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Выберите скриншот или файл"
+            });
+
+            if (file is null)
+            {
+                return;
+            }
+
+            await using var stream = await file.OpenReadAsync();
+            if (stream.CanSeek && stream.Length > MaxAttachmentBytes)
+            {
+                StatusMessage = "Файл больше 5 МБ. Выбери файл поменьше.";
+                return;
+            }
+
+            await using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            if (memory.Length > MaxAttachmentBytes)
+            {
+                StatusMessage = "Файл больше 5 МБ. Выбери файл поменьше.";
+                return;
+            }
+
+            _attachmentContent = memory.ToArray();
+            _attachmentContentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? "application/octet-stream"
+                : file.ContentType;
+            _attachmentFileName = string.IsNullOrWhiteSpace(file.FileName)
+                ? "attachment"
+                : file.FileName;
+            AttachmentName = _attachmentFileName;
+            StatusMessage = "Файл прикреплён. Логи за последний час добавятся автоматически.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to pick support attachment");
+            StatusMessage = "Не удалось прикрепить файл. Попробуй другой файл.";
+        }
+    }
+
+    [RelayCommand]
+    public void RemoveAttachment()
+    {
+        _attachmentContent = null;
+        _attachmentContentType = null;
+        _attachmentFileName = null;
+        AttachmentName = string.Empty;
+        StatusMessage = "Вложение удалено.";
     }
 
     [RelayCommand]
@@ -105,20 +176,31 @@ public partial class SupportPageViewModel : ObservableObject
         {
             IsBusy = true;
             StatusMessage = string.Empty;
+            var clientLogs = await _diagnosticsLogService.ReadRecentAsync(TimeSpan.FromHours(1));
             var created = await _apiClient.CreateSupportConversationAsync(new CreateSupportConversationApiRequest
             {
                 Subject = trimmedSubject,
-                Message = trimmedMessage
+                Message = trimmedMessage,
+                ClientLogs = clientLogs,
+                Attachment = _attachmentContent is null
+                    ? null
+                    : new SupportAttachmentApiModel
+                    {
+                        FileName = _attachmentFileName ?? "attachment",
+                        ContentType = _attachmentContentType ?? "application/octet-stream",
+                        Content = _attachmentContent
+                    }
             });
 
             if (created is null)
             {
-                StatusMessage = "Не удалось отправить обращение. Попробуй еще раз.";
+                StatusMessage = "Не удалось отправить обращение. Попробуй ещё раз.";
                 return;
             }
 
             Subject = string.Empty;
             NewMessage = string.Empty;
+            RemoveAttachment();
             Conversations.Insert(0, created);
             SelectedConversation = created;
             Messages.Clear();
@@ -127,7 +209,7 @@ public partial class SupportPageViewModel : ObservableObject
                 Messages.Add(message);
             }
 
-            StatusMessage = "Обращение отправлено в поддержку.";
+            StatusMessage = "Обращение отправлено. Ответ придёт на email аккаунта.";
         }
         catch (Exception ex)
         {
@@ -208,7 +290,7 @@ public partial class SupportPageViewModel : ObservableObject
 
     public static string FormatStatus(SupportConversationStatus status) => status switch
     {
-        SupportConversationStatus.WaitingForSupport => "Ждет поддержки",
+        SupportConversationStatus.WaitingForSupport => "Ждёт поддержки",
         SupportConversationStatus.WaitingForUser => "Есть ответ",
         SupportConversationStatus.Closed => "Закрыто",
         _ => "Открыто"

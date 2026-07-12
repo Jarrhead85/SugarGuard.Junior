@@ -41,10 +41,20 @@ namespace SugarGuard.API.Services
             string htmlBody,
             string? plainTextBody,
             CancellationToken cancellationToken = default)
+            => await SendAsync(toEmail, subject, htmlBody, plainTextBody, Array.Empty<EmailAttachment>(), cancellationToken);
+
+        /// <inheritdoc/>
+        public async Task SendAsync(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            string? plainTextBody,
+            IReadOnlyCollection<EmailAttachment> attachments,
+            CancellationToken cancellationToken = default)
         {
             EmailValidator.ValidateOrThrow(toEmail, subject, htmlBody);
 
-            var message = BuildMessage(toEmail, subject, htmlBody, plainTextBody);
+            var message = BuildMessage(toEmail, subject, htmlBody, plainTextBody, attachments);
             using var client = new SmtpClient
             {
                 Timeout = _settings.TimeoutMs
@@ -107,7 +117,8 @@ namespace SugarGuard.API.Services
             string toEmail,
             string subject,
             string htmlBody,
-            string? plainTextBody)
+            string? plainTextBody,
+            IReadOnlyCollection<EmailAttachment> attachments)
         {
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(_settings.FromDisplayName, _settings.FromAddress));
@@ -122,6 +133,17 @@ namespace SugarGuard.API.Services
             if (!string.IsNullOrWhiteSpace(plainTextBody))
             {
                 body.TextBody = plainTextBody;
+            }
+
+            foreach (var attachment in attachments)
+            {
+                var safeName = string.IsNullOrWhiteSpace(attachment.FileName)
+                    ? "attachment.bin"
+                    : Path.GetFileName(attachment.FileName);
+                var contentType = string.IsNullOrWhiteSpace(attachment.ContentType)
+                    ? ContentType.Parse("application/octet-stream")
+                    : ContentType.Parse(attachment.ContentType);
+                body.Attachments.Add(safeName, attachment.Content, contentType);
             }
 
             message.Body = body.ToMessageBody();

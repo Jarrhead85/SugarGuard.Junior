@@ -5,6 +5,7 @@
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using SugarGuard.Domain.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
@@ -20,7 +21,11 @@
         <div>
             <span class="support-eyebrow">Центр помощи</span>
             <h1 id="supportTitle">Поддержка SugarGuard</h1>
-            <p>@(_isSupport ? "Обращения пользователей и переписка со службой поддержки." : "Создайте отдельный диалог для каждого вопроса и следите за ответами.")</p>
+            <p>
+                @(_isSupport
+                    ? "Здесь видны обращения пользователей. Основной ответ пользователю отправляйте на email."
+                    : "Опишите вопрос, приложите скриншот при необходимости. Ответ придёт на email вашей учётной записи.")
+            </p>
         </div>
         @if (!_isSupport)
         {
@@ -36,7 +41,7 @@
     <div class="support-layout">
         <aside class="support-list-panel" aria-label="Список обращений">
             <div class="support-list-heading">
-                <strong>@(_isSupport ? "Все диалоги" : "Мои диалоги")</strong>
+                <strong>@(_isSupport ? "Все обращения" : "Мои обращения")</strong>
                 <span>@_conversations.Count</span>
             </div>
 
@@ -86,6 +91,7 @@
                     <div>
                         <span class="support-eyebrow">Новое обращение</span>
                         <h2>Опишите вопрос</h2>
+                        <p class="support-form-note">Файл не должен превышать 5 МБ. Скриншоты и логи помогают быстрее разобраться.</p>
                     </div>
                     <label>
                         <span>Тема</span>
@@ -95,10 +101,25 @@
                         <span>Сообщение</span>
                         <textarea @bind="_newMessage" maxlength="4000" placeholder="Что произошло, на каком экране и что вы ожидали увидеть?"></textarea>
                     </label>
+                    <label>
+                        <span>Файл</span>
+                        <InputFile OnChange="OnAttachmentSelectedAsync" />
+                    </label>
+                    @if (_selectedAttachment is not null)
+                    {
+                        <div class="support-file-chip">
+                            <span>@_selectedAttachment.FileName</span>
+                            <button type="button" class="support-secondary" @onclick="ClearAttachment">Убрать</button>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_attachmentError))
+                    {
+                        <div class="support-alert" role="alert">@_attachmentError</div>
+                    }
                     <div class="support-actions">
                         <button type="button" class="support-secondary" @onclick="CancelNewConversation">Отмена</button>
                         <button type="button" class="support-primary" @onclick="CreateConversationAsync" disabled="@_isSaving">
-                            @(_isSaving ? "Отправляем..." : "Создать обращение")
+                            @(_isSaving ? "Отправляем..." : "Отправить обращение")
                         </button>
                     </div>
                 </div>
@@ -108,7 +129,7 @@
                 <div class="support-thread-empty">
                     <span aria-hidden="true">?</span>
                     <strong>Выберите обращение</strong>
-                    <p>Здесь появится история переписки.</p>
+                    <p>Здесь появится история сообщений по выбранному вопросу.</p>
                 </div>
             }
             else
@@ -166,9 +187,11 @@
 </section>
 
 @code {
+    private const long MaxAttachmentBytes = 5 * 1024 * 1024;
     private readonly CancellationTokenSource _cts = new();
     private List<SupportConversationVm> _conversations = [];
     private SupportConversationDetailsVm? _selected;
+    private SupportAttachmentVm? _selectedAttachment;
     private Guid? _selectedId;
     private bool _isSupport;
     private bool _isLoading = true;
@@ -178,6 +201,7 @@
     private string _newMessage = string.Empty;
     private string _reply = string.Empty;
     private string? _error;
+    private string? _attachmentError;
     private Task? _pollTask;
 
     protected override async Task OnInitializedAsync()
@@ -250,6 +274,7 @@
         _selected = null;
         _selectedId = null;
         _error = null;
+        _attachmentError = null;
     }
 
     private void CancelNewConversation()
@@ -257,10 +282,39 @@
         _showNew = false;
         _newSubject = string.Empty;
         _newMessage = string.Empty;
+        ClearAttachment();
         if (_conversations.Count > 0)
         {
             _selectedId = _conversations[0].ConversationId;
         }
+    }
+
+    private async Task OnAttachmentSelectedAsync(InputFileChangeEventArgs args)
+    {
+        _attachmentError = null;
+        var file = args.File;
+        if (file.Size > MaxAttachmentBytes)
+        {
+            _selectedAttachment = null;
+            _attachmentError = "Файл больше 5 МБ. Выберите файл меньшего размера.";
+            return;
+        }
+
+        await using var stream = file.OpenReadStream(MaxAttachmentBytes, _cts.Token);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory, _cts.Token);
+        _selectedAttachment = new SupportAttachmentVm
+        {
+            FileName = file.Name,
+            ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+            Content = memory.ToArray()
+        };
+    }
+
+    private void ClearAttachment()
+    {
+        _selectedAttachment = null;
+        _attachmentError = null;
     }
 
     private async Task CreateConversationAsync()
@@ -276,11 +330,13 @@
             var created = await Api.CreateSupportConversationAsync(new CreateSupportConversationVm
             {
                 Subject = _newSubject.Trim(),
-                Message = _newMessage.Trim()
+                Message = _newMessage.Trim(),
+                Attachment = _selectedAttachment
             }, _cts.Token);
 
             _newSubject = string.Empty;
             _newMessage = string.Empty;
+            ClearAttachment();
             _showNew = false;
             _selectedId = created.ConversationId;
             _selected = created;

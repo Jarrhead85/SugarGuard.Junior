@@ -73,6 +73,19 @@ public sealed class NutritionTrackerService : INutritionTrackerService
 
     public async Task<MealScheduleResponse> CreateScheduleAsync(Guid childId, SaveMealScheduleRequest request, CancellationToken cancellationToken)
     {
+        var title = request.Title.Trim();
+        var existing = await _context.MealSchedules.FirstOrDefaultAsync(
+            schedule => schedule.ChildId == childId
+                        && schedule.ScheduledTime == request.ScheduledTime
+                        && schedule.Title == title,
+            cancellationToken);
+        if (existing is not null)
+        {
+            Apply(existing, request);
+            await _context.SaveChangesAsync(cancellationToken);
+            return MapSchedule(existing);
+        }
+
         var entity = new MealSchedule { ChildId = childId };
         Apply(entity, request);
         _context.MealSchedules.Add(entity);

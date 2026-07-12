@@ -1153,6 +1153,13 @@
     font-size: 28px;
     box-shadow: 0 6px 20px rgba(27,142,139,.2);
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.avatar-lg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .profile-name {

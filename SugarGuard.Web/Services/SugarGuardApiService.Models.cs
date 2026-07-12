@@ -50,7 +50,29 @@ public sealed class ChildProfileVm
     public DateOnly DateOfBirth  { get; init; }
     public string   DiabetesType { get; init; } = string.Empty;
     public string?  PhotoUrl     { get; init; }
+    public DateOnly? DiagnosisDate { get; init; }
+    public decimal Weight { get; init; }
+    public decimal Height { get; init; }
+    public string? InsulinScheme { get; init; }
+    public string TimeZoneId { get; init; } = "Europe/Moscow";
     public string   FullName     => $"{FirstName} {LastName}".Trim();
+}
+
+/// <summary>
+/// Запрос на обновление профиля ребёнка.
+/// </summary>
+public sealed class UpdateChildProfileRequest
+{
+    public string FirstName { get; init; } = string.Empty;
+    public string LastName { get; init; } = string.Empty;
+    public DateOnly DateOfBirth { get; init; }
+    public string DiabetesType { get; init; } = string.Empty;
+    public DateOnly? DiagnosisDate { get; init; }
+    public decimal Weight { get; init; }
+    public decimal Height { get; init; }
+    public string? InsulinScheme { get; init; }
+    public string TimeZoneId { get; init; } = "Europe/Moscow";
+    public string? PhotoUrl { get; init; }
 }
 
 /// <summary>

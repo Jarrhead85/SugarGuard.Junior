@@ -32,6 +32,16 @@ public sealed class SupportController : ControllerBase
         return CreatedAtAction(nameof(GetConversation), new { conversationId = result.ConversationId }, result);
     }
 
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [HttpPost("requests")]
+    public async Task<ActionResult<SupportConversationDetailsDto>> CreateEmailRequest(
+        [FromForm] CreateSupportEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.CreateEmailRequestAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(GetConversation), new { conversationId = result.ConversationId }, result);
+    }
+
     [HttpPost("conversations/{conversationId:guid}/messages")]
     public async Task<ActionResult<SupportMessageDto>> AddMessage(
         Guid conversationId,

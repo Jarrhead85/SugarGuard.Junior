@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Application.Services;
+using SugarGuard.API.Configuration;
 using SugarGuard.API.Data;
 using SugarGuard.API.Infrastructure.BackgroundServices;
 using SugarGuard.API.Infrastructure.Jobs;
@@ -389,6 +390,12 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IInviteCodeService, InviteCodeService>();
 builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
 builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
+builder.Services.AddOptions<SupportEmailOptions>()
+    .Bind(builder.Configuration.GetSection(SupportEmailOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.InboxEmail), "Не указан email поддержки.")
+    .Validate(options => options.MaxAttachmentBytes is > 0 and <= 10 * 1024 * 1024, "Некорректный лимит вложения поддержки.")
+    .Validate(options => options.MaxDiagnosticsBytes is > 0 and <= 2 * 1024 * 1024, "Некорректный лимит диагностического лога.")
+    .ValidateOnStart();
 builder.Services.AddScoped<ISupportConversationService, SupportConversationService>();
 builder.Services.AddScoped<INutritionTrackerService, NutritionTrackerService>();
 builder.Services.AddScoped<IAdminService, AdminService>();

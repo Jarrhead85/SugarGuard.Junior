@@ -634,7 +634,8 @@ namespace SugarGuard.Web.Services
                         FirstName = c.FirstName ?? string.Empty,
                         LastName = c.LastName ?? string.Empty,
                         DateOfBirth = c.DateOfBirth,
-                        DiabetesType = c.DiabetesType ?? string.Empty
+                        DiabetesType = c.DiabetesType ?? string.Empty,
+                        PhotoUrl = c.PhotoUrl
                     })
                     .ToList();
             }
@@ -1253,6 +1254,39 @@ namespace SugarGuard.Web.Services
 
                 var dto = await ReadOptionalAsync<AdminHealthDto>(response.Content, cancellationToken);
                 return dto is null ? null : AdminHealthVm.FromDto(dto);
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException
+                    or TaskCanceledException
+                    or JsonException
+                    or InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// PUT api/children/{childId}
+        /// </summary>
+        public async Task<ChildProfileVm?> UpdateChildAsync(
+            Guid childId,
+            UpdateChildProfileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.PutAsJsonAsync(
+                    $"api/children/{childId:D}",
+                    request,
+                    _jsonOptions,
+                    cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var dto = await ReadOptionalAsync<ChildDetailApiDto>(response.Content, cancellationToken);
+                return dto is null ? null : MapChildDetail(dto);
             }
             catch (Exception ex)
                 when (ex is HttpRequestException
@@ -2074,7 +2108,12 @@ namespace SugarGuard.Web.Services
             LastName = dto.LastName ?? string.Empty,
             DateOfBirth = dto.DateOfBirth,
             DiabetesType = dto.DiabetesType ?? string.Empty,
-            PhotoUrl = dto.PhotoUrl
+            PhotoUrl = dto.PhotoUrl,
+            DiagnosisDate = dto.DiagnosisDate,
+            Weight = dto.Weight,
+            Height = dto.Height,
+            InsulinScheme = dto.InsulinScheme,
+            TimeZoneId = string.IsNullOrWhiteSpace(dto.TimeZoneId) ? "Europe/Moscow" : dto.TimeZoneId
         };
 
         private static ChildProfileVm MapChildDetail(ChildDetailApiDto dto) => new()
@@ -2084,7 +2123,12 @@ namespace SugarGuard.Web.Services
             LastName = dto.LastName ?? string.Empty,
             DateOfBirth = dto.DateOfBirth,
             DiabetesType = dto.DiabetesType ?? string.Empty,
-            PhotoUrl = dto.PhotoUrl
+            PhotoUrl = dto.PhotoUrl,
+            DiagnosisDate = dto.DiagnosisDate,
+            Weight = dto.Weight,
+            Height = dto.Height,
+            InsulinScheme = dto.InsulinScheme,
+            TimeZoneId = string.IsNullOrWhiteSpace(dto.TimeZoneId) ? "Europe/Moscow" : dto.TimeZoneId
         };
 
         private static ChildAccessLinksVm MapChildAccessLinks(ChildAccessLinksApiDto dto) => new()
@@ -2260,6 +2304,11 @@ namespace SugarGuard.Web.Services
             public DateOnly DateOfBirth { get; init; }
             public string? DiabetesType { get; init; }
             public string? PhotoUrl { get; init; }
+            public DateOnly? DiagnosisDate { get; init; }
+            public decimal Weight { get; init; }
+            public decimal Height { get; init; }
+            public string? InsulinScheme { get; init; }
+            public string? TimeZoneId { get; init; }
         }
 
         private sealed class ChildSummaryApiDto
@@ -2270,6 +2319,7 @@ namespace SugarGuard.Web.Services
             public DateOnly DateOfBirth { get; init; }
             public string? DiabetesType { get; init; }
             public DateOnly? DiagnosisDate { get; init; }
+            public string? PhotoUrl { get; init; }
         }
 
         private sealed class ChildDetailApiDto

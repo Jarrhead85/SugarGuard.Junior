@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SugarGuard.Junior.Core.Security;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Repositories.Implementations;
@@ -99,6 +100,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISecureStorageService, SecureStorageService>();
         services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
         services.AddTransient<JwtAuthorizationHandler>();
+        services.AddSingleton<IAppDiagnosticsLogService, FileAppDiagnosticsLogService>();
+        services.AddSingleton<ILoggerProvider, FileDiagnosticsLoggerProvider>();
 
         // HTTP clients and external services
         services.AddHttpClient<IApiClient, RealApiClient>(client =>

@@ -35,12 +35,21 @@ public sealed class DevEmailService : IEmailService
         string htmlBody,
         string plainTextBody,
         CancellationToken cancellationToken = default)
+        => SendAsync(toEmail, subject, htmlBody, plainTextBody, Array.Empty<EmailAttachment>(), cancellationToken);
+
+    public Task SendAsync(
+        string toEmail,
+        string subject,
+        string htmlBody,
+        string? plainTextBody,
+        IReadOnlyCollection<EmailAttachment> attachments,
+        CancellationToken cancellationToken = default)
     {
         EmailValidator.ValidateOrThrow(toEmail, subject, htmlBody);
 
         _logger.LogWarning(
-            "[DEV EMAIL] To={To} Subject={Subject} Plain={Plain} Html={Html}",
-            toEmail, subject, plainTextBody, htmlBody);
+            "[DEV EMAIL] To={To} Subject={Subject} Attachments={AttachmentCount} Plain={Plain} Html={Html}",
+            toEmail, subject, attachments.Count, plainTextBody, htmlBody);
         return Task.CompletedTask;
     }
 }

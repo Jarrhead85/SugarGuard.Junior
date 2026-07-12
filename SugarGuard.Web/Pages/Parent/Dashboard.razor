@@ -3,11 +3,13 @@
 @attribute [Authorize(Roles = "Parent")]
 @implements IDisposable
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
 @using SugarGuard.Shared.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
+@using SugarGuard.Web.Components.Pages.Parent
 @using SugarGuard.Web.Components.Shared
 @using System.Text.Json
 @inject NavigationManager Navigation
@@ -113,9 +115,10 @@
         }
     </button>
 
-    <button class="tab" role="tab"
-            aria-selected="false"
-            @onclick='() => Navigation.NavigateTo("/parent/nutrition")'>Дневник питания</button>
+    <button class="tab @TabClass("nutrition")" role="tab"
+            aria-selected="@(_activeTab == "nutrition")"
+            aria-controls="pane-nutrition"
+            @onclick='() => SwitchTab("nutrition")'>Дневник питания</button>
 
     <button class="tab @TabClass("doctor")" role="tab"
             aria-selected="@(_activeTab == "doctor")"
@@ -715,6 +718,11 @@
     }
 </div>
 
+@* ДНЕВНИК ПИТАНИЯ *@
+<div class="tab-pane @PaneClass("nutrition")" id="pane-nutrition" role="tabpanel">
+    <ParentNutrition Embedded="true" />
+</div>
+
 @* ВРАЧ *@
 <div class="tab-pane @PaneClass("doctor")" id="pane-doctor" role="tabpanel">
 
@@ -744,6 +752,9 @@
                             <div class="note-head">
                                 <span class="note-doctor">@note.Doctor</span>
                                 <time class="note-date">@note.Date</time>
+                            </div>
+                            <div class="note-tags" aria-label="Ребёнок">
+                                <span class="note-tag">@_childProfile.Name</span>
                             </div>
                             <p class="note-text">@note.Text</p>
                             <div class="note-tags" aria-label="Теги записки">
@@ -797,9 +808,10 @@
                                         {
                                             <span>@doctor.Specialty · </span>
                                         }
-                                        Подключён @doctor.LinkedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                        Подключён @ToDisplayTime(doctor.LinkedAt).ToString("dd.MM.yyyy HH:mm")
                                     </div>
                                 </div>
+                                <button class="btn btn--ghost btn--sm" @onclick="() => UnlinkDoctorAsync(doctor.LinkId)">Отвязать</button>
                             </div>
                         }
                     </div>
@@ -823,19 +835,96 @@
 <div class="tab-pane @PaneClass("profile")" id="pane-profile" role="tabpanel">
 
     <div class="profile-hero" aria-label="Профиль ребёнка">
-        <div class="avatar-lg" aria-hidden="true">🧒</div>
+        <div class="avatar-lg" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(_childProfile.PhotoUrl))
+            {
+                <img src="@_childProfile.PhotoUrl" alt="" />
+            }
+            else
+            {
+                <span>🧒</span>
+            }
+        </div>
         <div class="profile-info">
             <h2 class="profile-name">@_childProfile.Name</h2>
             <p class="profile-sub">
                 @_childProfile.Age лет · Диагноз: @_childProfile.DiagnosisDate
             </p>
-        <div class="profile-chips">
-            <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
-            <span class="pchip">📞 @_childProfile.Contact</span>
-            <span class="pchip">📧 @_childProfile.Email</span>
+            <div class="profile-chips">
+                <span class="pchip">🏥 @_childProfile.Endocrinologist</span>
+                <span class="pchip">📞 @_childProfile.Contact</span>
+                <span class="pchip">📧 @_childProfile.Email</span>
+            </div>
         </div>
+        <button class="btn btn--soft btn--sm" @onclick="OpenChildProfileEditor">Редактировать</button>
     </div>
-</div>
+
+    @if (_isChildProfileEditorOpen)
+    {
+        <div class="card" style="margin-bottom:var(--spacing-4)">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Редактирование профиля ребёнка</div>
+                    <div class="card-sub">Основные данные и фотография</div>
+                </div>
+                <button class="btn btn--ghost btn--sm" @onclick="CancelChildProfileEdit">Закрыть</button>
+            </div>
+            <div class="editor-grid">
+                <div class="input-wrap">
+                    <label class="form-label" for="childFirstName">Имя</label>
+                    <input id="childFirstName" class="form-input" @bind="_childProfileForm.FirstName" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childLastName">Фамилия</label>
+                    <input id="childLastName" class="form-input" @bind="_childProfileForm.LastName" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childBirthDate">Дата рождения</label>
+                    <input id="childBirthDate" class="form-input" type="date" @bind="_childProfileForm.DateOfBirth" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childDiabetesType">Тип диабета</label>
+                    <select id="childDiabetesType" class="form-select" @bind="_childProfileForm.DiabetesType">
+                        <option value="Type1">СД1</option>
+                        <option value="Type2">СД2</option>
+                        <option value="Other">Другой</option>
+                    </select>
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childWeight">Вес, кг</label>
+                    <input id="childWeight" class="form-input" type="number" min="5" max="200" step="0.1" @bind="_childProfileForm.Weight" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childHeight">Рост, см</label>
+                    <input id="childHeight" class="form-input" type="number" min="50" max="250" step="0.1" @bind="_childProfileForm.Height" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childDiagnosisDate">Дата диагноза</label>
+                    <input id="childDiagnosisDate" class="form-input" type="date" @bind="_childProfileForm.DiagnosisDate" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="childTimeZone">Часовой пояс</label>
+                    <input id="childTimeZone" class="form-input" @bind="_childProfileForm.TimeZoneId" />
+                </div>
+            </div>
+            <div class="input-wrap" style="margin-top:var(--spacing-3)">
+                <label class="form-label" for="childInsulinScheme">Схема инсулина</label>
+                <textarea id="childInsulinScheme" class="form-input" rows="3" @bind="_childProfileForm.InsulinScheme"></textarea>
+            </div>
+            <div class="input-wrap" style="margin-top:var(--spacing-3)">
+                <label class="form-label">Фотография</label>
+                <InputFile OnChange="UploadChildProfilePhotoAsync" accept="image/jpeg,image/png,image/webp" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_childProfileError))
+            {
+                <div class="form-error">@_childProfileError</div>
+            }
+            <div class="editor-actions">
+                <button class="btn btn--primary btn--sm" @onclick="SaveChildProfileAsync">Сохранить</button>
+                <button class="btn btn--ghost btn--sm" @onclick="CancelChildProfileEdit">Отмена</button>
+            </div>
+        </div>
+    }
 
     <div class="grid-2">
         @* Журнал инсулина *@
@@ -1090,7 +1179,7 @@
     // Состояние фильтров
     private string _alertFilter = "";
     private string _measStatusFilter = "";
-    private DateTime _measFilterDate = DateTime.Today;
+    private DateTime _measFilterDate = MoscowNow.Date;
     private int _measPage = 1;
     private int _recentEventPage = 1;
     private int _alertPage = 1;
@@ -1125,6 +1214,9 @@
     private string? _parentProfileError;
     private ParentProfileForm _parentProfileForm = new();
     private ParentProfile _parentProfile = new();
+    private bool _isChildProfileEditorOpen;
+    private string? _childProfileError;
+    private ChildProfileForm _childProfileForm = new();
     private bool _isTargetEditorOpen;
     private string? _targetFormError;
     private TargetSettingsForm _targetForm = new();
@@ -1189,6 +1281,13 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
         SyncTabFromUri();
+        var requestedChildId = GetRequestedChildId();
+        if (requestedChildId.HasValue && requestedChildId.Value != _selectedChildId)
+        {
+            _ = InvokeAsync(LoadDashboardDataAsync);
+            return;
+        }
+
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -1488,7 +1587,7 @@
 
         return new DoctorNote(
             string.IsNullOrWhiteSpace(note.DoctorName) ? "Врач" : note.DoctorName,
-            note.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+            ToDisplayTime(note.CreatedAt).ToString("dd.MM.yyyy HH:mm"),
             string.IsNullOrWhiteSpace(note.NoteText) ? "Без текста" : note.NoteText,
             tags);
     }
@@ -1590,13 +1689,37 @@
 
     private static MeasurementItem MapMeasurement(MeasurementVm measurement)
         => new(
-            measurement.MeasurementTime.ToLocalTime().ToString("dd.MM HH:mm"),
+            ToDisplayTime(measurement.MeasurementTime).ToString("dd.MM HH:mm"),
             measurement.GlucoseValue.ToString("F1"),
             GetTrendIcon(measurement.GlucoseUiState),
             string.IsNullOrWhiteSpace(measurement.Notes) ? "Без заметки" : measurement.Notes,
             GetMeasurementStatus(measurement.GlucoseUiState),
             GetMeasurementStatusClass(measurement.GlucoseUiState),
             measurement.MeasurementTime > DateTime.UtcNow.AddHours(-1));
+
+    private static readonly TimeZoneInfo DisplayTimeZone = ResolveDisplayTimeZone();
+
+    private static DateTime MoscowNow => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, DisplayTimeZone);
+
+    private static DateTime ToDisplayTime(DateTime value)
+    {
+        var utc = value.Kind == DateTimeKind.Utc
+            ? value
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, DisplayTimeZone);
+    }
+
+    private static TimeZoneInfo ResolveDisplayTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time");
+        }
+    }
 
     private Guid? GetRequestedChildId()
     {
@@ -1622,6 +1745,17 @@
         _childProfile.DiabetesType = string.IsNullOrWhiteSpace(profile.DiabetesType)
             ? "—"
             : profile.DiabetesType;
+        _childProfile.PhotoUrl = profile.PhotoUrl;
+        _childProfile.DateOfBirth = profile.DateOfBirth;
+        _childProfile.FirstName = profile.FirstName;
+        _childProfile.LastName = profile.LastName;
+        _childProfile.Weight = profile.Weight <= 0 ? 30m : profile.Weight;
+        _childProfile.Height = profile.Height <= 0 ? 130m : profile.Height;
+        _childProfile.InsulinScheme = profile.InsulinScheme;
+        _childProfile.TimeZoneId = string.IsNullOrWhiteSpace(profile.TimeZoneId) ? "Europe/Moscow" : profile.TimeZoneId;
+        _childProfile.RawDiabetesType = string.IsNullOrWhiteSpace(profile.DiabetesType) ? "Type1" : profile.DiabetesType;
+        _childProfile.RawDiagnosisDate = profile.DiagnosisDate;
+        _childProfile.DiagnosisDate = profile.DiagnosisDate?.ToString("dd.MM.yyyy") ?? "—";
     }
 
     private static string GetRelativeTime(DateTime utcTime)
@@ -1828,19 +1962,19 @@
             return;
         }
 
-        var localFrom = DateTime.SpecifyKind(_measFilterDate.Date, DateTimeKind.Local);
+        var localFrom = DateTime.SpecifyKind(_measFilterDate.Date, DateTimeKind.Unspecified);
         var localTo = localFrom.AddDays(1);
         await LoadMeasurementsAsync(
             _selectedChildId,
-            localFrom.ToUniversalTime(),
-            localTo.ToUniversalTime(),
+            TimeZoneInfo.ConvertTimeToUtc(localFrom, DisplayTimeZone),
+            TimeZoneInfo.ConvertTimeToUtc(localTo, DisplayTimeZone),
             resetPage: true);
 
     }
 
     private async Task ResetMeasFilterAsync()
     {
-        _measFilterDate = DateTime.Today;
+        _measFilterDate = MoscowNow.Date;
         _measStatusFilter = "";
         await ApplyMeasFilterAsync();
     }
@@ -2092,6 +2226,123 @@
         {
             Logger.LogWarning(ex, "Не удалось удалить позицию рюкзака. ItemId={ItemId}", item.Id);
             ShowNotice("Не удалось удалить позицию. Обновите страницу и попробуйте ещё раз.");
+        }
+    }
+
+    private void OpenChildProfileEditor()
+    {
+        _childProfileForm = ChildProfileForm.FromProfile(_childProfile);
+        _childProfileError = null;
+        _isChildProfileEditorOpen = true;
+    }
+
+    private void CancelChildProfileEdit()
+    {
+        _isChildProfileEditorOpen = false;
+        _childProfileError = null;
+    }
+
+    private async Task UploadChildProfilePhotoAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (_selectedChildId == Guid.Empty || file is null)
+        {
+            return;
+        }
+
+        const long maxPhotoBytes = 5L * 1024 * 1024;
+        try
+        {
+            await using var stream = file.OpenReadStream(maxPhotoBytes);
+            var photoUrl = await Api.UploadChildPhotoAsync(
+                _selectedChildId,
+                stream,
+                file.Name,
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                CancellationToken.None);
+
+            if (string.IsNullOrWhiteSpace(photoUrl))
+            {
+                _childProfileError = "Не удалось загрузить фото. Проверьте формат PNG, JPG или WEBP.";
+                return;
+            }
+
+            _childProfileForm.PhotoUrl = photoUrl;
+            _childProfile.PhotoUrl = photoUrl;
+            ShowNotice("Фото ребёнка обновлено.");
+        }
+        catch (IOException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось прочитать фото ребёнка. ChildId={ChildId}", _selectedChildId);
+            _childProfileError = "Файл слишком большой или повреждён. Максимальный размер — 5 МБ.";
+        }
+    }
+
+    private async Task SaveChildProfileAsync()
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            _childProfileError = "Сначала выберите ребёнка.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_childProfileForm.FirstName)
+            || string.IsNullOrWhiteSpace(_childProfileForm.LastName))
+        {
+            _childProfileError = "Имя и фамилия обязательны.";
+            return;
+        }
+
+        try
+        {
+            var updated = await Api.UpdateChildAsync(
+                _selectedChildId,
+                _childProfileForm.ToRequest(),
+                CancellationToken.None);
+
+            if (updated is null)
+            {
+                _childProfileError = "Не удалось сохранить профиль ребёнка.";
+                return;
+            }
+
+            ApplyChildProfile(updated);
+            _availableChildren = _availableChildren
+                .Select(child => child.ChildId == updated.ChildId ? updated : child)
+                .ToList();
+            CancelChildProfileEdit();
+            ShowNotice("Профиль ребёнка сохранён.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось сохранить профиль ребёнка. ChildId={ChildId}", _selectedChildId);
+            _childProfileError = "Не удалось сохранить профиль. Попробуйте ещё раз.";
+        }
+    }
+
+    private async Task UnlinkDoctorAsync(Guid linkId)
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            return;
+        }
+
+        try
+        {
+            var removed = await Api.UnlinkChildAccessAsync(_selectedChildId, "doctor", linkId, CancellationToken.None);
+            if (!removed)
+            {
+                ShowNotice("Не удалось отвязать врача. Обновите данные и попробуйте ещё раз.");
+                return;
+            }
+
+            _linkedDoctors.RemoveAll(link => link.LinkId == linkId);
+            ShowNotice("Врач отвязан от профиля ребёнка.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось отвязать врача. ChildId={ChildId} LinkId={LinkId}", _selectedChildId, linkId);
+            ShowNotice("Не удалось отвязать врача. Попробуйте позже.");
         }
     }
 
@@ -2536,6 +2787,16 @@
         public string Contact         { get; set; } = "";
         public string Email           { get; set; } = "";
         public string HbA1c           { get; set; } = "";
+        public string? PhotoUrl       { get; set; }
+        public string FirstName       { get; set; } = "";
+        public string LastName        { get; set; } = "";
+        public DateOnly DateOfBirth   { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-10));
+        public string RawDiabetesType { get; set; } = "Type1";
+        public DateOnly? RawDiagnosisDate { get; set; }
+        public decimal Weight         { get; set; } = 30m;
+        public decimal Height         { get; set; } = 130m;
+        public string? InsulinScheme  { get; set; }
+        public string TimeZoneId      { get; set; } = "Europe/Moscow";
     }
 
     /// <summary>
@@ -2569,6 +2830,48 @@
             DisplayName = DisplayName.Trim(),
             Email = Email.Trim(),
             Phone = string.IsNullOrWhiteSpace(Phone) ? "телефон не указан" : Phone.Trim()
+        };
+    }
+
+    private sealed class ChildProfileForm
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public DateOnly DateOfBirth { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-10));
+        public string DiabetesType { get; set; } = "Type1";
+        public DateOnly? DiagnosisDate { get; set; }
+        public decimal Weight { get; set; } = 30m;
+        public decimal Height { get; set; } = 130m;
+        public string? InsulinScheme { get; set; }
+        public string TimeZoneId { get; set; } = "Europe/Moscow";
+        public string? PhotoUrl { get; set; }
+
+        public static ChildProfileForm FromProfile(ChildProfile profile) => new()
+        {
+            FirstName = profile.FirstName,
+            LastName = profile.LastName,
+            DateOfBirth = profile.DateOfBirth,
+            DiabetesType = profile.RawDiabetesType,
+            DiagnosisDate = profile.RawDiagnosisDate,
+            Weight = profile.Weight,
+            Height = profile.Height,
+            InsulinScheme = profile.InsulinScheme,
+            TimeZoneId = string.IsNullOrWhiteSpace(profile.TimeZoneId) ? "Europe/Moscow" : profile.TimeZoneId,
+            PhotoUrl = profile.PhotoUrl
+        };
+
+        public UpdateChildProfileRequest ToRequest() => new()
+        {
+            FirstName = FirstName.Trim(),
+            LastName = LastName.Trim(),
+            DateOfBirth = DateOfBirth,
+            DiabetesType = string.IsNullOrWhiteSpace(DiabetesType) ? "Type1" : DiabetesType.Trim(),
+            DiagnosisDate = DiagnosisDate,
+            Weight = Weight,
+            Height = Height,
+            InsulinScheme = string.IsNullOrWhiteSpace(InsulinScheme) ? null : InsulinScheme.Trim(),
+            TimeZoneId = string.IsNullOrWhiteSpace(TimeZoneId) ? "Europe/Moscow" : TimeZoneId.Trim(),
+            PhotoUrl = PhotoUrl
         };
     }
 
