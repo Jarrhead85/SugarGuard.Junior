@@ -9,6 +9,7 @@ public class SupportConversationVm
     public SupportConversationStatus Status { get; init; }
     public Guid RequesterUserId { get; init; }
     public string RequesterEmail { get; init; } = string.Empty;
+    public string? CallbackEmail { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public string LastMessagePreview { get; init; } = string.Empty;
@@ -34,6 +35,7 @@ public sealed class CreateSupportConversationVm
 {
     public string Subject { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
+    public string? CallbackEmail { get; init; }
     public string? ClientLogs { get; init; }
     public SupportAttachmentVm? Attachment { get; init; }
 }

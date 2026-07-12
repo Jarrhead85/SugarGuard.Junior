@@ -9,23 +9,14 @@ namespace SugarGuard.API.Services;
 public sealed class UserNotificationService : IUserNotificationService
 {
     private readonly AppDbContext _db;
-    private readonly IChildAccessService _childAccess;
     private readonly ICurrentUserContext _currentUser;
-    private readonly IDashboardService _dashboardService;
-    private readonly ILogger<UserNotificationService> _logger;
 
     public UserNotificationService(
         AppDbContext db,
-        IChildAccessService childAccess,
-        ICurrentUserContext currentUser,
-        IDashboardService dashboardService,
-        ILogger<UserNotificationService> logger)
+        ICurrentUserContext currentUser)
     {
         _db = db;
-        _childAccess = childAccess;
         _currentUser = currentUser;
-        _dashboardService = dashboardService;
-        _logger = logger;
     }
 
     public async Task<IReadOnlyList<UserNotificationDto>> GetForCurrentUserAsync(
@@ -62,12 +53,12 @@ public sealed class UserNotificationService : IUserNotificationService
                 Title = notification.Title,
                 Description = notification.Description,
                 Time = GetRelativeTime(notification.CreatedAt, DateTime.UtcNow),
+                CreatedAt = notification.CreatedAt,
                 Type = notification.Type,
                 IsUnread = !notification.IsRead
             }).ToList();
         }
 
-        var childIds = await _childAccess.GetAccessibleChildIdsAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var result = await _db.UserNotifications
             .AsNoTracking()
@@ -91,25 +82,10 @@ public sealed class UserNotificationService : IUserNotificationService
             Title = notification.Title,
             Description = notification.Description,
             Time = GetRelativeTime(notification.CreatedAt, now),
+            CreatedAt = notification.CreatedAt,
             Type = notification.Type,
             IsUnread = !notification.IsRead
         }).ToList();
-
-        foreach (var childId in childIds)
-        {
-            try
-            {
-                var summary = await _dashboardService.GetSummaryAsync(childId, cancellationToken);
-                AddClinicalNotifications(notifications, summary, now);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                _logger.LogDebug(
-                    exception,
-                    "Не удалось получить сводку уведомлений для ChildId={ChildId}",
-                    childId);
-            }
-        }
 
         if (notifications.Count == 0)
         {
@@ -118,6 +94,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Title = "Всё в порядке",
                 Description = "Новых событий нет",
                 Time = "только что",
+                CreatedAt = now,
                 Type = "ok",
                 IsUnread = false
             });
@@ -299,63 +276,6 @@ public sealed class UserNotificationService : IUserNotificationService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-    }
-
-    private static void AddClinicalNotifications(
-        ICollection<UserNotificationDto> notifications,
-        DashboardSummaryResponse summary,
-        DateTime now)
-    {
-        if (summary.LatestGlucose is not null && summary.LatestMeasurementTime is not null)
-        {
-            var isCritical = summary.LatestGlucoseUiState is "Critical" or "Danger";
-            notifications.Add(new UserNotificationDto
-            {
-                Title = isCritical ? "Критический уровень глюкозы" : "Уровень глюкозы",
-                Description = $"{summary.LatestGlucose:F1} ммоль/л {(isCritical ? "— требуется внимание!" : "— в пределах нормы")}",
-                Time = GetRelativeTime(summary.LatestMeasurementTime.Value, now),
-                Type = isCritical ? "danger" : "info",
-                // Сводка выводится как справочная карточка. Непрочитанными считаются
-                // только сохранённые уведомления, которые можно отметить прочитанными.
-                IsUnread = false
-            });
-        }
-
-        if (summary.CriticalEvents > 0)
-        {
-            notifications.Add(new UserNotificationDto
-            {
-                Title = "Критические эпизоды",
-                Description = $"Зафиксировано {summary.CriticalEvents} критических эпизодов за последние 24 часа",
-                Time = "за сутки",
-                Type = "danger",
-                IsUnread = false
-            });
-        }
-
-        if (summary.PendingSyncConflicts > 0)
-        {
-            notifications.Add(new UserNotificationDto
-            {
-                Title = "Конфликты синхронизации",
-                Description = $"{summary.PendingSyncConflicts} неразрешённых конфликтов",
-                Time = "требуют внимания",
-                Type = "warn",
-                IsUnread = false
-            });
-        }
-
-        if (summary.PendingExportJobs > 0)
-        {
-            notifications.Add(new UserNotificationDto
-            {
-                Title = "Экспорт данных",
-                Description = $"{summary.PendingExportJobs} заданий на экспорт в очереди",
-                Time = "в обработке",
-                Type = "info",
-                IsUnread = false
-            });
-        }
     }
 
     private static string GetRelativeTime(DateTime utcTime, DateTime now)

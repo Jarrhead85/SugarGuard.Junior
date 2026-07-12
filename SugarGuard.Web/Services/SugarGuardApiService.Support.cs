@@ -36,6 +36,11 @@ public sealed partial class SugarGuardApiService
         using var form = new MultipartFormDataContent();
         form.Add(new StringContent(request.Subject), "Subject");
         form.Add(new StringContent(request.Message), "Message");
+        if (!string.IsNullOrWhiteSpace(request.CallbackEmail))
+        {
+            form.Add(new StringContent(request.CallbackEmail.Trim()), "CallbackEmail");
+        }
+
         if (!string.IsNullOrWhiteSpace(request.ClientLogs))
         {
             form.Add(new StringContent(request.ClientLogs), "ClientLogs");

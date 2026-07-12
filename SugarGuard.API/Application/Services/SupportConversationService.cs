@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Mail;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +63,7 @@ public sealed class SupportConversationService : ISupportConversationService
                 Status = conversation.Status,
                 RequesterUserId = conversation.RequesterUserId,
                 RequesterEmail = conversation.RequesterUser.EmailForLogin ?? string.Empty,
+                CallbackEmail = conversation.CallbackEmail,
                 CreatedAt = conversation.CreatedAt,
                 UpdatedAt = conversation.UpdatedAt,
                 LastMessagePreview = conversation.Messages
@@ -91,6 +93,7 @@ public sealed class SupportConversationService : ISupportConversationService
         => await CreateConversationCoreAsync(
             request.Subject,
             request.Message,
+            request.CallbackEmail,
             clientLogs: null,
             attachment: null,
             cancellationToken);
@@ -102,6 +105,7 @@ public sealed class SupportConversationService : ISupportConversationService
         => await CreateConversationCoreAsync(
             request.Subject,
             request.Message,
+            request.CallbackEmail,
             request.ClientLogs,
             request.Attachment,
             cancellationToken);
@@ -139,6 +143,7 @@ public sealed class SupportConversationService : ISupportConversationService
                 SourceId = message.MessageId,
                 CreatedAt = now
             });
+            await SendSupportReplyEmailAsync(conversation, message, cancellationToken);
         }
         else
         {
@@ -202,6 +207,7 @@ public sealed class SupportConversationService : ISupportConversationService
     private async Task<SupportConversationDetailsDto> CreateConversationCoreAsync(
         string requestSubject,
         string requestMessage,
+        string? callbackEmail,
         string? clientLogs,
         IFormFile? attachment,
         CancellationToken cancellationToken)
@@ -214,11 +220,13 @@ public sealed class SupportConversationService : ISupportConversationService
 
         var subject = NormalizeRequired(requestSubject, 180);
         var body = NormalizeRequired(requestMessage, 4000);
+        var normalizedCallbackEmail = NormalizeEmail(callbackEmail);
         var now = DateTime.UtcNow;
         var conversation = new SupportConversation
         {
             RequesterUserId = userId,
             Subject = subject,
+            CallbackEmail = normalizedCallbackEmail,
             Status = SupportConversationStatus.WaitingForSupport,
             CreatedAt = now,
             UpdatedAt = now
@@ -323,7 +331,8 @@ public sealed class SupportConversationService : ISupportConversationService
         IReadOnlyCollection<EmailAttachment> attachments,
         CancellationToken cancellationToken)
     {
-        var requester = string.IsNullOrWhiteSpace(requesterEmail) ? "email не указан" : requesterEmail.Trim();
+        var replyTo = conversation.CallbackEmail ?? requesterEmail;
+        var requester = string.IsNullOrWhiteSpace(replyTo) ? "email ?? ??????" : replyTo.Trim();
         var plainText = $"""
             Новое обращение в поддержку SugarGuard
 
@@ -354,6 +363,50 @@ public sealed class SupportConversationService : ISupportConversationService
             html,
             plainText,
             attachments,
+            cancellationToken);
+    }
+
+    private async Task SendSupportReplyEmailAsync(
+        SupportConversation conversation,
+        SupportMessage message,
+        CancellationToken cancellationToken)
+    {
+        var recipient = conversation.CallbackEmail ?? conversation.RequesterUser.EmailForLogin;
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            _logger.LogWarning(
+                "????? ????????? ?? ????????? ?? email: ? ????????? {ConversationId} ??? ????????? ??????.",
+                conversation.ConversationId);
+            return;
+        }
+
+        var plainText = $"""
+            ????? ?????? ????????? SugarGuard
+
+            ???? ?????????: {conversation.Subject}
+            ????? ?????????: {conversation.ConversationId}
+
+            ?????:
+            {message.Body}
+
+            ??????? ????????? ????? ???????? ? ?????? ???????? SugarGuard.
+            """;
+
+        var html = $"""
+            <h2>????? ?????? ????????? SugarGuard</h2>
+            <p><strong>???? ?????????:</strong> {WebUtility.HtmlEncode(conversation.Subject)}</p>
+            <p><strong>????? ?????????:</strong> {conversation.ConversationId}</p>
+            <h3>?????</h3>
+            <pre style="white-space:pre-wrap;font-family:Arial,sans-serif">{WebUtility.HtmlEncode(message.Body)}</pre>
+            <p>??????? ????????? ????? ???????? ? ?????? ???????? SugarGuard.</p>
+            """;
+
+        await _emailService.SendAsync(
+            recipient.Trim(),
+            $"[SugarGuard Support] ?????: {conversation.Subject}",
+            html,
+            plainText,
+            Array.Empty<EmailAttachment>(),
             cancellationToken);
     }
 
@@ -425,6 +478,7 @@ public sealed class SupportConversationService : ISupportConversationService
         Status = conversation.Status,
         RequesterUserId = conversation.RequesterUserId,
         RequesterEmail = conversation.RequesterUser.EmailForLogin ?? string.Empty,
+        CallbackEmail = conversation.CallbackEmail,
         CreatedAt = conversation.CreatedAt,
         UpdatedAt = conversation.UpdatedAt,
         LastMessagePreview = conversation.Messages
@@ -442,4 +496,20 @@ public sealed class SupportConversationService : ISupportConversationService
             IsOwnMessage = message.AuthorUserId == callerUserId
         }).ToArray()
     };
+    private static string? NormalizeEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new MailAddress(email.Trim()).Address;
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException("???????????? email ??? ??????.", nameof(email), exception);
+        }
+    }
 }

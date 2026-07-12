@@ -11,6 +11,9 @@ public sealed class CreateSupportConversationRequest
 
     [Required, StringLength(4000, MinimumLength = 2)]
     public string Message { get; init; } = string.Empty;
+
+    [EmailAddress, StringLength(254)]
+    public string? CallbackEmail { get; init; }
 }
 
 public sealed class CreateSupportEmailRequest
@@ -20,6 +23,9 @@ public sealed class CreateSupportEmailRequest
 
     [Required, StringLength(4000, MinimumLength = 2)]
     public string Message { get; init; } = string.Empty;
+
+    [EmailAddress, StringLength(254)]
+    public string? CallbackEmail { get; init; }
 
     [StringLength(20000)]
     public string? ClientLogs { get; init; }
@@ -45,6 +51,7 @@ public class SupportConversationDto
     public SupportConversationStatus Status { get; init; }
     public Guid RequesterUserId { get; init; }
     public string RequesterEmail { get; init; } = string.Empty;
+    public string? CallbackEmail { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public string LastMessagePreview { get; init; } = string.Empty;

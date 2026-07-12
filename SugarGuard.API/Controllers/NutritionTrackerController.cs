@@ -28,7 +28,7 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        return Ok(await _tracker.GetEntriesAsync(childId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken));
+        return Ok(await _tracker.GetEntriesAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken));
     }
 
     [HttpPost("entries")]
@@ -97,7 +97,7 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        return Ok(await _tracker.GetSummaryAsync(childId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken));
+        return Ok(await _tracker.GetSummaryAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken));
     }
 
     [HttpGet("achievements")]
@@ -112,7 +112,7 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        return File(await _tracker.ExportCsvAsync(childId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken), "text/csv; charset=utf-16", $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.csv");
+        return File(await _tracker.ExportCsvAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken), "text/csv; charset=utf-8", $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.csv");
     }
 
     [HttpGet("export.pdf")]
@@ -120,7 +120,7 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        return File(await _tracker.ExportPdfAsync(childId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken), "application/pdf", $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.pdf");
+        return File(await _tracker.ExportPdfAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken), "application/pdf", $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.pdf");
     }
 
     private bool CanEdit() => _currentUser.GetRole() is UserRole.Parent or UserRole.ChildDevice or UserRole.Admin or UserRole.SupportAdmin;
@@ -130,5 +130,27 @@ public sealed class NutritionTrackerController : ControllerBase
         if (from == default || to == default || from > to) { error = "Некорректный период."; return false; }
         if (to - from > TimeSpan.FromDays(366)) { error = "Период не может превышать 366 дней."; return false; }
         error = null; return true;
+    }
+
+    private static DateTime NormalizeQueryTime(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => TimeZoneInfo.ConvertTimeToUtc(value, DefaultTimeZone)
+    };
+
+    private static TimeZoneInfo DefaultTimeZone
+    {
+        get
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time");
+            }
+        }
     }
 }

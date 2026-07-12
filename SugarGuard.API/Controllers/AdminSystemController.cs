@@ -78,6 +78,7 @@ public class AdminSystemController(
                 Today = await BuildUsagePeriodAsync(today, ct),
                 Month = monthUsage,
                 AllTime = await BuildUsagePeriodAsync(null, ct),
+                Children = await BuildChildUsageAsync(monthStart, ct),
                 MonthlyTokenBudget = budget,
                 MonthlyTokensRemaining = budget.HasValue
                     ? Math.Max(0, budget.Value - monthUsage.TotalTokens)
@@ -149,4 +150,55 @@ public class AdminSystemController(
             TotalTokens = rows.Sum(row => row.Total)
         };
     }
+
+    private async Task<IReadOnlyList<GigaChatChildUsage>> BuildChildUsageAsync(
+        DateTime monthStartUtc,
+        CancellationToken ct)
+    {
+        var rows = await context.Set<AiConversationMessage>()
+            .AsNoTracking()
+            .Where(message => message.Role == AiMessageRole.Assistant)
+            .Where(message => message.InputTokens.HasValue || message.OutputTokens.HasValue)
+            .Select(message => new ChildUsageRow(
+                message.Conversation.ChildId,
+                (message.Conversation.Child.FirstName + " " + message.Conversation.Child.LastName).Trim(),
+                message.CreatedAt,
+                message.InputTokens ?? 0,
+                message.OutputTokens ?? 0))
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(row => new { row.ChildId, row.ChildDisplayName })
+            .Select(group => new GigaChatChildUsage
+            {
+                ChildId = group.Key.ChildId,
+                ChildDisplayName = string.IsNullOrWhiteSpace(group.Key.ChildDisplayName)
+                    ? "Ребёнок"
+                    : group.Key.ChildDisplayName,
+                Month = BuildUsagePeriod(group.Where(row => row.CreatedAt >= monthStartUtc)),
+                AllTime = BuildUsagePeriod(group)
+            })
+            .OrderByDescending(child => child.Month.TotalTokens)
+            .ThenBy(child => child.ChildDisplayName)
+            .ToArray();
+    }
+
+    private static GigaChatUsagePeriod BuildUsagePeriod(IEnumerable<ChildUsageRow> rows)
+    {
+        var items = rows.ToArray();
+        return new GigaChatUsagePeriod
+        {
+            ResponsesWithUsage = items.Length,
+            InputTokens = items.Sum(row => row.InputTokens),
+            OutputTokens = items.Sum(row => row.OutputTokens),
+            TotalTokens = items.Sum(row => row.InputTokens + row.OutputTokens)
+        };
+    }
+
+    private sealed record ChildUsageRow(
+        Guid ChildId,
+        string ChildDisplayName,
+        DateTime CreatedAt,
+        int InputTokens,
+        int OutputTokens);
 }

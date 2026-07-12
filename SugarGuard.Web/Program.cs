@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.StaticFiles;
 using SugarGuard.Web;
 using SugarGuard.Web.Components;
 using SugarGuard.Web.Services;
@@ -219,7 +220,12 @@ app.UseAntiforgery();
 // Serve wwwroot directly. Endpoint-based static-asset manifests are tied to a
 // particular publish output and can be temporarily stale during a rolling
 // deployment, which must never break the interactive portal.
-app.UseStaticFiles();
+var staticFileContentTypes = new FileExtensionContentTypeProvider();
+staticFileContentTypes.Mappings[".apk"] = "application/vnd.android.package-archive";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticFileContentTypes
+});
 
 app.MapGet("/uploads/{**path}", async (
     string path,

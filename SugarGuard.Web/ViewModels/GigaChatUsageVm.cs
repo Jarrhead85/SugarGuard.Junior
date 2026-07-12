@@ -28,6 +28,11 @@ public sealed class GigaChatUsageVm
     public GigaChatUsagePeriodVm AllTime { get; init; } = new();
 
     /// <summary>
+    /// Расход токенов по детям.
+    /// </summary>
+    public IReadOnlyList<GigaChatChildUsageVm> Children { get; init; } = [];
+
+    /// <summary>
     /// Месячный лимит токенов, если задан в конфигурации.
     /// </summary>
     public int? MonthlyTokenBudget { get; init; }
@@ -51,8 +56,43 @@ public sealed class GigaChatUsageVm
         Today = GigaChatUsagePeriodVm.FromDto(dto.Today),
         Month = GigaChatUsagePeriodVm.FromDto(dto.Month),
         AllTime = GigaChatUsagePeriodVm.FromDto(dto.AllTime),
+        Children = dto.Children.Select(GigaChatChildUsageVm.FromDto).ToArray(),
         MonthlyTokenBudget = dto.MonthlyTokenBudget,
         MonthlyTokensRemaining = dto.MonthlyTokensRemaining
+    };
+}
+
+/// <summary>
+/// Расход токенов GigaChat по одному ребёнку.
+/// </summary>
+public sealed class GigaChatChildUsageVm
+{
+    /// <summary>
+    /// Идентификатор ребёнка.
+    /// </summary>
+    public Guid ChildId { get; init; }
+
+    /// <summary>
+    /// Отображаемое имя ребёнка.
+    /// </summary>
+    public string ChildDisplayName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Расход за текущий месяц.
+    /// </summary>
+    public GigaChatUsagePeriodVm Month { get; init; } = new();
+
+    /// <summary>
+    /// Расход за всё время.
+    /// </summary>
+    public GigaChatUsagePeriodVm AllTime { get; init; } = new();
+
+    internal static GigaChatChildUsageVm FromDto(GigaChatChildUsageDto dto) => new()
+    {
+        ChildId = dto.ChildId,
+        ChildDisplayName = dto.ChildDisplayName,
+        Month = GigaChatUsagePeriodVm.FromDto(dto.Month),
+        AllTime = GigaChatUsagePeriodVm.FromDto(dto.AllTime)
     };
 }
 

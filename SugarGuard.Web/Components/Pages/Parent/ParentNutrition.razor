@@ -187,7 +187,7 @@
                                 <div class="nutrition-entry-main">
                                     <div class="nutrition-entry-top">
                                         <span class="nutrition-meal-pill">@MealLabel(item.MealType)</span>
-                                        <time>@item.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm")</time>
+                                        <time>@ToDisplayTime(item.RecordedAt).ToString("dd.MM HH:mm")</time>
                                     </div>
                                     <strong>@item.MealName</strong>
                                     @if (!string.IsNullOrWhiteSpace(item.Notes))
@@ -232,6 +232,15 @@
                 {
                     <div class="nutrition-form nutrition-form--schedule">
                         <label>
+                            <span>Тип</span>
+                            <select @bind="_schedule.MealType">
+                                @foreach (var type in Enum.GetValues<MealType>())
+                                {
+                                    <option value="@type">@MealLabel(type)</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
                             <span>Название</span>
                             <input maxlength="80" @bind="_schedule.Title" placeholder="Завтрак" />
                         </label>
@@ -268,7 +277,7 @@
                             <time>@item.ScheduledTime.ToString("HH:mm")</time>
                             <div>
                                 <strong>@item.Title</strong>
-                                <span>@MealLabel(DisplayMealType(item.MealType, item.Title)) · @FormatBreadUnits(item.PlannedBreadUnits) ХЕ</span>
+                                <span>@MealLabel(item.MealType) · @FormatBreadUnits(item.PlannedBreadUnits) ХЕ</span>
                                 <small>@(item.ReminderEnabled ? $"Напомнить за {item.ReminderMinutesBefore} мин." : "Без напоминания")</small>
                             </div>
                             <button @onclick="() => EditSchedule(item)" title="Редактировать">✎</button>
@@ -331,6 +340,9 @@
     [Parameter]
     public bool Embedded { get; set; }
 
+    [Parameter]
+    public Guid? ChildId { get; set; }
+
     private readonly List<ChildProfileVm> _children = [];
     private List<NutritionEntryVm> _entries = [];
     private List<MealScheduleVm> _schedules = [];
@@ -361,8 +373,24 @@
     protected override async Task OnInitializedAsync()
     {
         _children.AddRange(await Api.GetMyChildrenAsync());
-        _selectedChildId = _children.FirstOrDefault()?.ChildId ?? Guid.Empty;
+        _selectedChildId = ResolveSelectedChildId();
         await LoadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_children.Count == 0)
+        {
+            return;
+        }
+
+        var resolvedChildId = ResolveSelectedChildId();
+        if (resolvedChildId != _selectedChildId)
+        {
+            _selectedChildId = resolvedChildId;
+            _entryPage = 0;
+            await LoadAsync();
+        }
     }
 
     private async Task LoadAsync()
@@ -386,11 +414,16 @@
 
             await Task.WhenAll(entries, schedules, summary, dashboard);
 
-            _entries = entries.Result;
-            _schedules = schedules.Result;
-            _summary = summary.Result;
-            _latestGlucose = dashboard.Result.LatestGlucose;
-            _latestGlucoseClass = dashboard.Result.LatestGlucoseUiState switch
+            var entryRows = await entries;
+            var scheduleRows = await schedules;
+            var summaryData = await summary;
+            var dashboardData = await dashboard;
+
+            _entries = entryRows;
+            _schedules = scheduleRows;
+            _summary = summaryData;
+            _latestGlucose = dashboardData.LatestGlucose;
+            _latestGlucoseClass = dashboardData.LatestGlucoseUiState switch
             {
                 "Critical" or "Danger" => "danger",
                 "Warning" or "Elevated" => "warn",
@@ -429,7 +462,7 @@
         _editingEntryId = item.NutritionEntryId;
         _entry = new SaveNutritionEntryVm
         {
-            RecordedAt = item.RecordedAt.ToLocalTime(),
+            RecordedAt = ToDisplayTime(item.RecordedAt),
             MealType = item.MealType,
             MealName = item.MealName,
             BreadUnits = item.BreadUnits,
@@ -513,8 +546,6 @@
 
         try
         {
-            _schedule.MealType = InferMealType(_schedule.Title, _schedule.MealType);
-
             await Api.SaveMealScheduleAsync(
                 _selectedChildId,
                 _editingScheduleId == Guid.Empty ? null : _editingScheduleId,
@@ -561,7 +592,7 @@
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadBase64",
                 $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
+                format == "csv" ? "text/csv;charset=utf-8" : "application/pdf",
                 Convert.ToBase64String(bytes));
         }
         catch (Exception)
@@ -578,6 +609,34 @@
         MealType.Snack => "Перекус",
         _ => "Другое"
     };
+
+    private Guid ResolveSelectedChildId()
+    {
+        if (ChildId is { } childId && _children.Any(child => child.ChildId == childId))
+        {
+            return childId;
+        }
+
+        return _selectedChildId != Guid.Empty && _children.Any(child => child.ChildId == _selectedChildId)
+            ? _selectedChildId
+            : _children.FirstOrDefault()?.ChildId ?? Guid.Empty;
+    }
+
+    private static DateTime ToDisplayTime(DateTime utcTime)
+    {
+        var normalized = utcTime.Kind == DateTimeKind.Utc
+            ? utcTime
+            : DateTime.SpecifyKind(utcTime, DateTimeKind.Utc);
+
+        try
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(normalized, TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow"));
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(normalized, TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time"));
+        }
+    }
 
     private static MealType DisplayMealType(MealType type, string title) =>
         type == MealType.Breakfast ? InferMealType(title, type) : type;

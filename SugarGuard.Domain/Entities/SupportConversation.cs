@@ -22,6 +22,10 @@ public sealed class SupportConversation
     [Column("status")]
     public SupportConversationStatus Status { get; set; } = SupportConversationStatus.WaitingForSupport;
 
+    [MaxLength(254)]
+    [Column("callback_email")]
+    public string? CallbackEmail { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

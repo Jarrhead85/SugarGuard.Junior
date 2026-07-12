@@ -26,6 +26,11 @@ public sealed class GigaChatUsageResponse
     public GigaChatUsagePeriod AllTime { get; init; } = new();
 
     /// <summary>
+    /// Расход токенов по детям без раскрытия персональных данных.
+    /// </summary>
+    public IReadOnlyList<GigaChatChildUsage> Children { get; init; } = [];
+
+    /// <summary>
     /// Месячный лимит токенов из конфигурации, если задан.
     /// </summary>
     public int? MonthlyTokenBudget { get; init; }
@@ -60,4 +65,30 @@ public sealed class GigaChatUsagePeriod
     /// Сумма всех токенов.
     /// </summary>
     public int TotalTokens { get; init; }
+}
+
+/// <summary>
+/// Расход токенов GigaChat по одному ребёнку.
+/// </summary>
+public sealed class GigaChatChildUsage
+{
+    /// <summary>
+    /// Идентификатор ребёнка.
+    /// </summary>
+    public Guid ChildId { get; init; }
+
+    /// <summary>
+    /// Безопасное отображаемое имя ребёнка для админки.
+    /// </summary>
+    public string ChildDisplayName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Расход за текущий месяц.
+    /// </summary>
+    public GigaChatUsagePeriod Month { get; init; } = new();
+
+    /// <summary>
+    /// Расход за всё время.
+    /// </summary>
+    public GigaChatUsagePeriod AllTime { get; init; } = new();
 }

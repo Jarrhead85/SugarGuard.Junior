@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
+@using SugarGuard.Domain.Enums
 @using SugarGuard.Shared.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
@@ -720,7 +721,7 @@
 
 @* ДНЕВНИК ПИТАНИЯ *@
 <div class="tab-pane @PaneClass("nutrition")" id="pane-nutrition" role="tabpanel">
-    <ParentNutrition Embedded="true" />
+    <ParentNutrition Embedded="true" ChildId="_selectedChildId" />
 </div>
 
 @* ВРАЧ *@
@@ -1449,6 +1450,7 @@
             await LoadBackpackFromApiAsync(childId);
             await LoadAccessLinksAsync(childId, cancellationToken);
             await LoadDoctorNotesAsync(childId, cancellationToken);
+            await LoadInsulinLogAsync(childId, cancellationToken);
 
             _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
             _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
@@ -1539,6 +1541,41 @@
             Logger.LogWarning(ex, "Не удалось загрузить заметки врача. ChildId={ChildId}", childId);
         }
     }
+
+    private async Task LoadInsulinLogAsync(Guid childId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var from = MoscowNow.Date;
+            var to = from.AddDays(1).AddTicks(-1);
+            var entries = await Api.GetNutritionEntriesAsync(childId, from, to, cancellationToken);
+
+            _insulinLog.Clear();
+            _insulinLog.AddRange(entries
+                .Where(entry => entry.InsulinUnits > 0)
+                .OrderByDescending(entry => entry.RecordedAt)
+                .Take(6)
+                .Select(entry => new InsulinEntry(
+                    string.IsNullOrWhiteSpace(entry.MealName) ? MealLabel(entry.MealType) : entry.MealName.Trim(),
+                    $"{entry.InsulinUnits:0.##} ед.",
+                    ToDisplayTime(entry.RecordedAt).ToString("HH:mm"),
+                    MealLabel(entry.MealType))));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить журнал инсулина. ChildId={ChildId}", childId);
+            _insulinLog.Clear();
+        }
+    }
+
+    private static string MealLabel(MealType type) => type switch
+    {
+        MealType.Breakfast => "Завтрак",
+        MealType.Lunch => "Обед",
+        MealType.Dinner => "Ужин",
+        MealType.Snack => "Перекус",
+        _ => "Другое"
+    };
 
     private async Task LoadAccessLinksAsync(Guid childId, CancellationToken cancellationToken = default)
     {

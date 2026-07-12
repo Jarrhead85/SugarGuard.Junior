@@ -97,6 +97,51 @@
                             <small>Осталось: @FormatInt(_gigaChatUsage.MonthlyTokensRemaining)</small>
                         </div>
                     }
+
+                    <div class="usage-child-section">
+                        <div class="usage-child-section__title">
+                            <strong>Расход по детям</strong>
+                            <span>@_gigaChatUsage.Children.Count записей</span>
+                        </div>
+                        @if (_gigaChatUsage.Children.Count == 0)
+                        {
+                            <div class="admin-empty admin-empty--compact">
+                                <strong>Пока нет usage по детям</strong>
+                                <span>Данные появятся после ответов AI, где GigaChat вернул статистику токенов.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="admin-table-wrap">
+                                <table class="admin-table usage-child-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ребёнок</th>
+                                            <th>Месяц</th>
+                                            <th>Всего</th>
+                                            <th>Вход / выход</th>
+                                            <th>Ответов</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var child in _gigaChatUsage.Children)
+                                        {
+                                            <tr @key="child.ChildId">
+                                                <td>
+                                                    <strong>@child.ChildDisplayName</strong>
+                                                    <small>@ShortId(child.ChildId.ToString())</small>
+                                                </td>
+                                                <td>@FormatInt(child.Month.TotalTokens)</td>
+                                                <td>@FormatInt(child.AllTime.TotalTokens)</td>
+                                                <td>@FormatTokenSplit(child.Month)</td>
+                                                <td>@child.Month.ResponsesWithUsage</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
                 }
             </section>
 
@@ -447,6 +492,28 @@
         background: linear-gradient(90deg, #1b8e8b, #2d7ee2);
     }
 
+    .usage-child-section {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+    }
+
+    .usage-child-section__title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .usage-child-section__title span,
+    .usage-child-table small {
+        color: var(--color-text-muted, #667694);
+    }
+
+    .usage-child-table {
+        min-width: 720px;
+    }
+
     .admin-table-wrap {
         overflow-x: auto;
     }
@@ -508,6 +575,10 @@
         border-radius: 20px;
         color: var(--color-text-muted, #667694);
         text-align: center;
+    }
+
+    .admin-empty--compact {
+        min-height: 96px;
     }
 
     .admin-empty strong {

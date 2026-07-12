@@ -98,6 +98,10 @@
                         <input @bind="_newSubject" maxlength="180" placeholder="Например: не синхронизируется рюкзак" />
                     </label>
                     <label>
+                        <span>???????? email</span>
+                        <input type="email" @bind="_callbackEmail" maxlength="254" placeholder="email ??? ??????, ???? ?????????? ?? ??????? ??????" />
+                    </label>
+                    <label>
                         <span>Сообщение</span>
                         <textarea @bind="_newMessage" maxlength="4000" placeholder="Что произошло, на каком экране и что вы ожидали увидеть?"></textarea>
                     </label>
@@ -199,6 +203,7 @@
     private bool _showNew;
     private string _newSubject = string.Empty;
     private string _newMessage = string.Empty;
+    private string _callbackEmail = string.Empty;
     private string _reply = string.Empty;
     private string? _error;
     private string? _attachmentError;
@@ -282,6 +287,7 @@
         _showNew = false;
         _newSubject = string.Empty;
         _newMessage = string.Empty;
+        _callbackEmail = string.Empty;
         ClearAttachment();
         if (_conversations.Count > 0)
         {
@@ -331,11 +337,13 @@
             {
                 Subject = _newSubject.Trim(),
                 Message = _newMessage.Trim(),
+                CallbackEmail = string.IsNullOrWhiteSpace(_callbackEmail) ? null : _callbackEmail.Trim(),
                 Attachment = _selectedAttachment
             }, _cts.Token);
 
             _newSubject = string.Empty;
             _newMessage = string.Empty;
+            _callbackEmail = string.Empty;
             ClearAttachment();
             _showNew = false;
             _selectedId = created.ConversationId;

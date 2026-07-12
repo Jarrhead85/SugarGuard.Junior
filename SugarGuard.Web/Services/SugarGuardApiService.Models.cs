@@ -329,8 +329,17 @@ internal sealed class GigaChatUsageDto
     public GigaChatUsagePeriodDto Today { get; init; } = new();
     public GigaChatUsagePeriodDto Month { get; init; } = new();
     public GigaChatUsagePeriodDto AllTime { get; init; } = new();
+    public List<GigaChatChildUsageDto> Children { get; init; } = [];
     public int? MonthlyTokenBudget { get; init; }
     public int? MonthlyTokensRemaining { get; init; }
+}
+
+internal sealed class GigaChatChildUsageDto
+{
+    public Guid ChildId { get; init; }
+    public string ChildDisplayName { get; init; } = string.Empty;
+    public GigaChatUsagePeriodDto Month { get; init; } = new();
+    public GigaChatUsagePeriodDto AllTime { get; init; } = new();
 }
 
 internal sealed class GigaChatUsagePeriodDto
