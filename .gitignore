@@ -99,6 +99,7 @@ publish/
 *sources*.txt
 *.md
 exports/
+**/.generated/
 
 # .NET / dotnet tools
 **/.config/

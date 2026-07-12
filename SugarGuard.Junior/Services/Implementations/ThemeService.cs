@@ -186,18 +186,58 @@ public class ThemeService : IThemeService
         {
             InterfaceSkin.Girl => "#20B25AC7",
             InterfaceSkin.Boy => "#1F168F9B",
+            InterfaceSkin.Watercolor => "#26459CB6",
             _ => "#1F1B8E8B"
         });
         resources["BackgroundPage"] = Color.FromArgb(palette["SkinBackgroundPage"]);
         resources["BackgroundSubtle"] = Color.FromArgb(palette["SkinBackgroundSubtle"]);
         resources["SurfaceOffset"] = Color.FromArgb(palette["SkinSurfaceOffset"]);
         resources["TabBarActivePillBackground"] = Color.FromArgb(palette["SurfaceSelected"]);
+
+        // Theme dictionaries can be reloaded after page creation on Android.
+        // Re-apply every semantic alias here so existing DynamicResource bindings
+        // never end up with a dark page and light cards (or the opposite).
+        var surface = Color.FromArgb(isDarkTheme ? "#111825" : "#FFFFFF");
+        var surfaceCard = Color.FromArgb(isDarkTheme ? "#E6111825" : "#F2FFFFFF");
+        var surfaceSubtle = Color.FromArgb(isDarkTheme ? "#1A2333" : "#F4F7FB");
+        var textPrimary = Color.FromArgb(isDarkTheme ? "#EDF4FF" : "#16213E");
+        var textSecondary = Color.FromArgb(isDarkTheme ? "#9EAED0" : "#667694");
+        var textFaint = Color.FromArgb(isDarkTheme ? "#6F7D99" : "#96A2B8");
+        var border = Color.FromArgb(isDarkTheme ? "#304255" : "#D8E1EE");
+        var divider = Color.FromArgb(isDarkTheme ? "#17EDF4FF" : "#1416213E");
+
+        resources["Surface"] = surface;
+        resources["Surface2"] = surfaceSubtle;
+        resources["SurfaceCard"] = surfaceCard;
+        resources["SurfaceCardStrong"] = surface;
+        resources["SurfaceElevated"] = surfaceCard;
+        resources["SurfaceSolid"] = surface;
+        resources["SurfaceSubtle"] = surfaceSubtle;
+        resources["SurfaceInput"] = surfaceCard;
+        resources["TextPrimary"] = textPrimary;
+        resources["TextSecondary"] = textSecondary;
+        resources["TextMuted"] = textSecondary;
+        resources["TextFaint"] = textFaint;
+        resources["TextFaintColor"] = textFaint;
+        resources["TextPlaceholder"] = textFaint;
+        resources["Border"] = border;
+        resources["BorderDefault"] = border;
+        resources["SurfaceCardStroke"] = border;
+        resources["InputBorderColor"] = border;
+        resources["Divider"] = divider;
+        resources["DividerColor"] = divider;
+        resources["TabBarBackground"] = surfaceCard;
+        resources["TabBarBackgroundColor"] = surfaceCard;
+        resources["TabBarBorder"] = border;
+        resources["TabBarInactiveColor"] = textFaint;
+        resources["TabBarUnselectedColor"] = textFaint;
         resources["JuniorMascot"] = new FileImageSource
         {
             File = skin switch
             {
-                InterfaceSkin.Boy => "junior_mascot_boy.png",
-                InterfaceSkin.Girl => "junior_mascot_girl.png",
+                InterfaceSkin.Boy => "junior_mascot_boy_v2.png",
+                InterfaceSkin.Girl => "junior_mascot_girl_v2.png",
+                InterfaceSkin.Watercolor => "junior_mascot_watercolor.png",
                 _ => "junior_mascot.png"
             }
         };
@@ -257,6 +297,21 @@ public class ThemeService : IThemeService
                     ["SkinBackgroundSubtle"] = "#221329",
                     ["SkinSurfaceOffset"] = "#2A1733"
                 },
+                InterfaceSkin.Watercolor => new Dictionary<string, string>
+                {
+                    ["BrandPrimary"] = "#61CFC6",
+                    ["BrandSecondary"] = "#9BE6D5",
+                    ["BrandBlue"] = "#74A8F4",
+                    ["PressedPrimary"] = "#3EAFA6",
+                    ["PressedBlue"] = "#4F82CC",
+                    ["InteractivePrimary"] = "#61CFC6",
+                    ["InteractivePrimaryHover"] = "#8AE1D3",
+                    ["SurfaceSelected"] = "#3361CFC6",
+                    ["BrandAccentBadgeBg"] = "#3361CFC6",
+                    ["SkinBackgroundPage"] = "#101A25",
+                    ["SkinBackgroundSubtle"] = "#172939",
+                    ["SkinSurfaceOffset"] = "#1C3346"
+                },
                 _ => new Dictionary<string, string>
                 {
                     ["BrandPrimary"] = "#56D0BF",
@@ -306,6 +361,21 @@ public class ThemeService : IThemeService
                 ["SkinBackgroundPage"] = "#FFF3FA",
                 ["SkinBackgroundSubtle"] = "#FFE4F3",
                 ["SkinSurfaceOffset"] = "#FFF0F8"
+            },
+            InterfaceSkin.Watercolor => new Dictionary<string, string>
+            {
+                ["BrandPrimary"] = "#279C98",
+                ["BrandSecondary"] = "#6DD8C9",
+                ["BrandBlue"] = "#4E8FE8",
+                ["PressedPrimary"] = "#197F7C",
+                ["PressedBlue"] = "#3674BF",
+                ["InteractivePrimary"] = "#279C98",
+                ["InteractivePrimaryHover"] = "#187D7A",
+                ["SurfaceSelected"] = "#21279C98",
+                ["BrandAccentBadgeBg"] = "#21279C98",
+                ["SkinBackgroundPage"] = "#F7F4EC",
+                ["SkinBackgroundSubtle"] = "#E7F2EF",
+                ["SkinSurfaceOffset"] = "#EDF7F4"
             },
             _ => new Dictionary<string, string>
             {

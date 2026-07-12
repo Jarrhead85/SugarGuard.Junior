@@ -70,13 +70,14 @@ namespace SugarGuard.API.Services
 
         /// <inheritdoc/>
         public async Task<IReadOnlyList<DoctorNoteDto>> GetByMeasurementAsync(
+            Guid childId,
             Guid measurementId,
             CancellationToken cancellationToken = default)
         {
             var notes = await _db.DoctorNotes
                 .AsNoTracking()
                 .Include(n => n.DoctorUser)
-                .Where(n => n.MeasurementId == measurementId)
+                .Where(n => n.ChildId == childId && n.MeasurementId == measurementId)
                 .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync(cancellationToken);
 

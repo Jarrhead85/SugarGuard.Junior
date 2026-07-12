@@ -19,7 +19,7 @@
 
     <PageHeader Eyebrow="Администрирование"
                 Title="Состояние системы"
-                Subtitle="Мониторинг ключевых метрик. Данные обновляются автоматически каждые 30 секунд.">
+                Subtitle="Мониторинг ключевых метрик. Данные обновляются автоматически каждые 10 секунд.">
         <TrailingContent>
             <span class="last-updated-label">
                 @(_lastUpdated.HasValue
@@ -198,6 +198,106 @@
         </div>
     }
 
+    <div class="section-card">
+        <SectionHeader Title="Ресурсы сервера"
+                       Description="CPU, память, диск, сеть и uptime VDS. Данные доступны только администраторам.">
+            <TrailingContent>
+                @if (_serverMetrics is not null)
+                {
+                    <span class="caption">
+                        @_serverMetrics.MachineName · @_serverMetrics.OperatingSystem
+                    </span>
+                }
+            </TrailingContent>
+        </SectionHeader>
+
+        @if (_serverMetricsError is not null)
+        {
+            <StateBanner Kind="StateBanner.BannerKind.Warning"
+                         Title="Метрики сервера недоступны"
+                         Message="@_serverMetricsError"
+                         IsDismissible="true"
+                         OnDismissed="() => _serverMetricsError = null" />
+        }
+        else if (_serverMetrics is null && _isLoading)
+        {
+            <div class="server-metrics-grid" aria-busy="true">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="server-metric">
+                        <div class="skeleton skeleton--label"></div>
+                        <div class="skeleton skeleton--value"></div>
+                    </div>
+                }
+            </div>
+        }
+        else if (_serverMetrics is not null)
+        {
+            <div class="server-metrics-grid">
+                <div class="server-metric">
+                    <span class="server-metric__label">CPU</span>
+                    <strong class="server-metric__value">@FormatPercent(_serverMetrics.CpuUsagePercent)</strong>
+                    <span class="server-metric__hint">
+                        @_serverMetrics.ProcessorCount ядер
+                        @if (_serverMetrics.LoadAverage1Min.HasValue)
+                        {
+                            <span> · load @_serverMetrics.LoadAverage1Min.Value.ToString("0.##", CultureInfo.CurrentCulture)</span>
+                        }
+                    </span>
+                    <div class="server-metric__bar">
+                        <span style="width: @GetBarWidth(_serverMetrics.CpuUsagePercent ?? 0)"></span>
+                    </div>
+                </div>
+
+                <div class="server-metric">
+                    <span class="server-metric__label">Память</span>
+                    <strong class="server-metric__value">@FormatPercent(_serverMetrics.MemoryUsedPercent)</strong>
+                    <span class="server-metric__hint">
+                        свободно @FormatMb(_serverMetrics.MemoryAvailableMb) из @FormatMb(_serverMetrics.MemoryTotalMb)
+                    </span>
+                    <div class="server-metric__bar">
+                        <span style="width: @GetBarWidth(_serverMetrics.MemoryUsedPercent)"></span>
+                    </div>
+                </div>
+
+                <div class="server-metric">
+                    <span class="server-metric__label">Сеть</span>
+                    <strong class="server-metric__value">
+                        ↓ @FormatBytesPerSecond(_serverMetrics.NetworkReceiveBytesPerSecond)
+                    </strong>
+                    <span class="server-metric__hint">
+                        ↑ @FormatBytesPerSecond(_serverMetrics.NetworkTransmitBytesPerSecond)
+                    </span>
+                </div>
+
+                <div class="server-metric">
+                    <span class="server-metric__label">Uptime</span>
+                    <strong class="server-metric__value">@FormatDuration(_serverMetrics.SystemUptime)</strong>
+                    <span class="server-metric__hint">API: @FormatDuration(_serverMetrics.ProcessUptime)</span>
+                </div>
+            </div>
+
+            @if (_serverMetrics.Disks.Count > 0)
+            {
+                <div class="disk-list">
+                    @foreach (var disk in _serverMetrics.Disks)
+                    {
+                        <div class="disk-row">
+                            <div>
+                                <strong>@disk.Root</strong>
+                                <span>@disk.FreeGb.ToString("0.#", CultureInfo.CurrentCulture) ГБ свободно из @disk.TotalGb.ToString("0.#", CultureInfo.CurrentCulture) ГБ</span>
+                            </div>
+                            <span class="tabular-nums">@disk.UsedPercent.ToString("0.#", CultureInfo.CurrentCulture)%</span>
+                            <div class="server-metric__bar">
+                                <span style="width: @GetBarWidth(disk.UsedPercent)"></span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+
     @* Детали health-check *@
     <div class="section-card">
         <SectionHeader Title="Health Check">
@@ -226,7 +326,7 @@
             <div class="health-checks">
                 <div class="health-row">
                     <span class="health-row__name">API</span>
-                    <span class="health-row__badge @(_health.Status == "Healthy" ? "badge--success" : "badge--danger")">
+                    <span class="health-row__badge @(IsHealthyStatus(_health.Status) ? "badge--success" : "badge--danger")">
                         @_health.Status
                     </span>
                 </div>
@@ -255,7 +355,7 @@
             <polyline points="12 6 12 12 16 14" />
         </svg>
         <span>
-            Автообновление каждые <strong>30 секунд</strong>.
+            Автообновление каждые <strong>10 секунд</strong>.
             Следующее через: <strong class="tabular-nums">@_nextRefreshInSeconds с</strong>
         </span>
     </div>
@@ -268,11 +368,15 @@
 
     private AdminHealthVm? _health; // Результат health-check
 
+    private ServerMetricsVm? _serverMetrics; // Метрики VDS/API-хоста
+
     private bool _isLoading = true; // Флаг загрузки
 
     private string? _statsError; // Сообщение ошибки загрузки метрик
 
     private string? _healthError; // Сообщение ошибки health-endpoint
+
+    private string? _serverMetricsError; // Сообщение ошибки метрик сервера
 
     private DateTime? _lastUpdated; // Время последнего успешного обновления
 
@@ -281,9 +385,9 @@
 
     private Timer? _countdownTimer; // Таймер обратного отсчёта до следующего обновления
 
-    private int _nextRefreshInSeconds = 30; // Секунд до следующего автообновления
+    private int _nextRefreshInSeconds = 10; // Секунд до следующего автообновления
 
-    private const int RefreshIntervalMs = 30_000;
+    private const int RefreshIntervalMs = 10_000;
     private const int CountdownIntervalMs = 1_000;
 
     // Жизненный цикл 
@@ -332,13 +436,13 @@
     }
 
     /// <summary>
-    /// Срабатывает каждые 30 секунд — запрашивает новые данные
+    /// Срабатывает каждые 10 секунд — запрашивает новые данные
     /// </summary>
     private async void OnRefreshTimerElapsed(object? sender, ElapsedEventArgs e)
     {
         await InvokeAsync(async () =>
         {
-            _nextRefreshInSeconds = 30;
+            _nextRefreshInSeconds = 10;
             await RefreshAllAsync();
             StateHasChanged();
         });
@@ -371,7 +475,8 @@
 
         await Task.WhenAll(
             LoadSystemStatsAsync(cts.Token),
-            LoadHealthAsync(cts.Token));
+            LoadHealthAsync(cts.Token),
+            LoadServerMetricsAsync(cts.Token));
 
         _isLoading = false;
         _lastUpdated = DateTime.UtcNow;
@@ -420,6 +525,28 @@
         }
     }
 
+    private async Task LoadServerMetricsAsync(CancellationToken cancellationToken)
+    {
+        _serverMetricsError = null;
+        try
+        {
+            _serverMetrics = await Api.GetAdminServerMetricsAsync(cancellationToken);
+            if (_serverMetrics is null)
+            {
+                _serverMetricsError = "API не вернул метрики сервера.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _serverMetricsError = "Метрики сервера не ответили за отведённое время.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ошибка при загрузке метрик сервера.");
+            _serverMetricsError = "Не удалось загрузить метрики сервера.";
+        }
+    }
+
     // Вспомогательные методы UI 
     /// <summary>
     /// CSS-модификатор полоски здоровья
@@ -429,7 +556,7 @@
         if (_health is null)
             return "health-strip--unknown";
 
-        return _health.Status == "Healthy" && _health.Database
+        return IsHealthyStatus(_health.Status) && _health.Database
             ? "health-strip--healthy"
             : "health-strip--unhealthy";
     }
@@ -442,7 +569,7 @@
         if (_health is null)
             return "Статус неизвестен";
 
-        return _health.Status == "Healthy" && _health.Database
+        return IsHealthyStatus(_health.Status) && _health.Database
             ? "Система работает нормально"
             : "Обнаружены проблемы";
     }
@@ -455,6 +582,57 @@
 
     private static string FormatServerTime(DateTime? dt) =>
         dt.HasValue
-            ? dt.Value.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture)
+            ? dt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture)
             : "—";
+
+    private static bool IsHealthyStatus(string? status) =>
+        string.Equals(status, "healthy", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatPercent(double? value) =>
+        value.HasValue ? $"{value.Value.ToString("0.#", CultureInfo.CurrentCulture)}%" : "—";
+
+    private static string FormatMb(double value) =>
+        value >= 1024
+            ? $"{(value / 1024d).ToString("0.#", CultureInfo.CurrentCulture)} ГБ"
+            : $"{value.ToString("0", CultureInfo.CurrentCulture)} МБ";
+
+    private static string FormatBytesPerSecond(long bytesPerSecond)
+    {
+        var value = Math.Max(0, bytesPerSecond);
+        if (value >= 1024L * 1024L)
+        {
+            return $"{(value / 1024d / 1024d).ToString("0.#", CultureInfo.CurrentCulture)} МБ/с";
+        }
+
+        if (value >= 1024L)
+        {
+            return $"{(value / 1024d).ToString("0.#", CultureInfo.CurrentCulture)} КБ/с";
+        }
+
+        return $"{value} Б/с";
+    }
+
+    private static string FormatDuration(TimeSpan? duration)
+    {
+        if (!duration.HasValue)
+        {
+            return "—";
+        }
+
+        var value = duration.Value;
+        if (value.TotalDays >= 1)
+        {
+            return $"{(int)value.TotalDays} д. {value.Hours} ч.";
+        }
+
+        if (value.TotalHours >= 1)
+        {
+            return $"{(int)value.TotalHours} ч. {value.Minutes} мин.";
+        }
+
+        return $"{value.Minutes} мин.";
+    }
+
+    private static string GetBarWidth(double value) =>
+        $"{Math.Clamp(value, 0d, 100d).ToString("0.#", CultureInfo.InvariantCulture)}%";
 }

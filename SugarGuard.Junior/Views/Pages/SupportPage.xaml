@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Pages.SupportPage"
+             Title="Поддержка"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Style x:Key="SupportCard" TargetType="Border">
+                <Setter Property="Padding" Value="14" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+                <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+            </Style>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16,30,16,24" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Поддержка"
+                           FontFamily="{StaticResource ClashDisplay}"
+                           FontSize="30"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Label Text="Напиши нам, если что-то не работает или нужна помощь."
+                           FontSize="13"
+                           TextColor="{DynamicResource TextSecondary}" />
+                </VerticalStackLayout>
+                <Button Grid.Column="1"
+                        Text="Обновить"
+                        Command="{Binding LoadCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        HeightRequest="40" />
+            </Grid>
+
+            <Border Style="{StaticResource SupportCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Новое обращение"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Entry Placeholder="Тема"
+                           Text="{Binding Subject}"
+                           MaxLength="180" />
+                    <Editor Placeholder="Что случилось?"
+                            Text="{Binding NewMessage}"
+                            AutoSize="TextChanges"
+                            HeightRequest="94"
+                            MaxLength="4000" />
+                    <Button Text="Отправить"
+                            Command="{Binding CreateCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            HeightRequest="48" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="{Binding StatusMessage}"
+                   TextColor="{DynamicResource TextSecondary}"
+                   FontSize="13"
+                   IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+
+            <Label Text="Мои обращения"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimary}" />
+            <CollectionView ItemsSource="{Binding Conversations}"
+                            SelectedItem="{Binding SelectedConversation}"
+                            SelectionMode="Single"
+                            HeightRequest="170">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,8" Style="{StaticResource SupportCard}" Padding="12">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <Label Text="{Binding Subject}"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource TextPrimary}" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding UnreadCount}"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource Primary}" />
+                                <Label Grid.Row="1"
+                                       Text="{Binding LastMessagePreview}"
+                                       LineBreakMode="TailTruncation"
+                                       FontSize="12"
+                                       TextColor="{DynamicResource TextSecondary}" />
+                                <Label Grid.Row="1"
+                                       Grid.Column="1"
+                                       Text="{Binding UpdatedAt, StringFormat='{0:dd.MM HH:mm}'}"
+                                       FontSize="11"
+                                       TextColor="{DynamicResource TextSecondary}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Border Style="{StaticResource SupportCard}" IsVisible="{Binding HasSelectedConversation}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Переписка"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <CollectionView ItemsSource="{Binding Messages}"
+                                    HeightRequest="230"
+                                    SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,8"
+                                        Padding="12"
+                                        StrokeThickness="0"
+                                        BackgroundColor="{DynamicResource SurfaceOffset}"
+                                        StrokeShape="RoundRectangle 16">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Label Text="{Binding AuthorRole}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource TextSecondary}" />
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding CreatedAt, StringFormat='{0:dd.MM HH:mm}'}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource TextSecondary}" />
+                                        </Grid>
+                                        <Label Text="{Binding Body}"
+                                               FontSize="14"
+                                               TextColor="{DynamicResource TextPrimary}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <Editor Placeholder="Ответить..."
+                            Text="{Binding NewMessage}"
+                            AutoSize="TextChanges"
+                            HeightRequest="86"
+                            MaxLength="4000" />
+                    <Button Text="Отправить ответ"
+                            Command="{Binding SendCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            HeightRequest="48" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

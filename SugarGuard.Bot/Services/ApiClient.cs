@@ -133,8 +133,7 @@ public class ApiClient
     {
         try
         {
-            _logger.LogInformation("Проверка кода привязки {Code} для Telegram {UserId}", 
-                connectionCode, telegramUserId);
+            _logger.LogInformation("Проверка кода привязки для Telegram {UserId}", telegramUserId);
 
             await EnsureAuthenticatedAsync(cancellationToken);
 

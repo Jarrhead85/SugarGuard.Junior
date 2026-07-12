@@ -163,6 +163,13 @@ public interface IApiClient
     Task<List<AchievementApiModel>> GetAchievementsAsync(string childId, CancellationToken cancellationToken = default);
     Task<byte[]> ExportNutritionAsync(string childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default);
 
+    // ========== ПОДДЕРЖКА ==========
+    Task<List<SupportConversationApiModel>> GetSupportConversationsAsync(CancellationToken cancellationToken = default);
+    Task<SupportConversationDetailsApiModel?> GetSupportConversationAsync(Guid conversationId, CancellationToken cancellationToken = default);
+    Task<SupportConversationDetailsApiModel?> CreateSupportConversationAsync(CreateSupportConversationApiRequest request, CancellationToken cancellationToken = default);
+    Task<SupportMessageApiModel?> AddSupportMessageAsync(Guid conversationId, string message, CancellationToken cancellationToken = default);
+    Task<bool> MarkSupportConversationReadAsync(Guid conversationId, CancellationToken cancellationToken = default);
+
     // ========== ПРОВЕРКА СОЕДИНЕНИЯ ==========
     /// <summary>
     /// Проверяет доступность сервера

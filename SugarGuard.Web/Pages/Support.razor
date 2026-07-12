@@ -1,0 +1,367 @@
+@page "/support"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SugarGuard.Domain.Enums
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+
+@inject SugarGuardApiService Api
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Support> Logger
+
+<PageTitle>Поддержка - SugarGuard</PageTitle>
+
+<section class="support-page" aria-labelledby="supportTitle">
+    <header class="support-header">
+        <div>
+            <span class="support-eyebrow">Центр помощи</span>
+            <h1 id="supportTitle">Поддержка SugarGuard</h1>
+            <p>@(_isSupport ? "Обращения пользователей и переписка со службой поддержки." : "Создайте отдельный диалог для каждого вопроса и следите за ответами.")</p>
+        </div>
+        @if (!_isSupport)
+        {
+            <button class="support-primary" type="button" @onclick="ShowNewConversation">+ Новое обращение</button>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="support-alert" role="alert">@_error</div>
+    }
+
+    <div class="support-layout">
+        <aside class="support-list-panel" aria-label="Список обращений">
+            <div class="support-list-heading">
+                <strong>@(_isSupport ? "Все диалоги" : "Мои диалоги")</strong>
+                <span>@_conversations.Count</span>
+            </div>
+
+            @if (_isLoading && _conversations.Count == 0)
+            {
+                <p class="support-empty">Загружаем обращения...</p>
+            }
+            else if (_conversations.Count == 0)
+            {
+                <p class="support-empty">Обращений пока нет.</p>
+            }
+            else
+            {
+                <div class="support-list">
+                    @foreach (var conversation in _conversations)
+                    {
+                        <button class="support-list-item @(conversation.ConversationId == _selectedId ? "active" : null)"
+                                type="button"
+                                @onclick="() => SelectConversationAsync(conversation.ConversationId)"
+                                @key="conversation.ConversationId">
+                            <span class="support-list-row">
+                                <strong>@conversation.Subject</strong>
+                                @if (conversation.UnreadCount > 0)
+                                {
+                                    <span class="support-unread">@conversation.UnreadCount</span>
+                                }
+                            </span>
+                            @if (_isSupport)
+                            {
+                                <small>@conversation.RequesterEmail</small>
+                            }
+                            <span class="support-list-row support-list-meta">
+                                <span>@StatusLabel(conversation.Status)</span>
+                                <time>@FormatDate(conversation.UpdatedAt)</time>
+                            </span>
+                            <small class="support-preview">@conversation.LastMessagePreview</small>
+                        </button>
+                    }
+                </div>
+            }
+        </aside>
+
+        <main class="support-thread-panel">
+            @if (_showNew && !_isSupport)
+            {
+                <div class="support-composer support-composer--new">
+                    <div>
+                        <span class="support-eyebrow">Новое обращение</span>
+                        <h2>Опишите вопрос</h2>
+                    </div>
+                    <label>
+                        <span>Тема</span>
+                        <input @bind="_newSubject" maxlength="180" placeholder="Например: не синхронизируется рюкзак" />
+                    </label>
+                    <label>
+                        <span>Сообщение</span>
+                        <textarea @bind="_newMessage" maxlength="4000" placeholder="Что произошло, на каком экране и что вы ожидали увидеть?"></textarea>
+                    </label>
+                    <div class="support-actions">
+                        <button type="button" class="support-secondary" @onclick="CancelNewConversation">Отмена</button>
+                        <button type="button" class="support-primary" @onclick="CreateConversationAsync" disabled="@_isSaving">
+                            @(_isSaving ? "Отправляем..." : "Создать обращение")
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (_selected is null)
+            {
+                <div class="support-thread-empty">
+                    <span aria-hidden="true">?</span>
+                    <strong>Выберите обращение</strong>
+                    <p>Здесь появится история переписки.</p>
+                </div>
+            }
+            else
+            {
+                <header class="support-thread-heading">
+                    <div>
+                        <span class="support-eyebrow">@StatusLabel(_selected.Status)</span>
+                        <h2>@_selected.Subject</h2>
+                        @if (_isSupport)
+                        {
+                            <p>@_selected.RequesterEmail</p>
+                        }
+                    </div>
+                    @if (_isSupport)
+                    {
+                        <button class="support-secondary" type="button" @onclick="ToggleStatusAsync">
+                            @(_selected.Status == SupportConversationStatus.Closed ? "Открыть снова" : "Закрыть")
+                        </button>
+                    }
+                </header>
+
+                <div class="support-messages" aria-live="polite">
+                    @foreach (var message in _selected.Messages)
+                    {
+                        <article class="support-message @(message.IsOwnMessage ? "own" : "other")" @key="message.MessageId">
+                            <div class="support-message-meta">
+                                <strong>@MessageAuthor(message)</strong>
+                                <time>@FormatDateTime(message.CreatedAt)</time>
+                            </div>
+                            <p>@message.Body</p>
+                        </article>
+                    }
+                </div>
+
+                @if (_selected.Status == SupportConversationStatus.Closed)
+                {
+                    <div class="support-closed">Обращение закрыто. Администратор может открыть его снова.</div>
+                }
+                else
+                {
+                    <div class="support-reply">
+                        <label for="supportReply">Ответ</label>
+                        <textarea id="supportReply" @bind="_reply" maxlength="4000" placeholder="Введите сообщение..."></textarea>
+                        <div class="support-actions">
+                            <span>@_reply.Length / 4000</span>
+                            <button class="support-primary" type="button" @onclick="SendReplyAsync" disabled="@_isSaving">
+                                @(_isSaving ? "Отправляем..." : "Отправить")
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </main>
+    </div>
+</section>
+
+@code {
+    private readonly CancellationTokenSource _cts = new();
+    private List<SupportConversationVm> _conversations = [];
+    private SupportConversationDetailsVm? _selected;
+    private Guid? _selectedId;
+    private bool _isSupport;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _showNew;
+    private string _newSubject = string.Empty;
+    private string _newMessage = string.Empty;
+    private string _reply = string.Empty;
+    private string? _error;
+    private Task? _pollTask;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isSupport = auth.User.IsInRole("Admin") || auth.User.IsInRole("SupportAdmin");
+        await RefreshAsync(selectFirst: true);
+        _pollTask = PollAsync(_cts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(8));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(() => RefreshAsync(selectFirst: false));
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task RefreshAsync(bool selectFirst)
+    {
+        try
+        {
+            var conversations = await Api.GetSupportConversationsAsync(_cts.Token);
+            _conversations = conversations.ToList();
+            if (selectFirst && _selectedId is null && _conversations.Count > 0)
+            {
+                _selectedId = _conversations[0].ConversationId;
+            }
+
+            if (_selectedId.HasValue)
+            {
+                _selected = await Api.GetSupportConversationAsync(_selectedId.Value, _cts.Token);
+            }
+
+            _error = null;
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Failed to refresh support conversations");
+            _error ??= "Не удалось загрузить обращения. Повторная попытка будет выполнена автоматически.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectConversationAsync(Guid conversationId)
+    {
+        _selectedId = conversationId;
+        _showNew = false;
+        _selected = await Api.GetSupportConversationAsync(conversationId, _cts.Token);
+        await Api.MarkSupportConversationReadAsync(conversationId, _cts.Token);
+        await RefreshAsync(selectFirst: false);
+    }
+
+    private void ShowNewConversation()
+    {
+        _showNew = true;
+        _selected = null;
+        _selectedId = null;
+        _error = null;
+    }
+
+    private void CancelNewConversation()
+    {
+        _showNew = false;
+        _newSubject = string.Empty;
+        _newMessage = string.Empty;
+        if (_conversations.Count > 0)
+        {
+            _selectedId = _conversations[0].ConversationId;
+        }
+    }
+
+    private async Task CreateConversationAsync()
+    {
+        if (_newSubject.Trim().Length < 3 || _newMessage.Trim().Length < 2)
+        {
+            _error = "Укажите тему и подробно опишите вопрос.";
+            return;
+        }
+
+        await RunSavingAsync(async () =>
+        {
+            var created = await Api.CreateSupportConversationAsync(new CreateSupportConversationVm
+            {
+                Subject = _newSubject.Trim(),
+                Message = _newMessage.Trim()
+            }, _cts.Token);
+
+            _newSubject = string.Empty;
+            _newMessage = string.Empty;
+            _showNew = false;
+            _selectedId = created.ConversationId;
+            _selected = created;
+            await RefreshAsync(selectFirst: false);
+        });
+    }
+
+    private async Task SendReplyAsync()
+    {
+        if (_selectedId is null || string.IsNullOrWhiteSpace(_reply))
+        {
+            return;
+        }
+
+        await RunSavingAsync(async () =>
+        {
+            await Api.AddSupportMessageAsync(_selectedId.Value, _reply.Trim(), _cts.Token);
+            _reply = string.Empty;
+            await RefreshAsync(selectFirst: false);
+        });
+    }
+
+    private async Task ToggleStatusAsync()
+    {
+        if (_selectedId is null || _selected is null)
+        {
+            return;
+        }
+
+        var status = _selected.Status == SupportConversationStatus.Closed
+            ? SupportConversationStatus.Open
+            : SupportConversationStatus.Closed;
+        await RunSavingAsync(async () =>
+        {
+            await Api.UpdateSupportConversationStatusAsync(_selectedId.Value, status, _cts.Token);
+            await RefreshAsync(selectFirst: false);
+        });
+    }
+
+    private async Task RunSavingAsync(Func<Task> action)
+    {
+        _isSaving = true;
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Support conversation operation failed");
+            _error = "Не удалось выполнить операцию. Проверьте соединение и повторите попытку.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string MessageAuthor(SupportMessageVm message) => message.IsOwnMessage
+        ? "Вы"
+        : message.AuthorRole is "Admin" or "SupportAdmin" ? "Служба поддержки" : "Пользователь";
+
+    private static string StatusLabel(SupportConversationStatus status) => status switch
+    {
+        SupportConversationStatus.WaitingForSupport => "Ожидает ответа поддержки",
+        SupportConversationStatus.WaitingForUser => "Ожидает ответа пользователя",
+        SupportConversationStatus.Closed => "Закрыто",
+        _ => "Открыто"
+    };
+
+    private static string FormatDate(DateTime utc) => utc.ToLocalTime().ToString("dd.MM.yyyy");
+    private static string FormatDateTime(DateTime utc) => utc.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        if (_pollTask is not null)
+        {
+            try { await _pollTask; } catch (OperationCanceledException) { }
+        }
+
+        _cts.Dispose();
+    }
+}

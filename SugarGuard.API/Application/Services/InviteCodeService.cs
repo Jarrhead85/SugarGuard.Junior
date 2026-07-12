@@ -116,7 +116,9 @@ namespace SugarGuard.API.Services
 
             if (invite is null)
             {
-                _logger.LogWarning("Попытка использовать несуществующий код: {Code}", normalizedCode);
+                _logger.LogWarning(
+                    "Попытка использовать несуществующий код приглашения. UserId={UserId}",
+                    claimedByUserId);
                 return ClaimInviteCodeResult.Fail("code_not_found", "Код не найден.");
             }
 
@@ -124,8 +126,8 @@ namespace SugarGuard.API.Services
             if (invite.Status != "Pending")
             {
                 _logger.LogWarning(
-                    "Код {Code} уже использован или отозван. Статус: {Status}",
-                    normalizedCode, invite.Status);
+                    "Код приглашения уже использован или отозван. InviteCodeId={InviteCodeId} Status={Status} UserId={UserId}",
+                    invite.InviteCodeId, invite.Status, claimedByUserId);
                 return ClaimInviteCodeResult.Fail(
                     "code_already_used",
                     $"Код недействителен (статус: {invite.Status}).");
@@ -138,7 +140,8 @@ namespace SugarGuard.API.Services
                 await _context.SaveChangesAsync(cancellationToken);
 
                 _logger.LogWarning(
-                    "Код {Code} истёк. ExpiresAt={ExpiresAt}", normalizedCode, invite.ExpiresAt);
+                    "Код приглашения истёк. InviteCodeId={InviteCodeId} ExpiresAt={ExpiresAt} UserId={UserId}",
+                    invite.InviteCodeId, invite.ExpiresAt, claimedByUserId);
                 return ClaimInviteCodeResult.Fail("code_expired", "Срок действия кода истёк.");
             }
 

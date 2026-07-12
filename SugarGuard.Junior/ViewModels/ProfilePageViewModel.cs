@@ -1,4 +1,5 @@
 ﻿// ViewModel страницы профиля
+using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,6 +9,7 @@ using Microsoft.Maui.ApplicationModel;
 using SugarGuard.Junior.Repositories.Interfaces;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Models.Enums;
+using SugarGuard.Junior.Models.Api;
 using AppConstants = SugarGuard.Junior.Utilities.Constants;
 
 namespace SugarGuard.Junior.ViewModels;
@@ -30,6 +32,9 @@ public partial class ProfilePageViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly INotificationService _notificationService;
     private bool _isLoadingPreferences;
+
+    public ObservableCollection<AchievementApiModel> Achievements { get; } = [];
+    public bool HasAchievements => Achievements.Count > 0;
 
     // OBSERVABLE PROPERTIES
 
@@ -106,6 +111,7 @@ public partial class ProfilePageViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsNeutralSkinSelected))]
     [NotifyPropertyChangedFor(nameof(IsBoySkinSelected))]
     [NotifyPropertyChangedFor(nameof(IsGirlSkinSelected))]
+    [NotifyPropertyChangedFor(nameof(IsWatercolorSkinSelected))]
     private InterfaceSkin currentSkin = InterfaceSkin.Neutral;
 
     public bool IsSmallScaleSelected => CurrentScale == ScalePreset.Small;
@@ -114,11 +120,13 @@ public partial class ProfilePageViewModel : ObservableObject
     public bool IsNeutralSkinSelected => CurrentSkin == InterfaceSkin.Neutral;
     public bool IsBoySkinSelected => CurrentSkin == InterfaceSkin.Boy;
     public bool IsGirlSkinSelected => CurrentSkin == InterfaceSkin.Girl;
+    public bool IsWatercolorSkinSelected => CurrentSkin == InterfaceSkin.Watercolor;
 
     public string CurrentSkinText => CurrentSkin switch
     {
         InterfaceSkin.Boy => "Для мальчика",
         InterfaceSkin.Girl => "Для девочки",
+        InterfaceSkin.Watercolor => "Акварельный",
         _ => "Нейтральный"
     };
 
@@ -213,6 +221,7 @@ public partial class ProfilePageViewModel : ObservableObject
 
             // Загружаем данные профиля
             await LoadProfileDataAsync();
+            await LoadAchievementsAsync();
 
             _logger.LogInformation("ProfilePage initialization completed");
         }
@@ -292,6 +301,34 @@ public partial class ProfilePageViewModel : ObservableObject
         {
             _logger.LogError(ex, "Error opening access management page");
             await DisplayAlert("Доступ", "Не удалось открыть экран привязки. Попробуй ещё раз.", "ОК");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenSupport()
+    {
+        try
+        {
+            await Shell.Current.GoToAsync("supportpage");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error opening support page");
+            await DisplayAlert("Поддержка", "Не удалось открыть поддержку. Попробуй ещё раз.", "ОК");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenPrivacy()
+    {
+        try
+        {
+            await Shell.Current.GoToAsync("privacypage");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error opening privacy page");
+            await DisplayAlert("Конфиденциальность", "Не удалось открыть сведения о данных.", "ОК");
         }
     }
 
@@ -408,7 +445,50 @@ public partial class ProfilePageViewModel : ObservableObject
         CurrentScale = preset;
         _themeService.ApplyScale(preset);
         Preferences.Set("interface_scale", (int)preset);
+        Preferences.Set("ui_compact_mode", preset == ScalePreset.Small);
         _logger.LogInformation("Scale set to {Preset}", preset);
+    }
+
+    private async Task LoadAchievementsAsync()
+    {
+        Achievements.Clear();
+        if (string.IsNullOrWhiteSpace(_currentChildId))
+        {
+            OnPropertyChanged(nameof(HasAchievements));
+            return;
+        }
+
+        try
+        {
+            foreach (var achievement in await _apiClient.GetAchievementsAsync(_currentChildId))
+            {
+                Achievements.Add(achievement);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load achievements for child {ChildId}", _currentChildId);
+        }
+
+        OnPropertyChanged(nameof(HasAchievements));
+    }
+
+    [RelayCommand]
+    private static async Task ShowAchievementAsync(AchievementApiModel? achievement)
+    {
+        if (achievement is null || Shell.Current is null)
+        {
+            return;
+        }
+
+        var status = achievement.IsUnlocked
+            ? "Достижение получено"
+            : $"Прогресс: {achievement.Progress} из {achievement.Target}";
+
+        await Shell.Current.DisplayAlert(
+            achievement.Title,
+            $"{achievement.Description}\n\n{status}",
+            "Понятно");
     }
 
     [RelayCommand]

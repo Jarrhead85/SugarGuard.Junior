@@ -35,12 +35,14 @@ public class GigaChatService : IGigaChatService
     /// <summary>
     /// Получить рекомендацию от GigaChat
     /// </summary>
-    public async Task<GigaChatResponse> GetRecommendationAsync(GigaChatRequest request)
+    public async Task<GigaChatResponse> GetRecommendationAsync(
+        GigaChatRequest request,
+        CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
 
-        // Safety-critical ranges must never depend on an external model response.
-        // The model remains useful for routine, non-urgent guidance.
+        // Критические диапазоны не должны зависеть от внешней модели.
+        // Модель остаётся полезной только для обычных, неэкстренных подсказок.
         var safetyResponse = GetSafetyRecommendation(request);
         if (safetyResponse is not null)
         {
@@ -50,8 +52,7 @@ public class GigaChatService : IGigaChatService
         
         try
         {
-            // Сначала пытаемся получить рекомендацию от GigaChat
-            var gigaChatResponse = await GetGigaChatRecommendationAsync(request);
+            var gigaChatResponse = await GetGigaChatRecommendationAsync(request, cancellationToken);
             
             if (gigaChatResponse.IsSuccess)
             {
@@ -106,13 +107,13 @@ public class GigaChatService : IGigaChatService
     /// <summary>
     /// Получить токен для GigaChat
     /// </summary>
-    public Task<string?> GetAccessTokenAsync() =>
-        _tokenCache.GetOrRefreshAsync(RequestNewTokenAsync);
+    public Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default) =>
+        _tokenCache.GetOrRefreshAsync(() => RequestNewTokenAsync(cancellationToken));
 
     /// <summary>
     /// Запрос нового токена у GigaChat OAuth
     /// </summary>
-    private async Task<string?> RequestNewTokenAsync()
+    private async Task<string?> RequestNewTokenAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -136,11 +137,11 @@ public class GigaChatService : IGigaChatService
                 new KeyValuePair<string, string>("scope", "GIGACHAT_API_PERS")
             });
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             
             if (response.IsSuccessStatusCode)
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
                 var tokenResponse = JsonSerializer.Deserialize<GigaChatTokenResponse>(responseContent);
                 
                 if (tokenResponse?.AccessToken != null)
@@ -165,9 +166,11 @@ public class GigaChatService : IGigaChatService
     /// <summary>
     /// Получить рекомендацию непосредственно от GigaChat API
     /// </summary>
-    private async Task<GigaChatResponse> GetGigaChatRecommendationAsync(GigaChatRequest request)
+    private async Task<GigaChatResponse> GetGigaChatRecommendationAsync(
+        GigaChatRequest request,
+        CancellationToken cancellationToken)
     {
-        var accessToken = await GetAccessTokenAsync();
+        var accessToken = await GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrEmpty(accessToken))
         {
             return new GigaChatResponse
@@ -188,7 +191,7 @@ public class GigaChatService : IGigaChatService
                 new
                 {
                     role = "system",
-                    content = "Ты детский помощник по диабету. Отвечай по-русски, спокойно и не более чем двумя короткими предложениями. Не назначай дозу инсулина. Если упоминаешь еду, выбирай только из переданного рюкзака и не выдумывай продукты."
+                    content = "Ты детский помощник по диабету SugarGuard. Отвечай по-русски, спокойно, кратко и понятно ребёнку. Не назначай новую дозу, не меняй дозу или схему инсулина, не заменяй врача, не скрывай критичность ситуации. Можно объяснять факты, напоминать утверждённый план, просить сообщить взрослому и перечислять данные, которые стоит проверить."
                 },
                 new { role = "user", content = prompt }
             },
@@ -203,11 +206,11 @@ public class GigaChatService : IGigaChatService
             Encoding.UTF8, 
             "application/json");
 
-        var response = await _httpClient.SendAsync(httpRequest);
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
         
         if (response.IsSuccessStatusCode)
         {
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
             var gigaChatResponse = JsonSerializer.Deserialize<GigaChatApiResponse>(responseContent);
             
             if (gigaChatResponse?.Choices?.Length > 0)
@@ -221,7 +224,10 @@ public class GigaChatService : IGigaChatService
                         RecommendationText = recommendationText,
                         ModelUsed = "GigaChat",
                         IsSuccess = true,
-                        Urgency = DetermineUrgency(request.GlucoseStatus)
+                        Urgency = DetermineUrgency(request.GlucoseStatus),
+                        InputTokens = gigaChatResponse.Usage?.PromptTokens,
+                        OutputTokens = gigaChatResponse.Usage?.CompletionTokens,
+                        TotalTokens = gigaChatResponse.Usage?.TotalTokens
                     };
                 }
             }
@@ -239,6 +245,19 @@ public class GigaChatService : IGigaChatService
     /// </summary>
     private string BuildPrompt(GigaChatRequest request)
     {
+        if (!string.IsNullOrWhiteSpace(request.StructuredContextJson))
+        {
+            return $"""
+                Вопрос пользователя: {request.Question}
+
+                Ниже структурированный обезличенный контекст SugarGuard. В нём нет ФИО и контактов.
+                Используй только эти данные. Не придумывай еду, инсулин, симптомы или назначения.
+                Если данных мало, прямо скажи, что вывод осторожный.
+
+                {request.StructuredContextJson}
+                """;
+        }
+
         var snacksText = request.AvailableSnacks.Any() 
             ? string.Join(", ", request.AvailableSnacks)
             : "рюкзак пуст";
@@ -343,6 +362,9 @@ internal class GigaChatApiResponse
 {
     [JsonPropertyName("choices")]
     public GigaChatChoice[]? Choices { get; set; }
+
+    [JsonPropertyName("usage")]
+    public GigaChatUsage? Usage { get; set; }
 }
 
 internal class GigaChatChoice
@@ -355,4 +377,16 @@ internal class GigaChatMessage
 {
     [JsonPropertyName("content")]
     public string? Content { get; set; }
+}
+
+internal class GigaChatUsage
+{
+    [JsonPropertyName("prompt_tokens")]
+    public int? PromptTokens { get; set; }
+
+    [JsonPropertyName("completion_tokens")]
+    public int? CompletionTokens { get; set; }
+
+    [JsonPropertyName("total_tokens")]
+    public int? TotalTokens { get; set; }
 }

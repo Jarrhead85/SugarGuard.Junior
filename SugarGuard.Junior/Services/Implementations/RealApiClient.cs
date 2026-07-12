@@ -4,6 +4,7 @@ using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
+using SugarGuard.Shared.Constants;
 using SugarGuard.Shared.Dto;
 using System.Globalization;
 using System.Net;
@@ -460,7 +461,8 @@ public class RealApiClient : IApiClient
 
     public async Task<TelegramConnectResponse> GenerateTelegramCodeAsync(string childId)
     {
-        var body = new { childId = Guid.TryParse(childId, out var cid) ? cid : Guid.Empty, codeHash = "" };
+        var code = ConnectionCodeFormat.Format(ConnectionCodeFormat.Generate());
+        var body = new { childId = Guid.TryParse(childId, out var cid) ? cid : Guid.Empty, code };
 
         using var res = await SendWithRetryAsync(() =>
             new HttpRequestMessage(HttpMethod.Post, "api/parent-link/code")
@@ -473,6 +475,7 @@ public class RealApiClient : IApiClient
         return new TelegramConnectResponse
         {
             Success = data.TryGetProperty("success", out var s) && s.GetBoolean(),
+            ConnectionCode = code,
             ConnectionCodeId = data.TryGetProperty("codeId", out var c) ? c.GetString() : null,
             ExpiresIn = data.TryGetProperty("expiresAt", out _) ? 600 : 0
         };
@@ -717,6 +720,65 @@ public class RealApiClient : IApiClient
         var url = $"api/children/{childId}/nutrition/export.{safeFormat}?from={Uri.EscapeDataString(from.ToUniversalTime().ToString("O"))}&to={Uri.EscapeDataString(to.ToUniversalTime().ToString("O"))}";
         using var response = await SendWithRetryAsync(() => new HttpRequestMessage(HttpMethod.Get, url), cancellationToken);
         return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync(cancellationToken) : [];
+    }
+
+    public async Task<List<SupportConversationApiModel>> GetSupportConversationsAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "api/support/conversations"),
+            cancellationToken);
+
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<List<SupportConversationApiModel>>(JsonOptions, cancellationToken) ?? []
+            : [];
+    }
+
+    public async Task<SupportConversationDetailsApiModel?> GetSupportConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"api/support/conversations/{conversationId}"),
+            cancellationToken);
+
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<SupportConversationDetailsApiModel>(JsonOptions, cancellationToken)
+            : null;
+    }
+
+    public async Task<SupportConversationDetailsApiModel?> CreateSupportConversationAsync(CreateSupportConversationApiRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "api/support/conversations")
+            {
+                Content = JsonContent.Create(request, options: JsonOptions)
+            },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<SupportConversationDetailsApiModel>(JsonOptions, cancellationToken)
+            : null;
+    }
+
+    public async Task<SupportMessageApiModel?> AddSupportMessageAsync(Guid conversationId, string message, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, $"api/support/conversations/{conversationId}/messages")
+            {
+                Content = JsonContent.Create(new { message }, options: JsonOptions)
+            },
+            cancellationToken);
+
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<SupportMessageApiModel>(JsonOptions, cancellationToken)
+            : null;
+    }
+
+    public async Task<bool> MarkSupportConversationReadAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, $"api/support/conversations/{conversationId}/read"),
+            cancellationToken);
+
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> HealthCheckAsync()

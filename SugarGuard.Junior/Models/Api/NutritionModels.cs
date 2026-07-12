@@ -87,4 +87,18 @@ public sealed class AchievementApiModel
     public bool IsUnlocked { get; set; }
     public DateTime? UnlockedAt { get; set; }
     public double ProgressValue => Target == 0 ? 0 : Math.Clamp((double)Progress / Target, 0, 1);
+    public string ProgressText => $"{Progress} из {Target}";
+
+    // Lightweight vector badges avoid opaque image backgrounds and stay sharp
+    // on every child theme.
+    public string DisplayImageName => Code switch
+    {
+        "first_steps" => "badge_first_steps.svg",
+        "food_week" => "badge_food_week.svg",
+        "insulin_20" => "badge_insulin_20.svg",
+        "target_10" => "badge_target_10.svg",
+        "schedule_7" => "badge_schedule_7.svg",
+        "backpack_10" => "badge_backpack_10.svg",
+        _ => "achievement_default.svg"
+    };
 }

@@ -8,12 +8,12 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>JWT / Токены — SugarGuard Admin</PageTitle>
+<PageTitle>JWT / Токены - SugarGuard Admin</PageTitle>
 
 <div class="admin-security-page">
     <PageHeader Eyebrow="Безопасность"
                 Title="JWT / Токены"
-                Subtitle="Контроль сессий, refresh-token событий и признаков подозрительной активности. Секреты и подписи не отображаются в UI.">
+                Subtitle="Контроль сессий, refresh-token событий, признаков подозрительной активности и расхода GigaChat. Секреты и подписи не отображаются в UI.">
         <TrailingContent>
             <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
                 @(_isLoading ? "Обновление..." : "Обновить")
@@ -39,14 +39,67 @@
                   Value="@RefreshEvents.ToString(CultureInfo.InvariantCulture)"
                   Subtitle="Обновление сессий"
                   Status="neutral" />
-        <StatCard Label="Секреты"
-                  Value="Скрыты"
-                  Subtitle="Не выводятся в браузер"
-                  Status="safe" />
+        <StatCard Label="GigaChat за месяц"
+                  Value="@FormatInt(_gigaChatUsage?.Month.TotalTokens)"
+                  Subtitle="@FormatGigaChatBudgetSubtitle()"
+                  Status="@GetGigaChatStatus()" />
     </section>
 
     <section class="admin-main-layout">
         <div class="admin-main-column">
+            <section class="admin-panel">
+                <SectionHeader Title="Расход GigaChat"
+                               Description="Учитываются только ответы провайдера, где API вернул usage. Тексты запросов и ответов здесь не отображаются.">
+                    <TrailingContent>
+                        <span class="admin-pill">@FormatUpdatedAt(_gigaChatUsage?.GeneratedAtUtc)</span>
+                    </TrailingContent>
+                </SectionHeader>
+
+                @if (_gigaChatUsage is null)
+                {
+                    <div class="admin-empty">
+                        <strong>Нет данных по токенам</strong>
+                        <span>Проверьте доступность API или дождитесь первого ответа GigaChat с usage.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="gigachat-usage">
+                        <div class="usage-card usage-card--accent">
+                            <span>Сегодня</span>
+                            <strong>@FormatInt(_gigaChatUsage.Today.TotalTokens)</strong>
+                            <small>@_gigaChatUsage.Today.ResponsesWithUsage ответов с usage</small>
+                        </div>
+                        <div class="usage-card">
+                            <span>Месяц</span>
+                            <strong>@FormatInt(_gigaChatUsage.Month.TotalTokens)</strong>
+                            <small>@FormatTokenSplit(_gigaChatUsage.Month)</small>
+                        </div>
+                        <div class="usage-card">
+                            <span>Всего</span>
+                            <strong>@FormatInt(_gigaChatUsage.AllTime.TotalTokens)</strong>
+                            <small>@_gigaChatUsage.AllTime.ResponsesWithUsage ответов с usage</small>
+                        </div>
+                    </div>
+
+                    @if (_gigaChatUsage.MonthlyTokenBudget is > 0)
+                    {
+                        <div class="usage-budget" aria-label="Месячный бюджет GigaChat">
+                            <div>
+                                <strong>Бюджет месяца</strong>
+                                <span>
+                                    Использовано @FormatInt(_gigaChatUsage.Month.TotalTokens) из @FormatInt(_gigaChatUsage.MonthlyTokenBudget)
+                                </span>
+                            </div>
+                            <div class="usage-budget__bar">
+                                <span style="width:@_gigaChatUsage.MonthlyBudgetUsedPercent.ToString("0.##", CultureInfo.InvariantCulture)%"></span>
+                            </div>
+                            <small>Осталось: @FormatInt(_gigaChatUsage.MonthlyTokensRemaining)</small>
+                        </div>
+                    }
+                }
+            </section>
+
             <section class="admin-panel">
                 <SectionHeader Title="Последние события авторизации"
                                Description="Показываются только метаданные audit log: действие, цель и время. Токены и секреты не раскрываются.">
@@ -63,7 +116,7 @@
                 {
                     <div class="admin-empty">
                         <strong>Событий авторизации нет</strong>
-                        <span>В audit log пока нет записей, связанных с входом или refresh token.</span>
+                        <span>В audit log пока нет записей, связанных со входом или refresh token.</span>
                     </div>
                 }
                 else
@@ -90,7 +143,7 @@
                                             </span>
                                         </td>
                                         <td><code>@ShortId(item.ActorUserId?.ToString())</code></td>
-                                        <td>@(item.TargetType ?? "—") <code>@ShortId(item.TargetId)</code></td>
+                                        <td>@(item.TargetType ?? "-") <code>@ShortId(item.TargetId)</code></td>
                                         <td class="admin-muted">@ShortText(item.Details)</td>
                                     </tr>
                                 }
@@ -109,7 +162,7 @@
                     <li>JWT используется только как bearer-token, refresh token обновляется через API.</li>
                     <li>Секреты подписи и содержимое токенов не отправляются в браузер.</li>
                     <li>Подозрительные auth-события ищите по ошибкам входа, refresh-failed и частым сменам IP.</li>
-                    <li>Отзыв конкретных сессий лучше реализовать отдельным endpoint-ом refresh-token revocation.</li>
+                    <li>GigaChat usage берется из технических метаданных AI-ответов без текста сообщений.</li>
                 </ul>
             </section>
         </aside>
@@ -118,6 +171,7 @@
 
 @code {
     private List<AuditLogVm> _authEvents = [];
+    private GigaChatUsageVm? _gigaChatUsage;
     private bool _isLoading = true;
     private string? _message;
 
@@ -140,7 +194,11 @@
             _isLoading = true;
             _message = null;
 
-            var logs = await Api.GetAdminAuditLogsAsync(limit: 200);
+            var logsTask = Api.GetAdminAuditLogsAsync(limit: 200);
+            var usageTask = Api.GetAdminGigaChatUsageAsync();
+
+            var logs = await logsTask;
+            _gigaChatUsage = await usageTask;
             _authEvents = logs
                 .Where(IsAuthEvent)
                 .OrderByDescending(x => x.CreatedAt)
@@ -150,7 +208,8 @@
         catch (Exception ex)
         {
             _authEvents = [];
-            _message = $"Не удалось загрузить события авторизации: {ex.Message}";
+            _gigaChatUsage = null;
+            _message = $"Не удалось загрузить данные безопасности: {ex.Message}";
         }
         finally
         {
@@ -167,6 +226,31 @@
             || action.Contains("logout", StringComparison.OrdinalIgnoreCase)
             || action.Contains("refresh", StringComparison.OrdinalIgnoreCase)
             || target.Contains("token", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetGigaChatStatus()
+    {
+        if (_gigaChatUsage?.MonthlyTokenBudget is not > 0)
+        {
+            return "neutral";
+        }
+
+        return _gigaChatUsage.MonthlyBudgetUsedPercent switch
+        {
+            >= 90 => "danger",
+            >= 70 => "warning",
+            _ => "safe"
+        };
+    }
+
+    private string FormatGigaChatBudgetSubtitle()
+    {
+        if (_gigaChatUsage?.MonthlyTokenBudget is not > 0)
+        {
+            return "Бюджет не задан";
+        }
+
+        return $"Осталось {FormatInt(_gigaChatUsage.MonthlyTokensRemaining)}";
     }
 
     private static string GetActionTone(string action)
@@ -191,24 +275,35 @@
     private static string FormatDateTime(DateTime value) =>
         value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("ru-RU"));
 
+    private static string FormatUpdatedAt(DateTime? value) =>
+        value.HasValue
+            ? $"Обновлено {FormatDateTime(value.Value)}"
+            : "Нет данных";
+
+    private static string FormatInt(int? value) =>
+        value?.ToString("N0", CultureInfo.GetCultureInfo("ru-RU")) ?? "-";
+
+    private static string FormatTokenSplit(GigaChatUsagePeriodVm period) =>
+        $"Вход: {FormatInt(period.InputTokens)} · выход: {FormatInt(period.OutputTokens)}";
+
     private static string ShortId(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "—";
+            return "-";
         }
 
-        return value.Length <= 12 ? value : $"{value[..8]}…{value[^4..]}";
+        return value.Length <= 12 ? value : $"{value[..8]}...{value[^4..]}";
     }
 
     private static string ShortText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "—";
+            return "-";
         }
 
-        return value.Length <= 120 ? value : $"{value[..120]}…";
+        return value.Length <= 120 ? value : $"{value[..120]}...";
     }
 }
 
@@ -243,26 +338,6 @@
         padding: 22px;
         background: var(--color-surface, rgba(255,255,255,.88));
         box-shadow: var(--shadow-sm, 0 14px 36px rgba(22,33,62,.08));
-    }
-
-    .sg-section-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 18px;
-    }
-
-    .sg-section-header h2 {
-        margin: 0;
-        color: var(--color-text, #16213e);
-        font-size: 22px;
-    }
-
-    .sg-section-header p {
-        margin: 6px 0 0;
-        color: var(--color-text-muted, #667694);
-        line-height: 1.55;
     }
 
     .admin-btn {
@@ -300,6 +375,78 @@
         background: rgba(219,89,103,.12);
     }
 
+    .gigachat-usage {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .usage-card {
+        display: grid;
+        gap: 7px;
+        padding: 18px;
+        border: 1px solid var(--color-border, rgba(22,33,62,.10));
+        border-radius: 20px;
+        background: rgba(248,251,255,.82);
+    }
+
+    .usage-card--accent {
+        background: linear-gradient(135deg, rgba(27,142,139,.16), rgba(45,126,226,.12));
+    }
+
+    .usage-card span {
+        color: var(--color-text-faint, #96a2b8);
+        font-size: 12px;
+        font-weight: 850;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .usage-card strong {
+        color: var(--color-text, #16213e);
+        font-size: 30px;
+        line-height: 1;
+    }
+
+    .usage-card small {
+        color: var(--color-text-muted, #667694);
+    }
+
+    .usage-budget {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(27,142,139,.08);
+    }
+
+    .usage-budget > div:first-child {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--color-text, #16213e);
+    }
+
+    .usage-budget > div:first-child span,
+    .usage-budget small {
+        color: var(--color-text-muted, #667694);
+    }
+
+    .usage-budget__bar {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(102,118,148,.16);
+    }
+
+    .usage-budget__bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #1b8e8b, #2d7ee2);
+    }
+
     .admin-table-wrap {
         overflow-x: auto;
     }
@@ -323,11 +470,6 @@
         font-size: 12px;
         letter-spacing: .07em;
         text-transform: uppercase;
-    }
-
-    .admin-table td {
-        color: var(--color-text, #16213e);
-        line-height: 1.45;
     }
 
     .admin-pill {
@@ -387,7 +529,8 @@
     }
 
     @@media (max-width: 1100px) {
-        .admin-kpi-grid {
+        .admin-kpi-grid,
+        .gigachat-usage {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
@@ -397,7 +540,8 @@
     }
 
     @@media (max-width: 700px) {
-        .admin-kpi-grid {
+        .admin-kpi-grid,
+        .gigachat-usage {
             grid-template-columns: 1fr;
         }
 

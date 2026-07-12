@@ -234,7 +234,7 @@ public sealed class AuthController : ControllerBase
         }
 
         return Enum.TryParse<UserRole>(role.Trim(), ignoreCase: true, out var parsed)
-               && parsed is UserRole.Parent or UserRole.Doctor or UserRole.ChildDevice
+               && parsed is UserRole.Parent or UserRole.ChildDevice
             ? parsed
             : null;
     }

@@ -56,6 +56,11 @@ namespace SugarGuard.API.Data
         public DbSet<NutritionEntry> NutritionEntries => Set<NutritionEntry>();
         public DbSet<MealSchedule> MealSchedules => Set<MealSchedule>();
         public DbSet<ChildAchievement> ChildAchievements => Set<ChildAchievement>();
+        public DbSet<SupportConversation> SupportConversations => Set<SupportConversation>();
+        public DbSet<SupportMessage> SupportMessages => Set<SupportMessage>();
+        public DbSet<AiConversation> AiConversations => Set<AiConversation>();
+        public DbSet<AiConversationMessage> AiConversationMessages => Set<AiConversationMessage>();
+        public DbSet<AiContextSnapshot> AiContextSnapshots => Set<AiContextSnapshot>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -219,6 +224,113 @@ namespace SugarGuard.API.Data
                     .IsUnique().HasDatabaseName("ux_child_achievements_child_code");
                 entity.HasOne(achievement => achievement.Child).WithMany(child => child.Achievements)
                     .HasForeignKey(achievement => achievement.ChildId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SupportConversation>(entity =>
+            {
+                entity.Property(conversation => conversation.Status)
+                    .HasConversion<string>()
+                    .HasMaxLength(32);
+                entity.Property(conversation => conversation.CreatedAt).HasDefaultValueSql("NOW()");
+                entity.Property(conversation => conversation.UpdatedAt).HasDefaultValueSql("NOW()");
+                entity.HasIndex(conversation => new { conversation.RequesterUserId, conversation.UpdatedAt })
+                    .HasDatabaseName("ix_support_conversations_requester_updated");
+                entity.HasIndex(conversation => new { conversation.Status, conversation.UpdatedAt })
+                    .HasDatabaseName("ix_support_conversations_status_updated");
+                entity.HasOne(conversation => conversation.RequesterUser)
+                    .WithMany()
+                    .HasForeignKey(conversation => conversation.RequesterUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SupportMessage>(entity =>
+            {
+                entity.Property(message => message.CreatedAt).HasDefaultValueSql("NOW()");
+                entity.HasIndex(message => new { message.ConversationId, message.CreatedAt })
+                    .HasDatabaseName("ix_support_messages_conversation_created");
+                entity.HasOne(message => message.Conversation)
+                    .WithMany(conversation => conversation.Messages)
+                    .HasForeignKey(message => message.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(message => message.AuthorUser)
+                    .WithMany()
+                    .HasForeignKey(message => message.AuthorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AiConversation>(entity =>
+            {
+                entity.Property(conversation => conversation.Status)
+                    .HasConversion<string>()
+                    .HasMaxLength(32);
+                entity.Property(conversation => conversation.Summary).HasMaxLength(2000);
+                entity.Property(conversation => conversation.ProviderConversationId).HasMaxLength(128);
+                entity.Property(conversation => conversation.CreatedAt).HasDefaultValueSql("NOW()");
+                entity.HasIndex(conversation => new { conversation.ChildId, conversation.Status, conversation.LastMessageAt })
+                    .HasDatabaseName("ix_ai_conversations_child_status_last");
+                entity.HasOne(conversation => conversation.Child)
+                    .WithMany(child => child.AiConversations)
+                    .HasForeignKey(conversation => conversation.ChildId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AiConversationMessage>(entity =>
+            {
+                entity.Property(message => message.Role)
+                    .HasConversion<string>()
+                    .HasMaxLength(24);
+                entity.Property(message => message.SafetyResult)
+                    .HasConversion<string>()
+                    .HasMaxLength(32);
+                entity.Property(message => message.Text).HasMaxLength(4000);
+                entity.Property(message => message.Model).HasMaxLength(80);
+                entity.Property(message => message.CreatedAt).HasDefaultValueSql("NOW()");
+                entity.HasIndex(message => new { message.ConversationId, message.CreatedAt })
+                    .HasDatabaseName("ix_ai_messages_conversation_created");
+                entity.HasIndex(message => message.RecommendationId)
+                    .HasDatabaseName("ix_ai_messages_recommendation");
+                entity.HasOne(message => message.Conversation)
+                    .WithMany(conversation => conversation.Messages)
+                    .HasForeignKey(message => message.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(message => message.AuthorUser)
+                    .WithMany()
+                    .HasForeignKey(message => message.AuthorUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(message => message.Recommendation)
+                    .WithMany()
+                    .HasForeignKey(message => message.RecommendationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(message => message.Measurement)
+                    .WithMany()
+                    .HasForeignKey(message => message.MeasurementId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<AiContextSnapshot>(entity =>
+            {
+                entity.Property(snapshot => snapshot.FormatVersion).HasMaxLength(24);
+                entity.Property(snapshot => snapshot.CreatedAt).HasDefaultValueSql("NOW()");
+                if (Database.IsNpgsql())
+                {
+                    entity.Property(snapshot => snapshot.ContextJson).HasColumnType("jsonb");
+                }
+                entity.HasIndex(snapshot => new { snapshot.ChildId, snapshot.CreatedAt })
+                    .HasDatabaseName("ix_ai_context_snapshots_child_created");
+                entity.HasIndex(snapshot => new { snapshot.ConversationId, snapshot.CreatedAt })
+                    .HasDatabaseName("ix_ai_context_snapshots_conversation_created");
+                entity.HasOne(snapshot => snapshot.Child)
+                    .WithMany(child => child.AiContextSnapshots)
+                    .HasForeignKey(snapshot => snapshot.ChildId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(snapshot => snapshot.Conversation)
+                    .WithMany(conversation => conversation.ContextSnapshots)
+                    .HasForeignKey(snapshot => snapshot.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(snapshot => snapshot.Measurement)
+                    .WithMany()
+                    .HasForeignKey(snapshot => snapshot.MeasurementId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // InviteCodes

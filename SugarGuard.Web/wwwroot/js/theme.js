@@ -8,6 +8,8 @@
 
     const STORAGE_KEY = 'sg-theme';
     const ATTR = 'data-theme';
+    const VISUAL_STYLE_STORAGE_KEY = 'sg-visual-style';
+    const VISUAL_STYLE_ATTR = 'data-visual-style';
     const html = document.documentElement;
     const subscribers = new Map();
 
@@ -47,6 +49,22 @@
             localStorage.setItem(STORAGE_KEY, theme);
         } catch (_) {
             // Молча игнорируем: функциональность не нарушается
+        }
+    }
+
+    function resolveInitialVisualStyle() {
+        return 'classic';
+    }
+
+    function applyVisualStyle(style) {
+        html.setAttribute(VISUAL_STYLE_ATTR, 'classic');
+    }
+
+    function persistVisualStyle(style) {
+        try {
+            localStorage.setItem(VISUAL_STYLE_STORAGE_KEY, style);
+        } catch (_) {
+            // Текущая страница остаётся в классическом стиле даже без localStorage.
         }
     }
 
@@ -93,6 +111,7 @@
         init: function () {
             const theme = resolveInitialTheme();
             applyTheme(theme);
+            applyVisualStyle(resolveInitialVisualStyle());
         },
 
         /**
@@ -132,6 +151,16 @@
 
         getState: function () {
             return getThemeState();
+        },
+
+        getVisualStyle: function () {
+            return html.getAttribute(VISUAL_STYLE_ATTR) || 'classic';
+        },
+
+        setVisualStyle: function (style) {
+            const normalized = 'classic';
+            applyVisualStyle(normalized);
+            persistVisualStyle(normalized);
         },
 
         initToggleButton: function (buttonId) {

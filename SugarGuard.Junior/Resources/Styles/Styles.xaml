@@ -8,13 +8,13 @@
 
     <Style TargetType="ContentPage">
         <Setter Property="BackgroundColor"
-                Value="{AppThemeBinding Light={StaticResource BackgroundPage}, Dark={StaticResource BackgroundPage}}" />
+                Value="{DynamicResource BackgroundPage}" />
     </Style>
 
     <Style TargetType="Page" ApplyToDerivedTypes="True">
         <Setter Property="Padding" Value="0" />
         <Setter Property="BackgroundColor"
-                Value="{AppThemeBinding Light={StaticResource BackgroundPage}, Dark={StaticResource BackgroundPage}}" />
+                Value="{DynamicResource BackgroundPage}" />
     </Style>
 
     <!-- 2. Совместимый базовый контейнерный слой -->
@@ -24,29 +24,29 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="CornerRadius" Value="18" />
         <Setter Property="BackgroundColor"
-                Value="{AppThemeBinding Light={StaticResource SurfaceCard}, Dark={StaticResource SurfaceCard}}" />
+                Value="{DynamicResource SurfaceCard}" />
         <Setter Property="BorderColor"
-                Value="{AppThemeBinding Light={StaticResource BorderDefault}, Dark={StaticResource BorderDefault}}" />
+                Value="{DynamicResource BorderDefault}" />
     </Style>
 
     <Style TargetType="Border">
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="Stroke"
-                Value="{AppThemeBinding Light={StaticResource BorderDefault}, Dark={StaticResource BorderDefault}}" />
+                Value="{DynamicResource BorderDefault}" />
         <Setter Property="StrokeThickness" Value="1" />
         <Setter Property="StrokeShape" Value="Rectangle" />
     </Style>
 
     <Style TargetType="BoxView">
         <Setter Property="BackgroundColor"
-                Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerColor}}" />
+                Value="{DynamicResource DividerColor}" />
     </Style>
 
     <!-- 3. Базовая типографика -->
 
     <Style TargetType="Label">
         <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+                Value="{DynamicResource TextPrimary}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="Satoshi" />
         <Setter Property="FontSize" Value="16" />
@@ -57,9 +57,9 @@
 
     <Style TargetType="Entry">
         <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+                Value="{DynamicResource TextPrimary}" />
         <Setter Property="PlaceholderColor"
-                Value="{AppThemeBinding Light={StaticResource TextFaintColor}, Dark={StaticResource TextFaintColor}}" />
+                Value="{DynamicResource TextFaintColor}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="Satoshi" />
         <Setter Property="FontSize" Value="16" />
@@ -69,9 +69,9 @@
 
     <Style TargetType="Editor">
         <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimary}}" />
+                Value="{DynamicResource TextPrimary}" />
         <Setter Property="PlaceholderColor"
-                Value="{AppThemeBinding Light={StaticResource TextFaintColor}, Dark={StaticResource TextFaintColor}}" />
+                Value="{DynamicResource TextFaintColor}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="Satoshi" />
         <Setter Property="FontSize" Value="16" />

@@ -281,8 +281,12 @@
                 : "safe")
             .ToArray();
 
-        // Y-ось: оставляем запас сверху и снизу
-        var yMax = Math.Max(TargetMax + 4.0, sorted.Any() ? sorted.Max(p => p.Value) * 1.1 : TargetMax + 4.0);
+        // Keep the scale clinically meaningful while ensuring every recorded
+        // measurement has one unit of visual breathing room.
+        var minValue = sorted.Min(point => point.Value);
+        var maxValue = sorted.Max(point => point.Value);
+        var yMin = Math.Max(0.0, Math.Min(2.0, Math.Floor(minValue - 1.0)));
+        var yMax = Math.Max(16.0, Math.Ceiling(maxValue + 1.0));
 
         return new
         {
@@ -297,7 +301,7 @@
                 criticalLow = 3.3,
                 criticalHigh = 15.0
             },
-            yMin = 0.0,
+            yMin,
             yMax,
             height = HeightPx
         };

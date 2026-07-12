@@ -76,12 +76,14 @@ namespace SugarGuard.API.Services
             // Генерируем 8-значный числовой код
             var code = ConnectionCodeFormat.Generate();
             var expiresAt = DateTime.UtcNow.AddMinutes(CodeTtlMinutes);
+            var codeSalt = RandomNumberGenerator.GetBytes(16);
 
             // Сохраняем запись кода в кэше
             var codeKey = BuildCodeKey(purpose, normalizedEmail);
             var codeEntry = new VerificationCodeEntry
             {
-                Code = code,
+                CodeSalt = codeSalt,
+                CodeHash = ComputeCodeHash(codeSalt, code),
                 ExpiresAt = expiresAt,
                 AttemptsLeft = MaxAttempts,
                 IsUsed = false
@@ -189,9 +191,8 @@ namespace SugarGuard.API.Services
                 }
 
                 // Сравниваем код
-                if (!CryptographicOperations.FixedTimeEquals(
-                        System.Text.Encoding.UTF8.GetBytes(entry.Code),
-                        System.Text.Encoding.UTF8.GetBytes(normalizedCode)))
+                var providedHash = ComputeCodeHash(entry.CodeSalt, normalizedCode);
+                if (!CryptographicOperations.FixedTimeEquals(entry.CodeHash, providedHash))
                 {
                     entry.AttemptsLeft--;
 
@@ -308,6 +309,18 @@ namespace SugarGuard.API.Services
                 .Replace('/', '_');
         }
 
+        private static byte[] ComputeCodeHash(byte[] salt, string code)
+        {
+            var normalizedCode = ConnectionCodeFormat.Normalize(code) ?? code.Trim().ToUpperInvariant();
+            var codeBytes = System.Text.Encoding.UTF8.GetBytes(normalizedCode);
+            var input = new byte[salt.Length + codeBytes.Length];
+
+            Buffer.BlockCopy(salt, 0, input, 0, salt.Length);
+            Buffer.BlockCopy(codeBytes, 0, input, salt.Length, codeBytes.Length);
+
+            return SHA256.HashData(input);
+        }
+
         /// <summary>
         /// Формирует тело письма с кодом подтверждения
         /// </summary>
@@ -359,8 +372,10 @@ namespace SugarGuard.API.Services
         /// </summary>
         private sealed class VerificationCodeEntry
         {
-            public string Code { get; init; } = string.Empty; // 8-значный числовой код
-           
+            public byte[] CodeSalt { get; init; } = [];
+
+            public byte[] CodeHash { get; init; } = [];
+
             public DateTime ExpiresAt { get; init; } // UTC-время истечения
            
             public int AttemptsLeft { get; set; } // Количество оставшихся попыток ввода

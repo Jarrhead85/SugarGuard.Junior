@@ -111,6 +111,12 @@
                     </a>
 
                     <span class="parent-nav-caption parent-nav-caption--account">Аккаунт</span>
+                    <a class="parent-nav-item @(Navigation.Uri.Contains("/support", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/support">
+                        <span class="parent-nav-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg>
+                        </span>
+                        <span>Поддержка</span>
+                    </a>
                     <a class="parent-nav-item @ParentNavClass("settings")" href="/parent/dashboard?tab=settings">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></svg>
@@ -131,6 +137,7 @@
                     <div class="doctor-nav-block">
                         <span class="doctor-nav-caption">Клиническая работа</span>
                         <NavItem Href="/doctor/notes" Icon="file-text" Label="Записки врача" />
+                        <NavItem Href="/support" Icon="message-circle" Label="Поддержка" />
                         <NavItem Href="/doctor/profile" Icon="settings" Label="Профиль и настройки" />
                     </div>
                 </Authorized>
@@ -302,6 +309,7 @@
     private int doctorRiskCount;
     private int adminUserCount;
     private int adminPendingDoctorCount;
+    private readonly SemaphoreSlim sidebarDataGate = new(1, 1);
     private CancellationTokenSource? sidebarRefreshCts;
     private Task? sidebarRefreshTask;
     private int unreadCount => notifications.Count(n => n.IsUnread);
@@ -378,38 +386,42 @@
 
     private async Task LoadPortalSidebarDataAsync()
     {
-        var path = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath;
-        var role = await CurrentUser.GetRoleAsync();
-
+        await sidebarDataGate.WaitAsync();
         try
         {
-            currentAccountProfile = await Api.GetAccountProfileAsync();
-        }
-        catch
-        {
-            currentAccountProfile = null;
-        }
+            var role = await CurrentUser.GetRoleAsync();
 
-        if (path.StartsWith("/parent", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(role, "Parent", StringComparison.OrdinalIgnoreCase))
-        {
-            await LoadParentSidebarChildAsync();
-            return;
+            try
+            {
+                currentAccountProfile = await Api.GetAccountProfileAsync();
+            }
+            catch
+            {
+                // Keep the last successful snapshot during a transient API failure.
+            }
+
+            if (string.Equals(role, "Parent", StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadParentSidebarChildAsync();
+                return;
+            }
+
+            parentSidebarChild = null;
+
+            if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
+            {
+                await LoadDoctorSidebarDataAsync();
+                return;
+            }
+
+            if (role is "Admin" or "SupportAdmin")
+            {
+                await LoadAdminSidebarDataAsync();
+            }
         }
-
-        parentSidebarChild = null;
-
-        if (path.StartsWith("/doctor", StringComparison.OrdinalIgnoreCase)
-            && role is "Doctor" or "Admin" or "SupportAdmin")
+        finally
         {
-            await LoadDoctorSidebarDataAsync();
-            return;
-        }
-
-        if (path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
-            && role is "Admin" or "SupportAdmin")
-        {
-            await LoadAdminSidebarDataAsync();
+            sidebarDataGate.Release();
         }
     }
 
@@ -456,9 +468,7 @@
     {
         try
         {
-            var path = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath;
-            if (!path.StartsWith("/parent", StringComparison.OrdinalIgnoreCase)
-                || !await CurrentUser.IsParentAsync())
+            if (!await CurrentUser.IsParentAsync())
             {
                 parentSidebarChild = null;
                 return;
@@ -493,11 +503,8 @@
                     _ => "normal"
                 };
 
-                var timeline = await Api.GetTimelineAsync(
-                    child.ChildId,
-                    DateTime.UtcNow.AddDays(-7),
-                    DateTime.UtcNow);
-                alertsCount = CountDistinctCriticalEvents(timeline);
+                var notifications = await Api.GetNotificationsAsync();
+                alertsCount = notifications.Count(notification => notification.IsUnread && notification.NotificationId.HasValue);
 
                 var backpack = await Api.GetBackpackAsync(child.ChildId);
                 lowBackpackCount = backpack
@@ -522,14 +529,13 @@
         }
         catch
         {
-            parentSidebarChild = null;
+            // Preserve the last successful child snapshot while connectivity recovers.
         }
     }
 
     private void UpdatePageInfo(string uri)
     {
         var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
-
         (pageTitle, pageSubtitle) = path switch
         {
             // Родитель
@@ -562,6 +568,7 @@
             "admin/tokens"        => ("JWT / Токены",  "Сессии и безопасность"),
             "admin/settings"      => ("Настройки",     "Конфигурация"),
             // Общие
+            "support"             => ("Поддержка",      "Диалоги по обращениям"),
             "login"               => ("Вход",          string.Empty),
             _                     => ("SugarGuard",    string.Empty)
         };
@@ -698,6 +705,11 @@
 
     private static string GetPortalClass(string uri)
     {
+        if (new Uri(uri).AbsolutePath.Trim('/').Equals("support", StringComparison.Ordinal))
+        {
+            return "app-shell--care app-shell--support";
+        }
+
         var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
         if (path.StartsWith("doctor/", StringComparison.Ordinal))
         {
@@ -711,6 +723,11 @@
 
     private static string GetPortalSubtitle(string uri)
     {
+        if (new Uri(uri).AbsolutePath.Trim('/').Equals("support", StringComparison.Ordinal))
+        {
+            return "Центр поддержки";
+        }
+
         var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
         if (path.StartsWith("doctor/", StringComparison.Ordinal))
         {

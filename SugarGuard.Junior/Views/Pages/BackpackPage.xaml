@@ -11,7 +11,7 @@
         <ResourceDictionary>
             <Style x:Key="BagCard" TargetType="Border">
                 <Setter Property="Padding" Value="14" />
-                <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
                 <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
                 <Setter Property="StrokeThickness" Value="1" />
                 <Setter Property="StrokeShape" Value="RoundRectangle 20" />
@@ -86,7 +86,12 @@
                     <Grid ColumnDefinitions="48,*,Auto" ColumnSpacing="11">
                         <Border WidthRequest="48" HeightRequest="48" StrokeThickness="0"
                                 BackgroundColor="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 16">
-                            <Label Text="{Binding SnackIcon}" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Image Source="{Binding SnackIconSource}"
+                                   WidthRequest="32"
+                                   HeightRequest="32"
+                                   Aspect="AspectFit"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
                         </Border>
                         <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
                             <Label Text="{Binding SnackName}" FontSize="17" FontAttributes="Bold"

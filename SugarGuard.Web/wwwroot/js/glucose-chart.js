@@ -307,8 +307,8 @@
                 maxTicksLimit: 6
             },
             border: { display: false },
-            suggestedMin: yMin !== undefined ? yMin : GLUCOSE_Y_MIN,
-            suggestedMax: yMax !== undefined ? yMax : GLUCOSE_Y_MAX
+            min: yMin !== undefined ? yMin : GLUCOSE_Y_MIN,
+            max: yMax !== undefined ? yMax : GLUCOSE_Y_MAX
         };
     }
 
@@ -489,8 +489,8 @@
                     fill: true,
                     backgroundColor: gradient,
                     tension: 0.4,   // spline-сглаживание
-                    pointRadius: 0,      // скрыты по умолчанию
-                    pointHoverRadius: 5,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
                     pointHoverBackgroundColor: pointBgColors,
                     pointHoverBorderColor: pointBorderColors,
                     pointHoverBorderWidth: 2
@@ -500,8 +500,8 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: {
-                    mode: 'index',
-                    intersect: false
+                    mode: 'nearest',
+                    intersect: true
                 },
                 plugins: {
                     legend: { display: false },

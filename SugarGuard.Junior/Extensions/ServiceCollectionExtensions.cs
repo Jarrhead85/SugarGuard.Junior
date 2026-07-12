@@ -141,6 +141,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<OnboardingPageViewModel>();
         services.AddTransient<AccessManagementPageViewModel>();
         services.AddTransient<HelpAlertPageViewModel>();
+        services.AddTransient<SupportPageViewModel>();
         services.AddSingleton<HistoryPageViewModel>();
         services.AddSingleton<NutritionTrackerPageViewModel>();
 
@@ -160,6 +161,8 @@ public static class ServiceCollectionExtensions
         services.AddTransient<OnboardingPage>();
         services.AddTransient<AccessManagementPage>();
         services.AddTransient<HelpAlertPage>();
+        services.AddTransient<SupportPage>();
+        services.AddTransient<PrivacyPage>();
         services.AddSingleton<HistoryPage>();
         services.AddSingleton<NutritionTrackerPage>();
 

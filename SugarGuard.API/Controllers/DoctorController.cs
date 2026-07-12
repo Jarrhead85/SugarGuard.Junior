@@ -153,7 +153,7 @@ public class DoctorController : ControllerBase
         try
         {
             var notes = await _noteService.GetByMeasurementAsync(
-                measurementId, cancellationToken);
+                childId, measurementId, cancellationToken);
 
             return Ok(notes);
         }

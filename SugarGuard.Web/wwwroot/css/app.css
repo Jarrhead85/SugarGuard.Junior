@@ -179,6 +179,60 @@ body {
         radial-gradient(circle at 0% 100%, rgba(197, 151, 45, .08), transparent 28%);
 }
 
+/* Optional parent-only illustrated mode. The medical data stays on opaque,
+   high-contrast surfaces while the generated watercolor art frames the page. */
+[data-visual-style="watercolor"] .app-shell--parent {
+    background-color: #fbf8ef;
+    background-image: url('/images/parent-watercolor-dashboard.png');
+    background-size: cover;
+    background-position: center bottom;
+    background-attachment: fixed;
+}
+
+[data-visual-style="watercolor"] .app-shell--parent .page-content {
+    background: linear-gradient(180deg, rgba(255, 253, 247, .58), rgba(247, 252, 249, .44));
+}
+
+[data-visual-style="watercolor"] .app-shell--parent .sidebar,
+[data-visual-style="watercolor"] .app-shell--parent .topbar {
+    background: rgba(255, 253, 247, .94);
+    border-color: rgba(197, 151, 45, .30);
+    backdrop-filter: blur(12px);
+}
+
+[data-visual-style="watercolor"] .app-shell--parent .card,
+[data-visual-style="watercolor"] .app-shell--parent .parent-child-card,
+[data-visual-style="watercolor"] .app-shell--parent .nutrition-panel,
+[data-visual-style="watercolor"] .app-shell--parent .nutrition-stat,
+[data-visual-style="watercolor"] .app-shell--parent .nutrition-child-banner {
+    background: rgba(255, 253, 247, .92);
+    border-color: rgba(197, 151, 45, .28);
+    box-shadow: 0 14px 34px rgba(23, 96, 98, .09);
+    backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent {
+    background-color: #101a20;
+    background-blend-mode: soft-light;
+}
+
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .sidebar,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .topbar,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .card,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .nutrition-panel,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .nutrition-stat,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .nutrition-child-banner {
+    background: rgba(17, 28, 36, .92);
+    border-color: rgba(222, 181, 88, .28);
+}
+
+@media (max-width: 768px) {
+    [data-visual-style="watercolor"] .app-shell--parent {
+        background-attachment: scroll;
+        background-size: auto 100vh;
+    }
+}
+
 .sidebar-logo-image {
     width: 36px;
     height: 36px;
@@ -186,6 +240,67 @@ body {
     object-fit: cover;
     box-shadow: 0 8px 18px rgba(1, 105, 111, .22);
     flex-shrink: 0;
+}
+
+/* Parent settings are interactive shell UI. Keep these rules global rather
+   than isolated so they remain available during a static-assets rollout. */
+.app-shell--parent .visual-style-card {
+    grid-column: 1 / -1;
+}
+
+.app-shell--parent .visual-style-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.app-shell--parent .visual-style-option {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 3px 12px;
+    min-height: 86px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    color: var(--color-text);
+    background: var(--color-surface-offset);
+    text-align: left;
+}
+
+.app-shell--parent .visual-style-option.selected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 16%, transparent);
+}
+
+.app-shell--parent .visual-style-option strong,
+.app-shell--parent .visual-style-option small {
+    display: block;
+    min-width: 0;
+}
+
+.app-shell--parent .visual-style-option small {
+    color: var(--color-text-muted);
+    line-height: 1.35;
+}
+
+.app-shell--parent .visual-style-preview {
+    grid-row: 1 / -1;
+    display: block;
+    min-height: 64px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e7f5f4, #fff 54%, #eaf1fb);
+}
+
+.app-shell--parent .visual-style-preview--watercolor {
+    background: #fffaf0 url('/images/parent-watercolor-dashboard.png') center / cover;
+}
+
+@media (max-width: 640px) {
+    .app-shell--parent .visual-style-picker { grid-template-columns: 1fr; }
 }
 
 img,
@@ -1304,3 +1419,6 @@ select {
         border-radius: 20px;
     }
 }
+/* Public legal and support information pages. */
+.legal-page{min-height:100dvh;padding:clamp(20px,4vw,56px);color:#12334a;background:#f4faf9 url('/images/landing-hero-watercolor-v2.png') center/cover fixed;font-family:Inter,system-ui,sans-serif}.legal-page::before{content:"";position:fixed;inset:0;background:rgba(250,252,249,.84);backdrop-filter:blur(8px);pointer-events:none}.legal-back,.legal-card{position:relative;z-index:1}.legal-back{display:inline-flex;margin-bottom:18px;color:#087f7d;font-weight:750;text-decoration:none}.legal-card{max-width:900px;margin:0 auto;padding:clamp(24px,5vw,54px);border:1px solid rgba(28,123,119,.2);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 24px 70px rgba(23,67,79,.14)}.legal-card header{padding-bottom:24px;border-bottom:1px solid rgba(18,51,74,.1)}.legal-kicker{color:#0b8d88;font-size:13px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.legal-card h1{margin:8px 0;font-family:Georgia,serif;font-size:clamp(34px,5vw,56px);line-height:1.03}.legal-card header p,.legal-card section p{color:#536d7e;line-height:1.65}.legal-card section{padding-top:24px}.legal-card h2{margin:0 0 8px;font-family:Georgia,serif;font-size:23px}.legal-note{margin-top:28px;padding:18px 20px;border-left:4px solid #d4a43b;border-radius:10px;color:#5a4a26;background:#fff8e8;line-height:1.55}.legal-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.legal-actions a{padding:11px 16px;border:1px solid rgba(11,141,136,.3);border-radius:999px;color:#087f7d;text-decoration:none;font-weight:800}.legal-actions a.primary{color:#fff;background:linear-gradient(100deg,#159a96,#2d7ee2)}
+@media(max-width:600px){.legal-page{padding:16px}.legal-card{padding:22px 18px;border-radius:18px}}

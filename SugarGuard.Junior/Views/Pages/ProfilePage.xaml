@@ -4,59 +4,104 @@
                      xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
                      xmlns:enums="clr-namespace:SugarGuard.Junior.Models.Enums"
                      x:Class="SugarGuard.Junior.Views.Pages.ProfilePage"
+                     x:Name="ProfileRoot"
                      Title="Профиль"
                      BackgroundColor="{DynamicResource BackgroundPage}">
     <pages:SwipeablePage.Resources>
         <ResourceDictionary>
             <Style x:Key="ProfileCard" TargetType="Border">
-                <Setter Property="Padding" Value="16" />
-                <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
+                <Setter Property="Padding" Value="{DynamicResource Spacing16}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
                 <Setter Property="Stroke" Value="{DynamicResource BorderDefault}" />
                 <Setter Property="StrokeThickness" Value="1" />
                 <Setter Property="StrokeShape" Value="RoundRectangle 20" />
             </Style>
             <Style x:Key="SectionTitle" TargetType="Label">
                 <Setter Property="FontFamily" Value="{StaticResource ClashDisplay}" />
-                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontSize" Value="{DynamicResource TextLg}" />
                 <Setter Property="FontAttributes" Value="Bold" />
                 <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
             </Style>
             <Style x:Key="Muted" TargetType="Label">
-                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontSize" Value="{DynamicResource TextXs}" />
                 <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
             </Style>
         </ResourceDictionary>
     </pages:SwipeablePage.Resources>
 
     <ScrollView VerticalScrollBarVisibility="Default">
-        <VerticalStackLayout Padding="16,30,16,24" Spacing="12">
-            <Label Text="Профиль" FontFamily="{StaticResource ClashDisplay}" FontSize="30"
-                   FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+        <VerticalStackLayout Padding="{DynamicResource PaddingPage}" Spacing="10">
+            <Label Text="Профиль"
+                   FontFamily="{StaticResource ClashDisplay}"
+                   FontSize="{DynamicResource TextXl}"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimary}" />
 
-            <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="132">
+            <Border Padding="14,10" StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="112">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" />
                         <GradientStop Color="{DynamicResource BrandBlue}" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
-                <Grid ColumnDefinitions="96,*" ColumnSpacing="14">
+                <Grid ColumnDefinitions="78,*" ColumnSpacing="12">
                     <Image Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" />
                     <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
-                        <Label Text="{Binding ChildName}" FontFamily="{StaticResource ClashDisplay}"
-                               FontSize="25" FontAttributes="Bold" TextColor="White" />
-                        <Label Text="Ты молодец!" FontSize="15" TextColor="White" />
-                        <Label Text="Мы рядом и помогаем" FontSize="12" TextColor="White" Opacity="0.85" />
+                        <Label Text="{Binding ChildName}"
+                               FontFamily="{StaticResource ClashDisplay}"
+                               FontSize="{DynamicResource TextLg}"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                        <Label Text="Ты молодец!" FontSize="{DynamicResource TextSm}" TextColor="White" />
+                        <Label Text="Мы рядом и помогаем" FontSize="{DynamicResource TextXs}" TextColor="White" Opacity="0.85" />
                     </VerticalStackLayout>
                 </Grid>
+            </Border>
+
+            <Border Style="{StaticResource ProfileCard}" IsVisible="{Binding HasAchievements}">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Мои достижения" Style="{StaticResource SectionTitle}" />
+                        <Label Grid.Column="1" Text="Награды за полезные привычки" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                    </Grid>
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Achievements}" Spacing="8">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border WidthRequest="118" Padding="8"
+                                            BackgroundColor="{DynamicResource SurfaceOffset}"
+                                            Stroke="{DynamicResource BorderDefault}"
+                                            StrokeThickness="1" StrokeShape="RoundRectangle 14">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Source={x:Reference ProfileRoot}, Path=BindingContext.ShowAchievementCommand}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="3">
+                                            <Image Source="{Binding DisplayImageName}" WidthRequest="42" HeightRequest="42" HorizontalOptions="Center" />
+                                            <Label Text="{Binding Title}" FontSize="{DynamicResource TextXs}" FontAttributes="Bold"
+                                                   HorizontalTextAlignment="Center" TextColor="{DynamicResource TextPrimary}" MaxLines="2" />
+                                            <Label Text="{Binding ProgressText}" FontSize="10"
+                                                   HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" />
+                                            <ProgressBar Progress="{Binding ProgressValue}" ProgressColor="{DynamicResource BrandSecondary}" HeightRequest="4" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
             </Border>
 
             <Border Style="{StaticResource ProfileCard}">
                 <VerticalStackLayout Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Text="Мои данные" Style="{StaticResource SectionTitle}" />
-                        <Button Grid.Column="1" Text="Изменить" Command="{Binding EditProfileCommand}"
-                                Style="{StaticResource SecondaryButton}" HeightRequest="38" Padding="12,4" />
+                        <Button Grid.Column="1"
+                                Text="Изменить"
+                                Command="{Binding EditProfileCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
                     </Grid>
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                         <Border Padding="12" StrokeThickness="0" BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 14">
@@ -79,8 +124,12 @@
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Text="Диабет и цели" Style="{StaticResource SectionTitle}" />
-                        <Button Grid.Column="1" Text="Изменить" Command="{Binding EditTargetRangeCommand}"
-                                Style="{StaticResource SecondaryButton}" HeightRequest="38" Padding="12,4" />
+                        <Button Grid.Column="1"
+                                Text="Изменить"
+                                Command="{Binding EditTargetRangeCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
                     </Grid>
                     <Label Text="{Binding ChildDiagnosis}" FontSize="15" FontAttributes="Bold" />
                     <BoxView HeightRequest="1" />
@@ -99,8 +148,12 @@
                             <Label Text="Родительский кабинет" FontAttributes="Bold" />
                             <Label Text="Коды и подключённые аккаунты" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="Открыть" Command="{Binding OpenAccessManagementCommand}"
-                                Style="{StaticResource SecondaryButton}" HeightRequest="38" Padding="12,4" />
+                        <Button Grid.Column="1"
+                                Text="Открыть"
+                                Command="{Binding OpenAccessManagementCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
                     </Grid>
                     <BoxView HeightRequest="1" />
                     <Grid ColumnDefinitions="*,Auto">
@@ -108,80 +161,137 @@
                             <Label Text="Telegram-бот" FontAttributes="Bold" />
                             <Label Text="{Binding TelegramStatus}" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="{Binding TelegramButtonText}" Command="{Binding ConnectTelegramCommand}"
-                                Style="{StaticResource SecondaryButton}" HeightRequest="38" Padding="12,4" />
+                        <Button Grid.Column="1"
+                                Text="{Binding TelegramButtonText}"
+                                Command="{Binding ConnectTelegramCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
+                    </Grid>
+                    <BoxView HeightRequest="1" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="1">
+                            <Label Text="Поддержка" FontAttributes="Bold" />
+                            <Label Text="Чат с администратором" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="Написать"
+                                Command="{Binding OpenSupportCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>
 
             <Border Style="{StaticResource ProfileCard}">
-                <VerticalStackLayout Spacing="11">
+                <VerticalStackLayout Spacing="7">
                     <Label Text="Приложение" Style="{StaticResource SectionTitle}" />
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Уведомления" VerticalOptions="Center" />
-                        <Switch x:Name="NotificationsSwitch"
-                                Grid.Column="1"
-                                IsToggled="{Binding NotificationsEnabled}"
-                                Toggled="OnNotificationsToggled" />
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                        <Border Padding="10,6" BackgroundColor="{DynamicResource SurfaceOffset}" StrokeThickness="0" StrokeShape="RoundRectangle 14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Уведомления" FontSize="{DynamicResource TextXs}" VerticalOptions="Center" />
+                                <Switch x:Name="NotificationsSwitch" Scale="0.72"
+                                        Grid.Column="1"
+                                        IsToggled="{Binding NotificationsEnabled}"
+                                        Toggled="OnNotificationsToggled" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Column="1" Padding="10,6" BackgroundColor="{DynamicResource SurfaceOffset}" StrokeThickness="0" StrokeShape="RoundRectangle 14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Тёмная тема" FontSize="{DynamicResource TextXs}" VerticalOptions="Center" />
+                                <Switch x:Name="ThemeSwitch" Scale="0.72"
+                                        Grid.Column="1"
+                                        IsToggled="{Binding DarkThemeEnabled}"
+                                        Toggled="OnThemeToggled" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="1" Padding="10,6" BackgroundColor="{DynamicResource SurfaceOffset}" StrokeThickness="0" StrokeShape="RoundRectangle 14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Компактный" FontSize="{DynamicResource TextXs}" VerticalOptions="Center" />
+                                <Switch x:Name="CompactModeSwitch" Grid.Column="1" Scale="0.72" Toggled="OnCompactModeToggled" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="1" Padding="10,6" BackgroundColor="{DynamicResource SurfaceOffset}" StrokeThickness="0" StrokeShape="RoundRectangle 14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Меньше анимаций" FontSize="{DynamicResource TextXs}" VerticalOptions="Center" />
+                                <Switch x:Name="ReduceMotionSwitch" Grid.Column="1" Scale="0.72" Toggled="OnReduceMotionToggled" />
+                            </Grid>
+                        </Border>
                     </Grid>
-                    <BoxView HeightRequest="1" />
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Тёмная тема" VerticalOptions="Center" />
-                        <Switch x:Name="ThemeSwitch"
-                                Grid.Column="1"
-                                IsToggled="{Binding DarkThemeEnabled}"
-                                Toggled="OnThemeToggled" />
-                    </Grid>
-                    <BoxView HeightRequest="1" />
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Компактный режим" VerticalOptions="Center" />
-                        <Switch x:Name="CompactModeSwitch" Grid.Column="1" Toggled="OnCompactModeToggled" />
-                    </Grid>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Меньше анимаций" VerticalOptions="Center" />
-                        <Switch x:Name="ReduceMotionSwitch" Grid.Column="1" Toggled="OnReduceMotionToggled" />
-                    </Grid>
+
                     <Label Text="Размер интерфейса" Style="{StaticResource Muted}" />
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                        <Button Text="Мелкий" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Small}" Style="{StaticResource SecondaryButton}">
+                        <Button Text="Мелкий" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Small}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsSmallScaleSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
-                        <Button Grid.Column="1" Text="Обычный" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Default}" Style="{StaticResource SecondaryButton}">
+                        <Button Grid.Column="1" Text="Обычный" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Default}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsDefaultScaleSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
-                        <Button Grid.Column="2" Text="Крупный" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Large}" Style="{StaticResource SecondaryButton}">
+                        <Button Grid.Column="2" Text="Крупный" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetScaleCommand}" CommandParameter="{x:Static enums:ScalePreset.Large}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLargeScaleSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
                     </Grid>
+
                     <Label Text="Стиль интерфейса" Style="{StaticResource Muted}" />
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                        <Button Text="Нейтральный" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Neutral}" Style="{StaticResource SecondaryButton}">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="6">
+                        <Button Text="Нейтральный" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Neutral}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsNeutralSkinSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
-                        <Button Grid.Column="1" Text="Для мальчика" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Boy}" Style="{StaticResource SecondaryButton}">
+                        <Button Grid.Column="1" Text="Для мальчика" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Boy}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsBoySkinSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
-                        <Button Grid.Column="2" Text="Для девочки" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Girl}" Style="{StaticResource SecondaryButton}">
+                        <Button Grid.Row="1" Text="Для девочки" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Girl}" Style="{StaticResource SecondaryButton}">
                             <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsGirlSkinSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
+                        </Button>
+                        <Button Grid.Row="1" Grid.Column="1" Text="Акварельный" HeightRequest="38" Padding="5,2" FontSize="{DynamicResource TextXs}" Command="{Binding SetSkinCommand}" CommandParameter="{x:Static enums:InterfaceSkin.Watercolor}" Style="{StaticResource SecondaryButton}">
+                            <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsWatercolorSkinSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSelected}" /><Setter Property="FontAttributes" Value="Bold" /></DataTrigger></Button.Triggers>
                         </Button>
                     </Grid>
                     <Label Text="{Binding CurrentSkinText, StringFormat='Выбран: {0}'}" Style="{StaticResource Muted}" />
+                    <Label Text="Акварельный стиль загружает дополнительные иллюстрации и может расходовать больше трафика."
+                           Style="{StaticResource Muted}"
+                           LineBreakMode="WordWrap" />
+
+                    <BoxView HeightRequest="1" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="1">
+                            <Label Text="Конфиденциальность" FontAttributes="Bold" />
+                            <Label Text="Персональные данные и безопасность" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1"
+                                Text="Открыть"
+                                Command="{Binding OpenPrivacyCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="38"
+                                Padding="12,4" />
+                    </Grid>
                     <BoxView HeightRequest="1" />
                     <Grid ColumnDefinitions="*,Auto">
                         <VerticalStackLayout Spacing="1">
                             <Label Text="Синхронизация" FontAttributes="Bold" />
                             <Label Text="{Binding LastSyncTime}" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="Синхронизировать" Command="{Binding SyncNowCommand}"
-                                Style="{StaticResource SecondaryButton}" HeightRequest="40" Padding="11,4" />
+                        <Button Grid.Column="1"
+                                Text="Синхронизировать"
+                                Command="{Binding SyncNowCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                HeightRequest="40"
+                                Padding="11,4" />
                     </Grid>
-                    <Label Text="{Binding AppVersion, StringFormat='Версия {0}'}" Style="{StaticResource Muted}" HorizontalTextAlignment="Center" />
+                    <Label Text="{Binding AppVersion, StringFormat='Версия {0}'}"
+                           Style="{StaticResource Muted}"
+                           HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="Выйти" Command="{Binding LogoutCommand}" HeightRequest="48"
-                    BackgroundColor="{DynamicResource DangerSoft}" TextColor="{DynamicResource Danger}"
-                    FontAttributes="Bold" CornerRadius="17" />
+            <Button Text="Выйти"
+                    Command="{Binding LogoutCommand}"
+                    HeightRequest="48"
+                    BackgroundColor="{DynamicResource DangerSoft}"
+                    TextColor="{DynamicResource Danger}"
+                    FontAttributes="Bold"
+                    CornerRadius="17" />
         </VerticalStackLayout>
     </ScrollView>
 </pages:SwipeablePage>

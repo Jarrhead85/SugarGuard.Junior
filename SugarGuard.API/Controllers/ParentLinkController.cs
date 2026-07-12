@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
+using SugarGuard.API.Services;
 
 namespace SugarGuard.API.Controllers;
 
@@ -15,13 +16,16 @@ namespace SugarGuard.API.Controllers;
 public class ParentLinkController : ControllerBase
 {
     private readonly IParentLinkService _parentLink;
+    private readonly IChildAccessService _childAccess;
     private readonly ILogger<ParentLinkController> _logger;
 
     public ParentLinkController(
         IParentLinkService parentLink,
+        IChildAccessService childAccess,
         ILogger<ParentLinkController> logger)
     {
         _parentLink = parentLink;
+        _childAccess = childAccess;
         _logger = logger;
     }
 
@@ -29,10 +33,11 @@ public class ParentLinkController : ControllerBase
     /// <summary>
     /// Создаёт новый ConnectionCode для ребёнка
     /// </summary>
-    [AllowAnonymous]
+    [Authorize(Policy = "ParentOrDoctorOrAdmin")]
     [HttpPost("code")]
     [ProducesResponseType(typeof(SaveConnectionCodeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<SaveConnectionCodeResponse>> SaveConnectionCode(
         [FromBody] SaveConnectionCodeRequest request,
@@ -49,6 +54,15 @@ public class ParentLinkController : ControllerBase
 
         try
         {
+            if (!await _childAccess.CanAccessChildAsync(request.ChildId, cancellationToken))
+            {
+                _logger.LogWarning(
+                    "SaveConnectionCode: доступ запрещён. UserId={UserId} ChildId={ChildId}.",
+                    User.Identity?.Name ?? "unknown", request.ChildId);
+
+                return Forbid();
+            }
+
             var result = await _parentLink.SaveConnectionCodeAsync(request, cancellationToken);
 
             if (!result.Success)
@@ -79,10 +93,12 @@ public class ParentLinkController : ControllerBase
     /// <summary>
     /// Верифицирует ConnectionCode и привязывает Telegram-пользователя к ребёнку
     /// </summary>
-    [AllowAnonymous]
+    [Authorize(Roles = "ServiceAccount")]
     [HttpPost("verify")]
     [ProducesResponseType(typeof(VerifyConnectionCodeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<VerifyConnectionCodeResponse>> VerifyConnectionCode(
         [FromBody] VerifyConnectionCodeRequest request,

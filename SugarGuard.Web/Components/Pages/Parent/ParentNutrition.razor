@@ -15,7 +15,7 @@
     <section class="nutrition-child-banner">
         @if (SelectedChild is not null)
         {
-            <div class="nutrition-child-avatar" aria-hidden="true">@GetInitials(SelectedChild.FullName)</div>
+            <div class="nutrition-child-avatar" aria-hidden="true">🧒</div>
             <div class="nutrition-child-info">
                 <strong>@SelectedChild.FullName</strong>
                 <span>@GetAge(SelectedChild.DateOfBirth) лет</span>
@@ -32,6 +32,13 @@
                     </select>
                 }
             </div>
+            @if (_latestGlucose.HasValue)
+            {
+                <div class="nutrition-child-glucose @_latestGlucoseClass" aria-label="Текущий уровень глюкозы">
+                    <span>@_latestGlucose.Value.ToString("F1")</span>
+                    <small>ммоль/л</small>
+                </div>
+            }
             <a class="nutrition-link-child" href="/parent/link-child">Привязать ещё</a>
         }
         else
@@ -56,26 +63,13 @@
         <a class="nutrition-tab" href="/parent/dashboard?tab=settings">Настройки</a>
     </nav>
 
-    <header class="nutrition-hero">
+    <div class="nutrition-intro">
         <div>
             <span class="nutrition-eyebrow">Питание и инсулин</span>
             <h1>Дневник питания</h1>
-            <p>ХЕ, фактически введённый инсулин и расписание еды. Эти данные синхронизируются с мобильным приложением ребёнка.</p>
+            <p>ХЕ, введённый инсулин и расписание приёмов пищи синхронизируются с приложением ребёнка.</p>
         </div>
-
-        @if (_children.Count > 1)
-        {
-            <label class="nutrition-child-select">
-                <span>Ребёнок</span>
-                <select @bind="_selectedChildId" @bind:after="LoadAsync">
-                    @foreach (var child in _children)
-                    {
-                        <option value="@child.ChildId">@child.FullName</option>
-                    }
-                </select>
-            </label>
-        }
-    </header>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -332,6 +326,8 @@
     private List<NutritionEntryVm> _entries = [];
     private List<MealScheduleVm> _schedules = [];
     private NutritionSummaryVm _summary = new();
+    private decimal? _latestGlucose;
+    private string _latestGlucoseClass = "normal";
     private SaveNutritionEntryVm _entry = new();
     private MealScheduleVm _schedule = new();
     private Guid _selectedChildId;
@@ -377,12 +373,20 @@
             var entries = Api.GetNutritionEntriesAsync(_selectedChildId, from, to);
             var schedules = Api.GetMealScheduleAsync(_selectedChildId);
             var summary = Api.GetNutritionSummaryAsync(_selectedChildId, from, to);
+            var dashboard = Api.GetDashboardSummaryAsync(_selectedChildId);
 
-            await Task.WhenAll(entries, schedules, summary);
+            await Task.WhenAll(entries, schedules, summary, dashboard);
 
             _entries = entries.Result;
             _schedules = schedules.Result;
             _summary = summary.Result;
+            _latestGlucose = dashboard.Result.LatestGlucose;
+            _latestGlucoseClass = dashboard.Result.LatestGlucoseUiState switch
+            {
+                "Critical" or "Danger" => "danger",
+                "Warning" or "Elevated" => "warn",
+                _ => "normal"
+            };
             _entryPage = Math.Min(_entryPage, EntryPages - 1);
         }
         catch (Exception)
@@ -546,7 +550,7 @@
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadBase64",
                 $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                format == "csv" ? "text/csv;charset=utf-8" : "application/pdf",
+                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
                 Convert.ToBase64String(bytes));
         }
         catch (Exception)

@@ -83,14 +83,28 @@ public sealed class AccountProfileService : IAccountProfileService
 
         var user = await _db.Users.FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken)
             ?? throw new KeyNotFoundException("Пользователь не найден.");
+        byte[] fileBytes;
+        await using (var input = file.OpenReadStream())
+        {
+            using var buffer = new MemoryStream();
+            await input.CopyToAsync(buffer, cancellationToken);
+            fileBytes = buffer.ToArray();
+        }
+
+        if (!TryDetectPhotoExtension(fileBytes, out var detectedExtension)
+            || !string.Equals(extension, detectedExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("File content does not match an allowed image type.");
+        }
+
         var uploadDirectory = _uploadPaths.ProfilesDirectory;
         Directory.CreateDirectory(uploadDirectory);
 
-        var fileName = $"{userId:N}-{Guid.NewGuid():N}{extension}";
+        var fileName = $"{Guid.NewGuid():N}{detectedExtension}";
         var destination = Path.Combine(uploadDirectory, fileName);
         await using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
         {
-            await file.CopyToAsync(output, cancellationToken);
+            await output.WriteAsync(fileBytes, cancellationToken);
         }
 
         DeleteLocalPhoto(user.ProfilePhotoUrl, uploadDirectory);
@@ -170,6 +184,50 @@ public sealed class AccountProfileService : IAccountProfileService
         {
             return value;
         }
+    }
+
+    private static bool TryDetectPhotoExtension(byte[] fileBytes, out string extension)
+    {
+        extension = string.Empty;
+
+        if (fileBytes.Length >= 3
+            && fileBytes[0] == 0xFF
+            && fileBytes[1] == 0xD8
+            && fileBytes[2] == 0xFF)
+        {
+            extension = ".jpg";
+            return true;
+        }
+
+        if (fileBytes.Length >= 8
+            && fileBytes[0] == 0x89
+            && fileBytes[1] == 0x50
+            && fileBytes[2] == 0x4E
+            && fileBytes[3] == 0x47
+            && fileBytes[4] == 0x0D
+            && fileBytes[5] == 0x0A
+            && fileBytes[6] == 0x1A
+            && fileBytes[7] == 0x0A)
+        {
+            extension = ".png";
+            return true;
+        }
+
+        if (fileBytes.Length >= 12
+            && fileBytes[0] == 0x52
+            && fileBytes[1] == 0x49
+            && fileBytes[2] == 0x46
+            && fileBytes[3] == 0x46
+            && fileBytes[8] == 0x57
+            && fileBytes[9] == 0x45
+            && fileBytes[10] == 0x42
+            && fileBytes[11] == 0x50)
+        {
+            extension = ".webp";
+            return true;
+        }
+
+        return false;
     }
 
     private static void DeleteLocalPhoto(string? photoUrl, string uploadDirectory)

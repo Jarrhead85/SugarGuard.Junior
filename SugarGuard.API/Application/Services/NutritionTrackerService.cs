@@ -128,7 +128,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 Csv(entry.MealName), entry.BreadUnits.ToString("0.##"), entry.InsulinUnits.ToString("0.##"),
                 entry.GlucoseBefore?.ToString("0.0") ?? string.Empty, entry.Source, Csv(entry.Notes)));
         }
-        return new UTF8Encoding(true).GetBytes(builder.ToString());
+        // UTF-16 LE with BOM is recognised by desktop Excel regardless of the
+        // user's system code page, preventing garbled Cyrillic column names.
+        return Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes(builder.ToString())).ToArray();
     }
 
     public async Task<byte[]> ExportPdfAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)

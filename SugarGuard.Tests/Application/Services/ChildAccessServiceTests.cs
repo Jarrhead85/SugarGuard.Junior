@@ -220,7 +220,6 @@ public class ChildAccessServiceTests : IDisposable
     [Theory]
     [InlineData(UserRole.Admin)]
     [InlineData(UserRole.SupportAdmin)]
-    [InlineData(UserRole.ServiceAccount)]
     public async Task CanAccessChildAsync_AdminLikeRoles_AlwaysTrue(UserRole role)
     {
         var user = CreateUser(role);
@@ -235,6 +234,23 @@ public class ChildAccessServiceTests : IDisposable
 
         var sut = CreateSut();
         Assert.True(await sut.CanAccessChildAsync(child.ChildId));
+    }
+
+    [Fact]
+    public async Task CanAccessChildAsync_ServiceAccount_DoesNotBypassChildAccess()
+    {
+        var user = CreateUser(UserRole.ServiceAccount);
+        var child = CreateChild();
+        using (var db = CreateContext())
+        {
+            db.Users.Add(user);
+            db.Children.Add(child);
+            await db.SaveChangesAsync();
+        }
+        SetUserContext(user.UserId, null);
+
+        var sut = CreateSut();
+        Assert.False(await sut.CanAccessChildAsync(child.ChildId));
     }
 
     [Fact]

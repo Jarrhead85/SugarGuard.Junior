@@ -34,6 +34,11 @@
     <!-- Основная glass-карточка: тёмная полупрозрачная -->
     <!-- #CC111825 = rgba(17,24,37, 0.80) -->
     <Color x:Key="SurfaceCard">#CC111825</Color>
+    <!-- Legacy aliases used by the redesigned child screens. Keep them theme-aware. -->
+    <Color x:Key="Surface">#111825</Color>
+    <Color x:Key="Surface2">#1A2333</Color>
+    <Color x:Key="Border">#304255</Color>
+    <Color x:Key="Divider">#17EDF4FF</Color>
     <!-- Более непрозрачная поверхность (модалки, боттомшиты) -->
     <!-- #E6111825 = rgba(17,24,37, 0.90) -->
     <Color x:Key="SurfaceElevated">#E6111825</Color>

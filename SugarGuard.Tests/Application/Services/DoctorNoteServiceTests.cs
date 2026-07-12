@@ -311,10 +311,11 @@ public class DoctorNoteServiceTests : IDisposable
     [Fact]
     public async Task GetByMeasurementAsync_NoNotes_ReturnsEmpty()
     {
+        var childId = Guid.NewGuid();
         var measurementId = Guid.NewGuid();
         var sut = CreateSut();
 
-        var result = await sut.GetByMeasurementAsync(measurementId);
+        var result = await sut.GetByMeasurementAsync(childId, measurementId);
 
         Assert.Empty(result);
     }
@@ -341,7 +342,7 @@ public class DoctorNoteServiceTests : IDisposable
         }
         var sut = CreateSut();
 
-        var result = await sut.GetByMeasurementAsync(m1.MeasurementId);
+        var result = await sut.GetByMeasurementAsync(child.ChildId, m1.MeasurementId);
 
         Assert.Equal(2, result.Count);
         Assert.All(result, r => Assert.Equal(m1.MeasurementId, r.MeasurementId));

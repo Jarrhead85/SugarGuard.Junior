@@ -7,5 +7,6 @@ public enum InterfaceSkin
 {
     Neutral = 0,
     Boy = 1,
-    Girl = 2
+    Girl = 2,
+    Watercolor = 3
 }

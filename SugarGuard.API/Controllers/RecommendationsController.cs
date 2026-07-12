@@ -18,21 +18,21 @@ namespace SugarGuard.API.Controllers;
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("recommendations")]
 public class RecommendationsController : ControllerBase
 {
-    private readonly IGigaChatService _gigaChatService;
     private readonly ILogger<RecommendationsController> _logger;
     private readonly IChildAccessService _childAccess;
     private readonly IRecommendationService _recommendationService;
+    private readonly IAiRecommendationWorkflowService _workflowService;
 
     public RecommendationsController(
-        IGigaChatService gigaChatService,
         ILogger<RecommendationsController> logger,
         IChildAccessService childAccess,
-        IRecommendationService recommendationService)
+        IRecommendationService recommendationService,
+        IAiRecommendationWorkflowService workflowService)
     {
-        _gigaChatService = gigaChatService;
         _logger = logger;
         _childAccess = childAccess;
         _recommendationService = recommendationService;
+        _workflowService = workflowService;
     }
 
     /// <summary>
@@ -50,58 +50,18 @@ public class RecommendationsController : ControllerBase
     {
         try
         {
-            var child = await _recommendationService.GetChildWithSettingsAsync(
-                request.ChildId, cancellationToken);
-
-            if (child is null)
-            {
-                return this.ProblemWithCode(404, "Child Not Found",
-                    "Ребёнок не найден", "child_not_found");
-            }
-
-            if (!await _childAccess.CanAccessChildAsync(request.ChildId, cancellationToken))
-            {
-                return Forbid();
-            }
-
-            var canUseCache =
-                request.GlucoseValue >= (decimal)GlucoseLevels.TargetRangeMin &&
-                request.GlucoseValue <= (decimal)GlucoseLevels.TargetRangeMax;
-
-            if (!request.ForceNew && canUseCache)
-            {
-                var cached = await _recommendationService.FindCachedRecommendationAsync(
-                    request.ChildId, request.GlucoseValue, cancellationToken);
-                if (cached is not null)
-                {
-                    _logger.LogInformation(
-                        "Найдена кэшированная рекомендация для ребёнка {ChildId}.",
-                        request.ChildId);
-                    return Ok(MapToResponse(cached, isFromCache: true));
-                }
-            }
-
-            var recentMeasurements = await _recommendationService.GetRecentMeasurementsAsync(
-                request.ChildId, cancellationToken);
-            var availableSnacks = request.AvailableSnacks
-                ?? await _recommendationService.GetAvailableSnacksAsync(
-                    request.ChildId, cancellationToken);
-
-            var gigaChatRequest = _recommendationService.BuildGigaChatRequest(
-                child, request.GlucoseValue, recentMeasurements, availableSnacks);
-
-            var gigaChatResponse = await _gigaChatService.GetRecommendationAsync(gigaChatRequest);
-
-            var saved = await _recommendationService.SaveRecommendationAsync(
-                childId: request.ChildId,
-                measurementId: request.MeasurementId,
-                glucoseValue: request.GlucoseValue,
-                gigaChatResponse: gigaChatResponse,
-                cancellationToken: cancellationToken);
-
-            var response = MapToResponse(saved, isFromCache: false);
+            var response = await _workflowService.CreateRecommendationAsync(request, cancellationToken);
             return CreatedAtAction(nameof(GetRecommendation),
-                new { id = saved.RecommendationId }, response);
+                new { id = response.RecommendationId }, response);
+        }
+        catch (KeyNotFoundException)
+        {
+            return this.ProblemWithCode(404, "Child Not Found",
+                "Ребёнок не найден", "child_not_found");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {
@@ -154,6 +114,48 @@ public class RecommendationsController : ControllerBase
         {
             _logger.LogError(ex,
                 "Ошибка при получении истории рекомендаций для ребёнка {ChildId}.", childId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "internal_error", message = "Внутренняя ошибка сервера." });
+        }
+    }
+
+    /// <summary>
+    /// Получить пользовательскую историю AI-диалога ребёнка.
+    /// </summary>
+    [HttpGet("{childId:guid}/ai-dialog")]
+    [ProducesResponseType(typeof(AiConversationHistoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<AiConversationHistoryResponse>> GetAiDialogHistory(
+        Guid childId,
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var child = await _recommendationService.GetChildWithSettingsAsync(
+                childId, cancellationToken);
+            if (child is null)
+            {
+                return this.ProblemWithCode(404, "Child Not Found",
+                    "Ребёнок не найден", "child_not_found");
+            }
+
+            if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken))
+            {
+                return Forbid();
+            }
+
+            return Ok(await _workflowService.GetConversationHistoryAsync(
+                childId,
+                limit,
+                cancellationToken));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Ошибка при получении истории AI-диалога для ребёнка {ChildId}.", childId);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { error = "internal_error", message = "Внутренняя ошибка сервера." });
         }

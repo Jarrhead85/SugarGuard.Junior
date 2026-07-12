@@ -216,8 +216,10 @@ app.UseAuthorization();
 // CSRF-защита (обязательна для Blazor Server с интерактивными компонентами)
 app.UseAntiforgery();
 
-// Статические файлы (CSS, JS, wwwroot)
-app.MapStaticAssets();
+// Serve wwwroot directly. Endpoint-based static-asset manifests are tied to a
+// particular publish output and can be temporarily stale during a rolling
+// deployment, which must never break the interactive portal.
+app.UseStaticFiles();
 
 app.MapGet("/uploads/{**path}", async (
     string path,

@@ -17,7 +17,7 @@
             </Style>
             <Style x:Key="FilterButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
                 <Setter Property="Background" Value="{x:Null}" />
-                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceOffset}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
                 <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="FontAttributes" Value="Bold" />
@@ -42,16 +42,16 @@
                     <Border Style="{StaticResource HistoryCard}" Padding="7">
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="5">
                             <Button Grid.Column="0" Text="Сегодня" Style="{StaticResource FilterButton}" Command="{Binding SelectTodayCommand}">
-                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsTodaySelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsTodaySelected}" Value="False"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" /><Setter Property="TextColor" Value="{DynamicResource TextPrimary}" /></DataTrigger><DataTrigger TargetType="Button" Binding="{Binding IsTodaySelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="{DynamicResource TextOnPrimary}" /></DataTrigger></Button.Triggers>
                             </Button>
                             <Button Grid.Column="1" Text="7 дней" Style="{StaticResource FilterButton}" Command="{Binding SelectLast7DaysCommand}">
-                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast7DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast7DaysSelected}" Value="False"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" /><Setter Property="TextColor" Value="{DynamicResource TextPrimary}" /></DataTrigger><DataTrigger TargetType="Button" Binding="{Binding IsLast7DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="{DynamicResource TextOnPrimary}" /></DataTrigger></Button.Triggers>
                             </Button>
                             <Button Grid.Column="2" Text="30 дней" Style="{StaticResource FilterButton}" Command="{Binding SelectLast30DaysCommand}">
-                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast30DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsLast30DaysSelected}" Value="False"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" /><Setter Property="TextColor" Value="{DynamicResource TextPrimary}" /></DataTrigger><DataTrigger TargetType="Button" Binding="{Binding IsLast30DaysSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="{DynamicResource TextOnPrimary}" /></DataTrigger></Button.Triggers>
                             </Button>
                             <Button Grid.Column="3" Text="Период" Style="{StaticResource FilterButton}" Command="{Binding SelectCustomRangeCommand}">
-                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsCustomSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="White" /></DataTrigger></Button.Triggers>
+                                <Button.Triggers><DataTrigger TargetType="Button" Binding="{Binding IsCustomSelected}" Value="False"><Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" /><Setter Property="TextColor" Value="{DynamicResource TextPrimary}" /></DataTrigger><DataTrigger TargetType="Button" Binding="{Binding IsCustomSelected}" Value="True"><Setter Property="BackgroundColor" Value="{DynamicResource Primary}" /><Setter Property="TextColor" Value="{DynamicResource TextOnPrimary}" /></DataTrigger></Button.Triggers>
                             </Button>
                         </Grid>
                     </Border>

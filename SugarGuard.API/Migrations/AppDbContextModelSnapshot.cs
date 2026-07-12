@@ -78,6 +78,180 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("ai_recommendations");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiContextSnapshot", b =>
+                {
+                    b.Property<Guid>("ContextSnapshotId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("context_snapshot_id");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<string>("ContextJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("context_json");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("FormatVersion")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("format_version");
+
+                    b.Property<Guid?>("MeasurementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("measurement_id");
+
+                    b.HasKey("ContextSnapshotId");
+
+                    b.HasIndex("MeasurementId");
+
+                    b.HasIndex("ChildId", "CreatedAt")
+                        .HasDatabaseName("ix_ai_context_snapshots_child_created");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("ix_ai_context_snapshots_conversation_created");
+
+                    b.ToTable("ai_context_snapshots");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiConversation", b =>
+                {
+                    b.Property<Guid>("ConversationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("child_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_message_at");
+
+                    b.Property<string>("ProviderConversationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("provider_conversation_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTime?>("SummaryUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("summary_updated_at");
+
+                    b.HasKey("ConversationId");
+
+                    b.HasIndex("ChildId", "Status", "LastMessageAt")
+                        .HasDatabaseName("ix_ai_conversations_child_status_last");
+
+                    b.ToTable("ai_conversations");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiConversationMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<Guid?>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int?>("InputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("input_tokens");
+
+                    b.Property<Guid?>("MeasurementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("measurement_id");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("model");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("output_tokens");
+
+                    b.Property<Guid?>("RecommendationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recommendation_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("SafetyResult")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("safety_result");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("text");
+
+                    b.HasKey("MessageId");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("MeasurementId");
+
+                    b.HasIndex("RecommendationId")
+                        .HasDatabaseName("ix_ai_messages_recommendation");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("ix_ai_messages_conversation_created");
+
+                    b.ToTable("ai_conversation_messages");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("AuditLogId")
@@ -1169,6 +1343,101 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("snack_consumption_logs");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.SupportConversation", b =>
+                {
+                    b.Property<Guid>("ConversationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<Guid>("RequesterUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requester_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("ConversationId");
+
+                    b.HasIndex("RequesterUserId", "UpdatedAt")
+                        .HasDatabaseName("ix_support_conversations_requester_updated");
+
+                    b.HasIndex("Status", "UpdatedAt")
+                        .HasDatabaseName("ix_support_conversations_status_updated");
+
+                    b.ToTable("support_conversations");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.SupportMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<bool>("ReadByRequester")
+                        .HasColumnType("boolean")
+                        .HasColumnName("read_by_requester");
+
+                    b.Property<bool>("ReadBySupport")
+                        .HasColumnType("boolean")
+                        .HasColumnName("read_by_support");
+
+                    b.HasKey("MessageId");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("ConversationId", "CreatedAt")
+                        .HasDatabaseName("ix_support_messages_conversation_created");
+
+                    b.ToTable("support_messages");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.SyncLog", b =>
                 {
                     b.Property<Guid>("SyncLogId")
@@ -1429,6 +1698,75 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("Measurement");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiContextSnapshot", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany("AiContextSnapshots")
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SugarGuard.Domain.Entities.AiConversation", "Conversation")
+                        .WithMany("ContextSnapshots")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SugarGuard.Domain.Entities.Measurement", "Measurement")
+                        .WithMany()
+                        .HasForeignKey("MeasurementId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Child");
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Measurement");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiConversation", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
+                        .WithMany("AiConversations")
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiConversationMessage", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.User", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("SugarGuard.Domain.Entities.AiConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SugarGuard.Domain.Entities.Measurement", "Measurement")
+                        .WithMany()
+                        .HasForeignKey("MeasurementId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("SugarGuard.Domain.Entities.AIRecommendation", "Recommendation")
+                        .WithMany()
+                        .HasForeignKey("RecommendationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Measurement");
+
+                    b.Navigation("Recommendation");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.BackpackHistory", b =>
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
@@ -1663,6 +2001,36 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("Child");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.SupportConversation", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.User", "RequesterUser")
+                        .WithMany()
+                        .HasForeignKey("RequesterUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RequesterUser");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.SupportMessage", b =>
+                {
+                    b.HasOne("SugarGuard.Domain.Entities.User", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SugarGuard.Domain.Entities.SupportConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AuthorUser");
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.UserNotification", b =>
                 {
                     b.HasOne("SugarGuard.Domain.Entities.Child", "Child")
@@ -1681,11 +2049,22 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("RecipientUser");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.AiConversation", b =>
+                {
+                    b.Navigation("ContextSnapshots");
+
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.Child", b =>
                 {
                     b.Navigation("AIRecommendations");
 
                     b.Navigation("Achievements");
+
+                    b.Navigation("AiContextSnapshots");
+
+                    b.Navigation("AiConversations");
 
                     b.Navigation("BackpackHistory");
 
@@ -1708,6 +2087,11 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("ParentChildLinks");
 
                     b.Navigation("SnackConsumptionLogs");
+                });
+
+            modelBuilder.Entity("SugarGuard.Domain.Entities.SupportConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("SugarGuard.Domain.Entities.User", b =>

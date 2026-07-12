@@ -272,6 +272,51 @@ internal sealed class AdminHealthDto
         || string.Equals(value, "available", StringComparison.OrdinalIgnoreCase);
 }
 
+internal sealed class ServerMetricsDto
+{
+    public DateTime CollectedAtUtc { get; init; }
+    public string MachineName { get; init; } = string.Empty;
+    public string OperatingSystem { get; init; } = string.Empty;
+    public int ProcessorCount { get; init; }
+    public double? CpuUsagePercent { get; init; }
+    public double? LoadAverage1Min { get; init; }
+    public double MemoryTotalMb { get; init; }
+    public double MemoryAvailableMb { get; init; }
+    public double MemoryUsedPercent { get; init; }
+    public TimeSpan? SystemUptime { get; init; }
+    public TimeSpan ProcessUptime { get; init; }
+    public long NetworkReceiveBytesPerSecond { get; init; }
+    public long NetworkTransmitBytesPerSecond { get; init; }
+    public List<ServerDiskMetricsDto> Disks { get; init; } = [];
+}
+
+internal sealed class ServerDiskMetricsDto
+{
+    public string Name { get; init; } = string.Empty;
+    public string Root { get; init; } = string.Empty;
+    public double TotalGb { get; init; }
+    public double FreeGb { get; init; }
+    public double UsedPercent { get; init; }
+}
+
+internal sealed class GigaChatUsageDto
+{
+    public DateTime GeneratedAtUtc { get; init; }
+    public GigaChatUsagePeriodDto Today { get; init; } = new();
+    public GigaChatUsagePeriodDto Month { get; init; } = new();
+    public GigaChatUsagePeriodDto AllTime { get; init; } = new();
+    public int? MonthlyTokenBudget { get; init; }
+    public int? MonthlyTokensRemaining { get; init; }
+}
+
+internal sealed class GigaChatUsagePeriodDto
+{
+    public int ResponsesWithUsage { get; init; }
+    public int InputTokens { get; init; }
+    public int OutputTokens { get; init; }
+    public int TotalTokens { get; init; }
+}
+
 internal sealed class ChildAccessLinksApiDto
 {
     public Guid ChildId { get; init; }

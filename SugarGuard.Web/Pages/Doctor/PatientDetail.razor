@@ -102,30 +102,12 @@
                 <div class="doctor-chart">
                     @if (ChartPoints.Count >= 2)
                     {
-                        <svg class="doctor-chart-svg" viewBox="0 0 560 180" role="img" aria-label="Линия измерений глюкозы">
-                            <defs>
-                                <linearGradient id="doctorGlucoseArea" x1="0" x2="0" y1="0" y2="1">
-                                    <stop offset="0%" stop-color="#1b8e8b" stop-opacity="0.26" />
-                                    <stop offset="100%" stop-color="#1b8e8b" stop-opacity="0.02" />
-                                </linearGradient>
-                            </defs>
-                            <rect x="40" y="34" width="480" height="86" rx="10" fill="#e9f7ef" opacity="0.55" />
-                            <line x1="40" y1="34" x2="520" y2="34" class="doctor-chart-limit" />
-                            <line x1="40" y1="120" x2="520" y2="120" class="doctor-chart-limit" />
-                            <path d="@ChartAreaPath" fill="url(#doctorGlucoseArea)" />
-                            <polyline points="@ChartPolyline" class="doctor-chart-line" />
-                            @foreach (var point in ChartPoints)
-                            {
-                                <circle cx="@point.XText" cy="@point.YText" r="4" class="doctor-chart-point @point.Tone" />
-                            }
-                        </svg>
-                        <div class="doctor-chart-y-labels" aria-hidden="true"><span>10,0</span><span>4,0</span></div>
-                        <div class="doctor-chart-time-labels" aria-hidden="true">
-                            @foreach (var label in ChartTimeLabels)
-                            {
-                                <span>@label</span>
-                            }
-                        </div>
+                        <GlucoseChart Points="@ChartPoints"
+                                      HeightPx="250"
+                                      TargetMin="4.0"
+                                      TargetMax="10.0"
+                                      ShowHeader="false"
+                                      ShowLegend="false" />
                     }
                     else
                     {
@@ -259,45 +241,14 @@
         _ => "24 часа"
     };
 
-    private IReadOnlyList<ChartPoint> ChartPoints => BuildChartPoints();
-
-    private string ChartPolyline => string.Join(" ", ChartPoints.Select(p => $"{p.XText},{p.YText}"));
-
-    private IReadOnlyList<string> ChartTimeLabels
-    {
-        get
-        {
-            if (_measurements.Count == 0)
-            {
-                return [];
-            }
-
-            var ordered = _measurements.OrderBy(m => m.MeasurementTime).ToList();
-            var middle = ordered[ordered.Count / 2].MeasurementTime;
-            var format = _chartPeriodHours <= 24 ? "HH:mm" : "dd.MM";
-            return
-            [
-                ToMoscowTime(ordered[0].MeasurementTime).ToString(format, RuCulture),
-                ToMoscowTime(middle).ToString(format, RuCulture),
-                ToMoscowTime(ordered[^1].MeasurementTime).ToString(format, RuCulture)
-            ];
-        }
-    }
-
-    private string ChartAreaPath
-    {
-        get
-        {
-            var points = ChartPoints;
-            if (points.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            var path = string.Join(" L ", points.Select(p => $"{p.XText} {p.YText}"));
-            return $"M {points[0].XText} 150 L {path} L {points[^1].XText} 150 Z";
-        }
-    }
+    private IReadOnlyList<GlucoseChart.ChartPoint> ChartPoints =>
+        _measurements
+            .OrderBy(measurement => measurement.MeasurementTime)
+            .TakeLast(32)
+            .Select(measurement => new GlucoseChart.ChartPoint(
+                measurement.MeasurementTime,
+                (double)measurement.GlucoseValue))
+            .ToArray();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -486,39 +437,6 @@
         Navigation.NavigateTo("/doctor/patients");
     }
 
-    private IReadOnlyList<ChartPoint> BuildChartPoints()
-    {
-        var source = _measurements
-            .OrderBy(m => m.MeasurementTime)
-            .TakeLast(32)
-            .ToList();
-
-        if (source.Count == 0)
-        {
-            return Array.Empty<ChartPoint>();
-        }
-
-        const double minGlucose = 2.5;
-        const double maxGlucose = 16.0;
-        const double left = 40;
-        const double width = 480;
-        const double top = 18;
-        const double height = 132;
-        var denominator = Math.Max(1, source.Count - 1);
-
-        return source.Select((measurement, index) =>
-        {
-            var normalized = ((double)measurement.GlucoseValue - minGlucose) / (maxGlucose - minGlucose);
-            var y = top + (1 - Math.Clamp(normalized, 0, 1)) * height;
-            var x = left + width * index / denominator;
-            return new ChartPoint(
-                x,
-                y,
-                measurement.GlucoseValue,
-                measurement.MeasurementTime,
-                GetToneForGlucose(measurement.GlucoseValue));
-        }).ToList();
-    }
 
     private static string GetFullName(DoctorPatientSummaryVm patient)
     {
@@ -711,36 +629,9 @@
         return accepted.Any(item => string.Equals(value, item, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string GetToneForGlucose(decimal value)
-    {
-        if (value is < 3.0m or > 13.9m)
-        {
-            return "danger";
-        }
-
-        if (value is < 4.0m or > 10m)
-        {
-            return "warning";
-        }
-
-        return "success";
-    }
-
     public void Dispose()
     {
         _cts.Cancel();
         _cts.Dispose();
     }
-
-    private readonly record struct ChartPoint(
-        double X,
-        double Y,
-        decimal Value,
-        DateTime Time,
-        string Tone)
-    {
-        public string XText => X.ToString("0.##", CultureInfo.InvariantCulture);
-        public string YText => Y.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
 }

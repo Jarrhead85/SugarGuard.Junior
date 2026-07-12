@@ -14,11 +14,10 @@ public sealed class ChildAccessService : IChildAccessService
     private static readonly HashSet<UserRole> AdminRoles =
     [
         UserRole.Admin,
-        UserRole.SupportAdmin,
-        UserRole.ServiceAccount
+        UserRole.SupportAdmin
     ];
 
-    private static readonly TimeSpan RoleCacheTtl = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan RoleCacheTtl = TimeSpan.FromMinutes(1);
     private const string RoleCacheKeyPrefix = "ChildAccess:Role:";
 
     private readonly ICurrentUserContext _currentUser;
@@ -123,7 +122,7 @@ public sealed class ChildAccessService : IChildAccessService
         }
 
         var role = await _context.Users.AsNoTracking()
-            .Where(user => user.UserId == userId)
+            .Where(user => user.UserId == userId && user.IsActive)
             .Select(user => (UserRole?)user.Role)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -146,21 +145,7 @@ public sealed class ChildAccessService : IChildAccessService
                               && link.Notes == "Self-link for child mobile account",
                 cancellationToken);
 
-        if (hasSelfLink)
-        {
-            return true;
-        }
-
-        var childIdText = childId.ToString();
-        var userIdText = userId.ToString();
-        return await _context.AuditLogs.AsNoTracking()
-            .AnyAsync(log => log.Action == "child.created"
-                             && log.TargetType == "Child"
-                             && log.TargetId == childIdText
-                             && log.Details != null
-                             && log.Details.Contains($"Parent={userIdText}")
-                             && log.Details.Contains("Role=ChildDevice"),
-                cancellationToken);
+        return hasSelfLink;
     }
 
     private async Task<IReadOnlyList<Guid>> GetChildDeviceChildIdsAsync(
@@ -172,25 +157,6 @@ public sealed class ChildAccessService : IChildAccessService
                            && link.Notes == "Self-link for child mobile account")
             .Select(link => link.ChildId)
             .ToListAsync(cancellationToken);
-
-        var userIdText = userId.ToString();
-        var auditIds = await _context.AuditLogs.AsNoTracking()
-            .Where(log => log.Action == "child.created"
-                          && log.TargetType == "Child"
-                          && log.TargetId != null
-                          && log.Details != null
-                          && log.Details.Contains($"Parent={userIdText}")
-                          && log.Details.Contains("Role=ChildDevice"))
-            .Select(log => log.TargetId!)
-            .ToListAsync(cancellationToken);
-
-        foreach (var rawId in auditIds)
-        {
-            if (Guid.TryParse(rawId, out var childId))
-            {
-                linkedIds.Add(childId);
-            }
-        }
 
         return linkedIds.Distinct().ToList();
     }

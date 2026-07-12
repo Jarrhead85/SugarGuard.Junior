@@ -100,7 +100,7 @@ public class AuthServiceTests : IDisposable
 
         _audit.Verify(a => a.WriteAsync(
             "auth.login.failed", "User", null,
-            It.Is<string>(s => s.Contains("unknown@test.local")),
+            "user_not_found",
             CancellationToken.None), Times.Once);
     }
 

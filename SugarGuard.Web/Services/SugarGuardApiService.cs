@@ -1265,6 +1265,58 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
+        /// GET api/admin/system/server-metrics
+        /// </summary>
+        public async Task<ServerMetricsVm?> GetAdminServerMetricsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/admin/system/server-metrics", cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var dto = await ReadOptionalAsync<ServerMetricsDto>(response.Content, cancellationToken);
+                return dto is null ? null : ServerMetricsVm.FromDto(dto);
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException
+                    or TaskCanceledException
+                    or JsonException
+                    or InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// GET api/admin/system/gigachat-usage
+        /// </summary>
+        public async Task<GigaChatUsageVm?> GetAdminGigaChatUsageAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/admin/system/gigachat-usage", cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var dto = await ReadOptionalAsync<GigaChatUsageDto>(response.Content, cancellationToken);
+                return dto is null ? null : GigaChatUsageVm.FromDto(dto);
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException
+                    or TaskCanceledException
+                    or JsonException
+                    or InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// PUT api/admin/users-roles/users/{userId}/role
         /// </summary>
         public async Task UpdateUserRoleAsync(

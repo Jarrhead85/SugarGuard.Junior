@@ -50,6 +50,7 @@ public class MockApiClient : IApiClient
     };
     private static readonly Dictionary<string, List<NutritionEntryApiModel>> MockNutrition = new();
     private static readonly Dictionary<string, List<MealScheduleApiModel>> MockMealSchedules = new();
+    private static readonly List<SupportConversationDetailsApiModel> MockSupportConversations = new();
 
     public MockApiClient(ILogger<MockApiClient> logger)
     {
@@ -621,6 +622,91 @@ public class MockApiClient : IApiClient
 
     public Task<List<AchievementApiModel>> GetAchievementsAsync(string childId, CancellationToken cancellationToken = default) => Task.FromResult(new List<AchievementApiModel>());
     public Task<byte[]> ExportNutritionAsync(string childId, DateTime from, DateTime to, string format, CancellationToken cancellationToken = default) => Task.FromResult(Array.Empty<byte>());
+
+    public Task<List<SupportConversationApiModel>> GetSupportConversationsAsync(CancellationToken cancellationToken = default)
+    {
+        var items = MockSupportConversations
+            .OrderByDescending(item => item.UpdatedAt)
+            .Select(item => new SupportConversationApiModel
+            {
+                ConversationId = item.ConversationId,
+                Subject = item.Subject,
+                Status = item.Status,
+                RequesterUserId = item.RequesterUserId,
+                RequesterEmail = item.RequesterEmail,
+                CreatedAt = item.CreatedAt,
+                UpdatedAt = item.UpdatedAt,
+                LastMessagePreview = item.LastMessagePreview,
+                UnreadCount = item.UnreadCount
+            })
+            .ToList();
+
+        return Task.FromResult(items);
+    }
+
+    public Task<SupportConversationDetailsApiModel?> GetSupportConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(MockSupportConversations.FirstOrDefault(item => item.ConversationId == conversationId));
+    }
+
+    public Task<SupportConversationDetailsApiModel?> CreateSupportConversationAsync(CreateSupportConversationApiRequest request, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var message = new SupportMessageApiModel
+        {
+            MessageId = Guid.NewGuid(),
+            AuthorUserId = Guid.NewGuid(),
+            AuthorRole = "ChildDevice",
+            Body = request.Message,
+            CreatedAt = now,
+            IsOwnMessage = true
+        };
+
+        var conversation = new SupportConversationDetailsApiModel
+        {
+            ConversationId = Guid.NewGuid(),
+            Subject = request.Subject,
+            Status = Domain.Enums.SupportConversationStatus.WaitingForSupport,
+            RequesterUserId = message.AuthorUserId,
+            RequesterEmail = "mobile@example.local",
+            CreatedAt = now,
+            UpdatedAt = now,
+            LastMessagePreview = request.Message,
+            UnreadCount = 0,
+            Messages = new[] { message }
+        };
+
+        MockSupportConversations.Insert(0, conversation);
+        return Task.FromResult<SupportConversationDetailsApiModel?>(conversation);
+    }
+
+    public Task<SupportMessageApiModel?> AddSupportMessageAsync(Guid conversationId, string message, CancellationToken cancellationToken = default)
+    {
+        var conversation = MockSupportConversations.FirstOrDefault(item => item.ConversationId == conversationId);
+        if (conversation is null)
+        {
+            return Task.FromResult<SupportMessageApiModel?>(null);
+        }
+
+        var apiMessage = new SupportMessageApiModel
+        {
+            MessageId = Guid.NewGuid(),
+            AuthorUserId = conversation.RequesterUserId,
+            AuthorRole = "ChildDevice",
+            Body = message,
+            CreatedAt = DateTime.UtcNow,
+            IsOwnMessage = true
+        };
+
+        conversation.Messages = conversation.Messages.Append(apiMessage).ToArray();
+        conversation.LastMessagePreview = message;
+        conversation.UpdatedAt = apiMessage.CreatedAt;
+        conversation.Status = Domain.Enums.SupportConversationStatus.WaitingForSupport;
+        return Task.FromResult<SupportMessageApiModel?>(apiMessage);
+    }
+
+    public Task<bool> MarkSupportConversationReadAsync(Guid conversationId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(MockSupportConversations.Any(item => item.ConversationId == conversationId));
 
     /// <summary>
     /// Имитирует проверку доступности сервера

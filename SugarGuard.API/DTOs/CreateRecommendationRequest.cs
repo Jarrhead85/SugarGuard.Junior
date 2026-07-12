@@ -19,4 +19,15 @@ public class CreateRecommendationRequest
     public List<string>? AvailableSnacks { get; set; } // Список доступных перекусов в рюкзаке
 
     public bool ForceNew { get; set; } = false; // Принудительно запросить новую рекомендацию
+
+    /// <summary>
+    /// Текст вопроса пользователя для AI-консультанта.
+    /// </summary>
+    [MaxLength(600)]
+    public string? Question { get; set; }
+
+    /// <summary>
+    /// Идентификатор активной AI-конверсации, если клиент её продолжает.
+    /// </summary>
+    public Guid? ConversationId { get; set; }
 }

@@ -82,4 +82,6 @@ public class Child
     public virtual ICollection<NutritionEntry> NutritionEntries { get; set; } = new List<NutritionEntry>();
     public virtual ICollection<MealSchedule> MealSchedules { get; set; } = new List<MealSchedule>();
     public virtual ICollection<ChildAchievement> Achievements { get; set; } = new List<ChildAchievement>();
+    public virtual ICollection<AiConversation> AiConversations { get; set; } = new List<AiConversation>();
+    public virtual ICollection<AiContextSnapshot> AiContextSnapshots { get; set; } = new List<AiContextSnapshot>();
 }

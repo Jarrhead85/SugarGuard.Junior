@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SugarGuard.Junior.Views.Pages.PrivacyPage"
+             Title="Конфиденциальность"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+    <ScrollView>
+        <VerticalStackLayout Padding="16,30,16,24" Spacing="12">
+            <Label Text="Конфиденциальность"
+                   FontFamily="{StaticResource ClashDisplay}"
+                   FontSize="30"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimary}" />
+            <Border Padding="16"
+                    BackgroundColor="{DynamicResource Surface}"
+                    Stroke="{DynamicResource BorderDefault}"
+                    StrokeShape="RoundRectangle 20">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="SugarGuard хранит медицинские данные ребёнка, данные аккаунта, настройки уведомлений, записи питания, измерения глюкозы и обращения в поддержку."
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Label Text="Данные передаются по защищённому соединению, используются для отображения в кабинетах родителя и врача, рекомендаций и уведомлений. Доступ к данным ребёнка получают только подключённые родители, врачи и администраторы поддержки."
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Label Text="Оператор, организация, адрес и email указаны на сайте как временные заглушки и будут заполнены владельцем сервиса."
+                           TextColor="{DynamicResource TextSecondary}"
+                           FontSize="13" />
+                    <Label Text="При плохом самочувствии не ждите ответа поддержки: обратитесь к взрослому или вызовите экстренную помощь."
+                           TextColor="{DynamicResource Danger}"
+                           FontAttributes="Bold" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

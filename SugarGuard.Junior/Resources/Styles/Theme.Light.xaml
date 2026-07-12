@@ -39,6 +39,11 @@
 
     <!-- Основная glass-карточка: белый ~84% непрозрачности -->
     <Color x:Key="SurfaceCard">#D6FFFFFF</Color>
+    <!-- Legacy aliases used by the redesigned child screens. Keep them theme-aware. -->
+    <Color x:Key="Surface">#FFFFFF</Color>
+    <Color x:Key="Surface2">#F2FFFFFF</Color>
+    <Color x:Key="Border">#D8E1EE</Color>
+    <Color x:Key="Divider">#1416213E</Color>
     <!-- Более непрозрачная поверхность (модалки, боттомшиты): ~95% -->
     <Color x:Key="SurfaceElevated">#F2FFFFFF</Color>
     <!-- Полностью белая поверхность (инпуты, вложенные блоки) -->

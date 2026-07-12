@@ -21,6 +21,7 @@ namespace SugarGuard.API.Services
         /// Возвращает заметки, прикреплённые к конкретному измерению
         /// </summary>
         Task<IReadOnlyList<DoctorNoteDto>> GetByMeasurementAsync(
+            Guid childId,
             Guid measurementId,
             CancellationToken cancellationToken = default);
 

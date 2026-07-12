@@ -7,6 +7,7 @@ using SugarGuard.Application.Security;
 using SugarGuard.Domain.Entities;
 using SugarGuard.Domain.Enums;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SugarGuard.API.Application.Services;
 
@@ -180,9 +181,8 @@ public class AuthService : IAuthService
             cancellationToken);
 
         _logger.LogInformation(
-            "Email confirmed. UserId={UserId} VerificationTokenPrefix={TokenPrefix}",
-            user.UserId,
-            verificationToken.Length > 8 ? verificationToken[..8] : verificationToken);
+            "Email confirmed. UserId={UserId}",
+            user.UserId);
 
         return new AuthEmailVerificationResult(user, true, null, null);
     }
@@ -203,7 +203,7 @@ public class AuthService : IAuthService
         if (user is null)
         {
             await _audit.WriteAsync("auth.login.failed", "User", null,
-                $"email={emailForLogin}", cancellationToken);
+                "user_not_found", cancellationToken);
             return new LoginResult(null, LoginFailureReason.UserNotFound);
         }
 
@@ -397,7 +397,10 @@ public class AuthService : IAuthService
         if (string.IsNullOrEmpty(providedKey))
             return false;
 
-        return string.Equals(providedKey, expectedApiKey, StringComparison.Ordinal);
+        var providedBytes = Encoding.UTF8.GetBytes(providedKey);
+        var expectedBytes = Encoding.UTF8.GetBytes(expectedApiKey);
+        return providedBytes.Length == expectedBytes.Length
+               && CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
     }
 
     /// <inheritdoc/>

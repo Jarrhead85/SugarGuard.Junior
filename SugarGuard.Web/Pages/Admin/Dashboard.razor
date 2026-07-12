@@ -83,6 +83,32 @@
             </article>
         </section>
 
+        <section class="admin-server-summary" aria-label="Ресурсы сервера">
+            <article class="admin-mini-card">
+                <span>CPU VDS</span>
+                <strong>@FormatPercent(_serverMetrics?.CpuUsagePercent)</strong>
+                <small>@GetCpuHint()</small>
+            </article>
+
+            <article class="admin-mini-card">
+                <span>Память</span>
+                <strong>@FormatPercent(_serverMetrics?.MemoryUsedPercent)</strong>
+                <small>@GetMemoryHint()</small>
+            </article>
+
+            <article class="admin-mini-card">
+                <span>Сеть</span>
+                <strong>↓ @FormatBytesPerSecond(_serverMetrics?.NetworkReceiveBytesPerSecond)</strong>
+                <small>↑ @FormatBytesPerSecond(_serverMetrics?.NetworkTransmitBytesPerSecond)</small>
+            </article>
+
+            <article class="admin-mini-card admin-mini-card--server-link">
+                <span>Сервер</span>
+                <strong>@FormatDuration(_serverMetrics?.SystemUptime)</strong>
+                <a href="/admin/system">Ресурсы и диски →</a>
+            </article>
+        </section>
+
         <section class="admin-dashboard-grid">
             <article class="admin-panel admin-panel--wide">
                 <div class="admin-panel-head">
@@ -250,6 +276,7 @@
     private DateTime _loadedAt = DateTime.UtcNow;
     private AdminSystemStatsVm? _stats;
     private AdminHealthVm? _health;
+    private ServerMetricsVm? _serverMetrics;
     private List<AdminUserVm> _users = [];
     private List<AuditLogVm> _auditLogs = [];
     private int _auditPage = 1;
@@ -349,16 +376,18 @@
             cts.CancelAfter(TimeSpan.FromSeconds(25));
             var statsTask = Api.GetAdminSystemStatsAsync(cts.Token);
             var healthTask = Api.GetAdminHealthAsync(cts.Token);
+            var serverMetricsTask = Api.GetAdminServerMetricsAsync(cts.Token);
             var usersTask = Api.GetAdminUsersAsync(limit: 500, cancellationToken: cts.Token);
             var auditTask = Api.GetAdminAuditLogsAsync(limit: 20, cancellationToken: cts.Token);
             var parentLinksTask = Api.GetAdminParentChildLinksAsync(cts.Token);
             var doctorLinksTask = Api.GetAdminDoctorChildLinksAsync(cts.Token);
             var syncTask = Api.GetSyncLogsAsync(limit: 100, cancellationToken: cts.Token);
 
-            await Task.WhenAll(statsTask, healthTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask);
+            await Task.WhenAll(statsTask, healthTask, serverMetricsTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask);
 
             _stats = await statsTask;
             _health = await healthTask;
+            _serverMetrics = await serverMetricsTask;
             _users = (await usersTask).OrderByDescending(x => x.CreatedAt).ToList();
             _auditLogs = (await auditTask).OrderByDescending(x => x.CreatedAt).ToList();
             _auditPage = Math.Clamp(_auditPage, 1, AuditPageCount);
@@ -396,7 +425,7 @@
 
     private async Task RunLiveRefreshAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
 
         try
         {
@@ -534,6 +563,47 @@
     }
 
     private static string FormatInt(long value) => value.ToString("N0", RuCulture);
+    private string GetCpuHint() => _serverMetrics?.LoadAverage1Min is double load
+        ? $"load {load.ToString("0.##", RuCulture)} · {_serverMetrics.ProcessorCount} ядер"
+        : "Данные обновляются каждые 10 секунд";
+
+    private string GetMemoryHint() => _serverMetrics is null
+        ? "Данные обновляются каждые 10 секунд"
+        : $"свободно {_serverMetrics.MemoryAvailableMb.ToString("0.#", RuCulture)} МБ";
+
+    private static string FormatPercent(double? value) => value.HasValue
+        ? $"{value.Value.ToString("0.#", RuCulture)}%"
+        : "—";
+
+    private static string FormatBytesPerSecond(long? bytesPerSecond)
+    {
+        var value = Math.Max(0, bytesPerSecond ?? 0);
+        if (value < 1024)
+        {
+            return $"{value} Б/с";
+        }
+
+        if (value < 1024 * 1024)
+        {
+            return $"{(value / 1024d).ToString("0.#", RuCulture)} КБ/с";
+        }
+
+        return $"{(value / 1024d / 1024d).ToString("0.#", RuCulture)} МБ/с";
+    }
+
+    private static string FormatDuration(TimeSpan? value)
+    {
+        if (!value.HasValue)
+        {
+            return "—";
+        }
+
+        var uptime = value.Value;
+        return uptime.TotalDays >= 1
+            ? $"{(int)uptime.TotalDays} д. {uptime.Hours} ч."
+            : $"{uptime.Hours} ч. {uptime.Minutes} мин.";
+    }
+
     private static string FormatLocal(DateTime value) => $"{ToMoscowTime(value).ToString("dd.MM.yyyy HH:mm", RuCulture)} МСК";
     private static string FormatDate(DateTime value) => ToMoscowTime(value).ToString("dd.MM.yyyy", RuCulture);
     private static string FormatShortTime(DateTime value) => ToMoscowTime(value).ToString("HH:mm", RuCulture);
@@ -765,6 +835,12 @@
         gap: 18px;
     }
 
+    .admin-server-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+    }
+
     .admin-kpi-card,
     .admin-mini-card {
         display: grid;
@@ -794,6 +870,16 @@
     .admin-mini-card small {
         color: var(--admin-muted);
         font-weight: 800;
+    }
+
+    .admin-mini-card--server-link a {
+        color: var(--admin-primary);
+        font-weight: 900;
+        text-decoration: none;
+    }
+
+    .admin-mini-card--server-link a:hover {
+        text-decoration: underline;
     }
 
     .admin-kpi-card--safe small { color: var(--admin-success); }
@@ -1030,6 +1116,7 @@
 
     @@media (max-width: 1180px) {
         .admin-kpi-row,
+        .admin-server-summary,
         .admin-dashboard-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -1042,6 +1129,7 @@
         }
 
         .admin-kpi-row,
+        .admin-server-summary,
         .admin-dashboard-grid {
             grid-template-columns: 1fr;
         }

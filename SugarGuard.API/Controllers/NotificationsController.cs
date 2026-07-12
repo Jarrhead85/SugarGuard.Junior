@@ -63,7 +63,9 @@ public class NotificationsController : ControllerBase
     /// Отправить критическое уведомление с геолокацией
     /// </summary>
     [HttpPost("critical-alert")]
-    public async Task<ActionResult<NotificationResponse>> SendCriticalAlert([FromBody] CriticalAlertRequest request)
+    public async Task<ActionResult<NotificationResponse>> SendCriticalAlert(
+        [FromBody] CriticalAlertRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -85,6 +87,8 @@ public class NotificationsController : ControllerBase
                 return Forbid();
             }
 
+            await _userNotificationService.PersistCriticalLocationAsync(request, cancellationToken);
+
             // Отправляем критическое уведомление
             var result = await _notificationService.SendCriticalAlertAsync(request);
 
@@ -96,9 +100,14 @@ public class NotificationsController : ControllerBase
             }
             else
             {
-                _logger.LogError("Не удалось отправить критическое уведомление: {Error}", 
+                _logger.LogWarning("Критическое уведомление сохранено в кабинете, но Telegram недоступен: {Error}", 
                     result.ErrorMessage);
-                return StatusCode(500, result);
+                return Ok(new NotificationResponse
+                {
+                    Success = true,
+                    ParentsNotified = result.ParentsNotified,
+                    ErrorMessage = "Уведомление сохранено в кабинете родителя; Telegram пока недоступен."
+                });
             }
         }
         catch (Exception ex)

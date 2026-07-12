@@ -28,13 +28,15 @@
     *@
     <link rel="stylesheet" href="css/variables.css" />
     <link rel="stylesheet" href="css/sg-tokens.css" />
-    <link rel="stylesheet" href="css/app.css" />
-    <link rel="stylesheet" href="SugarGuard.Web.styles.css" />
+    <link rel="stylesheet" href="css/app.css?v=20260711-2" />
+    <link rel="stylesheet" href="SugarGuard.Web.styles.css?v=20260711-2" />
 
     <HeadOutlet />
 </head>
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    @* JWT is stored in browser storage, so prerendering would see every user as anonymous
+       before JS interop becomes available and could redirect an active session to /login. *@
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 
     @*
         Порядок JS — СТРОГО:

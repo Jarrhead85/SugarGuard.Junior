@@ -112,7 +112,9 @@
                             <Picker Grid.Column="1" Title="Состояние"
                                     ItemsSource="{Binding ChildStateDisplayNames}"
                                     SelectedIndex="{Binding SelectedChildStateIndex}"
-                                    FontSize="12" WidthRequest="120" />
+                                    FontSize="12" WidthRequest="120"
+                                    TextColor="{DynamicResource TextPrimary}"
+                                    TitleColor="{DynamicResource TextSecondary}" />
                         </Grid>
 
                         <Border Padding="14,0" HeightRequest="64" Stroke="{DynamicResource BorderDefault}"
@@ -122,7 +124,8 @@
                                        Placeholder="5.6" Keyboard="Numeric" MaxLength="5"
                                        ReturnType="Done" ClearButtonVisibility="WhileEditing"
                                        FontFamily="{StaticResource ClashDisplay}" FontSize="29"
-                                       TextColor="{DynamicResource TextPrimary}" />
+                                       TextColor="{DynamicResource TextPrimary}"
+                                       PlaceholderColor="{DynamicResource TextSecondary}" />
                                 <Label Grid.Column="1" Text="ммоль/л" Style="{StaticResource Muted}" VerticalOptions="Center" />
                             </Grid>
                         </Border>

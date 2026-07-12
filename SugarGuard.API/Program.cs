@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using SugarGuard.API.Application.Ai;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SugarGuard.API.Application.Interfaces;
@@ -148,6 +149,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddSingleton(demoEmailBypassSettings);
+builder.Services.AddOptions<AiClinicalContextOptions>()
+    .Bind(builder.Configuration.GetSection(AiClinicalContextOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -267,7 +272,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentOrDoctorOrAdmin", policy =>
-        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ServiceAccount", "ChildDevice"));
+        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice"));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));
@@ -361,6 +366,7 @@ builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
 builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 builder.Services.AddScoped<IChildAccessService, ChildAccessService>();
+builder.Services.AddSingleton<IServerMetricsService, ServerMetricsService>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -383,6 +389,7 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IInviteCodeService, InviteCodeService>();
 builder.Services.AddScoped<IDoctorNoteService, DoctorNoteService>();
 builder.Services.AddScoped<IUserNotificationService, UserNotificationService>();
+builder.Services.AddScoped<ISupportConversationService, SupportConversationService>();
 builder.Services.AddScoped<INutritionTrackerService, NutritionTrackerService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IChildrenService, ChildrenService>();
@@ -398,6 +405,9 @@ builder.Services.AddScoped<IGlucoseStatusService, GlucoseStatusService>();
 builder.Services.AddScoped<IGlucoseUiStateService, GlucoseUiStateService>();
 builder.Services.AddScoped<IStatisticsCalculationService, StatisticsCalculationService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<IClinicalContextBuilder, ClinicalContextBuilder>();
+builder.Services.AddScoped<IAiRecommendationSafetyPolicy, AiRecommendationSafetyPolicy>();
+builder.Services.AddScoped<IAiRecommendationWorkflowService, AiRecommendationWorkflowService>();
 builder.Services.AddScoped<IExportJobService, ExportJobService>();
 builder.Services.AddScoped<IPdfExportService, PdfExportService>();
 builder.Services.AddScoped<IHealthService, HealthService>();

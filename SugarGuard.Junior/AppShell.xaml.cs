@@ -14,6 +14,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("schedulepage", typeof(SchedulePage));
         Routing.RegisterRoute("recommendation-modal", typeof(RecommendationModal));
         Routing.RegisterRoute("helpalertpage", typeof(HelpAlertPage));
+        Routing.RegisterRoute("supportpage", typeof(SupportPage));
+        Routing.RegisterRoute("privacypage", typeof(PrivacyPage));
     }
 
     /// <summary>

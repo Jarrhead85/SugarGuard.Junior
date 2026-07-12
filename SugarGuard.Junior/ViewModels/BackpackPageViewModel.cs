@@ -652,7 +652,7 @@ public partial class BackpackPageViewModel : ObservableObject
                 SnackName = decryptedName,
                 BreadUnits = decryptedBreadUnits,
                 Quantity = 1,
-                SnackIcon = GetSnackIcon(decryptedName)
+                SnackIconSource = GetSnackIconSource(decryptedName)
             };
         }
         catch (Exception ex)
@@ -837,27 +837,21 @@ public partial class BackpackPageViewModel : ObservableObject
     /// <summary>
     /// Подбирает иконку по названию перекуса для отображения в карточке.
     /// </summary>
-    private static string GetSnackIcon(string snackName)
+    private static string GetSnackIconSource(string snackName)
     {
         var lower = snackName.ToLowerInvariant();
 
         return lower switch
         {
-            _ when lower.Contains("яблоко") => "🍎",
-            _ when lower.Contains("груша") => "🍐",
-            _ when lower.Contains("банан") => "🍌",
-            _ when lower.Contains("апельсин") || lower.Contains("мандарин") => "🍊",
-            _ when lower.Contains("сок") => "🧃",
-            _ when lower.Contains("вода") => "💧",
-            _ when lower.Contains("хлеб") || lower.Contains("бутерброд") || lower.Contains("сэндвич") => "🥪",
-            _ when lower.Contains("печенье") || lower.Contains("крекер") => "🍪",
-            _ when lower.Contains("конфет") || lower.Contains("шоколад") || lower.Contains("сахар") => "🍬",
-            _ when lower.Contains("молоко") => "🥛",
-            _ when lower.Contains("йогурт") || lower.Contains("творог") => "🥣",
-            _ when lower.Contains("глюкометр") => "🩸",
-            _ when lower.Contains("полоск") => "📋",
-            _ when lower.Contains("инсулин") || lower.Contains("помпа") => "💉",
-            _ => "🎒"
+            _ when lower.Contains("яблоко") => "snack_apple.svg",
+            _ when lower.Contains("груша") => "snack_pear.svg",
+            _ when lower.Contains("банан") => "snack_banana.svg",
+            _ when lower.Contains("апельсин") || lower.Contains("мандарин") || lower.Contains("сок") => "snack_juice.svg",
+            _ when lower.Contains("печенье") || lower.Contains("крекер") || lower.Contains("хлеб") || lower.Contains("бутерброд") || lower.Contains("сэндвич") => "snack_crackers.svg",
+            _ when lower.Contains("конфет") || lower.Contains("шоколад") || lower.Contains("сахар") || lower.Contains("глюкоз") => "snack_glucose.svg",
+            _ when lower.Contains("молоко") || lower.Contains("йогурт") || lower.Contains("творог") => "snack_yogurt.svg",
+            _ when lower.Contains("глюкометр") || lower.Contains("полоск") || lower.Contains("инсулин") || lower.Contains("помпа") => "snack_supplies.svg",
+            _ => "snack_generic.svg"
         };
     }
 

@@ -32,23 +32,41 @@ public sealed class UserNotificationService : IUserNotificationService
         CancellationToken cancellationToken = default)
     {
         var role = _currentUser.GetRole();
-        if (role is UserRole.Admin or UserRole.SupportAdmin)
-        {
-            return
-            [
-                new UserNotificationDto
-                {
-                    Title = "Система работает",
-                    Description = "Новых административных уведомлений нет",
-                    Time = "только что",
-                    Type = "ok",
-                    IsUnread = false
-                }
-            ];
-        }
-
         var userId = _currentUser.GetUserId()
             ?? throw new UnauthorizedAccessException("Текущий пользователь не определён.");
+
+        if (role is UserRole.Admin or UserRole.SupportAdmin)
+        {
+            var supportNotifications = await _db.UserNotifications
+                .AsNoTracking()
+                .Where(notification =>
+                    notification.RecipientUserId == userId &&
+                    (notification.SourceType == "support_message" ||
+                     notification.SourceType == "support_conversation"))
+                .OrderByDescending(notification => notification.CreatedAt)
+                .Take(100)
+                .Select(notification => new
+                {
+                    notification.NotificationId,
+                    notification.Title,
+                    notification.Description,
+                    notification.Type,
+                    notification.IsRead,
+                    notification.CreatedAt
+                })
+                .ToListAsync(cancellationToken);
+
+            return supportNotifications.Select(notification => new UserNotificationDto
+            {
+                NotificationId = notification.NotificationId,
+                Title = notification.Title,
+                Description = notification.Description,
+                Time = GetRelativeTime(notification.CreatedAt, DateTime.UtcNow),
+                Type = notification.Type,
+                IsUnread = !notification.IsRead
+            }).ToList();
+        }
+
         var childIds = await _childAccess.GetAccessibleChildIdsAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var result = await _db.UserNotifications
@@ -123,6 +141,68 @@ public sealed class UserNotificationService : IUserNotificationService
                 cancellationToken);
     }
 
+    public async Task PersistCriticalLocationAsync(
+        CriticalAlertRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(request.ChildId, out var childId))
+        {
+            throw new ArgumentException("Некорректный идентификатор ребёнка.", nameof(request));
+        }
+
+        var parentIds = await _db.ParentChildLinks
+            .AsNoTracking()
+            .Where(link => link.ChildId == childId)
+            .Select(link => link.ParentUserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (parentIds.Count == 0)
+        {
+            return;
+        }
+
+        var duplicateSince = DateTime.UtcNow.AddMinutes(-2);
+        var recipientsWithDuplicate = await _db.UserNotifications
+            .AsNoTracking()
+            .Where(notification =>
+                parentIds.Contains(notification.RecipientUserId) &&
+                notification.ChildId == childId &&
+                notification.SourceType == "critical_location" &&
+                notification.CreatedAt >= duplicateSince)
+            .Select(notification => notification.RecipientUserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var locationText = request.Latitude.HasValue && request.Longitude.HasValue
+            ? $"Координаты: {request.Latitude.Value:F6}, {request.Longitude.Value:F6}. " +
+              $"Карта: https://www.openstreetmap.org/?mlat={request.Latitude.Value:F6}&mlon={request.Longitude.Value:F6}#map=17/{request.Latitude.Value:F6}/{request.Longitude.Value:F6}"
+            : "Координаты получить не удалось.";
+
+        if (!string.IsNullOrWhiteSpace(request.Address))
+        {
+            locationText = $"Адрес: {request.Address}. {locationText}";
+        }
+
+        foreach (var parentId in parentIds.Except(recipientsWithDuplicate))
+        {
+            _db.UserNotifications.Add(new SugarGuard.Domain.Entities.UserNotification
+            {
+                RecipientUserId = parentId,
+                ChildId = childId,
+                Type = "danger",
+                Title = "Критический уровень глюкозы",
+                Description = $"{request.CriticalGlucose:F1} ммоль/л. {locationText}",
+                SourceType = "critical_location",
+                SourceId = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     private static void AddClinicalNotifications(
         ICollection<UserNotificationDto> notifications,
         DashboardSummaryResponse summary,
@@ -137,7 +217,9 @@ public sealed class UserNotificationService : IUserNotificationService
                 Description = $"{summary.LatestGlucose:F1} ммоль/л {(isCritical ? "— требуется внимание!" : "— в пределах нормы")}",
                 Time = GetRelativeTime(summary.LatestMeasurementTime.Value, now),
                 Type = isCritical ? "danger" : "info",
-                IsUnread = isCritical
+                // Сводка выводится как справочная карточка. Непрочитанными считаются
+                // только сохранённые уведомления, которые можно отметить прочитанными.
+                IsUnread = false
             });
         }
 
@@ -149,7 +231,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Description = $"Зафиксировано {summary.CriticalEvents} критических эпизодов за последние 24 часа",
                 Time = "за сутки",
                 Type = "danger",
-                IsUnread = true
+                IsUnread = false
             });
         }
 
@@ -161,7 +243,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Description = $"{summary.PendingSyncConflicts} неразрешённых конфликтов",
                 Time = "требуют внимания",
                 Type = "warn",
-                IsUnread = true
+                IsUnread = false
             });
         }
 
