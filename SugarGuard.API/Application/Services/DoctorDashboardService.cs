@@ -48,11 +48,13 @@ public sealed class DoctorDashboardService : IDoctorDashboardService
         var windowStart = DateTime.UtcNow.Subtract(TirWindow);
 
         // Загружаем всех прикреплённых пациентов одним запросом.
-        var linkedChildIds = await db.DoctorChildLinks
+        var linkedChildren = await db.DoctorChildLinks
             .AsNoTracking()
             .Where(l => l.DoctorUserId == doctorUserId && l.IsActive)
-            .Select(l => l.ChildId)
+            .Select(l => new { l.ChildId, l.LinkId })
             .ToListAsync(cancellationToken);
+        var linkedChildIds = linkedChildren.Select(link => link.ChildId).ToList();
+        var linkIdsByChild = linkedChildren.ToDictionary(link => link.ChildId, link => link.LinkId);
 
         if (linkedChildIds.Count == 0)
         {
@@ -153,6 +155,7 @@ public sealed class DoctorDashboardService : IDoctorDashboardService
 
             return new DoctorPatientSummaryDto
             {
+                LinkId = linkIdsByChild[child.ChildId],
                 ChildId = child.ChildId,
                 FirstName = child.FirstName,
                 LastName = child.LastName,

@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SugarGuard.Web.Services
 {
@@ -27,11 +26,6 @@ namespace SugarGuard.Web.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly ITokenStore _tokenStore;
-
-        static SugarGuardApiService()
-        {
-            _jsonOptions.Converters.Add(new JsonStringEnumConverter());
-        }
 
         /// <summary>
         /// Конструктор для DI
@@ -2056,6 +2050,7 @@ namespace SugarGuard.Web.Services
 
         private static DoctorPatientSummaryVm MapDoctorPatient(DoctorPatientSummaryApiDto dto) =>
             new(
+                dto.LinkId,
                 dto.ChildId,
                 dto.FirstName,
                 dto.LastName,
@@ -2235,6 +2230,7 @@ namespace SugarGuard.Web.Services
 
         private sealed class DoctorPatientSummaryApiDto
         {
+            public Guid LinkId { get; init; }
             public Guid ChildId { get; init; }
             public string FirstName { get; init; } = string.Empty;
             public string LastName { get; init; } = string.Empty;

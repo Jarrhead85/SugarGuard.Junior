@@ -164,13 +164,14 @@ public sealed class FaqArticleRequestVm
 public sealed class DoctorPatientSummaryVm
 {
     public DoctorPatientSummaryVm(
-        Guid childId, string firstName, string lastName,
+        Guid linkId, Guid childId, string firstName, string lastName,
         string diabetesType, DateOnly dateOfBirth,
         decimal? latestGlucose, DateTime? latestMeasurementTime,
         string? latestGlucoseUiState,
         double timeInTargetRange,
         int criticalEventsLast7Days, int measurementsLast7Days)
     {
+        LinkId                 = linkId;
         ChildId                = childId;
         FirstName              = firstName;
         LastName               = lastName;
@@ -185,6 +186,7 @@ public sealed class DoctorPatientSummaryVm
     }
 
     public Guid      ChildId                { get; }
+    public Guid      LinkId                 { get; }
     public string    FirstName              { get; }
     public string    LastName               { get; }
     public string    DiabetesType           { get; }

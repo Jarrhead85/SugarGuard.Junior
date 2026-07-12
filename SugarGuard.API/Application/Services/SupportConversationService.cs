@@ -231,9 +231,20 @@ public sealed class SupportConversationService : ISupportConversationService
             .AsNoTracking()
             .SingleAsync(user => user.UserId == userId, cancellationToken);
         var attachments = await BuildSupportEmailAttachmentsAsync(attachment, clientLogs, cancellationToken);
-        await SendSupportEmailAsync(conversation, message, requester.EmailForLogin, attachments, cancellationToken);
         await NotifySupportAsync(conversation, message, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await SendSupportEmailAsync(conversation, message, requester.EmailForLogin, attachments, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Не удалось отправить email-уведомление по обращению в поддержку. ConversationId={ConversationId}",
+                conversation.ConversationId);
+        }
 
         _logger.LogInformation(
             "Создано обращение в поддержку {ConversationId} пользователем {UserId}",

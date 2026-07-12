@@ -752,6 +752,13 @@
 
     private void NavigateToParentChild(Guid childId)
     {
+        var selectedChild = parentSidebarChildren.FirstOrDefault(child => child.ChildId == childId);
+        if (selectedChild is not null)
+        {
+            parentSidebarChild = selectedChild;
+            StateHasChanged();
+        }
+
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var tab = query["tab"];

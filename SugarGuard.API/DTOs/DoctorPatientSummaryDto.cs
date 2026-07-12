@@ -5,6 +5,8 @@
 /// </summary>
 public sealed class DoctorPatientSummaryDto
 {
+    public Guid LinkId { get; init; } // ID связи врач-ребёнок
+
     public Guid ChildId { get; init; } // ID пациента
 
     public string FirstName { get; init; } = string.Empty; // Имя пациента

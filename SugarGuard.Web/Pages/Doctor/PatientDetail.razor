@@ -10,6 +10,7 @@
 @inject SugarGuardApiService ApiService
 @inject NavigationManager Navigation
 @inject ILogger<PatientDetail> Logger
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>@PatientPageTitle</PageTitle>
@@ -62,6 +63,12 @@
                     <span class="doctor-detail-status @GetStatusTone(_patient)">
                         @GetPatientStatusLabel(_patient)
                     </span>
+                    <button class="doctor-detail-btn doctor-detail-btn--ghost"
+                            type="button"
+                            disabled="@_isUnlinking"
+                            @onclick="UnlinkPatientAsync">
+                        @(_isUnlinking ? "Отвязываем..." : "Отвязать")
+                    </button>
                     <button class="doctor-detail-close" type="button" @onclick="GoBack" aria-label="Вернуться к списку пациентов">
                         ×
                     </button>
@@ -215,6 +222,7 @@
     private string _noteText = string.Empty;
     private bool _noteIsImportant;
     private bool _isNoteSubmitting;
+    private bool _isUnlinking;
     private string? _noteError;
     private int _chartPeriodHours = 24;
 
@@ -435,6 +443,47 @@
     private void GoBack()
     {
         Navigation.NavigateTo("/doctor/patients");
+    }
+
+    private async Task UnlinkPatientAsync()
+    {
+        if (_patient is null || _patient.LinkId == Guid.Empty)
+        {
+            _noteError = "Не удалось определить связь с пациентом. Обновите страницу.";
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Отвязать пациента {GetFullName(_patient)} от вашего кабинета?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _isUnlinking = true;
+        _noteError = null;
+
+        try
+        {
+            var removed = await ApiService.UnlinkChildAccessAsync(ChildId, "doctor", _patient.LinkId, _cts.Token);
+            if (!removed)
+            {
+                _noteError = "Связь уже удалена или не найдена.";
+                return;
+            }
+
+            Navigation.NavigateTo("/doctor/patients");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось отвязать пациента. ChildId={ChildId} LinkId={LinkId}", ChildId, _patient.LinkId);
+            _noteError = "Не удалось отвязать пациента. Попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isUnlinking = false;
+        }
     }
 
 

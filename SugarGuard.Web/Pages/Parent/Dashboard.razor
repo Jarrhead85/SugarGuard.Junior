@@ -774,6 +774,40 @@
             <div class="card" style="margin-bottom:var(--spacing-4)">
                 <div class="card-head">
                     <div>
+                        <div class="card-title">Доступ родителей</div>
+                        <div class="card-sub">Кто может управлять профилем ребёнка</div>
+                    </div>
+                    <button class="btn btn--soft btn--sm" @onclick="NavigateToAccessLinks">Коды доступа</button>
+                </div>
+                @if (_linkedParents.Count == 0)
+                {
+                    <div class="empty-state empty-state--compact" role="status">
+                        Родительские связи не найдены. Обновите данные или создайте код доступа.
+                    </div>
+                }
+                else
+                {
+                    <div class="settings-group" role="list">
+                        @foreach (var parent in _linkedParents)
+                        {
+                            <div class="setting-row" role="listitem">
+                                <div class="doctor-avatar" aria-hidden="true">
+                                    @GetInitials(string.IsNullOrWhiteSpace(parent.DisplayName) ? parent.EmailForLogin : parent.DisplayName)
+                                </div>
+                                <div class="setting-text">
+                                    <div class="setting-label">@(string.IsNullOrWhiteSpace(parent.DisplayName) ? GetDisplayName(parent.EmailForLogin, parent.TelegramId) : parent.DisplayName)</div>
+                                    <div class="setting-desc">Подключён @ToDisplayTime(parent.LinkedAt).ToString("dd.MM.yyyy HH:mm")</div>
+                                </div>
+                                <button class="btn btn--ghost btn--sm" @onclick="() => UnlinkParentAsync(parent.LinkId)">Отвязать</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="card" style="margin-bottom:var(--spacing-4)">
+                <div class="card-head">
+                    <div>
                         <div class="card-title">Доступ врачей</div>
                         <div class="card-sub">Кто видит профиль ребёнка</div>
                     </div>
@@ -2320,9 +2354,52 @@
         }
     }
 
+    private async Task UnlinkParentAsync(Guid linkId)
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Отвязать родителя от профиля ребёнка? После удаления он потеряет доступ к измерениям, рюкзаку и дневнику.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var removed = await Api.UnlinkChildAccessAsync(_selectedChildId, "parent", linkId, CancellationToken.None);
+            if (!removed)
+            {
+                ShowNotice("Не удалось отвязать родителя. Обновите данные и попробуйте ещё раз.");
+                return;
+            }
+
+            _linkedParents.RemoveAll(link => link.LinkId == linkId);
+            ShowNotice("Родитель отвязан от профиля ребёнка.");
+            await LoadDashboardDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось отвязать родителя. ChildId={ChildId} LinkId={LinkId}", _selectedChildId, linkId);
+            ShowNotice("Не удалось отвязать родителя. Попробуйте позже.");
+        }
+    }
+
     private async Task UnlinkDoctorAsync(Guid linkId)
     {
         if (_selectedChildId == Guid.Empty)
+        {
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Отвязать врача от профиля ребёнка? Врач потеряет доступ к измерениям и заметкам.");
+        if (!confirmed)
         {
             return;
         }
