@@ -268,7 +268,7 @@
                             <time>@item.ScheduledTime.ToString("HH:mm")</time>
                             <div>
                                 <strong>@item.Title</strong>
-                                <span>@MealLabel(item.MealType) · @FormatBreadUnits(item.PlannedBreadUnits) ХЕ</span>
+                                <span>@MealLabel(DisplayMealType(item.MealType, item.Title)) · @FormatBreadUnits(item.PlannedBreadUnits) ХЕ</span>
                                 <small>@(item.ReminderEnabled ? $"Напомнить за {item.ReminderMinutesBefore} мин." : "Без напоминания")</small>
                             </div>
                             <button @onclick="() => EditSchedule(item)" title="Редактировать">✎</button>
@@ -513,6 +513,8 @@
 
         try
         {
+            _schedule.MealType = InferMealType(_schedule.Title, _schedule.MealType);
+
             await Api.SaveMealScheduleAsync(
                 _selectedChildId,
                 _editingScheduleId == Guid.Empty ? null : _editingScheduleId,
@@ -576,6 +578,41 @@
         MealType.Snack => "Перекус",
         _ => "Другое"
     };
+
+    private static MealType DisplayMealType(MealType type, string title) =>
+        type == MealType.Breakfast ? InferMealType(title, type) : type;
+
+    private static MealType InferMealType(string? title, MealType fallback)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return fallback;
+        }
+
+        var normalized = title.Trim().ToLowerInvariant();
+        if (normalized.Contains("обед", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Lunch;
+        }
+
+        if (normalized.Contains("ужин", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Dinner;
+        }
+
+        if (normalized.Contains("перекус", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("полдник", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Snack;
+        }
+
+        if (normalized.Contains("завтрак", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Breakfast;
+        }
+
+        return fallback;
+    }
 
     private static string MealIcon(MealType type) => type switch
     {

@@ -516,7 +516,7 @@
                         child.ChildId,
                         DateTime.UtcNow.AddHours(-1),
                         DateTime.UtcNow);
-                    measurementsCount = recentMeasurements.Count;
+                    measurementsCount = IsParentMeasurementsTab(child.ChildId) ? 0 : recentMeasurements.Count;
                     glucoseClass = summary.LatestGlucoseUiState switch
                     {
                         "Critical" or "Danger" => "danger",
@@ -748,6 +748,25 @@
         }
 
         return query.Count == 0 ? "/parent/dashboard" : $"/parent/dashboard?{string.Join('&', query)}";
+    }
+
+    private bool IsParentMeasurementsTab(Guid childId)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (!uri.AbsolutePath.Equals("/parent/dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var activeTab = query["tab"]?.ToLowerInvariant() ?? "overview";
+        if (activeTab != "measurements")
+        {
+            return false;
+        }
+
+        var selectedChildId = GetParentChildIdFromUri();
+        return !selectedChildId.HasValue || selectedChildId.Value == childId;
     }
 
     private void NavigateToParentChild(Guid childId)

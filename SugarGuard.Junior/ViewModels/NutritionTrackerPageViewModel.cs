@@ -164,9 +164,10 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         try
         {
             IsBusy = true; ErrorMessage = string.Empty;
+            var mealType = InferMealType(ScheduleTitle, (MealType)SelectedMealTypeIndex);
             var result = await _apiClient.SaveMealScheduleAsync(_childId, _editingScheduleId, new SaveMealScheduleApiRequest
             {
-                MealType = (MealType)SelectedMealTypeIndex, Title = ScheduleTitle.Trim(), ScheduledTime = TimeOnly.FromTimeSpan(ScheduleTime),
+                MealType = mealType, Title = ScheduleTitle.Trim(), ScheduledTime = TimeOnly.FromTimeSpan(ScheduleTime),
                 PlannedBreadUnits = planned, DaysOfWeekMask = 127, ReminderEnabled = ReminderEnabled,
                 ReminderMinutesBefore = Math.Clamp(ReminderMinutesBefore, 0, 180), IsActive = true
             });
@@ -237,6 +238,38 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); }
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> source) { target.Clear(); foreach (var item in source) target.Add(item); }
     private static bool TryDecimal(string text, out decimal value) => decimal.TryParse(text.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+
+    private static MealType InferMealType(string? title, MealType fallback)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return fallback;
+        }
+
+        var normalized = title.Trim().ToLowerInvariant();
+        if (normalized.Contains("обед", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Lunch;
+        }
+
+        if (normalized.Contains("ужин", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Dinner;
+        }
+
+        if (normalized.Contains("перекус", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("полдник", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Snack;
+        }
+
+        if (normalized.Contains("завтрак", StringComparison.OrdinalIgnoreCase))
+        {
+            return MealType.Breakfast;
+        }
+
+        return fallback;
+    }
 }
 
 public sealed record NutritionDayDisplay(string Date, decimal BreadUnits, decimal InsulinUnits, double BreadUnitsProgress, double InsulinUnitsProgress);

@@ -12,4 +12,22 @@ public interface IUserNotificationService
     Task PersistCriticalLocationAsync(
         CriticalAlertRequest request,
         CancellationToken cancellationToken = default);
+
+    Task PersistMeasurementAsync(
+        Guid childId,
+        Guid measurementId,
+        decimal glucoseValue,
+        string status,
+        DateTime measuredAt,
+        bool isCritical,
+        CancellationToken cancellationToken = default);
+
+    Task PersistSnackConsumedAsync(
+        Guid childId,
+        Guid backpackItemId,
+        string snackName,
+        decimal breadUnits,
+        double currentGlucose,
+        DateTime consumedAt,
+        CancellationToken cancellationToken = default);
 }

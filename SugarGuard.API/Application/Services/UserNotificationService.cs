@@ -123,10 +123,7 @@ public sealed class UserNotificationService : IUserNotificationService
             });
         }
 
-        return notifications
-            .OrderByDescending(notification => notification.IsUnread)
-            .ThenBy(notification => notification.Type)
-            .ToList();
+        return notifications;
     }
 
     public async Task<int> MarkAllAsReadAsync(CancellationToken cancellationToken = default)
@@ -196,6 +193,107 @@ public sealed class UserNotificationService : IUserNotificationService
                 SourceType = "critical_location",
                 SourceId = Guid.NewGuid(),
                 CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task PersistMeasurementAsync(
+        Guid childId,
+        Guid measurementId,
+        decimal glucoseValue,
+        string status,
+        DateTime measuredAt,
+        bool isCritical,
+        CancellationToken cancellationToken = default)
+    {
+        var title = isCritical
+            ? "Критический уровень глюкозы"
+            : "Новое измерение глюкозы";
+        var description = $"{glucoseValue:F1} ммоль/л · {status}";
+        var type = isCritical ? "danger" : "info";
+
+        await PersistForParentsAsync(
+            childId,
+            "measurement",
+            measurementId,
+            type,
+            title,
+            description,
+            measuredAt,
+            cancellationToken);
+    }
+
+    public async Task PersistSnackConsumedAsync(
+        Guid childId,
+        Guid backpackItemId,
+        string snackName,
+        decimal breadUnits,
+        double currentGlucose,
+        DateTime consumedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var glucoseText = currentGlucose > 0
+            ? $" · сахар {currentGlucose:F1} ммоль/л"
+            : string.Empty;
+
+        await PersistForParentsAsync(
+            childId,
+            "snack_consumed",
+            backpackItemId,
+            "ok",
+            "Съеден перекус",
+            $"{snackName}, {breadUnits:0.#} ХЕ{glucoseText}",
+            consumedAt,
+            cancellationToken);
+    }
+
+    private async Task PersistForParentsAsync(
+        Guid childId,
+        string sourceType,
+        Guid sourceId,
+        string type,
+        string title,
+        string description,
+        DateTime createdAt,
+        CancellationToken cancellationToken)
+    {
+        var parentIds = await _db.ParentChildLinks
+            .AsNoTracking()
+            .Where(link => link.ChildId == childId)
+            .Select(link => link.ParentUserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (parentIds.Count == 0)
+        {
+            return;
+        }
+
+        var existingRecipients = await _db.UserNotifications
+            .AsNoTracking()
+            .Where(notification =>
+                parentIds.Contains(notification.RecipientUserId) &&
+                notification.SourceType == sourceType &&
+                notification.SourceId == sourceId)
+            .Select(notification => notification.RecipientUserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var parentId in parentIds.Except(existingRecipients))
+        {
+            _db.UserNotifications.Add(new SugarGuard.Domain.Entities.UserNotification
+            {
+                RecipientUserId = parentId,
+                ChildId = childId,
+                Type = type,
+                Title = title,
+                Description = description,
+                SourceType = sourceType,
+                SourceId = sourceId,
+                CreatedAt = createdAt.Kind == DateTimeKind.Utc ? createdAt : createdAt.ToUniversalTime(),
                 IsRead = false
             });
         }

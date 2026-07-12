@@ -652,7 +652,8 @@ public partial class BackpackPageViewModel : ObservableObject
                 SnackName = decryptedName,
                 BreadUnits = decryptedBreadUnits,
                 Quantity = 1,
-                SnackIconSource = GetSnackIconSource(decryptedName)
+                SnackIconSource = GetSnackIconSource(decryptedName),
+                AddedAtText = ToLocalAddedAtText(item.CreatedAt)
             };
         }
         catch (Exception ex)
@@ -669,6 +670,15 @@ public partial class BackpackPageViewModel : ObservableObject
     private static string NormalizeSnackName(string value) =>
         string.Join(' ', value.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToUpperInvariant();
+
+    private static string ToLocalAddedAtText(DateTime createdAt)
+    {
+        var utc = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+
+        return $"Добавлено {utc.ToLocalTime():dd.MM HH:mm}";
+    }
 
     // Презентационный слой
 

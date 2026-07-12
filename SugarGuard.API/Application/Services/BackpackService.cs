@@ -5,6 +5,7 @@ using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
 using SugarGuard.Application.Audit;
 using SugarGuard.Domain.Entities;
+using SugarGuard.Domain.Enums;
 using SugarGuard.Shared.Constants;
 
 namespace SugarGuard.API.Application.Services;
@@ -306,8 +307,24 @@ public class BackpackService : IBackpackService
             CreatedAt = consumedAt
         };
 
+        var nutritionEntry = new NutritionEntry
+        {
+            ChildId = item.ChildId,
+            RecordedAt = consumedAt,
+            MealType = MealType.Snack,
+            MealName = item.SnackName,
+            BreadUnits = item.BreadUnits,
+            InsulinUnits = 0m,
+            Notes = "Перекус съеден из рюкзака",
+            Source = NutritionEntrySource.Child,
+            CreatedByUserId = consumedByUserId,
+            CreatedAt = consumedAt,
+            UpdatedAt = consumedAt
+        };
+
         db.SnackConsumptionLogs.Add(consumptionLog);
         db.BackpackHistory.Add(historyRecord);
+        db.NutritionEntries.Add(nutritionEntry);
         db.BackpackItems.Remove(item);
         await db.SaveChangesAsync(cancellationToken);
 

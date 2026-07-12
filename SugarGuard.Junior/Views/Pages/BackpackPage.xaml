@@ -102,6 +102,10 @@
                                 <Label Text="{Binding QuantityText}" FontSize="13"
                                        FontAttributes="Bold" TextColor="{DynamicResource TextSecondary}" />
                             </HorizontalStackLayout>
+                            <Label Text="{Binding AddedAtText}"
+                                   FontSize="11"
+                                   TextColor="{DynamicResource TextSecondary}"
+                                   LineBreakMode="TailTruncation" />
                         </VerticalStackLayout>
                         <VerticalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
                             <Button Text="Съесть" HeightRequest="42" Padding="15,5" CornerRadius="15"

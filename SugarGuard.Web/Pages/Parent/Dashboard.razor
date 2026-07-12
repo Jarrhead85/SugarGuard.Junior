@@ -1236,7 +1236,7 @@
     private int _tirLow;
     private string _avgGlucose = "—";
     private int _totalMeas;
-    private int _newMeasurementsCount => _measurements.Count(m => m.IsNew);
+    private int _newMeasurementsCount => _activeTab == "measurements" ? 0 : _measurements.Count(m => m.IsNew);
     private int _unreadNotificationsCount;
     private int _lowStockCount => _backpackItems.Count(i => i.StatusClass is "low" or "empty");
     private bool _browserStateLoaded;
@@ -2769,7 +2769,7 @@
                 ? "Добавлено пользователем"
                 : item.AddedBy ?? "Добавлено в рюкзак";
 
-            return $"{addedBy} · {item.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}";
+            return $"{addedBy} · {ToDisplayTime(item.CreatedAt):dd.MM.yyyy HH:mm}";
         }
 
         public string Status => Quantity switch

@@ -11,6 +11,7 @@ public class BackpackItemViewModel
     public double BreadUnits { get; set; }
     public int Quantity { get; set; } = 1;
     public string SnackIconSource { get; set; } = "snack_generic.svg";
+    public string AddedAtText { get; set; } = string.Empty;
 
     public string QuantityText => Quantity == 1 ? "1 шт." : $"{Quantity} шт.";
 

@@ -23,6 +23,7 @@ public class MeasurementsController : ControllerBase
     private readonly IGlucoseUiStateService _glucoseUiStateService;
     private readonly IChildAccessService _childAccess;
     private readonly ITelegramNotificationService _notificationService;
+    private readonly IUserNotificationService _userNotificationService;
     private readonly IPdfExportService _pdfExportService;
     private readonly ILogger<MeasurementsController> _logger;
 
@@ -36,6 +37,7 @@ public class MeasurementsController : ControllerBase
         IGlucoseUiStateService glucoseUiStateService,
         IChildAccessService childAccess,
         ITelegramNotificationService notificationService,
+        IUserNotificationService userNotificationService,
         IPdfExportService pdfExportService,
         ILogger<MeasurementsController> logger)
     {
@@ -45,6 +47,7 @@ public class MeasurementsController : ControllerBase
         _glucoseUiStateService = glucoseUiStateService;
         _childAccess = childAccess;
         _notificationService = notificationService;
+        _userNotificationService = userNotificationService;
         _pdfExportService = pdfExportService;
         _logger = logger;
     }
@@ -94,7 +97,7 @@ public class MeasurementsController : ControllerBase
             measurement.MeasurementId, measurement.ChildId,
             measurement.GlucoseValue, glucoseStatus);
 
-        await SendMeasurementNotificationsAsync(measurement, glucoseStatus, isCritical);
+        await SendMeasurementNotificationsAsync(measurement, glucoseStatus, isCritical, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetMeasurement),
@@ -108,8 +111,28 @@ public class MeasurementsController : ControllerBase
     private async Task SendMeasurementNotificationsAsync(
         Domain.Entities.Measurement measurement,
         string glucoseStatus,
-        bool isCritical)
+        bool isCritical,
+        CancellationToken cancellationToken)
     {
+        try
+        {
+            await _userNotificationService.PersistMeasurementAsync(
+                measurement.ChildId,
+                measurement.MeasurementId,
+                measurement.GlucoseValue,
+                glucoseStatus,
+                measurement.MeasurementTime,
+                isCritical,
+                cancellationToken);
+        }
+        catch (Exception notificationEx) when (notificationEx is not OperationCanceledException)
+        {
+            _logger.LogError(
+                notificationEx,
+                "CreateMeasurement: ошибка сохранения web-уведомления. MeasurementId={MeasurementId}.",
+                measurement.MeasurementId);
+        }
+
         try
         {
             var notificationResult = await _notificationService.SendMeasurementNotificationAsync(

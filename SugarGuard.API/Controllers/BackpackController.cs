@@ -18,6 +18,7 @@ public class BackpackController : ControllerBase
 {
     private readonly IBackpackService _backpack;
     private readonly ITelegramNotificationService _notificationService;
+    private readonly IUserNotificationService _userNotificationService;
     private readonly IChildAccessService _childAccess;
     private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<BackpackController> _logger;
@@ -25,12 +26,14 @@ public class BackpackController : ControllerBase
     public BackpackController(
         IBackpackService backpack,
         ITelegramNotificationService notificationService,
+        IUserNotificationService userNotificationService,
         IChildAccessService childAccess,
         ICurrentUserContext currentUser,
         ILogger<BackpackController> logger)
     {
         _backpack = backpack;
         _notificationService = notificationService;
+        _userNotificationService = userNotificationService;
         _childAccess = childAccess;
         _currentUser = currentUser;
         _logger = logger;
@@ -326,6 +329,25 @@ public class BackpackController : ControllerBase
         Guid itemId,
         CancellationToken cancellationToken)
     {
+        try
+        {
+            await _userNotificationService.PersistSnackConsumedAsync(
+                result.ChildId,
+                itemId,
+                result.SnackName,
+                result.BreadUnits,
+                currentGlucose,
+                result.ConsumedAt,
+                cancellationToken);
+        }
+        catch (Exception notificationEx) when (notificationEx is not OperationCanceledException)
+        {
+            _logger.LogError(
+                notificationEx,
+                "ConsumeSnack: ошибка сохранения web-уведомления. ItemId={ItemId}.",
+                itemId);
+        }
+
         try
         {
             var notificationResult = await _notificationService

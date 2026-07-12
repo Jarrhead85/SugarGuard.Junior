@@ -1,6 +1,7 @@
 ﻿// Реализация сервиса аутентификации для MAUI-приложения SugarGuard Junior.
 // Управляет жизненным циклом сессии: логин → refresh → логаут.
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Networking;
 using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Models.Core;
 using SugarGuard.Junior.Repositories.Interfaces;
@@ -51,6 +52,13 @@ public class AuthenticationService(
 
             // Токен истёк — пробуем refresh
             logger.LogInformation("Токен истёк, пробуем refresh...");
+            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                await HasOfflineSessionAsync())
+            {
+                logger.LogWarning("Сеть недоступна, используем сохранённую офлайн-сессию");
+                return true;
+            }
+
             var refreshToken = await secureStorage.GetRefreshTokenAsync();
             if (!string.IsNullOrEmpty(refreshToken))
             {
@@ -70,6 +78,13 @@ public class AuthenticationService(
         }
         catch (Exception ex)
         {
+            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
+                await HasOfflineSessionAsync())
+            {
+                logger.LogWarning(ex, "Ошибка проверки токена, используем сохранённую офлайн-сессию");
+                return true;
+            }
+
             logger.LogError(" Ошибка при проверке аутентификации: {Message}", ex.Message);
             return false;
         }
@@ -101,6 +116,19 @@ public class AuthenticationService(
             // Невалидный JWT — не падаем
         }
         return null;
+    }
+
+    private async Task<bool> HasOfflineSessionAsync()
+    {
+        var userId = await storageService.GetAsync(CurrentUserIdKey);
+        var childId = await storageService.GetAsync(SugarGuard.Junior.Utilities.Constants.StorageKeyCurrentChildId);
+
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(childId))
+        {
+            return false;
+        }
+
+        return await userRepository.GetByIdAsync(userId) is not null;
     }
 
     /// <summary>
