@@ -575,7 +575,7 @@
 
 .nutrition-bar-track span {
     display: block;
-    min-width: 3px;
+    min-width: 0;
     height: 9px;
     border-radius: 999px;
 }

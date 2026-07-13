@@ -58,7 +58,7 @@
                 <div class="support-list">
                     @foreach (var conversation in _conversations)
                     {
-                        <button class="support-list-item @(conversation.ConversationId == _selectedId ? "active" : null)"
+                        <button class="support-list-item @SupportListItemClass(conversation)"
                                 type="button"
                                 @onclick="() => SelectConversationAsync(conversation.ConversationId)"
                                 @key="conversation.ConversationId">
@@ -98,8 +98,8 @@
                         <input @bind="_newSubject" maxlength="180" placeholder="Например: не синхронизируется рюкзак" />
                     </label>
                     <label>
-                        <span>???????? email</span>
-                        <input type="email" @bind="_callbackEmail" maxlength="254" placeholder="email ??? ??????, ???? ?????????? ?? ??????? ??????" />
+                        <span>Email для ответа</span>
+                        <input type="email" @bind="_callbackEmail" maxlength="254" placeholder="Можно оставить пустым, ответ придёт на email аккаунта" />
                     </label>
                     <label>
                         <span>Сообщение</span>
@@ -406,6 +406,22 @@
     private string MessageAuthor(SupportMessageVm message) => message.IsOwnMessage
         ? "Вы"
         : message.AuthorRole is "Admin" or "SupportAdmin" ? "Служба поддержки" : "Пользователь";
+
+    private string SupportListItemClass(SupportConversationVm conversation)
+    {
+        var classes = new List<string>();
+        if (conversation.ConversationId == _selectedId)
+        {
+            classes.Add("active");
+        }
+
+        if (conversation.Status == SupportConversationStatus.Closed)
+        {
+            classes.Add("closed");
+        }
+
+        return string.Join(' ', classes);
+    }
 
     private static string StatusLabel(SupportConversationStatus status) => status switch
     {

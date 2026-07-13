@@ -315,8 +315,8 @@
                     <div class="nutrition-bar-row">
                         <time>@day.Date.ToString("dd.MM")</time>
                         <div class="nutrition-bar-track">
-                            <span class="xe" style="width:@BarWidth(day.BreadUnits)%" title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
-                            <span class="insulin" style="width:@BarWidth(day.InsulinUnits)%" title="@day.InsulinUnits.ToString("0.##") ед."></span>
+                            <span class="xe" style='width:@BarWidth(day.BreadUnits, "xe")%' title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
+                            <span class="insulin" style='width:@BarWidth(day.InsulinUnits, "insulin")%' title="@day.InsulinUnits.ToString("0.##") ед."></span>
                         </div>
                         <strong>@day.BreadUnits.ToString("0.#") / @day.InsulinUnits.ToString("0.#")</strong>
                     </div>
@@ -569,10 +569,10 @@
 
     private void NextPage() => _entryPage = Math.Min(EntryPages - 1, _entryPage + 1);
 
-    private decimal BarWidth(decimal value)
+    private decimal BarWidth(decimal value, string series)
     {
         var max = _summary.Days
-            .Select(day => Math.Max(day.BreadUnits, day.InsulinUnits))
+            .Select(day => series == "insulin" ? day.InsulinUnits : day.BreadUnits)
             .DefaultIfEmpty(1)
             .Max();
 

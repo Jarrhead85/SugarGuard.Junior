@@ -262,6 +262,21 @@
     margin-bottom: 14px;
 }
 
+.ai-dialog-card {
+    margin-top: var(--spacing-4);
+}
+
+.ai-dialog-list {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.ai-dialog-list .alert-desc {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .card-title {
     font-size: 15px;
     font-weight: 600;

@@ -170,9 +170,16 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 group.Count()))
             .ToList();
 
-        // The API accepts an inclusive end value. UI queries use the last tick of
-        // the final day, so calculate calendar days from the date interval itself.
-        var calendarDays = Math.Max(1, DateOnly.FromDateTime(to).DayNumber - DateOnly.FromDateTime(from).DayNumber + 1);
+        var dayByDate = days.ToDictionary(day => day.Date);
+        var fullPeriodDays = EnumerateDates(
+                DateOnly.FromDateTime(ToDisplayTime(from)),
+                DateOnly.FromDateTime(ToDisplayTime(to)))
+            .Select(date => dayByDate.TryGetValue(date, out var day)
+                ? day
+                : new NutritionDailySummary(date, 0m, 0m, 0))
+            .ToList();
+
+        var daysWithEntries = Math.Max(1, days.Count);
         var totalXe = rows.Sum(row => row.BreadUnits);
         var totalInsulin = rows.Sum(row => row.InsulinUnits);
 
@@ -181,9 +188,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
             to,
             totalXe,
             totalInsulin,
-            Math.Round(totalXe / calendarDays, 2),
-            Math.Round(totalInsulin / calendarDays, 2),
-            days);
+            Math.Round(totalXe / daysWithEntries, 2),
+            Math.Round(totalInsulin / daysWithEntries, 2),
+            fullPeriodDays);
     }
 
     public async Task<IReadOnlyList<AchievementResponse>> GetAchievementsAsync(Guid childId, CancellationToken cancellationToken)
@@ -401,6 +408,14 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         TimeZoneInfo.ConvertTimeFromUtc(
             utcTime.Kind == DateTimeKind.Utc ? utcTime : DateTime.SpecifyKind(utcTime, DateTimeKind.Utc),
             DefaultTimeZone);
+
+    private static IEnumerable<DateOnly> EnumerateDates(DateOnly from, DateOnly to)
+    {
+        for (var date = from; date <= to; date = date.AddDays(1))
+        {
+            yield return date;
+        }
+    }
 
     private static TimeZoneInfo DefaultTimeZone
     {

@@ -80,6 +80,20 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
             .Where(entry => entry.ChildId == childId && entry.RecordedAt >= dailyFrom)
             .ToListAsync(cancellationToken);
 
+        var backpackItems = await db.BackpackItems
+            .AsNoTracking()
+            .Where(item => item.ChildId == childId)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(30)
+            .ToListAsync(cancellationToken);
+
+        var consumedBackpackSnacks = await db.SnackConsumptionLogs
+            .AsNoTracking()
+            .Where(log => log.ChildId == childId && log.ConsumedAt >= recentFrom)
+            .OrderByDescending(log => log.ConsumedAt)
+            .Take(_options.MaxNutritionEvents)
+            .ToListAsync(cancellationToken);
+
         var patternMeasurements = await db.Measurements
             .AsNoTracking()
             .Where(measurement => measurement.ChildId == childId && measurement.MeasurementTime >= patternFrom)
@@ -133,6 +147,11 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
                 MinutesSinceMeal = lastMeal is null ? null : MinutesBetween(lastMeal.RecordedAt, now),
                 MinutesSinceInsulin = lastInsulin is null ? null : MinutesBetween(lastInsulin.RecordedAt, now)
             },
+            AvailableBackpack = backpackItems
+                .OrderBy(item => item.SnackName)
+                .ThenBy(item => item.BreadUnits)
+                .Select(MapBackpackItem)
+                .ToList(),
             RecentHistory = new RecentClinicalHistoryContext
             {
                 FromUtc = recentFrom,
@@ -151,6 +170,10 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
                     .OrderBy(entry => entry.RecordedAt)
                     .Take(_options.MaxInsulinEvents)
                     .Select(MapInsulin)
+                    .ToList(),
+                ConsumedBackpackSnacks = consumedBackpackSnacks
+                    .OrderBy(log => log.ConsumedAt)
+                    .Select(MapConsumedBackpackSnack)
                     .ToList()
             },
             DailySummary = BuildDailySummary(dayMeasurements, dayNutrition, settings),
@@ -290,6 +313,20 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
         Units = entry.InsulinUnits,
         MealType = entry.MealType.ToString(),
         Source = entry.Source.ToString()
+    };
+
+    private static BackpackSnackContext MapBackpackItem(BackpackItem item) => new()
+    {
+        SnackName = Trim(item.SnackName, 120),
+        BreadUnits = item.BreadUnits,
+        RecordedAt = item.CreatedAt
+    };
+
+    private static BackpackSnackContext MapConsumedBackpackSnack(SnackConsumptionLog log) => new()
+    {
+        SnackName = Trim(log.SnackName, 120),
+        BreadUnits = log.BreadUnits,
+        RecordedAt = log.ConsumedAt
     };
 
     private static string GetAgeGroup(DateOnly dateOfBirth)

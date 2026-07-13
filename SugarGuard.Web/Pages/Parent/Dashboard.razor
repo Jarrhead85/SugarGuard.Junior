@@ -214,7 +214,7 @@
             </div>
         </div>
 
-        <div class="card" style="margin-top:var(--spacing-4)">
+        <div class="card ai-dialog-card">
             <div class="card-head">
                 <div>
                     <div class="card-title">Диалог ребёнка с ИИ</div>
@@ -227,7 +227,7 @@
             }
             else
             {
-                <div class="alert-list" role="list">
+                <div class="alert-list ai-dialog-list" role="list">
                     @foreach (var message in _aiConversation.Messages)
                     {
                         var isAi = !message.IsUser;
@@ -1474,20 +1474,27 @@
                 DateTime.UtcNow.AddDays(-7),
                 DateTime.UtcNow,
                 cancellationToken);
-            _allAlerts = RemoveDuplicateCriticalAlerts(alerts)
-                .Where(entry => !_dismissedAlertIds.Contains(entry.EventId))
-                .Select(MapTimelineEvent)
+            var notifications = await Api.GetNotificationsAsync(cancellationToken);
+            var notificationAlerts = notifications
+                .Where(notification => notification.NotificationId.HasValue)
+                .Select(MapNotificationAlert)
+                .Where(alert => !_dismissedAlertIds.Contains(alert.EventId))
                 .ToList();
 
-            var notifications = await Api.GetNotificationsAsync(cancellationToken);
-            foreach (var alert in _allAlerts)
+            var timelineAlerts = RemoveDuplicateCriticalAlerts(alerts)
+                .Where(entry => !_dismissedAlertIds.Contains(entry.EventId))
+                .Select(MapTimelineEvent)
+                .Where(alert => notificationAlerts.All(notification =>
+                    !string.Equals(notification.Title, alert.Title, StringComparison.Ordinal)
+                    || !string.Equals(notification.Description, alert.Description, StringComparison.Ordinal)))
+                .ToList();
+
+            foreach (var alert in timelineAlerts)
             {
-                var notification = notifications.FirstOrDefault(item =>
-                    string.Equals(item.Title, alert.Title, StringComparison.Ordinal)
-                    && string.Equals(item.Description, alert.Description, StringComparison.Ordinal));
-                alert.NotificationId = notification?.NotificationId;
-                alert.IsUnread = notification?.IsUnread ?? !_readAlertIds.Contains(alert.EventId);
+                alert.IsUnread = false;
             }
+
+            _allAlerts = notificationAlerts.Concat(timelineAlerts).ToList();
             _unreadNotificationsCount = notifications.Count(notification => notification.IsUnread);
 
             if (resetPages || _activeTab == "overview")
@@ -1773,6 +1780,59 @@
                 statusType,
                 "ℹ️",
                 entry.IsImportant)
+        };
+    }
+
+    private static AlertItem MapNotificationAlert(UserNotificationItem notification)
+    {
+        return new AlertItem(
+            notification.NotificationId ?? Guid.NewGuid(),
+            notification.Title,
+            notification.Description,
+            string.IsNullOrWhiteSpace(notification.Time) ? GetRelativeTime(notification.CreatedAt) : notification.Time,
+            NormalizeNotificationType(notification.Type),
+            GetNotificationIcon(notification),
+            notification.IsUnread)
+        {
+            NotificationId = notification.NotificationId
+        };
+    }
+
+    private static string NormalizeNotificationType(string? type) => type switch
+    {
+        "danger" or "warn" or "ok" or "info" => type,
+        "warning" => "warn",
+        "success" => "ok",
+        "error" or "critical" => "danger",
+        _ => "info"
+    };
+
+    private static string GetNotificationIcon(UserNotificationItem notification)
+    {
+        var text = $"{notification.Title} {notification.Description}".ToLowerInvariant();
+        if (text.Contains("перекус", StringComparison.Ordinal) || text.Contains("хе", StringComparison.Ordinal))
+        {
+            return "🍎";
+        }
+
+        if (text.Contains("глюкоз", StringComparison.Ordinal)
+            || text.Contains("сахар", StringComparison.Ordinal)
+            || text.Contains("ммоль", StringComparison.Ordinal))
+        {
+            return notification.Type is "danger" or "critical" ? "🚨" : "🩸";
+        }
+
+        if (text.Contains("поддерж", StringComparison.Ordinal) || text.Contains("обращ", StringComparison.Ordinal))
+        {
+            return "✉";
+        }
+
+        return notification.Type switch
+        {
+            "danger" or "critical" => "⚠️",
+            "warn" or "warning" => "!",
+            "ok" or "success" => "✓",
+            _ => "ℹ"
         };
     }
 
@@ -2220,7 +2280,8 @@
     private async Task MarkAllAlertsRead()
     {
         await Api.MarkAllNotificationsAsReadAsync();
-        foreach (var alert in _allAlerts)
+        await SyncNotificationReadStateAsync();
+        foreach (var alert in _allAlerts.Where(alert => !alert.NotificationId.HasValue))
         {
             alert.IsUnread = false;
             _readAlertIds.Add(alert.EventId);
@@ -2238,11 +2299,31 @@
         if (alert.NotificationId.HasValue)
         {
             await Api.MarkNotificationAsReadAsync(alert.NotificationId.Value);
+            await SyncNotificationReadStateAsync();
+            return;
         }
 
         alert.IsUnread = false;
         _readAlertIds.Add(alert.EventId);
         _unreadNotificationsCount = Math.Max(0, _unreadNotificationsCount - 1);
+    }
+
+    private async Task SyncNotificationReadStateAsync()
+    {
+        var notifications = await Api.GetNotificationsAsync();
+        var byId = notifications
+            .Where(notification => notification.NotificationId.HasValue)
+            .ToDictionary(notification => notification.NotificationId!.Value);
+
+        foreach (var alert in _allAlerts)
+        {
+            if (alert.NotificationId is Guid notificationId && byId.TryGetValue(notificationId, out var notification))
+            {
+                alert.IsUnread = notification.IsUnread;
+            }
+        }
+
+        _unreadNotificationsCount = notifications.Count(notification => notification.IsUnread);
     }
 
     private void OpenAddBackpackItem()

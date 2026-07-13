@@ -23,9 +23,10 @@ public sealed class NutritionTrackerServiceTests
         currentUser.Setup(service => service.GetRole()).Returns(UserRole.Parent);
         var service = new NutritionTrackerService(context, currentUser.Object);
 
+        var recordedAt = DateTime.UtcNow;
         var created = await service.CreateEntryAsync(child.ChildId, userId, new SaveNutritionEntryRequest
         {
-            RecordedAt = DateTime.UtcNow,
+            RecordedAt = recordedAt,
             MealType = MealType.Breakfast,
             MealName = "Каша",
             BreadUnits = 2.5m,
@@ -33,11 +34,16 @@ public sealed class NutritionTrackerServiceTests
             GlucoseBefore = 5.8m
         }, CancellationToken.None);
 
-        var summary = await service.GetSummaryAsync(child.ChildId, DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(1), CancellationToken.None);
+        var summary = await service.GetSummaryAsync(child.ChildId, recordedAt.AddDays(-1), recordedAt.AddDays(1), CancellationToken.None);
         Assert.Equal(NutritionEntrySource.Parent, created.Source);
         Assert.Equal(2.5m, summary.TotalBreadUnits);
         Assert.Equal(1.5m, summary.TotalInsulinUnits);
-        Assert.Single(summary.Days);
+        Assert.Equal(2.5m, summary.AverageBreadUnitsPerDay);
+        Assert.Equal(1.5m, summary.AverageInsulinUnitsPerDay);
+        Assert.Equal(3, summary.Days.Count);
+        var dayWithEntry = Assert.Single(summary.Days, day => day.EntriesCount > 0);
+        Assert.Equal(2.5m, dayWithEntry.BreadUnits);
+        Assert.Equal(1.5m, dayWithEntry.InsulinUnits);
     }
 
     [Fact]

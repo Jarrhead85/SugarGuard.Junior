@@ -28,6 +28,11 @@ public sealed class ClinicalContext
     public CurrentSituationContext Current { get; set; } = new();
 
     /// <summary>
+    /// Active snacks currently available in the child's backpack.
+    /// </summary>
+    public IReadOnlyList<BackpackSnackContext> AvailableBackpack { get; set; } = Array.Empty<BackpackSnackContext>();
+
+    /// <summary>
     /// Подробная недавняя история.
     /// </summary>
     public RecentClinicalHistoryContext RecentHistory { get; set; } = new();
@@ -224,6 +229,18 @@ public sealed class InsulinContext
 }
 
 /// <summary>
+/// Backpack snack included in the AI context.
+/// </summary>
+public sealed class BackpackSnackContext
+{
+    public string SnackName { get; set; } = string.Empty;
+
+    public decimal BreadUnits { get; set; }
+
+    public DateTime RecordedAt { get; set; }
+}
+
+/// <summary>
 /// Подробная недавняя история для AI-контекста.
 /// </summary>
 public sealed class RecentClinicalHistoryContext
@@ -247,6 +264,11 @@ public sealed class RecentClinicalHistoryContext
     /// События с инсулином.
     /// </summary>
     public IReadOnlyList<InsulinContext> Insulin { get; set; } = Array.Empty<InsulinContext>();
+
+    /// <summary>
+    /// Recently consumed backpack snacks.
+    /// </summary>
+    public IReadOnlyList<BackpackSnackContext> ConsumedBackpackSnacks { get; set; } = Array.Empty<BackpackSnackContext>();
 }
 
 /// <summary>
