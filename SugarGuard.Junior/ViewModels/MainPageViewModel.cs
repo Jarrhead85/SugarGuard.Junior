@@ -118,6 +118,12 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string currentTime = DateTime.Now.ToString("HH:mm");
 
+    [ObservableProperty]
+    private DateTime measurementDate = DateTime.Today;
+
+    [ObservableProperty]
+    private TimeSpan measurementTime = DateTime.Now.TimeOfDay;
+
     // ========== ПРИВЯЗАННЫЕ СВОЙСТВА: СИНХРОНИЗАЦИЯ ==========
 
     [ObservableProperty]
@@ -411,11 +417,22 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             }
 
             var childStateStr = SelectedChildState.ToString().ToLowerInvariant();
+            var selectedMeasurementTime = MeasurementDate.Date.Add(MeasurementTime);
+            if (selectedMeasurementTime > DateTime.Now.AddMinutes(5))
+            {
+                ShowError("Время измерения не может быть в будущем.");
+                return;
+            }
+
+            var measurementTimeUtc = DateTime.SpecifyKind(
+                selectedMeasurementTime,
+                DateTimeKind.Local).ToUniversalTime();
 
             var recommendation = await _measurementService.ProcessMeasurementWithRecommendationAsync(
                 _currentChildId,
                 glucoseValue,
-                childStateStr);
+                childStateStr,
+                measurementTimeUtc);
 
             if (recommendation == null)
             {
@@ -429,6 +446,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             await OpenRecommendationModalAsync(recommendation);
 
             NewGlucoseValue = string.Empty;
+            ResetMeasurementDateTime();
             await OnLoadDataAsync();
 
             _logger.LogInformation(" Измерение обработано успешно");
@@ -630,6 +648,10 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             // --- Обновляем время и дату на экране ---
             CurrentTime = DateTime.Now.ToString("HH:mm");
             CurrentDate = DateTime.Now.ToString("dd MMMM yyyy");
+            if (string.IsNullOrWhiteSpace(NewGlucoseValue))
+            {
+                ResetMeasurementDateTime();
+            }
 
             // --- Краткая статистика дня (считаем все измерения, а не только last 2) ---
             var todayCount = await _measurementService.GetMeasurementCountTodayAsync(_currentChildId);
@@ -1096,6 +1118,13 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}м назад";
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}ч назад";
         return $"{(int)diff.TotalDays}д назад";
+    }
+
+    private void ResetMeasurementDateTime()
+    {
+        var now = DateTime.Now;
+        MeasurementDate = now.Date;
+        MeasurementTime = new TimeSpan(now.Hour, now.Minute, 0);
     }
 
     // ========== DISPOSE ==========

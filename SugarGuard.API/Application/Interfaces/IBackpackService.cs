@@ -71,6 +71,7 @@ public interface IBackpackService
     Task<BackpackConsumeOutcome> ConsumeAsync(
         Guid itemId,
         Guid consumedByUserId,
+        decimal? glucoseBefore,
         CancellationToken cancellationToken = default);
 }
 

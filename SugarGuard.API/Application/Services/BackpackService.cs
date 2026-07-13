@@ -263,6 +263,7 @@ public class BackpackService : IBackpackService
     public async Task<BackpackConsumeOutcome> ConsumeAsync(
         Guid itemId,
         Guid consumedByUserId,
+        decimal? glucoseBefore,
         CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -315,6 +316,7 @@ public class BackpackService : IBackpackService
             MealName = item.SnackName,
             BreadUnits = item.BreadUnits,
             InsulinUnits = 0m,
+            GlucoseBefore = glucoseBefore,
             Notes = "Перекус съеден из рюкзака",
             Source = NutritionEntrySource.Child,
             CreatedByUserId = consumedByUserId,
@@ -334,7 +336,8 @@ public class BackpackService : IBackpackService
             targetId: consumptionLog.LogId.ToString(),
             details: $"Child={item.ChildId};" +
                      $"Snack={item.SnackName};" +
-                     $"BreadUnits={item.BreadUnits}",
+                     $"BreadUnits={item.BreadUnits};" +
+                     $"GlucoseBefore={glucoseBefore?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"}",
             cancellationToken: CancellationToken.None);
 
         _logger.LogInformation(

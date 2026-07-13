@@ -22,7 +22,8 @@ public interface IMeasurementService
     Task<RecommendationResponse?> ProcessMeasurementWithRecommendationAsync(
         string childId,
         double glucoseValue,
-        string childState = "normal");
+        string childState = "normal",
+        DateTime? measurementTimeUtc = null);
 
     /// <summary>
     /// Получает количество измерений за сегодня

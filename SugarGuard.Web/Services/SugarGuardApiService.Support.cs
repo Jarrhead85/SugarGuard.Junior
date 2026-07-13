@@ -57,7 +57,7 @@ public sealed partial class SugarGuardApiService
         }
 
         using var response = await client.PostAsync("api/support/requests", form, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSupportSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<SupportConversationDetailsVm>(_jsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("API вернул пустое обращение.");
     }
@@ -73,7 +73,7 @@ public sealed partial class SugarGuardApiService
             new { message },
             _jsonOptions,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSupportSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<SupportMessageVm>(_jsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("API вернул пустое сообщение.");
     }
@@ -87,7 +87,7 @@ public sealed partial class SugarGuardApiService
             $"api/support/conversations/{conversationId}/read",
             null,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSupportSuccessAsync(response, cancellationToken);
     }
 
     public async Task UpdateSupportConversationStatusAsync(
@@ -101,6 +101,22 @@ public sealed partial class SugarGuardApiService
             new { status },
             _jsonOptions,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSupportSuccessAsync(response, cancellationToken);
+    }
+
+    private static async Task EnsureSupportSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var details = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(details))
+        {
+            throw new InvalidOperationException("Не удалось выполнить операцию. Проверьте соединение и повторите попытку.");
+        }
+
+        throw new InvalidOperationException(details.Trim('"'));
     }
 }

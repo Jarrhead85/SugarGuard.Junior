@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Mail
 @using SugarGuard.Domain.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
@@ -338,13 +339,20 @@
             return;
         }
 
+        var callbackEmail = _callbackEmail.Trim();
+        if (!string.IsNullOrWhiteSpace(callbackEmail) && !IsValidEmail(callbackEmail))
+        {
+            _error = "Введите корректный email для ответа или оставьте поле пустым.";
+            return;
+        }
+
         await RunSavingAsync(async () =>
         {
             var created = await Api.CreateSupportConversationAsync(new CreateSupportConversationVm
             {
                 Subject = _newSubject.Trim(),
                 Message = _newMessage.Trim(),
-                CallbackEmail = string.IsNullOrWhiteSpace(_callbackEmail) ? null : _callbackEmail.Trim(),
+                CallbackEmail = string.IsNullOrWhiteSpace(callbackEmail) ? null : callbackEmail,
                 Attachment = _selectedAttachment
             }, _cts.Token);
 
@@ -402,11 +410,26 @@
         catch (Exception exception)
         {
             Logger.LogWarning(exception, "Support conversation operation failed");
-            _error = "Не удалось выполнить операцию. Проверьте соединение и повторите попытку.";
+            _error = exception is InvalidOperationException { Message.Length: > 0 }
+                ? exception.Message
+                : "Не удалось выполнить операцию. Проверьте соединение и повторите попытку.";
         }
         finally
         {
             _isSaving = false;
+        }
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            var address = new MailAddress(value);
+            return string.Equals(address.Address, value, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FormatException)
+        {
+            return false;
         }
     }
 

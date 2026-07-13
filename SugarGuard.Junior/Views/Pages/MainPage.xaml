@@ -4,6 +4,7 @@
                      xmlns:pages="clr-namespace:SugarGuard.Junior.Views.Pages"
                      xmlns:components="clr-namespace:SugarGuard.Junior.Views.Components"
                      xmlns:converters="clr-namespace:SugarGuard.Junior.Converters"
+                     xmlns:sys="clr-namespace:System;assembly=netstandard"
                      x:Class="SugarGuard.Junior.Views.Pages.MainPage"
                      Title="Мой сахар"
                      BackgroundColor="{DynamicResource BackgroundPage}">
@@ -129,6 +130,29 @@
                                 <Label Grid.Column="1" Text="ммоль/л" Style="{StaticResource Muted}" VerticalOptions="Center" />
                             </Grid>
                         </Border>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Border Grid.Column="0" Padding="12,8" Stroke="{DynamicResource BorderDefault}"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 16">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Дата измерения" Style="{StaticResource Muted}" />
+                                    <DatePicker Date="{Binding MeasurementDate}"
+                                                MaximumDate="{x:Static sys:DateTime.Today}"
+                                                FontSize="14"
+                                                TextColor="{DynamicResource TextPrimary}" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Grid.Column="1" Padding="12,8" Stroke="{DynamicResource BorderDefault}"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}" StrokeShape="RoundRectangle 16">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Время" Style="{StaticResource Muted}" />
+                                    <TimePicker Time="{Binding MeasurementTime}"
+                                                Format="HH:mm"
+                                                FontSize="14"
+                                                TextColor="{DynamicResource TextPrimary}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </Grid>
 
                         <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
                             <Button Grid.Column="0" Text="{Binding GlucoseShortcut1}" Style="{StaticResource QuickValue}" Command="{Binding SetGlucoseShortcutCommand}" CommandParameter="{Binding GlucoseShortcut1}" />

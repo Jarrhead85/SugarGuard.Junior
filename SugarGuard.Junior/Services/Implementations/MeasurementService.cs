@@ -107,7 +107,8 @@ public class MeasurementService : IMeasurementService
     public async Task<RecommendationResponse?> ProcessMeasurementWithRecommendationAsync(
         string childId,
         double glucoseValue,
-        string childState = "normal")
+        string childState = "normal",
+        DateTime? measurementTimeUtc = null)
     {
         try
         {
@@ -185,6 +186,7 @@ public class MeasurementService : IMeasurementService
             }
 
             var measurementId = Guid.NewGuid().ToString();
+            var measurementTime = NormalizeMeasurementTime(measurementTimeUtc);
 
             // 3⃣ ПОЛУЧАЕМ РЕКОМЕНДАЦИЮ ОТ ИИ (сначала пытаемся из кэша, потом от GigaChat)
             var aiRecommendation = await GetAIRecommendationAsync(
@@ -199,7 +201,7 @@ public class MeasurementService : IMeasurementService
                 MeasurementId = measurementId,
                 ChildId = childId,
                 EncryptedGlucoseValue = await _cryptoService.EncryptAsync(glucoseValue.ToString("F1", CultureInfo.InvariantCulture)),
-                MeasurementTime = DateTime.UtcNow,
+                MeasurementTime = measurementTime,
                 EncryptedChildState = await _cryptoService.EncryptAsync(state.ToString()),
                 DataSource = DataSource.ManualInput,
                 IsSynced = false,
@@ -218,7 +220,7 @@ public class MeasurementService : IMeasurementService
                 MeasurementId = measurement.MeasurementId,
                 ChildId = childId,
                 GlucoseValue = glucoseValue,
-                MeasurementTime = measurement.MeasurementTime,
+                MeasurementTime = measurementTime,
                 ChildState = state.ToString(),
                 DataSource = DataSource.ManualInput.ToString(),
                 RequestRecommendation = true,
@@ -268,6 +270,21 @@ public class MeasurementService : IMeasurementService
     public GlucoseStatus GetStatus(double glucoseValue)
     {
         return GlucoseClassifier.Classify(glucoseValue);
+    }
+
+    private static DateTime NormalizeMeasurementTime(DateTime? measurementTimeUtc)
+    {
+        if (!measurementTimeUtc.HasValue)
+        {
+            return DateTime.UtcNow;
+        }
+
+        return measurementTimeUtc.Value.Kind switch
+        {
+            DateTimeKind.Utc => measurementTimeUtc.Value,
+            DateTimeKind.Local => measurementTimeUtc.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(measurementTimeUtc.Value, DateTimeKind.Local).ToUniversalTime()
+        };
     }
 
     /// <summary>

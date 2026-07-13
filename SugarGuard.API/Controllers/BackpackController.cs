@@ -4,6 +4,7 @@ using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
 using SugarGuard.API.Services;
+using SugarGuard.Shared.Constants;
 
 namespace SugarGuard.API.Controllers;
 
@@ -267,7 +268,11 @@ public class BackpackController : ControllerBase
         BackpackConsumeOutcome outcome;
         try
         {
-            outcome = await _backpack.ConsumeAsync(itemId, actorId.Value, cancellationToken);
+            var glucoseBefore = currentGlucose > 0 && GlucoseLevels.IsValidInput(currentGlucose)
+                ? (decimal?)Math.Round((decimal)currentGlucose, 1)
+                : null;
+
+            outcome = await _backpack.ConsumeAsync(itemId, actorId.Value, glucoseBefore, cancellationToken);
         }
         catch (Exception ex)
         {

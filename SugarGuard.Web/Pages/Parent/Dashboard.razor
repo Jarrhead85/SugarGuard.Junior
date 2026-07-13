@@ -753,37 +753,52 @@
         else
         {
             <div class="ai-control-summary">
-                <span>@_aiConversation.Messages.Count сообщений</span>
+                <span>@AiDialogPairs.Count пар запрос-ответ</span>
+                <span>Страница @_aiConversationPage из @AiDialogTotalPages</span>
                 @if (!string.IsNullOrWhiteSpace(_aiConversation.Summary))
                 {
                     <span>Резюме: @_aiConversation.Summary</span>
                 }
             </div>
             <div class="ai-control-list" role="list">
-                @foreach (var message in _aiConversation.Messages)
+                @foreach (var pair in PagedAiDialogPairs)
                 {
-                    var isAi = !message.IsUser;
-                    <article class="ai-message @(isAi ? "ai-message--assistant" : "ai-message--child")" role="listitem">
-                        <div class="ai-message__icon" aria-hidden="true">@(isAi ? "🤖" : "🧒")</div>
-                        <div class="ai-message__content">
-                            <div class="ai-message__meta">
-                                <strong>@GetAiMessageTitle(message)</strong>
-                                <time>@ToDisplayTime(message.CreatedAt).ToString("dd.MM.yyyy HH:mm")</time>
-                            </div>
-                            <p>@message.Text</p>
-                            @if (isAi)
-                            {
-                                <div class="ai-message__tags" aria-label="Источник и проверка ответа">
-                                    <span class="ai-tag @GetAiSourceClass(message)">@GetAiSourceLabel(message)</span>
-                                    @if (!string.IsNullOrWhiteSpace(message.SafetyResult))
+                    <article class="ai-dialog-pair" role="listitem">
+                        @foreach (var message in pair.Messages)
+                        {
+                            var isAi = !message.IsUser;
+                            <section class="ai-message @(isAi ? "ai-message--assistant" : "ai-message--child")">
+                                <div class="ai-message__icon" aria-hidden="true">@(isAi ? "🤖" : "🧒")</div>
+                                <div class="ai-message__content">
+                                    <div class="ai-message__meta">
+                                        <strong>@GetAiMessageTitle(message)</strong>
+                                        <time>@ToDisplayTime(message.CreatedAt).ToString("dd.MM.yyyy HH:mm")</time>
+                                    </div>
+                                    <p>@message.Text</p>
+                                    @if (isAi)
                                     {
-                                        <span class="ai-tag ai-tag--safety">@GetAiSafetyLabel(message.SafetyResult)</span>
+                                        <div class="ai-message__tags" aria-label="Источник и проверка ответа">
+                                            <span class="ai-tag @GetAiSourceClass(message)">@GetAiSourceLabel(message)</span>
+                                            @if (!string.IsNullOrWhiteSpace(message.SafetyResult))
+                                            {
+                                                <span class="ai-tag ai-tag--safety">@GetAiSafetyLabel(message.SafetyResult)</span>
+                                            }
+                                        </div>
                                     }
                                 </div>
-                            }
-                        </div>
+                            </section>
+                        }
                     </article>
                 }
+            </div>
+            <div class="ai-control-pagination" aria-label="Страницы диалогов ИИ">
+                <button class="btn btn--ghost btn--sm" type="button" @onclick="PreviousAiConversationPage" disabled="@(_aiConversationPage <= 1)">
+                    ← Новее
+                </button>
+                <span>@_aiConversationPage / @AiDialogTotalPages</span>
+                <button class="btn btn--ghost btn--sm" type="button" @onclick="NextAiConversationPage" disabled="@(_aiConversationPage >= AiDialogTotalPages)">
+                    Старее →
+                </button>
             </div>
         }
     </div>
@@ -1338,6 +1353,8 @@
     private decimal _insulinSensitivity = 2.5m;
     private decimal _carbRatio = 10.0m;
     private AiConversationHistoryVm _aiConversation = new();
+    private const int AiDialogPairsPageSize = 5;
+    private int _aiConversationPage = 1;
     private readonly List<LinkedAccessUserVm> _linkedParents = new();
     private readonly List<LinkedAccessUserVm> _linkedDoctors = new();
     private TelegramConnectionCodeVm? _telegramConnectionCode;
@@ -1351,6 +1368,12 @@
     // Вкладки / панели
     private string TabClass(string tab) => _activeTab == tab ? "active" : "";
     private string PaneClass(string tab) => _activeTab == tab ? "active" : "";
+    private IReadOnlyList<AiDialogPair> AiDialogPairs => BuildAiDialogPairs(_aiConversation.Messages);
+    private int AiDialogTotalPages => Math.Max(1, (int)Math.Ceiling(AiDialogPairs.Count / (double)AiDialogPairsPageSize));
+    private IReadOnlyList<AiDialogPair> PagedAiDialogPairs => AiDialogPairs
+        .Skip((Math.Clamp(_aiConversationPage, 1, AiDialogTotalPages) - 1) * AiDialogPairsPageSize)
+        .Take(AiDialogPairsPageSize)
+        .ToList();
 
     private void SwitchTab(string tab)
     {
@@ -1667,11 +1690,13 @@
         try
         {
             _aiConversation = await Api.GetAiConversationHistoryAsync(childId, limit: 50, cancellationToken);
+            _aiConversationPage = 1;
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Не удалось загрузить историю диалога с ИИ. ChildId={ChildId}", childId);
             _aiConversation = new AiConversationHistoryVm();
+            _aiConversationPage = 1;
         }
     }
 
@@ -1683,6 +1708,68 @@
         }
 
         await LoadAiConversationAsync(_selectedChildId, CancellationToken.None);
+    }
+
+    private void PreviousAiConversationPage()
+    {
+        if (_aiConversationPage > 1)
+        {
+            _aiConversationPage--;
+        }
+    }
+
+    private void NextAiConversationPage()
+    {
+        if (_aiConversationPage < AiDialogTotalPages)
+        {
+            _aiConversationPage++;
+        }
+    }
+
+    private static IReadOnlyList<AiDialogPair> BuildAiDialogPairs(IReadOnlyList<AiConversationMessageVm> messages)
+    {
+        if (messages.Count == 0)
+        {
+            return [];
+        }
+
+        var orderedMessages = messages
+            .OrderBy(message => message.CreatedAt)
+            .ToList();
+        var pairs = new List<AiDialogPair>();
+
+        AiConversationMessageVm? currentUserMessage = null;
+        foreach (var message in orderedMessages)
+        {
+            if (message.IsUser)
+            {
+                if (currentUserMessage is not null)
+                {
+                    pairs.Add(new AiDialogPair(currentUserMessage, null));
+                }
+
+                currentUserMessage = message;
+                continue;
+            }
+
+            if (currentUserMessage is null)
+            {
+                pairs.Add(new AiDialogPair(null, message));
+                continue;
+            }
+
+            pairs.Add(new AiDialogPair(currentUserMessage, message));
+            currentUserMessage = null;
+        }
+
+        if (currentUserMessage is not null)
+        {
+            pairs.Add(new AiDialogPair(currentUserMessage, null));
+        }
+
+        return pairs
+            .OrderByDescending(pair => pair.SortAt)
+            .ToList();
     }
 
     private static string GetAiMessageTitle(AiConversationMessageVm message)
@@ -2275,16 +2362,32 @@
         var rows = new System.Text.StringBuilder();
         rows.AppendLine("Время,Глюкоза,Тренд,Статус,Заметка");
         foreach (var m in _measurements)
-            rows.AppendLine($"{m.Time},{m.Value},{m.Trend},{m.Status},{m.Note}");
+        {
+            rows
+                .Append(Csv(m.Time)).Append(',')
+                .Append(Csv(m.Value)).Append(',')
+                .Append(Csv(m.Trend)).Append(',')
+                .Append(Csv(m.Status)).Append(',')
+                .Append(Csv(m.Note))
+                .Append("\r\n");
+        }
 
         try
         {
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadCsv",
                 "sugarguard-export.csv",
-                rows.ToString());
+                "\uFEFF" + rows);
         }
         catch (JSException) { }
+    }
+
+    private static string Csv(string? value)
+    {
+        var normalized = value ?? string.Empty;
+        return normalized.Contains('"') || normalized.Contains(',') || normalized.Contains('\n') || normalized.Contains('\r')
+            ? "\"" + normalized.Replace("\"", "\"\"") + "\""
+            : normalized;
     }
 
     // События и уведомления
@@ -3258,6 +3361,22 @@
         public decimal Max { get; set; } = 10.0m;
         public decimal InsulinSensitivity { get; set; } = 2.5m;
         public decimal CarbRatio { get; set; } = 10.0m;
+    }
+
+    private sealed record AiDialogPair(
+        AiConversationMessageVm? UserMessage,
+        AiConversationMessageVm? AssistantMessage)
+    {
+        public DateTime SortAt =>
+            AssistantMessage?.CreatedAt
+            ?? UserMessage?.CreatedAt
+            ?? DateTime.MinValue;
+
+        public IReadOnlyList<AiConversationMessageVm> Messages =>
+            new[] { UserMessage, AssistantMessage }
+                .Where(message => message is not null)
+                .Cast<AiConversationMessageVm>()
+                .ToList();
     }
 
     /// <summary>
