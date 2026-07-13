@@ -118,6 +118,12 @@ public static class ServiceCollectionExtensions
         })
         .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+        services.AddHttpClient<IAppUpdateService, AppUpdateService>(client =>
+        {
+            client.BaseAddress = new Uri(AppConstants.SugarGuardApiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+
         // Platform services
         services.AddSingleton<ILocationService, LocationService>();
         

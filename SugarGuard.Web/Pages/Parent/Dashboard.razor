@@ -214,6 +214,36 @@
             </div>
         </div>
 
+        <div class="card" style="margin-top:var(--spacing-4)">
+            <div class="card-head">
+                <div>
+                    <div class="card-title">Диалог ребёнка с ИИ</div>
+                    <div class="card-sub">Для родительского контроля. Ответы ИИ помечены отдельно.</div>
+                </div>
+            </div>
+            @if (_aiConversation.Messages.Count == 0)
+            {
+                <div class="empty-state empty-state--compact" role="status">Запросов к ИИ пока нет.</div>
+            }
+            else
+            {
+                <div class="alert-list" role="list">
+                    @foreach (var message in _aiConversation.Messages)
+                    {
+                        var isAi = !message.IsUser;
+                        <div class="alert-item" role="listitem">
+                            <div class="alert-icon @(isAi ? "info" : "ok")" aria-hidden="true">@(isAi ? "🤖" : "🧒")</div>
+                            <div class="alert-body">
+                                <div class="alert-title">@(isAi ? "Ответ ИИ" : "Запрос ребёнка")</div>
+                                <div class="alert-desc">@message.Text</div>
+                            </div>
+                            <time class="alert-time">@ToDisplayTime(message.CreatedAt).ToString("dd.MM HH:mm")</time>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
         <div class="card">
             <div class="card-head">
                 <div>
@@ -551,8 +581,8 @@
         {
             @foreach (var alert in _pagedAlerts)
             {
-                 <div class="alert-item @(alert.IsUnread ? "alert-item--unread" : "")"
-                     role="listitem">
+                <div class="alert-item @(alert.IsUnread ? "alert-item--unread" : "")"
+                     role="button" tabindex="0" @onclick="() => MarkAlertReadAsync(alert)">
                     <span class="alert-item__indicator alert-item__indicator--@alert.Type"
                           aria-hidden="true"></span>
                     <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
@@ -564,6 +594,7 @@
                         <time class="alert-time">@alert.Time</time>
                         <button class="btn btn--icon alert-dismiss"
                                 @onclick="() => DismissAlert(alert)"
+                                @onclick:stopPropagation="true"
                                 aria-label="Скрыть уведомление «@alert.Title»"
                                 title="Скрыть">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -979,7 +1010,7 @@
                 }
                 else
                 {
-                    @foreach (var ins in _insulinLog)
+                    @foreach (var ins in PagedInsulinLog)
                     {
                         <div class="ins-row" role="listitem">
                             <span class="ins-dot @ins.Type"
@@ -989,6 +1020,16 @@
                                 <span class="ins-time">@ins.Time</span>
                             </div>
                             <strong class="ins-dose">@ins.Dose</strong>
+                        </div>
+                    }
+                    @if (InsulinLogTotalPages > 1)
+                    {
+                        <div class="event-pagination" role="navigation" aria-label="Страницы журнала инсулина">
+                            <span>@_insulinLogPage из @InsulinLogTotalPages</span>
+                            <div class="btn-group">
+                                <button class="btn btn--ghost btn--sm" disabled="@(_insulinLogPage == 1)" @onclick="PrevInsulinLogPage">←</button>
+                                <button class="btn btn--ghost btn--sm" disabled="@(_insulinLogPage == InsulinLogTotalPages)" @onclick="NextInsulinLogPage">→</button>
+                            </div>
                         </div>
                     }
                 }
@@ -1218,8 +1259,10 @@
     private int _measPage = 1;
     private int _recentEventPage = 1;
     private int _alertPage = 1;
+    private int _insulinLogPage = 1;
     private const int MeasPageSize = 10;
     private const int EventPageSize = 5;
+    private const int InsulinLogPageSize = 8;
     private static readonly TimeSpan LiveRefreshInterval = TimeSpan.FromSeconds(10);
     private const string ParentProfileStorageKey = "sg-parent-profile-v1";
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
@@ -1237,7 +1280,8 @@
     private int _tirLow;
     private string _avgGlucose = "—";
     private int _totalMeas;
-    private int _newMeasurementsCount => _activeTab == "measurements" ? 0 : _measurements.Count(m => m.IsNew);
+    private bool _measurementsRead;
+    private int _newMeasurementsCount => _measurementsRead ? 0 : _measurements.Count(m => m.IsNew);
     private int _unreadNotificationsCount;
     private int _lowStockCount => _backpackItems.Count(i => i.StatusClass is "low" or "empty");
     private bool _browserStateLoaded;
@@ -1259,6 +1303,7 @@
     private decimal _targetMax = 10.0m;
     private decimal _insulinSensitivity = 2.5m;
     private decimal _carbRatio = 10.0m;
+    private AiConversationHistoryVm _aiConversation = new();
     private readonly List<LinkedAccessUserVm> _linkedParents = new();
     private readonly List<LinkedAccessUserVm> _linkedDoctors = new();
     private TelegramConnectionCodeVm? _telegramConnectionCode;
@@ -1276,6 +1321,10 @@
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
+        if (tab == "measurements")
+        {
+            _measurementsRead = true;
+        }
         var query = new List<string>();
         if (_selectedChildId != Guid.Empty)
         {
@@ -1430,12 +1479,15 @@
                 .Select(MapTimelineEvent)
                 .ToList();
 
+            var notifications = await Api.GetNotificationsAsync(cancellationToken);
             foreach (var alert in _allAlerts)
             {
-                alert.IsUnread = !_readAlertIds.Contains(alert.EventId);
+                var notification = notifications.FirstOrDefault(item =>
+                    string.Equals(item.Title, alert.Title, StringComparison.Ordinal)
+                    && string.Equals(item.Description, alert.Description, StringComparison.Ordinal));
+                alert.NotificationId = notification?.NotificationId;
+                alert.IsUnread = notification?.IsUnread ?? !_readAlertIds.Contains(alert.EventId);
             }
-
-            var notifications = await Api.GetNotificationsAsync(cancellationToken);
             _unreadNotificationsCount = notifications.Count(notification => notification.IsUnread);
 
             if (resetPages || _activeTab == "overview")
@@ -1451,6 +1503,7 @@
             await LoadAccessLinksAsync(childId, cancellationToken);
             await LoadDoctorNotesAsync(childId, cancellationToken);
             await LoadInsulinLogAsync(childId, cancellationToken);
+            await LoadAiConversationAsync(childId, cancellationToken);
 
             _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
             _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
@@ -1554,17 +1607,30 @@
             _insulinLog.AddRange(entries
                 .Where(entry => entry.InsulinUnits > 0)
                 .OrderByDescending(entry => entry.RecordedAt)
-                .Take(6)
                 .Select(entry => new InsulinEntry(
                     string.IsNullOrWhiteSpace(entry.MealName) ? MealLabel(entry.MealType) : entry.MealName.Trim(),
                     $"{entry.InsulinUnits:0.##} ед.",
                     ToDisplayTime(entry.RecordedAt).ToString("HH:mm"),
                     MealLabel(entry.MealType))));
+            _insulinLogPage = 1;
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Не удалось загрузить журнал инсулина. ChildId={ChildId}", childId);
             _insulinLog.Clear();
+        }
+    }
+
+    private async Task LoadAiConversationAsync(Guid childId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _aiConversation = await Api.GetAiConversationHistoryAsync(childId, limit: 50, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось загрузить историю диалога с ИИ. ChildId={ChildId}", childId);
+            _aiConversation = new AiConversationHistoryVm();
         }
     }
 
@@ -1681,7 +1747,7 @@
                 (entry.GlucoseValue.HasValue ? $" · сахар {entry.GlucoseValue:0.0} ммоль/л" : string.Empty),
                 GetRelativeTime(entry.OccurredAt),
                 "info",
-                "✓",
+                "🍎",
                 true),
             TimelineEventType.Measurement or TimelineEventType.GlucoseMeasurement => new AlertItem(
                 entry.EventId,
@@ -1689,7 +1755,7 @@
                 GetMeasurementEventDescription(entry.GlucoseValue),
                 GetRelativeTime(entry.OccurredAt),
                 statusType,
-                statusType == "danger" ? "!" : "•",
+                statusType == "danger" ? "🚨" : "🩸",
                 true),
             TimelineEventType.CriticalAlert or TimelineEventType.Alert => new AlertItem(
                 entry.EventId,
@@ -1697,7 +1763,7 @@
                 entry.Notes ?? $"Глюкоза {entry.GlucoseValue?.ToString("0.0") ?? "—"} ммоль/л",
                 GetRelativeTime(entry.OccurredAt),
                 "danger",
-                "!",
+                "⚠️",
                 true),
             _ => new AlertItem(
                 entry.EventId,
@@ -1705,7 +1771,7 @@
                 entry.Description ?? entry.Notes ?? "Обновлены данные ребёнка",
                 GetRelativeTime(entry.OccurredAt),
                 statusType,
-                "•",
+                "ℹ️",
                 entry.IsImportant)
         };
     }
@@ -2128,6 +2194,16 @@
         }
     }
 
+    private int InsulinLogTotalPages => Math.Max(1, (int)Math.Ceiling(_insulinLog.Count / (double)InsulinLogPageSize));
+
+    private IEnumerable<InsulinEntry> PagedInsulinLog => _insulinLog
+        .Skip((_insulinLogPage - 1) * InsulinLogPageSize)
+        .Take(InsulinLogPageSize);
+
+    private void PrevInsulinLogPage() => _insulinLogPage = Math.Max(1, _insulinLogPage - 1);
+
+    private void NextInsulinLogPage() => _insulinLogPage = Math.Min(InsulinLogTotalPages, _insulinLogPage + 1);
+
     private void SetAlertFilter(string filter)
     {
         _alertFilter = filter;
@@ -2141,14 +2217,32 @@
         _alertPage = Math.Clamp(_alertPage, 1, _alertTotalPages);
         _recentEventPage = Math.Clamp(_recentEventPage, 1, _recentEventTotalPages);
     }
-    private void MarkAllAlertsRead()
+    private async Task MarkAllAlertsRead()
     {
+        await Api.MarkAllNotificationsAsReadAsync();
         foreach (var alert in _allAlerts)
         {
             alert.IsUnread = false;
             _readAlertIds.Add(alert.EventId);
         }
         ShowNotice("Все уведомления отмечены как прочитанные.");
+    }
+
+    private async Task MarkAlertReadAsync(AlertItem alert)
+    {
+        if (!alert.IsUnread)
+        {
+            return;
+        }
+
+        if (alert.NotificationId.HasValue)
+        {
+            await Api.MarkNotificationAsReadAsync(alert.NotificationId.Value);
+        }
+
+        alert.IsUnread = false;
+        _readAlertIds.Add(alert.EventId);
+        _unreadNotificationsCount = Math.Max(0, _unreadNotificationsCount - 1);
     }
 
     private void OpenAddBackpackItem()
@@ -2731,6 +2825,7 @@
         public string Time { get; init; }
         public string Type { get; init; }
         public string Icon { get; init; }
+        public Guid? NotificationId { get; set; }
         public bool IsUnread { get; set; }
 
         public AlertItem(Guid eventId, string title, string desc, string time,

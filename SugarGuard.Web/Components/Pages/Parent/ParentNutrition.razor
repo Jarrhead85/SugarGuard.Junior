@@ -572,7 +572,7 @@
     private decimal BarWidth(decimal value)
     {
         var max = _summary.Days
-            .SelectMany(day => new[] { day.BreadUnits, day.InsulinUnits })
+            .Select(day => Math.Max(day.BreadUnits, day.InsulinUnits))
             .DefaultIfEmpty(1)
             .Max();
 

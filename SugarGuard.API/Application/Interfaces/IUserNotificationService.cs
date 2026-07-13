@@ -9,6 +9,8 @@ public interface IUserNotificationService
 
     Task<int> MarkAllAsReadAsync(CancellationToken cancellationToken = default);
 
+    Task<bool> MarkAsReadAsync(Guid notificationId, CancellationToken cancellationToken = default);
+
     Task PersistCriticalLocationAsync(
         CriticalAlertRequest request,
         CancellationToken cancellationToken = default);

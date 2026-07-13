@@ -267,8 +267,8 @@
 
         var labels = sorted
             .Select(p => spanDays > 1
-                ? p.Time.ToLocalTime().ToString("dd.MM HH:mm")
-                : p.Time.ToLocalTime().ToString("HH:mm"))
+                ? ToMoscowTime(p.Time).ToString("dd.MM HH:mm")
+                : ToMoscowTime(p.Time).ToString("HH:mm"))
             .ToArray();
 
         var values = sorted
@@ -305,6 +305,13 @@
             yMax,
             height = HeightPx
         };
+    }
+
+    private static DateTime ToMoscowTime(DateTime value)
+    {
+        var utc = value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        try { return TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow")); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time")); }
     }
 
     // Вспомогательные методы

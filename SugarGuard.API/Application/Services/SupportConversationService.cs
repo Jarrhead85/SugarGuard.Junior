@@ -332,7 +332,7 @@ public sealed class SupportConversationService : ISupportConversationService
         CancellationToken cancellationToken)
     {
         var replyTo = conversation.CallbackEmail ?? requesterEmail;
-        var requester = string.IsNullOrWhiteSpace(replyTo) ? "email ?? ??????" : replyTo.Trim();
+        var requester = string.IsNullOrWhiteSpace(replyTo) ? "email не указан" : replyTo.Trim();
         var plainText = $"""
             Новое обращение в поддержку SugarGuard
 
@@ -375,35 +375,35 @@ public sealed class SupportConversationService : ISupportConversationService
         if (string.IsNullOrWhiteSpace(recipient))
         {
             _logger.LogWarning(
-                "????? ????????? ?? ????????? ?? email: ? ????????? {ConversationId} ??? ????????? ??????.",
+                "Не удалось отправить ответ поддержки по email: в обращении {ConversationId} не указан адрес получателя.",
                 conversation.ConversationId);
             return;
         }
 
         var plainText = $"""
-            ????? ?????? ????????? SugarGuard
+            Новый ответ поддержки SugarGuard
 
-            ???? ?????????: {conversation.Subject}
-            ????? ?????????: {conversation.ConversationId}
+            Тема обращения: {conversation.Subject}
+            Номер обращения: {conversation.ConversationId}
 
-            ?????:
+            Ответ:
             {message.Body}
 
-            ??????? ????????? ????? ???????? ? ?????? ???????? SugarGuard.
+            Это письмо отправлено из центра поддержки SugarGuard.
             """;
 
         var html = $"""
-            <h2>????? ?????? ????????? SugarGuard</h2>
-            <p><strong>???? ?????????:</strong> {WebUtility.HtmlEncode(conversation.Subject)}</p>
-            <p><strong>????? ?????????:</strong> {conversation.ConversationId}</p>
-            <h3>?????</h3>
+            <h2>Новый ответ поддержки SugarGuard</h2>
+            <p><strong>Тема обращения:</strong> {WebUtility.HtmlEncode(conversation.Subject)}</p>
+            <p><strong>Номер обращения:</strong> {conversation.ConversationId}</p>
+            <h3>Ответ</h3>
             <pre style="white-space:pre-wrap;font-family:Arial,sans-serif">{WebUtility.HtmlEncode(message.Body)}</pre>
-            <p>??????? ????????? ????? ???????? ? ?????? ???????? SugarGuard.</p>
+            <p>Это письмо отправлено из центра поддержки SugarGuard.</p>
             """;
 
         await _emailService.SendAsync(
             recipient.Trim(),
-            $"[SugarGuard Support] ?????: {conversation.Subject}",
+            $"[SugarGuard Support] Ответ: {conversation.Subject}",
             html,
             plainText,
             Array.Empty<EmailAttachment>(),
@@ -509,7 +509,7 @@ public sealed class SupportConversationService : ISupportConversationService
         }
         catch (FormatException exception)
         {
-            throw new ArgumentException("???????????? email ??? ??????.", nameof(email), exception);
+            throw new ArgumentException("Указан некорректный email для ответа.", nameof(email), exception);
         }
     }
 }

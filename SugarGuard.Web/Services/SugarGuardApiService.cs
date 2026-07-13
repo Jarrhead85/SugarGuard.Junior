@@ -1892,6 +1892,18 @@ namespace SugarGuard.Web.Services
             response.EnsureSuccessStatusCode();
         }
 
+        public async Task MarkNotificationAsReadAsync(
+            Guid notificationId,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PostAsync(
+                $"api/notifications/{notificationId}/read",
+                content: null,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+
         // USER PREFERENCES
         /// <summary>
         /// GET /api/user-preferences

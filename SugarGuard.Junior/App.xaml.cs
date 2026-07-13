@@ -147,6 +147,7 @@ public partial class App : Application
             // 1. Применяем сохранённую тему интерфейса (светлая/тёмная).
             ApplySavedTheme();
             ApplySavedInterfaceSkin();
+            _ = _serviceProvider.GetRequiredService<IAppUpdateService>().CheckForUpdateAsync();
 
             // 2. Инициализируем криптографию до любых операций с локальными PHI-данными.
             await InitializeCryptoAsync();

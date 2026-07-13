@@ -59,6 +59,13 @@ public class NotificationsController : ControllerBase
         return Ok(new { updated });
     }
 
+    [HttpPost("{notificationId:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(Guid notificationId, CancellationToken cancellationToken)
+    {
+        var updated = await _userNotificationService.MarkAsReadAsync(notificationId, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
     /// <summary>
     /// Отправить критическое уведомление с геолокацией
     /// </summary>

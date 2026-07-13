@@ -115,6 +115,22 @@ public sealed class UserNotificationService : IUserNotificationService
                 cancellationToken);
     }
 
+    public async Task<bool> MarkAsReadAsync(Guid notificationId, CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUser.GetUserId()
+            ?? throw new UnauthorizedAccessException("Текущий пользователь не определён.");
+
+        var updated = await _db.UserNotifications
+            .Where(notification => notification.NotificationId == notificationId
+                                   && notification.RecipientUserId == userId
+                                   && !notification.IsRead)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(notification => notification.IsRead, true),
+                cancellationToken);
+
+        return updated > 0;
+    }
+
     public async Task PersistCriticalLocationAsync(
         CriticalAlertRequest request,
         CancellationToken cancellationToken = default)

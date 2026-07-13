@@ -170,7 +170,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 group.Count()))
             .ToList();
 
-        var calendarDays = Math.Max(1, (to.Date - from.Date).Days + 1);
+        // The API accepts an inclusive end value. UI queries use the last tick of
+        // the final day, so calculate calendar days from the date interval itself.
+        var calendarDays = Math.Max(1, DateOnly.FromDateTime(to).DayNumber - DateOnly.FromDateTime(from).DayNumber + 1);
         var totalXe = rows.Sum(row => row.BreadUnits);
         var totalInsulin = rows.Sum(row => row.InsulinUnits);
 
