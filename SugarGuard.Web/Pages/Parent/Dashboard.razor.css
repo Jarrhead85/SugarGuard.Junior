@@ -262,19 +262,118 @@
     margin-bottom: 14px;
 }
 
-.ai-dialog-card {
-    margin-top: var(--spacing-4);
+.ai-control-card {
+    max-width: 1180px;
 }
 
-.ai-dialog-list {
-    max-height: 420px;
+.ai-control-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+.ai-control-summary span {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface-offset);
+}
+
+.ai-control-list {
+    display: grid;
+    gap: 12px;
+    max-height: min(72vh, 760px);
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 6px;
 }
 
-.ai-dialog-list .alert-desc {
+.ai-message {
+    display: grid;
+    grid-template-columns: 38px 1fr;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    background: var(--color-surface);
+}
+
+.ai-message--assistant {
+    background: linear-gradient(180deg, rgba(22, 143, 155, .08), rgba(255, 255, 255, .96));
+}
+
+.ai-message--child {
+    background: var(--color-surface-offset);
+}
+
+.ai-message__icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    background: rgba(22, 143, 155, .12);
+    font-size: 20px;
+}
+
+.ai-message__content {
+    min-width: 0;
+}
+
+.ai-message__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+.ai-message__meta strong {
+    color: var(--color-text);
+    font-size: 13px;
+}
+
+.ai-message p {
+    margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+
+.ai-message__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ai-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.ai-tag--model {
+    color: #075985;
+    background: rgba(14, 165, 233, .14);
+}
+
+.ai-tag--local {
+    color: #8a4b00;
+    background: rgba(245, 158, 11, .18);
+}
+
+.ai-tag--safety {
+    color: #166534;
+    background: rgba(34, 197, 94, .16);
 }
 
 .card-title {

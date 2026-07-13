@@ -1,0 +1,9 @@
+@page "/admin/support"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.Pages
+
+<DynamicComponent Type="typeof(SugarGuard.Web.Pages.Support)" />

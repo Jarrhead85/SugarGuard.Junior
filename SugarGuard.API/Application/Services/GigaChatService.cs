@@ -77,11 +77,15 @@ public class GigaChatService : IGigaChatService
     {
         if (request.CurrentGlucose <= 3.9)
         {
+            var backpackAdvice = request.AvailableSnacks.Any()
+                ? $"В рюкзаке сейчас есть: {string.Join(", ", request.AvailableSnacks.Take(2))}. Используй быстрые углеводы по своему плану и покажи взрослому, что выбрал."
+                : "Подходящего перекуса в рюкзаке не видно. Позови взрослого и используй аварийный запас быстрых углеводов по своему плану.";
+
             return new GigaChatResponse
             {
                 RecommendationText = request.CurrentGlucose < 3.1
-                    ? "Глюкоза критически низкая. Немедленно позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10–15 минут."
-                    : "Глюкоза низкая. Позови взрослого, прими быстрые углеводы по своему плану и повтори измерение через 10–15 минут.",
+                    ? $"Глюкоза критически низкая. Немедленно позови взрослого. {backpackAdvice} Повтори измерение через 10–15 минут."
+                    : $"Глюкоза низкая. Позови взрослого. {backpackAdvice} Повтори измерение через 10–15 минут.",
                 ModelUsed = "SafetyRules",
                 IsLocalFallback = true,
                 IsSuccess = true,
@@ -256,7 +260,8 @@ public class GigaChatService : IGigaChatService
                 - current.measurement, dailySummary и longTermPatterns: текущая глюкоза, тренд и статистика;
                 - current.lastMeal и recentHistory.nutrition: что и когда ребёнок ел, ХЕ и перекусы;
                 - current.lastInsulin и recentHistory.insulin: фактически введённый инсулин;
-                - availableBackpack/recentHistory.backpack, если поле есть: что реально доступно ребёнку в рюкзаке.
+                - availableBackpack: что реально доступно ребёнку в рюкзаке сейчас;
+                - recentHistory.consumedBackpackSnacks: какие перекусы из рюкзака уже были съедены недавно.
                 Если в контексте есть питание, перекусы, рюкзак или статистика глюкозы, ответ должен явно учитывать эти факты.
                 Если подходящего перекуса в рюкзаке нет или данных мало, прямо скажи об этом и попроси обратиться к взрослому.
                 Если данных мало, прямо скажи, что вывод осторожный.

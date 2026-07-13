@@ -222,6 +222,7 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
                 CreatedAt = message.CreatedAt,
                 MeasurementId = message.MeasurementId,
                 RecommendationId = message.RecommendationId,
+                Model = message.Model,
                 SafetyResult = message.SafetyResult.ToString()
             })
             .ToListAsync(cancellationToken);

@@ -126,6 +126,11 @@ public sealed class AiConversationMessageResponse
     public Guid? RecommendationId { get; init; }
 
     /// <summary>
+    /// Модель или локальный механизм, сформировавший ответ.
+    /// </summary>
+    public string? Model { get; init; }
+
+    /// <summary>
     /// Результат проверки безопасности, если применимо.
     /// </summary>
     public string? SafetyResult { get; init; }

@@ -143,7 +143,6 @@ public sealed class SupportConversationService : ISupportConversationService
                 SourceId = message.MessageId,
                 CreatedAt = now
             });
-            await SendSupportReplyEmailAsync(conversation, message, cancellationToken);
         }
         else
         {
@@ -151,6 +150,23 @@ public sealed class SupportConversationService : ISupportConversationService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        if (isSupport)
+        {
+            try
+            {
+                await SendSupportReplyEmailAsync(conversation, message, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Не удалось отправить email-ответ поддержки. ConversationId={ConversationId} MessageId={MessageId}",
+                    conversation.ConversationId,
+                    message.MessageId);
+            }
+        }
+
         return new SupportMessageDto
         {
             MessageId = message.MessageId,

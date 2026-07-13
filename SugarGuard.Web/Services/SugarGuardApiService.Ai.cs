@@ -31,6 +31,7 @@ public sealed partial class SugarGuardApiService
                 CreatedAt = message.CreatedAt,
                 MeasurementId = message.MeasurementId,
                 RecommendationId = message.RecommendationId,
+                Model = message.Model,
                 SafetyResult = message.SafetyResult
             }).ToList()
         };
@@ -51,6 +52,7 @@ public sealed partial class SugarGuardApiService
         public DateTime CreatedAt { get; init; }
         public Guid? MeasurementId { get; init; }
         public Guid? RecommendationId { get; init; }
+        public string? Model { get; init; }
         public string? SafetyResult { get; init; }
     }
 }

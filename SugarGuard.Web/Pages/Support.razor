@@ -13,6 +13,7 @@
 @inject SugarGuardApiService Api
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<Support> Logger
+@inject NavigationManager Navigation
 
 <PageTitle>Поддержка - SugarGuard</PageTitle>
 
@@ -213,6 +214,12 @@
     {
         var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         _isSupport = auth.User.IsInRole("Admin") || auth.User.IsInRole("SupportAdmin");
+        if (_isSupport && !Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/support", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/admin/support", replace: true);
+            return;
+        }
+
         await RefreshAsync(selectFirst: true);
         _pollTask = PollAsync(_cts.Token);
     }
