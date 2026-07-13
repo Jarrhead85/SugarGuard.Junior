@@ -565,7 +565,8 @@
 
     private void UpdatePageInfo(string uri)
     {
-        var path = new Uri(uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        var currentUri = new Uri(uri);
+        var path = currentUri.AbsolutePath.Trim('/').ToLowerInvariant();
         (pageTitle, pageSubtitle) = path switch
         {
             // Родитель
@@ -602,6 +603,27 @@
             "login"               => ("Вход",          string.Empty),
             _                     => ("SugarGuard",    string.Empty)
         };
+
+        if (path == "parent/dashboard")
+        {
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(currentUri.Query);
+            var tab = query.TryGetValue("tab", out var values)
+                ? values.ToString().Trim().ToLowerInvariant()
+                : "overview";
+
+            (pageTitle, pageSubtitle) = tab switch
+            {
+                "measurements" => ("Измерения", "История глюкозы"),
+                "alerts" => ("Уведомления", "Сообщения и важные события"),
+                "backpack" => ("Рюкзак", "Перекусы и хлебные единицы"),
+                "nutrition" => ("Дневник питания", "Приёмы пищи, ХЕ и инсулин"),
+                "ai" => ("Контроль ИИ", "Запросы ребёнка и ответы помощника"),
+                "doctor" => ("Записки врача", "Рекомендации и назначения"),
+                "profile" => ("Профиль ребёнка", "Личные и медицинские данные"),
+                "settings" => ("Настройки", "Параметры кабинета"),
+                _ => ("Главная", "Обзор состояния")
+            };
+        }
     }
 
     private void ToggleSidebar() => sidebarOpen = !sidebarOpen;

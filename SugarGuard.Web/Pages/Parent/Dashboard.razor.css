@@ -1691,6 +1691,31 @@
 }
 
 @media (max-width: 480px) {
+    .tabs {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px;
+        border-bottom: 0;
+        overflow-x: visible;
+    }
+
+    .tab {
+        flex: 1 1 calc(50% - 8px);
+        justify-content: center;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        bottom: 0;
+        background: var(--color-surface);
+        box-shadow: 0 6px 18px rgba(18,31,58,.05);
+    }
+
+    .tab.active {
+        border-color: color-mix(in oklab, var(--color-primary) 34%, var(--color-border));
+        box-shadow: 0 10px 24px rgba(27,142,139,.12);
+    }
+
     .card-head {
         align-items: flex-start;
         gap: 10px;

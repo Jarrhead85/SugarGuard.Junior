@@ -681,6 +681,32 @@
 }
 
 @media (max-width: 520px) {
+    .nutrition-tabs {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px;
+        border-bottom: 0;
+        overflow-x: visible;
+    }
+
+    .nutrition-tab {
+        flex: 1 1 calc(50% - 8px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid var(--color-border, #dfe7f1);
+        border-radius: 999px;
+        background: var(--color-surface, #fff);
+        box-shadow: 0 6px 18px rgba(18, 31, 58, .05);
+    }
+
+    .nutrition-tab.active {
+        border-color: color-mix(in oklab, var(--color-primary, #1B8E8B) 34%, var(--color-border, #dfe7f1));
+        box-shadow: 0 10px 24px rgba(27,142,139,.12);
+    }
+
     .nutrition-summary {
         grid-template-columns: 1fr;
     }
