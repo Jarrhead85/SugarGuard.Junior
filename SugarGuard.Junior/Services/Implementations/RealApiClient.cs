@@ -308,6 +308,34 @@ public class RealApiClient : IApiClient
         }
     }
 
+    public async Task<List<ChildSummaryApiModel>> GetAccessibleChildrenAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var res = await SendWithRetryAsync(
+                () => new HttpRequestMessage(HttpMethod.Get, "api/children?page=1&pageSize=50"),
+                cancellationToken);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                var message = await ReadApiErrorMessageAsync(res);
+                _logger.LogWarning("GetAccessibleChildren failed: {Status} {Message}", res.StatusCode, message);
+                return [];
+            }
+
+            var page = await res.Content.ReadFromJsonAsync<PagedApiResult<ChildSummaryApiModel>>(
+                JsonOptions,
+                cancellationToken);
+
+            return page?.Items?.Where(c => c.ChildId != Guid.Empty).ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка получения списка детей для восстановления мобильной сессии.");
+            return [];
+        }
+    }
+
     public async Task<MeasurementResponse> SendMeasurementAsync(SendMeasurementRequest request)
     {
         var apiBody = new

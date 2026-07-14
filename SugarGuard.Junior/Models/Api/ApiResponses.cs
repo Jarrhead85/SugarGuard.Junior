@@ -2,6 +2,34 @@
 namespace SugarGuard.Junior.Models.Api;
 
 /// <summary>
+/// Постраничный ответ API.
+/// </summary>
+public sealed class PagedApiResult<T>
+{
+    public IReadOnlyList<T> Items { get; init; } = [];
+    public int TotalCount { get; init; }
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+    public int TotalPages { get; init; }
+    public bool HasNextPage { get; init; }
+    public bool HasPreviousPage { get; init; }
+}
+
+/// <summary>
+/// Краткий профиль ребёнка, доступного текущему аккаунту на сервере.
+/// </summary>
+public sealed class ChildSummaryApiModel
+{
+    public Guid ChildId { get; init; }
+    public string FirstName { get; init; } = string.Empty;
+    public string LastName { get; init; } = string.Empty;
+    public DateOnly DateOfBirth { get; init; }
+    public string? DiabetesType { get; init; }
+    public DateOnly? DiagnosisDate { get; init; }
+    public DateTime CreatedAt { get; init; }
+}
+
+/// <summary>
 /// Ответ после входа
 /// </summary>
 public class LoginResponse

@@ -20,6 +20,7 @@ public partial class OnboardingPageViewModel : ObservableObject
     private readonly IApiClient _apiClient;
     private readonly ILogger<OnboardingPageViewModel> _logger;
     private readonly IChildRepository _childRepository;
+    private readonly IChildSessionBootstrapService _childSessionBootstrapService;
 
     [ObservableProperty]
     private int currentStep;
@@ -53,12 +54,14 @@ public partial class OnboardingPageViewModel : ObservableObject
         IStorageService storageService,
         IApiClient apiClient,
         ILogger<OnboardingPageViewModel> logger,
-        IChildRepository childRepository)
+        IChildRepository childRepository,
+        IChildSessionBootstrapService childSessionBootstrapService)
     {
         _storageService = storageService;
         _apiClient = apiClient;
         _logger = logger;
         _childRepository = childRepository;
+        _childSessionBootstrapService = childSessionBootstrapService;
         ValidateStep();
     }
 
@@ -123,6 +126,14 @@ public partial class OnboardingPageViewModel : ObservableObject
             _logger.LogInformation(
                 "Онбординг завершён: ник={NickName}, тип диабета={Type}, диапазон={Min}-{Max} ммоль/л",
                 NickName, DiabetesTypes[DiabetesTypeIndex], TargetRangeMin, TargetRangeMax);
+
+            var restoredExistingChild = await _childSessionBootstrapService.EnsureChildSessionAsync();
+            if (restoredExistingChild)
+            {
+                _logger.LogInformation("Онбординг открыт повторно, но серверный профиль уже существует. Новый ребёнок не создаётся.");
+                await Shell.Current.GoToAsync("//mainpage");
+                return;
+            }
 
             var firstName = await _storageService.GetAsync("pending_child_first_name");
             var lastName = await _storageService.GetAsync("pending_child_last_name");

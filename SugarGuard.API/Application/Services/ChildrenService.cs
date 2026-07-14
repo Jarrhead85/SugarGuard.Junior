@@ -90,7 +90,8 @@ public sealed class ChildrenService : IChildrenService
                 LastName = c.LastName,
                 DateOfBirth = c.DateOfBirth,
                 DiabetesType = c.DiabetesType,
-                DiagnosisDate = c.DiagnosisDate
+                DiagnosisDate = c.DiagnosisDate,
+                CreatedAt = c.CreatedAt
             })
             .ToListAsync(cancellationToken);
 

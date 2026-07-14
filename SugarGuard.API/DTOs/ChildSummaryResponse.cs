@@ -11,4 +11,5 @@ public sealed class ChildSummaryResponse
     public DateOnly DateOfBirth { get; set; }
     public string? DiabetesType { get; set; }
     public DateOnly? DiagnosisDate { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

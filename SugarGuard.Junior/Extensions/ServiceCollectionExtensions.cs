@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IStorageService, StorageService>();
         services.AddSingleton<IScheduleService, ScheduleService>();
+        services.AddSingleton<IChildSessionBootstrapService, ChildSessionBootstrapService>();
         // Фабрика для разрыва цикла INotificationService <-> IScheduleService (ScheduleService получает уведомления лениво)
         services.AddScoped<Func<INotificationService>>(sp => () => sp.GetRequiredService<INotificationService>());
         

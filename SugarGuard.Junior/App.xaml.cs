@@ -54,6 +54,9 @@ public partial class App : Application
     /// <summary>Сервис проверки текущей сессии и состояния авторизации.</summary>
     private readonly IAuthenticationService _authenticationService;
 
+    /// <summary>Сервис восстановления выбранного ребёнка после обновления приложения.</summary>
+    private readonly IChildSessionBootstrapService _childSessionBootstrapService;
+
     private readonly IThemeService _themeService;
 
     /// <summary>DI-контейнер для получения зарегистрированных сервисов (включая AppShell).</summary>
@@ -82,6 +85,7 @@ public partial class App : Application
         ICryptoService cryptoService,
         IStorageService storageService,
         IAuthenticationService authenticationService,
+        IChildSessionBootstrapService childSessionBootstrapService,
         IThemeService themeService,
         MauiReEncryptJob reEncryptJob,
         IServiceProvider serviceProvider)
@@ -95,6 +99,7 @@ public partial class App : Application
         _cryptoService = cryptoService;
         _storageService = storageService;
         _authenticationService = authenticationService;
+        _childSessionBootstrapService = childSessionBootstrapService;
         _themeService = themeService;
         _reEncryptJob = reEncryptJob;
         _serviceProvider = serviceProvider;
@@ -296,10 +301,24 @@ public partial class App : Application
             _logger.LogInformation("Инициализация локальной базы данных...");
             await using var ctx = await _dbContextFactory.CreateDbContextAsync();
 
-            if (!await HasRequiredLocalTablesAsync(ctx))
+            var missingTables = await GetMissingRequiredLocalTablesAsync(ctx);
+            if (missingTables.Count > 0)
             {
-                _logger.LogWarning("Локальная база данных имеет неполную схему. Выполняется пересоздание локальных таблиц.");
-                await RecreateLocalDatabaseAsync(ctx);
+                if (await HasAnyCoreLocalTablesAsync(ctx))
+                {
+                    _logger.LogWarning(
+                        "Локальная база имеет неполную схему: {Tables}. Данные сохраняются, создаём только недостающие таблицы.",
+                        string.Join(", ", missingTables));
+
+                    await CreateMissingLocalTablesAsync(ctx, missingTables);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Локальная база данных не содержит основных таблиц. Выполняется первичное создание схемы.");
+
+                    await RecreateLocalDatabaseAsync(ctx);
+                }
             }
             else if (await HasAppliedMigrationsAsync(ctx))
             {
@@ -369,6 +388,11 @@ public partial class App : Application
 
     private static async Task<bool> HasRequiredLocalTablesAsync(AppDbContext ctx)
     {
+        return (await GetMissingRequiredLocalTablesAsync(ctx)).Count == 0;
+    }
+
+    private static async Task<IReadOnlyList<string>> GetMissingRequiredLocalTablesAsync(AppDbContext ctx)
+    {
         var requiredTables = new[]
         {
             "Children",
@@ -379,6 +403,7 @@ public partial class App : Application
             "SnackConsumptionLogs"
         };
 
+        var missingTables = new List<string>();
         var connection = ctx.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
             await connection.OpenAsync();
@@ -395,10 +420,101 @@ public partial class App : Application
 
             var result = await command.ExecuteScalarAsync();
             if (Convert.ToInt32(result) == 0)
-                return false;
+                missingTables.Add(table);
         }
 
-        return true;
+        return missingTables;
+    }
+
+    private static async Task<bool> HasAnyCoreLocalTablesAsync(AppDbContext ctx)
+    {
+        var connection = ctx.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync();
+
+        foreach (var table in new[] { "Children", "Measurements" })
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $tableName;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "$tableName";
+            parameter.Value = table;
+            command.Parameters.Add(parameter);
+
+            var result = await command.ExecuteScalarAsync();
+            if (Convert.ToInt32(result) > 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private async Task CreateMissingLocalTablesAsync(
+        AppDbContext ctx,
+        IReadOnlyCollection<string> missingTables)
+    {
+        if (missingTables.Count == 0)
+            return;
+
+        var createScript = ctx.Database.GenerateCreateScript();
+        var statements = createScript
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(statement => !string.IsNullOrWhiteSpace(statement))
+            .ToArray();
+
+        var connection = ctx.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync();
+
+        foreach (var table in missingTables)
+        {
+            var createTableStatements = statements
+                .Where(statement => IsCreateTableStatementFor(statement, table))
+                .ToArray();
+
+            foreach (var statement in createTableStatements)
+                await ExecuteSqlStatementAsync(connection, statement);
+
+            var createIndexStatements = statements
+                .Where(statement => IsCreateIndexStatementFor(statement, table))
+                .ToArray();
+
+            foreach (var statement in createIndexStatements)
+                await ExecuteSqlStatementAsync(connection, statement);
+        }
+
+        var stillMissing = await GetMissingRequiredLocalTablesAsync(ctx);
+        if (stillMissing.Count == 0)
+            return;
+
+        throw new InvalidOperationException(
+            $"Не удалось создать недостающие таблицы локальной БД: {string.Join(", ", stillMissing)}.");
+    }
+
+    private static bool IsCreateTableStatementFor(string statement, string table)
+    {
+        var trimmed = statement.TrimStart();
+        return trimmed.StartsWith($"CREATE TABLE \"{table}\"", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith($"CREATE TABLE [{table}]", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCreateIndexStatementFor(string statement, string table)
+    {
+        var trimmed = statement.TrimStart();
+        return (trimmed.StartsWith("CREATE INDEX", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("CREATE UNIQUE INDEX", StringComparison.OrdinalIgnoreCase)) &&
+               (trimmed.Contains($"\"{table}\"", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Contains($"[{table}]", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task ExecuteSqlStatementAsync(
+        System.Data.Common.DbConnection connection,
+        string statement)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = statement;
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<bool> HasAppliedMigrationsAsync(AppDbContext ctx)
@@ -435,9 +551,17 @@ public partial class App : Application
         var onboardingCompleted = await _storageService.GetAsync("onboarding_completed");
         if (!string.Equals(onboardingCompleted, "true", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("Onboarding is not completed. Navigating to onboarding page.");
-            await NavigateOnMainThreadAsync(shell, "//onboardingpage");
-            return;
+            var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
+            if (!restored)
+            {
+                _logger.LogInformation("Onboarding is not completed and no server child was found. Navigating to onboarding page.");
+                await NavigateOnMainThreadAsync(shell, "//onboardingpage");
+                return;
+            }
+        }
+        else
+        {
+            await _childSessionBootstrapService.EnsureChildSessionAsync();
         }
 
         await _mainPageViewModel.InitializeAsync();
@@ -475,9 +599,17 @@ public partial class App : Application
 
         if (!string.Equals(onboardingCompleted, "true", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("Онбординг не завершён. Перенаправляем на экран онбординга.");
-            await NavigateOnMainThreadAsync(shell, "//onboardingpage");
-            return;
+            var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
+            if (!restored)
+            {
+                _logger.LogInformation("Онбординг не завершён. Перенаправляем на экран онбординга.");
+                await NavigateOnMainThreadAsync(shell, "//onboardingpage");
+                return;
+            }
+        }
+        else
+        {
+            await _childSessionBootstrapService.EnsureChildSessionAsync();
         }
 
         await NavigateOnMainThreadAsync(shell, "//mainpage");

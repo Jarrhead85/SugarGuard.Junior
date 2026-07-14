@@ -46,6 +46,12 @@ public interface IApiClient
 
     Task<CreateChildOnboardingResponse> CreateChildOnboardingAsync(CreateChildOnboardingRequest request);
 
+    /// <summary>
+    /// Возвращает детей, доступных текущему авторизованному аккаунту.
+    /// Используется мобильным приложением для восстановления childId после обновления/переустановки.
+    /// </summary>
+    Task<List<ChildSummaryApiModel>> GetAccessibleChildrenAsync(CancellationToken cancellationToken = default);
+
     // ========== ИЗМЕРЕНИЯ ==========
     /// <summary>
     /// Отправляет одно измерение на сервер

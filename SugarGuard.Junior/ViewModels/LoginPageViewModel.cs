@@ -13,6 +13,7 @@ public partial class LoginPageViewModel : ObservableObject
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly IStorageService _storageService;
+    private readonly IChildSessionBootstrapService _childSessionBootstrapService;
     private readonly ILogger<LoginPageViewModel> _logger;
 
     [ObservableProperty]
@@ -30,10 +31,12 @@ public partial class LoginPageViewModel : ObservableObject
     public LoginPageViewModel(
         IAuthenticationService authenticationService,
         IStorageService storageService,
+        IChildSessionBootstrapService childSessionBootstrapService,
         ILogger<LoginPageViewModel> logger)
     {
         _authenticationService = authenticationService;
         _storageService = storageService;
+        _childSessionBootstrapService = childSessionBootstrapService;
         _logger = logger;
     }
 
@@ -97,11 +100,19 @@ public partial class LoginPageViewModel : ObservableObject
             }
 
             var onboardingCompleted = await _storageService.GetAsync("onboarding_completed");
-            if (onboardingCompleted != "true")
+            if (!string.Equals(onboardingCompleted, "true", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Онбординг не завершён, перенаправление на онбординг");
-                await Shell.Current.GoToAsync("//onboardingpage");
-                return;
+                var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
+                if (!restored)
+                {
+                    _logger.LogInformation("Онбординг не завершён и серверный профиль ребёнка не найден, перенаправление на онбординг");
+                    await Shell.Current.GoToAsync("//onboardingpage");
+                    return;
+                }
+            }
+            else
+            {
+                await _childSessionBootstrapService.EnsureChildSessionAsync();
             }
 
             await Shell.Current.GoToAsync("//mainpage");

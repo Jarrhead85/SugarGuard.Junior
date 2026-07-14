@@ -220,6 +220,25 @@ public class MockApiClient : IApiClient
         };
     }
 
+    public async Task<List<ChildSummaryApiModel>> GetAccessibleChildrenAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(100, cancellationToken);
+
+        return
+        [
+            new ChildSummaryApiModel
+            {
+                ChildId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                FirstName = "Иван",
+                LastName = "Петров",
+                DateOfBirth = DateOnly.FromDateTime(DateTime.Today.AddYears(-10)),
+                DiabetesType = DiabetesType.Type1,
+                DiagnosisDate = DateOnly.FromDateTime(DateTime.Today.AddYears(-2)),
+                CreatedAt = DateTime.UtcNow.AddYears(-1)
+            }
+        ];
+    }
+
     public async Task<MeasurementResponse> SendMeasurementAsync(SendMeasurementRequest request)
     {
         try
