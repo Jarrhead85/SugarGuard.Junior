@@ -1,6 +1,8 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
+using SugarGuard.API.Application.Ai;
 using SugarGuard.API.Data;
 using Microsoft.EntityFrameworkCore;
 using SugarGuard.API.Application.Interfaces;
@@ -195,12 +197,12 @@ public class GigaChatService : IGigaChatService
                 new
                 {
                     role = "system",
-                    content = "Ты детский помощник по диабету SugarGuard. Отвечай по-русски, спокойно, кратко и понятно ребёнку. Не назначай новую дозу, не меняй дозу или схему инсулина, не заменяй врача, не скрывай критичность ситуации. Можно объяснять факты, напоминать утверждённый план, просить сообщить взрослому и перечислять данные, которые стоит проверить."
+                    content = "Ты детский помощник по диабету SugarGuard. Отвечай по-русски, спокойно, кратко и понятно ребёнку. Всегда опирайся на факты из контекста: текущую глюкозу, цель, недавнюю динамику, последнюю еду/перекус, последний инсулин, статистику дня и содержимое рюкзака. Не назначай новую дозу, не меняй дозу или схему инсулина, не заменяй врача, не скрывай критичность ситуации. Если советуешь еду или перекус, называй только то, что реально есть в рюкзаке; если подходящего нет, так и скажи. Можно объяснять факты, напоминать утверждённый план, просить сообщить взрослому и перечислять данные, которые стоит проверить."
                 },
                 new { role = "user", content = prompt }
             },
             temperature = 0.2,
-            max_tokens = 90
+            max_tokens = 180
         };
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, apiUrl);
@@ -251,22 +253,22 @@ public class GigaChatService : IGigaChatService
     {
         if (!string.IsNullOrWhiteSpace(request.StructuredContextJson))
         {
+            var clinicalDigest = BuildClinicalDigest(request);
+
             return $"""
                 Вопрос пользователя: {request.Question}
 
-                Ниже структурированный обезличенный контекст SugarGuard. В нём нет ФИО и контактов.
-                Используй только эти данные. Не придумывай еду, инсулин, симптомы или назначения.
-                Перед ответом обязательно проверь:
-                - current.measurement, dailySummary и longTermPatterns: текущая глюкоза, тренд и статистика;
-                - current.lastMeal и recentHistory.nutrition: что и когда ребёнок ел, ХЕ и перекусы;
-                - current.lastInsulin и recentHistory.insulin: фактически введённый инсулин;
-                - availableBackpack: что реально доступно ребёнку в рюкзаке сейчас;
-                - recentHistory.consumedBackpackSnacks: какие перекусы из рюкзака уже были съедены недавно.
-                Если в контексте есть питание, перекусы, рюкзак или статистика глюкозы, ответ должен явно учитывать эти факты.
-                Если подходящего перекуса в рюкзаке нет или данных мало, прямо скажи об этом и попроси обратиться к взрослому.
-                Если данных мало, прямо скажи, что вывод осторожный.
+                Краткий клинический контекст SugarGuard без ФИО и контактов:
+                {clinicalDigest}
 
-                {request.StructuredContextJson}
+                Правила ответа:
+                1. Дай одно безопасное действие на ближайшие минуты, а не общий медицинский текст.
+                2. В ответе явно учти рюкзак, последнюю еду/перекус, последний инсулин и статистику глюкозы, если они есть в контексте.
+                3. Не предлагай продукты, которых нет в строке "Рюкзак сейчас". Если нужен перекус, но подходящего предмета в рюкзаке нет, скажи ребёнку позвать взрослого.
+                4. При нормальной глюкозе не предлагай есть просто "на всякий случай"; можно сказать продолжать день и наблюдать самочувствие.
+                5. При повышенной глюкозе не советуй дополнительные углеводы; попроси сообщить взрослому, пить воду и действовать по утверждённому плану.
+                6. Не рассчитывай и не назначай дозу инсулина. Если нужна коррекция, скажи действовать только по плану с взрослым.
+                7. Ответ: 2-4 коротких предложения, понятных ребёнку. Без списков, без длинных дисклеймеров.
                 """;
         }
 
@@ -286,6 +288,215 @@ public class GigaChatService : IGigaChatService
             Дай одно конкретное безопасное действие. При низкой глюкозе предложи только реально доступный перекус; если подходящего нет, скажи обратиться к взрослому и взять быстрые углеводы из аварийного запаса.
             """;
     }
+
+    private static string BuildClinicalDigest(GigaChatRequest request)
+    {
+        ClinicalContext? context = null;
+
+        try
+        {
+            context = JsonSerializer.Deserialize<ClinicalContext>(
+                request.StructuredContextJson!,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            // Context format can evolve independently from the prompt. If parsing fails,
+            // keep the request usable instead of dropping the whole AI flow.
+        }
+
+        if (context is null)
+        {
+            return TrimForPrompt(request.StructuredContextJson!, 3500);
+        }
+
+        var lines = new[]
+        {
+            BuildCurrentLine(context, request),
+            BuildDailySummaryLine(context),
+            BuildLastMealLine(context),
+            BuildLastInsulinLine(context),
+            BuildBackpackLine(context),
+            BuildConsumedBackpackLine(context),
+            BuildRecentMeasurementsLine(context),
+            BuildRecentNutritionLine(context),
+            BuildLongTermPatternsLine(context),
+            BuildConversationLine(context)
+        };
+
+        return TrimForPrompt(
+            string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line))),
+            4200);
+    }
+
+    private static string BuildCurrentLine(ClinicalContext context, GigaChatRequest request)
+    {
+        var measurement = context.Current.Measurement;
+        var value = measurement?.Value ?? Convert.ToDecimal(request.CurrentGlucose);
+        var status = string.IsNullOrWhiteSpace(request.GlucoseStatus) ? "не указан" : request.GlucoseStatus;
+        var trend = string.IsNullOrWhiteSpace(request.Trend) ? "нет данных" : request.Trend;
+        var state = string.IsNullOrWhiteSpace(measurement?.State)
+            ? "самочувствие не указано"
+            : measurement.State;
+
+        return $"Сейчас: глюкоза {Format(value)} ммоль/л, статус {status}, тренд {trend}, цель {Format(context.Profile.TargetRangeMin)}-{Format(context.Profile.TargetRangeMax)} ммоль/л, {state}.";
+    }
+
+    private static string BuildDailySummaryLine(ClinicalContext context)
+    {
+        var summary = context.DailySummary;
+        if (summary.MeasurementCount <= 0)
+        {
+            return "Статистика дня: измерений пока нет.";
+        }
+
+        var average = summary.AverageGlucose.HasValue ? Format(summary.AverageGlucose.Value) : "нет";
+        var min = summary.MinGlucose.HasValue ? Format(summary.MinGlucose.Value) : "нет";
+        var max = summary.MaxGlucose.HasValue ? Format(summary.MaxGlucose.Value) : "нет";
+        var timeInRange = summary.TimeInRangePercent.HasValue ? $"{Format(summary.TimeInRangePercent.Value)}%" : "нет";
+
+        return $"Статистика дня: {summary.MeasurementCount} измер., средняя {average}, мин/макс {min}/{max}, в цели {timeInRange}, низких {summary.LowEpisodes}, высоких {summary.HighEpisodes}, еда {Format(summary.TotalBreadUnits)} ХЕ, инсулин {Format(summary.TotalInsulinUnits)} ед.";
+    }
+
+    private static string BuildLastMealLine(ClinicalContext context)
+    {
+        var meal = context.Current.LastMeal;
+        if (meal is null)
+        {
+            return "Последняя еда/перекус: данных нет.";
+        }
+
+        var name = string.IsNullOrWhiteSpace(meal.MealName)
+            ? meal.MealType
+            : $"{meal.MealType} ({meal.MealName})";
+        var minutes = context.Current.MinutesSinceMeal.HasValue
+            ? $"{context.Current.MinutesSinceMeal.Value} мин назад"
+            : "время не рассчитано";
+
+        return $"Последняя еда/перекус: {name}, {Format(meal.BreadUnits)} ХЕ, {minutes}.";
+    }
+
+    private static string BuildLastInsulinLine(ClinicalContext context)
+    {
+        var insulin = context.Current.LastInsulin;
+        if (insulin is null)
+        {
+            return "Последний инсулин: данных нет.";
+        }
+
+        var minutes = context.Current.MinutesSinceInsulin.HasValue
+            ? $"{context.Current.MinutesSinceInsulin.Value} мин назад"
+            : "время не рассчитано";
+
+        return $"Последний инсулин: {Format(insulin.Units)} ед. ({insulin.MealType}), {minutes}.";
+    }
+
+    private static string BuildBackpackLine(ClinicalContext context)
+    {
+        if (context.AvailableBackpack.Count == 0)
+        {
+            return "Рюкзак сейчас: пуст или данных нет.";
+        }
+
+        var snacks = context.AvailableBackpack
+            .GroupBy(item => new { item.SnackName, item.BreadUnits })
+            .OrderBy(group => group.Key.SnackName)
+            .ThenBy(group => group.Key.BreadUnits)
+            .Select(group => group.Count() == 1
+                ? $"{group.Key.SnackName} ({Format(group.Key.BreadUnits)} ХЕ)"
+                : $"{group.Key.SnackName}: {group.Count()} шт. по {Format(group.Key.BreadUnits)} ХЕ");
+
+        return $"Рюкзак сейчас: {string.Join("; ", snacks)}.";
+    }
+
+    private static string BuildConsumedBackpackLine(ClinicalContext context)
+    {
+        if (context.RecentHistory.ConsumedBackpackSnacks.Count == 0)
+        {
+            return "Недавно съедено из рюкзака: нет записей.";
+        }
+
+        var consumed = context.RecentHistory.ConsumedBackpackSnacks
+            .OrderByDescending(item => item.RecordedAt)
+            .Take(4)
+            .Select(item => $"{item.SnackName} ({Format(item.BreadUnits)} ХЕ, {item.RecordedAt:dd.MM HH:mm})");
+
+        return $"Недавно съедено из рюкзака: {string.Join("; ", consumed)}.";
+    }
+
+    private static string BuildRecentMeasurementsLine(ClinicalContext context)
+    {
+        if (context.RecentHistory.Measurements.Count == 0)
+        {
+            return "Недавние измерения: нет данных.";
+        }
+
+        var measurements = context.RecentHistory.Measurements
+            .OrderByDescending(item => item.MeasuredAt)
+            .Take(6)
+            .OrderBy(item => item.MeasuredAt)
+            .Select(item => $"{item.MeasuredAt:HH:mm}={Format(item.Value)}");
+
+        return $"Недавние измерения: {string.Join(" → ", measurements)}.";
+    }
+
+    private static string BuildRecentNutritionLine(ClinicalContext context)
+    {
+        if (context.RecentHistory.Nutrition.Count == 0)
+        {
+            return "Недавнее питание: нет записей.";
+        }
+
+        var nutrition = context.RecentHistory.Nutrition
+            .OrderByDescending(item => item.RecordedAt)
+            .Take(5)
+            .Select(item =>
+            {
+                var name = string.IsNullOrWhiteSpace(item.MealName)
+                    ? item.MealType
+                    : $"{item.MealType} {item.MealName}";
+                return $"{item.RecordedAt:HH:mm}: {name}, {Format(item.BreadUnits)} ХЕ";
+            });
+
+        return $"Недавнее питание: {string.Join("; ", nutrition)}.";
+    }
+
+    private static string BuildLongTermPatternsLine(ClinicalContext context)
+    {
+        var observations = context.LongTermPatterns.Observations
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Take(3)
+            .ToList();
+
+        if (observations.Count == 0)
+        {
+            return $"Динамика за {context.LongTermPatterns.PeriodDays} дней: {context.LongTermPatterns.DataQuality}.";
+        }
+
+        return $"Динамика за {context.LongTermPatterns.PeriodDays} дней: {context.LongTermPatterns.DataQuality}; {string.Join(" ", observations)}";
+    }
+
+    private static string BuildConversationLine(ClinicalContext context)
+    {
+        if (context.Conversation.RecentMessages.Count == 0)
+        {
+            return "Недавний диалог: нет предыдущих сообщений.";
+        }
+
+        var messages = context.Conversation.RecentMessages
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(4)
+            .OrderBy(item => item.CreatedAt)
+            .Select(item => $"{item.Role}: {TrimForPrompt(item.Text.ReplaceLineEndings(" "), 160)}");
+
+        return $"Недавний диалог: {string.Join(" | ", messages)}.";
+    }
+
+    private static string Format(decimal value) =>
+        value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string TrimForPrompt(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength];
 
     /// <summary>
     /// Получить локальную рекомендацию на основе правил

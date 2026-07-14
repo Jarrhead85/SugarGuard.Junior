@@ -757,7 +757,9 @@
                 <span>Страница @_aiConversationPage из @AiDialogTotalPages</span>
                 @if (!string.IsNullOrWhiteSpace(_aiConversation.Summary))
                 {
-                    <span>Резюме: @_aiConversation.Summary</span>
+                    <span title="Короткая служебная память нужна только для связности новых ответов ИИ. Полный текст контроля показан ниже.">
+                        Служебная память учтена
+                    </span>
                 }
             </div>
             <div class="ai-control-list" role="list">

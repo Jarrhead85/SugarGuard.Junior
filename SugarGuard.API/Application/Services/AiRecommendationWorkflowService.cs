@@ -387,10 +387,9 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
 
     private static string BuildDeterministicSummary(string previousSummary, string assistantText)
     {
-        var combined = string.IsNullOrWhiteSpace(previousSummary)
-            ? $"Последний безопасный совет: {assistantText}"
-            : $"{previousSummary}\nПоследний безопасный совет: {assistantText}";
-        return Trim(combined, 1200);
+        // This summary is a compact service memory for the next AI request.
+        // The full auditable dialogue remains in AiConversationMessage and the parent UI.
+        return Trim($"Последний безопасный совет: {assistantText}", 600);
     }
 
     private static string Trim(string value, int maxLength) =>
