@@ -89,7 +89,7 @@ public sealed class GigaChatServicePromptTests
         Assert.Contains("Последняя еда/перекус: Snack (йогурт), 1.2 ХЕ, 45 мин назад.", prompt);
         Assert.Contains("Последний инсулин: 0.5 ед. (Snack), 40 мин назад.", prompt);
         Assert.Contains("Статистика дня: 5 измер.", prompt);
-        Assert.Contains("Не предлагай продукты", prompt);
+        Assert.Contains("единственный разрешённый список доступной еды", prompt);
         Assert.DoesNotContain("\"availableBackpack\"", prompt);
     }
 

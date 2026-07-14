@@ -83,6 +83,17 @@ public sealed partial class AiRecommendationSafetyPolicy : IAiRecommendationSafe
             };
         }
 
+        if (ContainsUnavailableBackpackFoodAdvice(context, modelResponse))
+        {
+            return new AiSafetyDecision
+            {
+                Result = AiSafetyResult.BlockedUnsafeOutput,
+                Urgency = context.Current.Measurement?.Value > context.Profile.TargetRangeMax ? "MEDIUM" : "LOW",
+                CanCallModel = false,
+                SafeText = BuildBackpackGroundedSafeText(context)
+            };
+        }
+
         return new AiSafetyDecision
         {
             Result = AiSafetyResult.Allowed,
@@ -90,6 +101,92 @@ public sealed partial class AiRecommendationSafetyPolicy : IAiRecommendationSafe
         };
     }
 
+    private static bool ContainsUnavailableBackpackFoodAdvice(ClinicalContext context, string modelResponse)
+    {
+        if (string.IsNullOrWhiteSpace(modelResponse) || !SuggestsEatingPattern().IsMatch(modelResponse))
+        {
+            return false;
+        }
+
+        var normalizedResponse = Normalize(modelResponse);
+        var availableSnackNames = context.AvailableBackpack
+            .Select(item => Normalize(item.SnackName))
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToList();
+
+        var mentionsBackpack = normalizedResponse.Contains("рюкзак", StringComparison.Ordinal);
+        if (mentionsBackpack && !availableSnackNames.Any(name => normalizedResponse.Contains(name, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return KnownSnackMarkers
+            .Where(marker => normalizedResponse.Contains(marker, StringComparison.Ordinal))
+            .Any(marker => !availableSnackNames.Any(name => name.Contains(marker, StringComparison.Ordinal)));
+    }
+
+    private static string BuildBackpackGroundedSafeText(ClinicalContext context)
+    {
+        var glucose = context.Current.Measurement?.Value;
+        var availableBackpack = FormatAvailableBackpack(context);
+
+        if (glucose.HasValue && glucose.Value < context.Profile.TargetRangeMin)
+        {
+            return string.IsNullOrWhiteSpace(availableBackpack)
+                ? "Глюкоза ниже цели. Позови взрослого: в рюкзаке подходящего перекуса не вижу, используй быстрые углеводы только по своему плану."
+                : $"Глюкоза ниже цели. Позови взрослого. В рюкзаке сейчас отмечено: {availableBackpack}. Используй только подходящий быстрый углевод по своему плану и повтори измерение через 10–15 минут.";
+        }
+
+        if (glucose.HasValue && glucose.Value > context.Profile.TargetRangeMax)
+        {
+            return "Глюкоза выше цели. Дополнительные углеводы сейчас не нужны. Сообщи взрослому, пей воду и действуй только по утверждённому плану.";
+        }
+
+        return string.IsNullOrWhiteSpace(availableBackpack)
+            ? "Глюкоза сейчас около цели. Специально есть сладкое не нужно; наблюдай самочувствие и скажи взрослому, если станет плохо."
+            : $"Глюкоза сейчас около цели. Специально есть сладкое не нужно; если ты правда голоден, выбирай только из того, что отмечено в рюкзаке: {availableBackpack}.";
+    }
+
+    private static string FormatAvailableBackpack(ClinicalContext context)
+    {
+        if (context.AvailableBackpack.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(
+            "; ",
+            context.AvailableBackpack
+                .GroupBy(item => new { item.SnackName, item.BreadUnits })
+                .OrderBy(group => group.Key.SnackName)
+                .ThenBy(group => group.Key.BreadUnits)
+                .Select(group => group.Count() == 1
+                    ? $"{group.Key.SnackName} ({group.Key.BreadUnits:0.##} ХЕ)"
+                    : $"{group.Key.SnackName}: {group.Count()} шт. по {group.Key.BreadUnits:0.##} ХЕ"));
+    }
+
+    private static string Normalize(string value) =>
+        value.Trim().ToLowerInvariant().Replace('ё', 'е');
+
+    private static readonly string[] KnownSnackMarkers =
+    [
+        "батончик",
+        "банан",
+        "булоч",
+        "йогурт",
+        "конфет",
+        "мармелад",
+        "печень",
+        "сок",
+        "сыр",
+        "хлебц",
+        "шоколад",
+        "яблок"
+    ];
+
     [GeneratedRegex("(увеличь|уменьши|измени|поменяй|добавь|введи|уколи|поставь).{0,60}(доз|инсулин|ед\\.?|единиц)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex UnsafeDosePattern();
+
+    [GeneratedRegex("(съешь|съесть|перекуси|перекус|выпей|возьми|используй|быстрые\\s+углеводы|углевод)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SuggestsEatingPattern();
 }
