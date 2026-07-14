@@ -162,6 +162,14 @@ public class MeasurementResponse
     /// </summary>
     public string? MeasurementId { get; set; }
 
+    public string? ChildId { get; set; }
+    public decimal GlucoseValue { get; set; }
+    public DateTime MeasurementTime { get; set; }
+    public string? ChildState { get; set; }
+    public string? Notes { get; set; }
+    public string? DataSource { get; set; }
+    public DateTime CreatedAt { get; set; }
+
     /// <summary>
     /// Является ли это критическим измерением?
     /// </summary>

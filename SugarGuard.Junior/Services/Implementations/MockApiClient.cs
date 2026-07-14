@@ -326,6 +326,16 @@ public class MockApiClient : IApiClient
         };
     }
 
+    public async Task<List<MeasurementResponse>> GetMeasurementsAsync(
+        string childId,
+        int limit = 500,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("[MOCK] Получение истории измерений для {ChildId}", childId);
+        await Task.Delay(100, cancellationToken);
+        return [];
+    }
+
     /// <summary>
     /// Имитирует получение рекомендации
     /// </summary>

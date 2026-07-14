@@ -73,6 +73,14 @@ public interface IApiClient
     /// </summary>
     Task<MeasurementResponse> GetMeasurementByIdAsync(string measurementId);
 
+    /// <summary>
+    /// Получает последние измерения ребёнка с сервера для восстановления локальной истории.
+    /// </summary>
+    Task<List<MeasurementResponse>> GetMeasurementsAsync(
+        string childId,
+        int limit = 500,
+        CancellationToken cancellationToken = default);
+
     // ========== ИИ РЕКОМЕНДАЦИИ ==========
     /// <summary>
     /// Получает рекомендацию от Gigachat

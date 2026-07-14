@@ -1,7 +1,10 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Models.Core;
+using SugarGuard.Junior.Models.Enums;
 using SugarGuard.Junior.Repositories.Interfaces;
+using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
 using MobileDiabetesType = SugarGuard.Junior.Models.Enums.DiabetesType;
@@ -23,6 +26,7 @@ public sealed class ChildSessionBootstrapService : IChildSessionBootstrapService
     private readonly IStorageService _storageService;
     private readonly IChildRepository _childRepository;
     private readonly IMeasurementRepository _measurementRepository;
+    private readonly ICryptoService _cryptoService;
     private readonly ILogger<ChildSessionBootstrapService> _logger;
 
     public ChildSessionBootstrapService(
@@ -30,12 +34,14 @@ public sealed class ChildSessionBootstrapService : IChildSessionBootstrapService
         IStorageService storageService,
         IChildRepository childRepository,
         IMeasurementRepository measurementRepository,
+        ICryptoService cryptoService,
         ILogger<ChildSessionBootstrapService> logger)
     {
         _apiClient = apiClient;
         _storageService = storageService;
         _childRepository = childRepository;
         _measurementRepository = measurementRepository;
+        _cryptoService = cryptoService;
         _logger = logger;
     }
 
@@ -69,6 +75,8 @@ public sealed class ChildSessionBootstrapService : IChildSessionBootstrapService
         await SaveLocalChildProfileAsync(selectedChild);
 
         var selectedChildId = selectedChild.ChildId.ToString();
+        await RestoreRecentMeasurementsAsync(selectedChildId);
+
         await _storageService.SaveAsync(Constants.StorageKeyCurrentChildId, selectedChildId);
         await _storageService.SaveAsync(OnboardingCompletedKey, "true");
         await _storageService.SaveAsync(ChildNicknameKey, selectedChild.FirstName);
@@ -137,6 +145,59 @@ public sealed class ChildSessionBootstrapService : IChildSessionBootstrapService
             await _childRepository.UpdateChildWithEncryptionAsync(child);
     }
 
+    private async Task RestoreRecentMeasurementsAsync(string childId)
+    {
+        if (await _measurementRepository.GetLatestByChildIdAsync(childId) is not null)
+            return;
+
+        var serverMeasurements = await _apiClient.GetMeasurementsAsync(childId, limit: 500);
+        if (serverMeasurements.Count == 0)
+            return;
+
+        var restoredCount = 0;
+        foreach (var serverMeasurement in serverMeasurements.OrderBy(m => m.MeasurementTime))
+        {
+            var measurementId = string.IsNullOrWhiteSpace(serverMeasurement.MeasurementId)
+                ? Guid.NewGuid().ToString()
+                : serverMeasurement.MeasurementId;
+
+            if (await _measurementRepository.ExistsAsync(measurementId))
+                continue;
+
+            var measurement = new Measurement
+            {
+                MeasurementId = measurementId,
+                ChildId = childId,
+                EncryptedGlucoseValue = await _cryptoService.EncryptAsync(
+                    Convert.ToDouble(serverMeasurement.GlucoseValue).ToString("F1", CultureInfo.InvariantCulture)),
+                MeasurementTime = serverMeasurement.MeasurementTime == default
+                    ? serverMeasurement.CreatedAt
+                    : serverMeasurement.MeasurementTime,
+                EncryptedChildState = await EncryptOptionalAsync(MapChildState(serverMeasurement.ChildState).ToString()),
+                EncryptedNotes = await EncryptOptionalAsync(serverMeasurement.Notes),
+                DataSource = MapDataSource(serverMeasurement.DataSource),
+                CreatedAt = serverMeasurement.CreatedAt == default ? DateTime.UtcNow : serverMeasurement.CreatedAt,
+                IsSynced = true,
+                RecommendationId = null
+            };
+
+            await _measurementRepository.AddAsync(measurement);
+            restoredCount++;
+        }
+
+        _logger.LogInformation(
+            "Восстановлено {Count} серверных измерений в локальную историю. ChildId={ChildId}",
+            restoredCount,
+            childId);
+    }
+
+    private async Task<string?> EncryptOptionalAsync(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : await _cryptoService.EncryptAsync(value.Trim());
+    }
+
     private async Task MarkOnboardingCompletedAsync(Child localChild, string childId)
     {
         await _storageService.SaveAsync(Constants.StorageKeyCurrentChildId, childId);
@@ -167,5 +228,19 @@ public sealed class ChildSessionBootstrapService : IChildSessionBootstrapService
             MobileDiabetesType.Type2 => 1,
             _ => 2
         };
+    }
+
+    private static ChildState MapChildState(string? childState)
+    {
+        return Enum.TryParse<ChildState>(childState, ignoreCase: true, out var parsed)
+            ? parsed
+            : ChildState.Normal;
+    }
+
+    private static DataSource MapDataSource(string? dataSource)
+    {
+        return Enum.TryParse<DataSource>(dataSource, ignoreCase: true, out var parsed)
+            ? parsed
+            : DataSource.ManualInput;
     }
 }

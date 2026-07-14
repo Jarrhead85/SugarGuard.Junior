@@ -427,15 +427,49 @@ public class RealApiClient : IApiClient
         return ParseMeasurementResponse(raw);
     }
 
+    public async Task<List<MeasurementResponse>> GetMeasurementsAsync(
+        string childId,
+        int limit = 500,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(childId, out _))
+            return [];
+
+        var safeLimit = Math.Clamp(limit, 1, 1000);
+        using var res = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"api/measurements/{childId}?limit={safeLimit}"),
+            cancellationToken);
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var message = await ReadApiErrorMessageAsync(res);
+            _logger.LogWarning("GetMeasurements failed: {Status} {Message}", res.StatusCode, message);
+            return [];
+        }
+
+        return await res.Content.ReadFromJsonAsync<List<MeasurementResponse>>(JsonOptions, cancellationToken) ?? [];
+    }
+
     private static MeasurementResponse ParseMeasurementResponse(JsonElement raw)
     {
         return new MeasurementResponse
         {
             Success = true,
             MeasurementId = raw.TryGetProperty("measurementId", out var mid) ? mid.GetString() : null,
+            ChildId = raw.TryGetProperty("childId", out var cid) ? cid.GetString() : null,
+            GlucoseValue = raw.TryGetProperty("glucoseValue", out var gv) ? gv.GetDecimal() : 0,
+            MeasurementTime = raw.TryGetProperty("measurementTime", out var mt) && mt.ValueKind == JsonValueKind.String
+                ? DateTime.Parse(mt.GetString()!, null, DateTimeStyles.RoundtripKind)
+                : default,
+            ChildState = raw.TryGetProperty("childState", out var cs) ? cs.GetString() : null,
+            Notes = raw.TryGetProperty("notes", out var notes) ? notes.GetString() : null,
+            DataSource = raw.TryGetProperty("dataSource", out var ds) ? ds.GetString() : null,
+            CreatedAt = raw.TryGetProperty("createdAt", out var ca) && ca.ValueKind == JsonValueKind.String
+                ? DateTime.Parse(ca.GetString()!, null, DateTimeStyles.RoundtripKind)
+                : DateTime.UtcNow,
             IsCritical = raw.TryGetProperty("isCritical", out var ic) && ic.GetBoolean(),
             ServerModifiedAt = raw.TryGetProperty("serverModifiedAt", out var sma) && sma.ValueKind == JsonValueKind.String
-                ? DateTime.Parse(sma.GetString()!, null, System.Globalization.DateTimeStyles.RoundtripKind)
+                ? DateTime.Parse(sma.GetString()!, null, DateTimeStyles.RoundtripKind)
                 : null,
             ServerVersion = raw.TryGetProperty("serverVersion", out var sv) ? sv.GetRawText() : null
         };
