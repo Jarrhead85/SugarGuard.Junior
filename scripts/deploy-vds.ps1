@@ -167,11 +167,19 @@ deploy_one() {
     sudo mkdir -p "`$target.new"
     sudo tar -xzf "`$package" -C "`$target.new"
 
-    # User-uploaded photos are runtime data and must survive binary deployments.
+    # Runtime/user-facing static data must survive binary deployments.
     if [ -d "`$target/wwwroot/uploads" ]; then
         sudo mkdir -p "`$target.new/wwwroot"
         sudo rm -rf "`$target.new/wwwroot/uploads"
         sudo cp -a "`$target/wwwroot/uploads" "`$target.new/wwwroot/uploads"
+    fi
+
+    # Published APK files are uploaded outside the application package and must
+    # remain available after Web redeploys.
+    if [ -d "`$target/wwwroot/downloads" ]; then
+        sudo mkdir -p "`$target.new/wwwroot"
+        sudo rm -rf "`$target.new/wwwroot/downloads"
+        sudo cp -a "`$target/wwwroot/downloads" "`$target.new/wwwroot/downloads"
     fi
 
     sudo chown -R sugarguard:sugarguard "`$target.new"
