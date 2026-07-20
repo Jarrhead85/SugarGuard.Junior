@@ -193,6 +193,9 @@
 </section>
 
 @code {
+    [Parameter]
+    public bool Embedded { get; set; }
+
     private const long MaxAttachmentBytes = 5 * 1024 * 1024;
     private readonly CancellationTokenSource _cts = new();
     private List<SupportConversationVm> _conversations = [];
@@ -215,6 +218,12 @@
     {
         var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         _isSupport = auth.User.IsInRole("Admin") || auth.User.IsInRole("SupportAdmin");
+        if (!Embedded && auth.User.IsInRole("Parent"))
+        {
+            Navigation.NavigateTo("/parent/dashboard?tab=support", replace: true);
+            return;
+        }
+
         if (_isSupport && !Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/support", StringComparison.OrdinalIgnoreCase))
         {
             Navigation.NavigateTo("/admin/support", replace: true);

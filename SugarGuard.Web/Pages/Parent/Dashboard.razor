@@ -12,6 +12,7 @@
 @using SugarGuard.Web.ViewModels
 @using SugarGuard.Web.Components.Pages.Parent
 @using SugarGuard.Web.Components.Shared
+@using SugarGuard.Web.Pages
 @using System.Text.Json
 @using System.Globalization
 @using System.Text.RegularExpressions
@@ -143,7 +144,10 @@
             aria-controls="pane-articles"
             @onclick='() => SwitchTab("articles")'>Статьи</button>
 
-    <a class="tab tab-link" href="/support" aria-label="Поддержка SugarGuard">Поддержка</a>
+    <button class="tab @TabClass("support")" role="tab"
+            aria-selected="@(_activeTab == "support")"
+            aria-controls="pane-support"
+            @onclick='() => SwitchTab("support")'>Поддержка</button>
 
     <button class="tab @TabClass("settings")" role="tab"
             aria-selected="@(_activeTab == "settings")"
@@ -568,6 +572,11 @@
 @* СТАТЬИ *@
 <div class="tab-pane @PaneClass("articles")" id="pane-articles" role="tabpanel">
     <ParentArticles Embedded="true" />
+</div>
+
+@* ПОДДЕРЖКА *@
+<div class="tab-pane @PaneClass("support")" id="pane-support" role="tabpanel">
+    <Support Embedded="true" />
 </div>
 
 @* УВЕДОМЛЕНИЯ *@

@@ -442,11 +442,39 @@
         });
     }
 
-    function pointColorResolver(colors, fallback) {
-        return function (context) {
-            return colors[context.dataIndex] || fallback;
-        };
+    /**
+     * Chart.js повторно разрешает scriptable-опции после mouseout. В этой точке
+     * dataIndex иногда отсутствует, из-за чего библиотека подставляла цвет линии
+     * (зелёный) для любой точки. Храним готовые цвета на dataset и закрепляем их
+     * на самих PointElement после каждого события.
+     */
+    function applyStablePointStyles(chart) {
+        if (!chart || !chart.data || !chart.data.datasets || !chart.data.datasets.length) return;
+
+        var dataset = chart.data.datasets[0];
+        var pointColors = dataset._sgPointColors || [];
+        var fallback = getGlucoseColor('normal');
+        var points = chart.getDatasetMeta(0).data || [];
+
+        points.forEach(function (point, index) {
+            var color = pointColors[index] || fallback;
+            point.options.backgroundColor = color;
+            point.options.borderColor = color;
+            point.options.borderWidth = 2;
+            point.options.radius = 4;
+            point.options.hoverRadius = 7;
+        });
     }
+
+    var stablePointStylePlugin = {
+        id: 'sg-stable-point-styles',
+        afterDatasetsUpdate: function (chart) {
+            applyStablePointStyles(chart);
+        },
+        afterEvent: function (chart) {
+            applyStablePointStyles(chart);
+        }
+    };
 
     /**
      * Строит полный конфигурационный объект Chart.js для графика глюкозы.
@@ -476,9 +504,6 @@
         gradient.addColorStop(1, hexToRgba(normalColor, 0.00));
 
         var pointColors = buildPointColors(payload.colors, 1.0);
-        var pointBorderColors = buildPointColors(payload.colors, 1.0);
-        var pointColor = pointColorResolver(pointColors, normalColor);
-        var pointBorderColor = pointColorResolver(pointBorderColors, normalColor);
 
         // Плагин аннотаций — подключаем только если CDN загрузил его
         var annotationPlugin = hasAnnotationPlugin()
@@ -496,19 +521,18 @@
                     fill: true,
                     backgroundColor: gradient,
                     tension: 0.4,   // spline-сглаживание
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    // Цвет нужен и в обычном состоянии, и при наведении.
-                    // Без pointBackgroundColor Chart.js после mouseout использовал
-                    // цвет линии (зелёный) для всех точек.
-                    pointBackgroundColor: pointColor,
-                    pointBorderColor: pointBorderColor,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: pointColors,
                     pointBorderWidth: 2,
-                    pointHoverBackgroundColor: pointColor,
-                    pointHoverBorderColor: pointBorderColor,
-                    pointHoverBorderWidth: 2
+                    pointHoverBackgroundColor: pointColors,
+                    pointHoverBorderColor: pointColors,
+                    pointHoverBorderWidth: 2,
+                    _sgPointColors: pointColors
                 }]
             },
+            plugins: [stablePointStylePlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -603,16 +627,16 @@
 
                 ds.backgroundColor = gradient;
                 ds.borderColor = normalColor;
-                var pointBackgroundColors = buildPointColors(payload.colors, 1.0);
-                var pointBorderColors = buildPointColors(payload.colors, 1.0);
-                var pointColor = pointColorResolver(pointBackgroundColors, normalColor);
-                var pointBorderColor = pointColorResolver(pointBorderColors, normalColor);
-                ds.pointBackgroundColor = pointColor;
-                ds.pointBorderColor = pointBorderColor;
+                var pointColors = buildPointColors(payload.colors, 1.0);
+                ds.pointBackgroundColor = pointColors;
+                ds.pointBorderColor = pointColors;
                 ds.pointBorderWidth = 2;
-                ds.pointHoverBackgroundColor = pointColor;
-                ds.pointHoverBorderColor = pointBorderColor;
+                ds.pointHoverBackgroundColor = pointColors;
+                ds.pointHoverBorderColor = pointColors;
                 ds.pointHoverBorderWidth = 2;
+                ds.pointRadius = 4;
+                ds.pointHoverRadius = 7;
+                ds._sgPointColors = pointColors;
 
                 // Обновляем аннотации если плагин доступен
                 if (hasAnnotationPlugin() &&
@@ -622,7 +646,8 @@
                         buildAnnotations(payload.zones);
                 }
 
-                chart.update('active');
+                chart.update('none');
+                applyStablePointStyles(chart);
             } catch (e) {
                 console.error('[sgGlucoseChart] ошибка обновления:', e);
             }
