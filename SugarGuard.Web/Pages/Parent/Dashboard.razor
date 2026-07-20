@@ -13,6 +13,8 @@
 @using SugarGuard.Web.Components.Pages.Parent
 @using SugarGuard.Web.Components.Shared
 @using System.Text.Json
+@using System.Globalization
+@using System.Text.RegularExpressions
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IConfiguration Configuration
@@ -402,6 +404,54 @@
 @* ИЗМЕРЕНИЯ *@
 <div class="tab-pane @PaneClass("measurements")" id="pane-measurements" role="tabpanel">
 
+    <div class="card measurement-chart-card">
+        <div class="card-head">
+            <div>
+                <div class="card-title">График глюкозы</div>
+                <div class="card-sub">Динамика измерений за выбранный период</div>
+            </div>
+            <div class="btn-group measurement-chart-periods" role="group" aria-label="Период графика измерений">
+                <button class="btn btn--ghost btn--sm @(_measurementChartRange == "day" ? "btn--soft" : "")"
+                        @onclick='() => SetMeasurementChartRangeAsync("day")'>День</button>
+                <button class="btn btn--ghost btn--sm @(_measurementChartRange == "week" ? "btn--soft" : "")"
+                        @onclick='() => SetMeasurementChartRangeAsync("week")'>Неделя</button>
+                <button class="btn btn--ghost btn--sm @(_measurementChartRange == "month" ? "btn--soft" : "")"
+                        @onclick='() => SetMeasurementChartRangeAsync("month")'>Месяц</button>
+                <button class="btn btn--ghost btn--sm @(_measurementChartRange == "custom" ? "btn--soft" : "")"
+                        @onclick='() => SetMeasurementChartRangeAsync("custom")'>Период</button>
+            </div>
+        </div>
+
+        @if (_measurementChartRange == "custom")
+        {
+            <div class="measurement-chart-custom-range">
+                <div class="input-wrap">
+                    <label class="form-label" for="measurementChartFrom">С</label>
+                    <input id="measurementChartFrom" class="form-input" type="date" @bind="_measurementChartFrom" max="@MoscowNow.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="input-wrap">
+                    <label class="form-label" for="measurementChartTo">По</label>
+                    <input id="measurementChartTo" class="form-input" type="date" @bind="_measurementChartTo" max="@MoscowNow.ToString("yyyy-MM-dd")" />
+                </div>
+                <button class="btn btn--primary btn--sm" @onclick="ApplyCustomMeasurementChartRangeAsync">Показать</button>
+            </div>
+        }
+
+        <div class="chart-wrap measurement-chart-wrap">
+            <GlucoseChart Points="@_measurementChartPoints"
+                          HeightPx="260"
+                          TargetMin="@((double)_targetMin)"
+                          TargetMax="@((double)_targetMax)"
+                          ShowHeader="false"
+                          ShowLegend="false" />
+        </div>
+        <div class="chart-legend" aria-hidden="true">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--color-glucose-normal)"></span>Норма</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--color-glucose-warning)"></span>Вне цели</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--color-glucose-danger)"></span>Критично</span>
+        </div>
+    </div>
+
     @* Фильтры *@
     <div class="card" style="margin-bottom:0">
         <div class="filter-row">
@@ -563,7 +613,14 @@
                     <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
                     <div class="alert-body">
                         <div class="alert-title">@alert.Title</div>
-                        <div class="alert-desc">@alert.Description</div>
+                        <div class="alert-desc">
+                            @alert.Description
+                            @if (!string.IsNullOrWhiteSpace(alert.MapUrl))
+                            {
+                                <a class="alert-map-link" href="@alert.MapUrl" target="_blank" rel="noopener noreferrer"
+                                   @onclick:stopPropagation="true">Открыть карту (@MapProviderDisplayName)</a>
+                            }
+                        </div>
                     </div>
                     <div class="alert-meta">
                         <time class="alert-time">@alert.Time</time>
@@ -1209,6 +1266,19 @@
                        rel="noopener noreferrer">Открыть бота</a>
                 </div>
             </section>
+
+            <section class="map-provider-settings" aria-labelledby="mapProviderTitle">
+                <div class="setting-label" id="mapProviderTitle">Карты в критических уведомлениях</div>
+                <div class="setting-desc">Выберите сервис, в котором будут открываться координаты ребёнка.</div>
+                <div class="map-provider-options" role="group" aria-label="Провайдер карт">
+                    @foreach (var provider in MapProviders)
+                    {
+                        <button class="btn btn--ghost btn--sm @(IsMapProviderSelected(provider.Key) ? "btn--soft" : "")"
+                                aria-pressed="@IsMapProviderSelected(provider.Key)"
+                                @onclick="() => SaveMapProviderAsync(provider.Key)">@provider.Name</button>
+                    }
+                </div>
+            </section>
         </div>
 
         @* Устройства *@
@@ -1298,9 +1368,13 @@
     // Состояние навигации
     private string _activeTab = "overview";
     private int _chartRange = 24;
+    private string _measurementChartRange = "day";
+    private DateTime _measurementChartFrom = MoscowNow.Date.AddDays(-6);
+    private DateTime _measurementChartTo = MoscowNow.Date;
     private bool _hasChild;
     private Guid _selectedChildId;
     private string? _noticeMessage;
+    private UserPreferencesVm _userPreferences = new();
     private List<ChildProfileVm> _availableChildren = new();
 
     // Состояние фильтров
@@ -1317,6 +1391,14 @@
     private static readonly TimeSpan LiveRefreshInterval = TimeSpan.FromSeconds(10);
     private const string ParentProfileStorageKey = "sg-parent-profile-v1";
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private static readonly Regex CoordinatesRegex = new(
+        @"Координаты:\s*(?<lat>-?\d+(?:[.,]\d+)?),\s*(?<lon>-?\d+(?:[.,]\d+)?)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex LegacyMapLinkRegex = new(
+        @"\s*Карта:\s*https?://\S+",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly IReadOnlyList<(string Key, string Name)> MapProviders =
+        [("yandex", "Яндекс Карты"), ("google", "Google Карты"), ("openstreetmap", "OpenStreetMap")];
     private readonly HashSet<Guid> _readAlertIds = [];
     private readonly HashSet<Guid> _dismissedAlertIds = [];
     private CancellationTokenSource? _refreshCts;
@@ -1377,7 +1459,7 @@
         .Take(AiDialogPairsPageSize)
         .ToList();
 
-    private void SwitchTab(string tab)
+    private async Task SwitchTab(string tab)
     {
         _activeTab = tab;
         if (tab == "measurements")
@@ -1399,6 +1481,11 @@
             ? "/parent/dashboard"
             : $"/parent/dashboard?{string.Join('&', query)}";
         Navigation.NavigateTo(url, forceLoad: false, replace: false);
+
+        if (tab == "measurements")
+        {
+            await LoadMeasurementChartAsync();
+        }
     }
 
     // Инициализация
@@ -1472,6 +1559,7 @@
             ApplyChildProfile(selectedChild!);
 
             await LoadParentProfileFromClaimsAsync();
+            _userPreferences = await Api.GetUserPreferencesAsync(CancellationToken.None);
 
             // Профиль ребёнка: грузим первым, чтобы шапка не оставалась с дефолтным текстом.
             var profile = await Api.GetChildProfileAsync(childId, CancellationToken.None);
@@ -1522,8 +1610,8 @@
             if (stats is not null)
             {
                 _tirNormal = (int)Math.Round(stats.TimeInTargetRange);
-                _tirHigh = (int)Math.Round(stats.TimeAboveRange + stats.TimeCriticallyHigh);
-                _tirLow = (int)Math.Round(stats.TimeBelowRange + stats.TimeCriticallyLow);
+                _tirHigh = ClampPercent(stats.TimeAboveRange);
+                _tirLow = ClampPercent(stats.TimeBelowRange);
                 _avgGlucose = stats.AverageGlucose.ToString("F1");
                 _totalMeas = stats.TotalMeasurements;
             }
@@ -1564,6 +1652,11 @@
                     DateTime.UtcNow,
                     resetPage: resetPages,
                     cancellationToken: cancellationToken);
+            }
+
+            if (resetPages || _activeTab == "measurements")
+            {
+                await LoadMeasurementChartAsync(cancellationToken);
             }
             await LoadBackpackFromApiAsync(childId);
             await LoadAccessLinksAsync(childId, cancellationToken);
@@ -1959,19 +2052,77 @@
         };
     }
 
-    private static AlertItem MapNotificationAlert(UserNotificationItem notification)
+    private AlertItem MapNotificationAlert(UserNotificationItem notification)
     {
         return new AlertItem(
             notification.NotificationId ?? Guid.NewGuid(),
             notification.Title,
-            notification.Description,
+            LegacyMapLinkRegex.Replace(notification.Description, string.Empty),
             string.IsNullOrWhiteSpace(notification.Time) ? GetRelativeTime(notification.CreatedAt) : notification.Time,
             NormalizeNotificationType(notification.Type),
             GetNotificationIcon(notification),
             notification.IsUnread)
         {
-            NotificationId = notification.NotificationId
+            NotificationId = notification.NotificationId,
+            MapUrl = BuildMapUrl(notification.Description)
         };
+    }
+
+    private string? BuildMapUrl(string description)
+    {
+        var match = CoordinatesRegex.Match(description);
+        if (!match.Success
+            || !double.TryParse(match.Groups["lat"].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude)
+            || !double.TryParse(match.Groups["lon"].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude))
+        {
+            return null;
+        }
+
+        var lat = latitude.ToString(CultureInfo.InvariantCulture);
+        var lon = longitude.ToString(CultureInfo.InvariantCulture);
+        return NormalizeMapProvider(_userPreferences.MapProvider) switch
+        {
+            "google" => $"https://www.google.com/maps/search/?api=1&query={lat},{lon}",
+            "openstreetmap" => $"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=17/{lat}/{lon}",
+            _ => $"https://yandex.ru/maps/?pt={lon},{lat}&z=17&l=map"
+        };
+    }
+
+    private string MapProviderDisplayName => MapProviders.First(provider => provider.Key == NormalizeMapProvider(_userPreferences.MapProvider)).Name;
+
+    private static string NormalizeMapProvider(string? provider) => provider?.Trim().ToLowerInvariant() switch
+    {
+        "yandex" or "google" or "openstreetmap" => provider.Trim().ToLowerInvariant(),
+        _ => "yandex"
+    };
+
+    private bool IsMapProviderSelected(string provider) => NormalizeMapProvider(_userPreferences.MapProvider) == provider;
+
+    private async Task SaveMapProviderAsync(string provider)
+    {
+        var normalizedProvider = NormalizeMapProvider(provider);
+        if (normalizedProvider == NormalizeMapProvider(_userPreferences.MapProvider))
+        {
+            return;
+        }
+
+        var preferences = new UserPreferencesVm
+        {
+            AlertsCritical = _userPreferences.AlertsCritical,
+            AlertsDailySummary = _userPreferences.AlertsDailySummary,
+            AlertsMissedMeasurement = _userPreferences.AlertsMissedMeasurement,
+            MapProvider = normalizedProvider
+        };
+
+        if (await Api.SaveUserPreferencesAsync(preferences))
+        {
+            _userPreferences = preferences;
+            ShowNotice("Провайдер карт сохранён.");
+        }
+        else
+        {
+            ShowNotice("Не удалось сохранить провайдера карт. Повторите попытку.");
+        }
     }
 
     private static string NormalizeNotificationType(string? type) => type switch
@@ -1982,6 +2133,9 @@
         "error" or "critical" => "danger",
         _ => "info"
     };
+
+    private static int ClampPercent(double value)
+        => (int)Math.Round(Math.Clamp(value, 0d, 100d));
 
     private static string GetNotificationIcon(UserNotificationItem notification)
     {
@@ -2268,6 +2422,53 @@
                 resetPage: true);
         }
 
+    }
+
+    private async Task SetMeasurementChartRangeAsync(string range)
+    {
+        _measurementChartRange = range;
+        if (range != "custom")
+        {
+            await LoadMeasurementChartAsync();
+        }
+    }
+
+    private async Task ApplyCustomMeasurementChartRangeAsync()
+    {
+        if (_measurementChartFrom.Date > _measurementChartTo.Date)
+        {
+            ShowNotice("Дата начала периода не может быть позже даты окончания.");
+            return;
+        }
+
+        await LoadMeasurementChartAsync();
+    }
+
+    private async Task LoadMeasurementChartAsync(CancellationToken cancellationToken = default)
+    {
+        if (_selectedChildId == Guid.Empty)
+        {
+            return;
+        }
+
+        var localTo = MoscowNow.Date.AddDays(1);
+        var localFrom = _measurementChartRange switch
+        {
+            "week" => localTo.AddDays(-7),
+            "month" => localTo.AddMonths(-1),
+            "custom" => _measurementChartFrom.Date,
+            _ => MoscowNow.Date
+        };
+
+        if (_measurementChartRange == "custom")
+        {
+            localTo = _measurementChartTo.Date.AddDays(1);
+        }
+
+        var fromUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localFrom, DateTimeKind.Unspecified), DisplayTimeZone);
+        var toUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localTo, DateTimeKind.Unspecified), DisplayTimeZone);
+        var measurements = await Api.GetMeasurementsAsync(_selectedChildId, fromUtc, toUtc, cancellationToken);
+        _measurementChartPoints = GlucoseChart.FromMeasurements(measurements);
     }
 
     private async Task CreateTelegramConnectionCodeAsync()
@@ -2992,6 +3193,7 @@
         _allAlerts.Clear();
         _measurements.Clear();
         _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
+        _measurementChartPoints = Array.Empty<GlucoseChart.ChartPoint>();
         _backpackItems.Clear();
         _doctorNotes.Clear();
         _linkedDoctors.Clear();
@@ -3039,6 +3241,7 @@
     // Данные — загружаются из API
     private List<AlertItem> _allAlerts = new();
     private IReadOnlyList<GlucoseChart.ChartPoint> _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
+    private IReadOnlyList<GlucoseChart.ChartPoint> _measurementChartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private readonly List<MeasurementItem> _measurements = new();
     private readonly List<BackpackItem> _backpackItems = new();
     private readonly List<DoctorNote> _doctorNotes = new();
@@ -3099,6 +3302,7 @@
         public string Type { get; init; }
         public string Icon { get; init; }
         public Guid? NotificationId { get; set; }
+        public string? MapUrl { get; set; }
         public bool IsUnread { get; set; }
 
         public AlertItem(Guid eventId, string title, string desc, string time,

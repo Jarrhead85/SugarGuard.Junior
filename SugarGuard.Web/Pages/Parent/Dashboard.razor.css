@@ -429,6 +429,31 @@
     margin-top: 6px;
 }
 
+.measurement-chart-card {
+    margin-bottom: 0;
+}
+
+.measurement-chart-periods {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.measurement-chart-custom-range {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 0 14px;
+}
+
+.measurement-chart-custom-range .input-wrap {
+    min-width: 160px;
+}
+
+.measurement-chart-wrap {
+    height: 260px;
+}
+
     .chart-wrap ::deep .gc-wrapper,
     .chart-wrap ::deep .gc-canvas-wrap {
         height: 100%;
@@ -558,6 +583,16 @@
     margin-top: 2px;
     line-height: 1.4;
     overflow-wrap: anywhere;
+}
+
+.alert-map-link {
+    display: inline-flex;
+    align-items: center;
+    margin: 6px 0 0;
+    color: var(--color-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 .alert-body {
@@ -1122,6 +1157,20 @@
     flex-wrap: wrap;
 }
 
+.map-provider-settings {
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-divider);
+}
+
+.map-provider-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .empty-state--compact {
     padding: 14px;
     font-size: 13px;
@@ -1620,6 +1669,10 @@
 
     .filter-row {
         grid-template-columns: 1fr;
+    }
+
+    .measurement-chart-wrap {
+        height: 220px;
     }
 
     .filter-actions {

@@ -138,55 +138,45 @@ public class MeasurementService : IMeasurementService
                 _ => ChildState.Normal
             };
 
-            // 2.5⃣ ОБРАБОТКА КРИТИЧЕСКОГО УРОВНЯ С ГЕОЛОКАЦИЕЙ
+            var measurementId = Guid.NewGuid().ToString();
+            var measurementTime = NormalizeMeasurementTime(measurementTimeUtc);
+            Interfaces.Location? criticalLocation = null;
+
+            // 2.5⃣ Получаем геолокацию для критического уровня. Сам родительский алерт
+            // создаёт backend вместе с измерением, чтобы время, глюкоза и координаты не рассинхронизировались.
             if (GlucoseLevels.IsCritical(glucoseValue))
             {
                 _logger.LogWarning("КРИТИЧЕСКИЙ УРОВЕНЬ ГЛЮКОЗЫ: {GlucoseValue} ммоль/л", glucoseValue);
 
-                // Дожидаемся результата — это критический путь (M-1)
                 try
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    var location = await _locationService.GetCurrentLocationAsync(TimeSpan.FromSeconds(5));
-                    if (location != null)
+                    criticalLocation = await _locationService.GetCurrentLocationAsync(TimeSpan.FromSeconds(5));
+                    if (criticalLocation is null)
                     {
-                        var locationSent = await _locationService.SendLocationToParentsAsync(childId, glucoseValue, location);
-                        if (locationSent)
-                        {
-                            _logger.LogInformation("Геолокация отправлена родителям при критическом уровне");
-                        }
-                        else
-                        {
-                            _logger.LogError("Не удалось отправить геолокацию родителям");
-                            // Fallback: локальный алерт
-                            await _notificationService.SendCriticalAlertAsync(
-                                "Критический уровень глюкозы!",
-                                $"Глюкоза: {glucoseValue:F1} ммоль/л. Невозможно отправить геолокацию.",
-                                glucoseValue);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Не удалось получить геолокацию — отправляем критический алерт без координат");
+                        _logger.LogWarning("Не удалось получить геолокацию — измерение уйдёт с критическим алертом без координат");
                         await _notificationService.SendCriticalAlertAsync(
                             "Критический уровень глюкозы!",
                             $"Глюкоза: {glucoseValue:F1} ммоль/л. Срочно проверьте ребёнка!",
                             glucoseValue);
                     }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Геолокация получена для критического измерения: {Lat:F6}, {Lon:F6}",
+                            criticalLocation.Latitude,
+                            criticalLocation.Longitude);
+                    }
                 }
                 catch (Exception locationEx)
                 {
                     _logger.LogError(locationEx, "Ошибка при обработке геолокации для критического уровня");
-                    // Fallback: локальный алерт
                     await _notificationService.SendCriticalAlertAsync(
                         "Критический уровень глюкозы!",
                         $"Глюкоза: {glucoseValue:F1} ммоль/л. Срочно проверьте ребёнка!",
                         glucoseValue);
                 }
             }
-
-            var measurementId = Guid.NewGuid().ToString();
-            var measurementTime = NormalizeMeasurementTime(measurementTimeUtc);
 
             // 3⃣ ПОЛУЧАЕМ РЕКОМЕНДАЦИЮ ОТ ИИ (сначала пытаемся из кэша, потом от GigaChat)
             var aiRecommendation = await GetAIRecommendationAsync(
@@ -224,7 +214,10 @@ public class MeasurementService : IMeasurementService
                 ChildState = state.ToString(),
                 DataSource = DataSource.ManualInput.ToString(),
                 RequestRecommendation = true,
-                LastModifiedAt = DateTime.UtcNow
+                LastModifiedAt = DateTime.UtcNow,
+                Latitude = criticalLocation?.Latitude,
+                Longitude = criticalLocation?.Longitude,
+                Address = criticalLocation?.Address
             };
             try
             {

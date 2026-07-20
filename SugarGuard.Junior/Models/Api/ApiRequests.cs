@@ -109,6 +109,21 @@ public class SendMeasurementRequest
     /// Время последнего изменения (для обнаружения конфликтов, M-2)
     /// </summary>
     public DateTime? LastModifiedAt { get; set; }
+
+    /// <summary>
+    /// Широта устройства в момент критического измерения, если доступна.
+    /// </summary>
+    public double? Latitude { get; set; }
+
+    /// <summary>
+    /// Долгота устройства в момент критического измерения, если доступна.
+    /// </summary>
+    public double? Longitude { get; set; }
+
+    /// <summary>
+    /// Адрес места измерения, если удалось определить.
+    /// </summary>
+    public string? Address { get; set; }
 }
 
 /// <summary>

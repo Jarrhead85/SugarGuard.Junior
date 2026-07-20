@@ -85,6 +85,10 @@ public class User
    
     [Column("emailverifiedat")]
     public DateTime? EmailVerifiedAt { get; set; } // ата подтверждения email
+
+    [Column("map_provider")]
+    [MaxLength(32)]
+    public string MapProvider { get; set; } = "yandex";
    
     public virtual ICollection<ParentChildLink> ParentChildLinks { get; set; } = new List<ParentChildLink>(); // Навигационные свойства
 }

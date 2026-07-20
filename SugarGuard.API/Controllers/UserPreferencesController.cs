@@ -1,7 +1,9 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 
 namespace SugarGuard.API.Controllers;
@@ -12,20 +14,23 @@ namespace SugarGuard.API.Controllers;
 public class UserPreferencesController : ControllerBase
 {
     private readonly IMemoryCache _cache;
+    private readonly AppDbContext _db;
     private readonly ILogger<UserPreferencesController> _logger;
 
     private const string CachePrefix = "userpref:";
 
     public UserPreferencesController(
         IMemoryCache cache,
+        AppDbContext db,
         ILogger<UserPreferencesController> logger)
     {
         _cache = cache;
+        _db = db;
         _logger = logger;
     }
 
     [HttpGet]
-    public ActionResult<UserPreferencesDto> GetPreferences()
+    public async Task<ActionResult<UserPreferencesDto>> GetPreferences(CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue("UserId")
                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -33,14 +38,32 @@ public class UserPreferencesController : ControllerBase
             return Unauthorized();
 
         var cacheKey = $"{CachePrefix}{userId}";
-        if (_cache.TryGetValue(cacheKey, out UserPreferencesDto? prefs) && prefs is not null)
-            return Ok(prefs);
+        var mapProvider = Guid.TryParse(userId, out var parsedUserId)
+            ? await _db.Users
+                .AsNoTracking()
+                .Where(user => user.UserId == parsedUserId)
+                .Select(user => user.MapProvider)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
 
-        return Ok(new UserPreferencesDto());
+        if (_cache.TryGetValue(cacheKey, out UserPreferencesDto? prefs) && prefs is not null)
+        {
+            return Ok(new UserPreferencesDto
+            {
+                AlertsCritical = prefs.AlertsCritical,
+                AlertsDailySummary = prefs.AlertsDailySummary,
+                AlertsMissedMeasurement = prefs.AlertsMissedMeasurement,
+                MapProvider = NormalizeMapProvider(mapProvider)
+            });
+        }
+
+        return Ok(new UserPreferencesDto { MapProvider = NormalizeMapProvider(mapProvider) });
     }
 
     [HttpPut]
-    public ActionResult SavePreferences([FromBody] SaveUserPreferencesRequest request)
+    public async Task<ActionResult> SavePreferences(
+        [FromBody] SaveUserPreferencesRequest request,
+        CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue("UserId")
                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -48,14 +71,32 @@ public class UserPreferencesController : ControllerBase
             return Unauthorized();
 
         var cacheKey = $"{CachePrefix}{userId}";
+        var normalizedMapProvider = NormalizeMapProvider(request.MapProvider);
+        if (Guid.TryParse(userId, out var parsedUserId))
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(candidate => candidate.UserId == parsedUserId, cancellationToken);
+            if (user is not null && user.MapProvider != normalizedMapProvider)
+            {
+                user.MapProvider = normalizedMapProvider;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         _cache.Set(cacheKey, new UserPreferencesDto
         {
             AlertsCritical = request.AlertsCritical,
             AlertsDailySummary = request.AlertsDailySummary,
-            AlertsMissedMeasurement = request.AlertsMissedMeasurement
+            AlertsMissedMeasurement = request.AlertsMissedMeasurement,
+            MapProvider = normalizedMapProvider
         }, TimeSpan.FromDays(7));
 
         _logger.LogInformation("Сохранены предпочтения уведомлений для пользователя {UserId}", userId);
         return Ok();
     }
+
+    private static string NormalizeMapProvider(string? provider) => provider?.Trim().ToLowerInvariant() switch
+    {
+        "yandex" or "google" or "openstreetmap" => provider.Trim().ToLowerInvariant(),
+        _ => "yandex"
+    };
 }

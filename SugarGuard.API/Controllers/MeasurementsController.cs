@@ -97,7 +97,24 @@ public class MeasurementsController : ControllerBase
             measurement.MeasurementId, measurement.ChildId,
             measurement.GlucoseValue, glucoseStatus);
 
-        await SendMeasurementNotificationsAsync(measurement, glucoseStatus, isCritical, cancellationToken);
+        var criticalAlert = isCritical
+            ? new CriticalAlertRequest
+            {
+                ChildId = measurement.ChildId.ToString(),
+                CriticalGlucose = (double)measurement.GlucoseValue,
+                MeasurementTime = measurement.MeasurementTime,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                Address = request.Address
+            }
+            : null;
+
+        await SendMeasurementNotificationsAsync(
+            measurement,
+            glucoseStatus,
+            isCritical,
+            criticalAlert,
+            cancellationToken);
 
         return CreatedAtAction(
             nameof(GetMeasurement),
@@ -112,18 +129,26 @@ public class MeasurementsController : ControllerBase
         Domain.Entities.Measurement measurement,
         string glucoseStatus,
         bool isCritical,
+        CriticalAlertRequest? criticalAlert,
         CancellationToken cancellationToken)
     {
         try
         {
-            await _userNotificationService.PersistMeasurementAsync(
-                measurement.ChildId,
-                measurement.MeasurementId,
-                measurement.GlucoseValue,
-                glucoseStatus,
-                measurement.MeasurementTime,
-                isCritical,
-                cancellationToken);
+            if (isCritical && criticalAlert is not null)
+            {
+                await _userNotificationService.PersistCriticalLocationAsync(criticalAlert, cancellationToken);
+            }
+            else
+            {
+                await _userNotificationService.PersistMeasurementAsync(
+                    measurement.ChildId,
+                    measurement.MeasurementId,
+                    measurement.GlucoseValue,
+                    glucoseStatus,
+                    measurement.MeasurementTime,
+                    isCritical,
+                    cancellationToken);
+            }
         }
         catch (Exception notificationEx) when (notificationEx is not OperationCanceledException)
         {
@@ -161,7 +186,7 @@ public class MeasurementsController : ControllerBase
             if (isCritical)
             {
                 var criticalResult = await _notificationService.SendCriticalAlertAsync(
-                    new CriticalAlertRequest
+                    criticalAlert ?? new CriticalAlertRequest
                     {
                         ChildId = measurement.ChildId.ToString(),
                         CriticalGlucose = (double)measurement.GlucoseValue,

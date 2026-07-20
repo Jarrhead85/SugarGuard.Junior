@@ -1,8 +1,9 @@
-using Microsoft.EntityFrameworkCore;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 using SugarGuard.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace SugarGuard.API.Services;
 
@@ -165,14 +166,17 @@ public sealed class UserNotificationService : IUserNotificationService
             .ToListAsync(cancellationToken);
 
         var locationText = request.Latitude.HasValue && request.Longitude.HasValue
-            ? $"Координаты: {request.Latitude.Value:F6}, {request.Longitude.Value:F6}. " +
-              $"Карта: https://www.openstreetmap.org/?mlat={request.Latitude.Value:F6}&mlon={request.Longitude.Value:F6}#map=17/{request.Latitude.Value:F6}/{request.Longitude.Value:F6}"
+            ? $"Координаты: {request.Latitude.Value.ToString("F6", CultureInfo.InvariantCulture)}, {request.Longitude.Value.ToString("F6", CultureInfo.InvariantCulture)}."
             : "Координаты получить не удалось.";
 
         if (!string.IsNullOrWhiteSpace(request.Address))
         {
             locationText = $"Адрес: {request.Address}. {locationText}";
         }
+
+        var createdAt = request.MeasurementTime.Kind == DateTimeKind.Utc
+            ? request.MeasurementTime
+            : request.MeasurementTime.ToUniversalTime();
 
         foreach (var parentId in parentIds.Except(recipientsWithDuplicate))
         {
@@ -185,7 +189,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Description = $"{request.CriticalGlucose:F1} ммоль/л. {locationText}",
                 SourceType = "critical_location",
                 SourceId = Guid.NewGuid(),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = createdAt,
                 IsRead = false
             });
         }
@@ -275,6 +279,10 @@ public sealed class UserNotificationService : IUserNotificationService
             .Distinct()
             .ToListAsync(cancellationToken);
 
+        var utcCreatedAt = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : createdAt.ToUniversalTime();
+
         foreach (var parentId in parentIds.Except(existingRecipients))
         {
             _db.UserNotifications.Add(new SugarGuard.Domain.Entities.UserNotification
@@ -286,7 +294,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Description = description,
                 SourceType = sourceType,
                 SourceId = sourceId,
-                CreatedAt = createdAt.Kind == DateTimeKind.Utc ? createdAt : createdAt.ToUniversalTime(),
+                CreatedAt = utcCreatedAt,
                 IsRead = false
             });
         }

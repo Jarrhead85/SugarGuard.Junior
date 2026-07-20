@@ -346,7 +346,10 @@ public class RealApiClient : IApiClient
             measurementTime = request.MeasurementTime,
             childState = request.ChildState,
             notes = request.Notes,
-            dataSource = request.DataSource ?? "mobile_app"
+            dataSource = request.DataSource ?? "mobile_app",
+            latitude = request.Latitude,
+            longitude = request.Longitude,
+            address = request.Address
         };
 
         using var res = await SendWithRetryAsync(() =>

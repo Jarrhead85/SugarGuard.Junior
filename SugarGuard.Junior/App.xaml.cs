@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Networking;
 using Microsoft.Maui.Storage;
 using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Models.Enums;
@@ -540,7 +541,8 @@ public partial class App : Application
 
         var shell = _serviceProvider.GetRequiredService<AppShell>();
 
-        var isEmailVerified = await _authenticationService.IsEmailVerifiedAsync();
+        var isOffline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet;
+        var isEmailVerified = isOffline || await _authenticationService.IsEmailVerifiedAsync();
         if (!isEmailVerified)
         {
             _logger.LogInformation("Email is not verified. Navigating to verification page.");
@@ -551,15 +553,22 @@ public partial class App : Application
         var onboardingCompleted = await _storageService.GetAsync("onboarding_completed");
         if (!string.Equals(onboardingCompleted, "true", StringComparison.OrdinalIgnoreCase))
         {
-            var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
-            if (!restored)
+            if (isOffline)
             {
-                _logger.LogInformation("Onboarding is not completed and no server child was found. Navigating to onboarding page.");
-                await NavigateOnMainThreadAsync(shell, "//onboardingpage");
-                return;
+                _logger.LogInformation("Офлайн-запуск без флага онбординга: остаёмся в локальной сессии.");
+            }
+            else
+            {
+                var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
+                if (!restored)
+                {
+                    _logger.LogInformation("Onboarding is not completed and no server child was found. Navigating to onboarding page.");
+                    await NavigateOnMainThreadAsync(shell, "//onboardingpage");
+                    return;
+                }
             }
         }
-        else
+        else if (!isOffline)
         {
             await _childSessionBootstrapService.EnsureChildSessionAsync();
         }

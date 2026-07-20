@@ -38,6 +38,12 @@ public class AuthenticationService(
             var token = await secureStorage.GetAccessTokenAsync();
             if (string.IsNullOrEmpty(token))
             {
+                if (await HasOfflineSessionAsync())
+                {
+                    logger.LogInformation("Токен отсутствует, но найдена локальная сессия. Разрешён офлайн-запуск.");
+                    return true;
+                }
+
                 logger.LogInformation("Проверка аутентификации:  Не авторизован (токен отсутствует)");
                 return false;
             }
