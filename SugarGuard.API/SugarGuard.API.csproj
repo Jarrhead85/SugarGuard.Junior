@@ -32,6 +32,7 @@
     <ProjectReference Include="..\SugarGuard.Application\SugarGuard.Application.csproj" />
     <ProjectReference Include="..\SugarGuard.Domain\SugarGuard.Domain.csproj" />
     <ProjectReference Include="..\SugarGuard.Infrastructure\SugarGuard.Infrastructure.csproj" />
+    <ProjectReference Include="..\SugarGuard.MaxBot\SugarGuard.MaxBot.csproj" />
     <ProjectReference Include="..\SugarGuard.Shared\SugarGuard.Shared.csproj" />
   </ItemGroup>
 

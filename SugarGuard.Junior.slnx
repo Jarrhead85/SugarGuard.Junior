@@ -2,6 +2,7 @@
   <Project Path="SugarGuard.API/SugarGuard.API.csproj" />
   <Project Path="SugarGuard.Application/SugarGuard.Application.csproj" />
   <Project Path="SugarGuard.Bot/SugarGuard.Bot.csproj" />
+  <Project Path="SugarGuard.MaxBot/SugarGuard.MaxBot.csproj" />
   <Project Path="SugarGuard.Shared/SugarGuard.Shared.csproj" />
   <Project Path="SugarGuard.Domain/SugarGuard.Domain.csproj" />
   <Project Path="SugarGuard.Infrastructure/SugarGuard.Infrastructure.csproj" />

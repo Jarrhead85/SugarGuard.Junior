@@ -2,7 +2,7 @@ using SugarGuard.API.DTOs;
 
 namespace SugarGuard.API.Application.Interfaces;
 
-/// <summary>Работа с официальным Bot API мессенджера MAX.</summary>
+/// <summary>Работа с официальным API бота мессенджера MAX.</summary>
 public interface IMaxBotService
 {
     bool IsConfigured { get; }

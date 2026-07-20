@@ -2,7 +2,7 @@ using SugarGuard.API.Application.Interfaces;
 
 namespace SugarGuard.API.Application.Services;
 
-/// <summary>Регистрирует production webhook MAX после запуска приложения.</summary>
+/// <summary>Регистрирует рабочий webhook MAX после запуска приложения.</summary>
 public sealed class MaxWebhookRegistrationService : IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -23,7 +23,7 @@ public sealed class MaxWebhookRegistrationService : IHostedService
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "MAX webhook registration failed.");
+            _logger.LogError(exception, "Не удалось зарегистрировать webhook MAX.");
         }
     }
 

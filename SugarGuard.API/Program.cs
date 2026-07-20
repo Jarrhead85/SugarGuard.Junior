@@ -29,6 +29,8 @@ using SugarGuard.Infrastructure.Glucose;
 using SugarGuard.Infrastructure.Repositories;
 using SugarGuard.Infrastructure.Security;
 using SugarGuard.Infrastructure.Sync;
+using SugarGuard.MaxBot.Abstractions;
+using SugarGuard.MaxBot.Services;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -446,7 +448,7 @@ builder.Services.AddHttpClient(TelegramHttpClientName, client =>
 });
 builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 
-const string MaxHttpClientName = MaxBotService.HttpClientName;
+const string MaxHttpClientName = MaxBotClient.HttpClientName;
 builder.Services.AddHttpClient(MaxHttpClientName, client =>
 {
     client.BaseAddress = new Uri("https://platform-api2.max.ru/");
@@ -454,6 +456,7 @@ builder.Services.AddHttpClient(MaxHttpClientName, client =>
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 builder.Services.AddScoped<IMaxBotService, MaxBotService>();
+builder.Services.AddScoped<IMaxBotClient, MaxBotClient>();
 builder.Services.AddHostedService<MaxWebhookRegistrationService>();
 
 // Web Push

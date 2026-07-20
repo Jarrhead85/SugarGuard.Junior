@@ -1,16 +1,16 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
+using SugarGuard.MaxBot.Models;
 using SugarGuard.Shared.Constants;
 using SugarGuard.Shared.Validation;
 
 namespace SugarGuard.API.Controllers;
 
-/// <summary>Защищённый webhook официального MAX Bot API.</summary>
+/// <summary>Защищённая HTTP-точка приёма событий от MAX.</summary>
 [ApiController]
 [Route("api/max")]
 public sealed class MaxBotController : ControllerBase
@@ -74,7 +74,7 @@ public sealed class MaxBotController : ControllerBase
         catch (Exception exception)
         {
             _logger.LogError(exception, "MAX webhook processing failed. UpdateType={UpdateType}", update.UpdateType);
-            // MAX повторяет запросы при не-200; сообщение уже могло быть обработано.
+            // MAX повторяет запросы без ответа 200; событие могло быть уже обработано.
             return Ok();
         }
     }
@@ -131,28 +131,4 @@ public sealed class MaxBotController : ControllerBase
 
     private static string WelcomeText() => "Добро пожаловать в SugarGuard MAX. Для привязки откройте настройки ребёнка в родительском кабинете, получите код и отправьте /connect <код>. Используйте /help для справки.";
     private static string HelpText() => "Команды SugarGuard MAX:\n/start — приветствие\n/help — справка\n/connect ABCD-2345 — привязать уведомления к ребёнку.\n\nПосле привязки бот отправляет измерения, перекусы, критические алерты с картой и ежедневную сводку.";
-}
-
-public sealed class MaxUpdate
-{
-    [JsonPropertyName("update_type")] public string? UpdateType { get; init; }
-    [JsonPropertyName("user")] public MaxUser? User { get; init; }
-    [JsonPropertyName("message")] public MaxMessage? Message { get; init; }
-}
-
-public sealed class MaxUser
-{
-    [JsonPropertyName("user_id")] public long UserId { get; init; }
-    [JsonPropertyName("username")] public string? Username { get; init; }
-}
-
-public sealed class MaxMessage
-{
-    [JsonPropertyName("sender")] public MaxUser? Sender { get; init; }
-    [JsonPropertyName("body")] public MaxMessageBody? Body { get; init; }
-}
-
-public sealed class MaxMessageBody
-{
-    [JsonPropertyName("text")] public string? Text { get; init; }
 }

@@ -1,33 +1,27 @@
-using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
+using SugarGuard.MaxBot.Abstractions;
 
 namespace SugarGuard.API.Application.Services;
 
-/// <summary>Реальный клиент официального MAX Bot API.</summary>
+/// <summary>Оркестрирует доставку уведомлений SugarGuard через MAX.</summary>
 public sealed class MaxBotService : IMaxBotService
 {
-    public const string HttpClientName = "MaxBotApi";
     private readonly AppDbContext _db;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
+    private readonly IMaxBotClient _client;
     private readonly ILogger<MaxBotService> _logger;
 
-    public MaxBotService(AppDbContext db, IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<MaxBotService> logger)
+    public MaxBotService(AppDbContext db, IMaxBotClient client, ILogger<MaxBotService> logger)
     {
         _db = db;
-        _httpClientFactory = httpClientFactory;
-        _configuration = configuration;
+        _client = client;
         _logger = logger;
     }
 
-    private string? Token => _configuration["Max:BotToken"] ?? Environment.GetEnvironmentVariable("MAX_BOT_TOKEN");
-    private string? WebhookUrl => _configuration["Max:WebhookUrl"] ?? Environment.GetEnvironmentVariable("MAX_WEBHOOK_URL");
-    private string? WebhookSecret => _configuration["Max:WebhookSecret"] ?? Environment.GetEnvironmentVariable("MAX_WEBHOOK_SECRET");
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(Token) && !string.IsNullOrWhiteSpace(WebhookUrl) && !string.IsNullOrWhiteSpace(WebhookSecret);
-    public string? PublicBotUrl => _configuration["Max:PublicBotUrl"] ?? Environment.GetEnvironmentVariable("MAX_PUBLIC_BOT_URL");
+    public bool IsConfigured => _client.IsConfigured;
+    public string? PublicBotUrl => _client.PublicBotUrl;
 
     public Task<NotificationResponse> SendMeasurementNotificationAsync(MeasurementNotificationRequest request, CancellationToken cancellationToken = default) =>
         SendToParentsAsync(request.ChildId, $"📊 Новое измерение\nГлюкоза: {request.GlucoseValue:0.0} ммоль/л\nСтатус: {request.Status}\nВремя: {request.MeasurementTime.ToLocalTime():dd.MM HH:mm}", cancellationToken);
@@ -43,52 +37,20 @@ public sealed class MaxBotService : IMaxBotService
         return SendToParentsAsync(request.ChildId, $"🚨 КРИТИЧЕСКИЙ УРОВЕНЬ ГЛЮКОЗЫ\n{request.CriticalGlucose:0.0} ммоль/л\nВремя: {request.MeasurementTime.ToLocalTime():dd.MM HH:mm}{location}", cancellationToken);
     }
 
-    public async Task SendDailySummaryAsync(long maxUserId, string message, CancellationToken cancellationToken = default) =>
-        await SendTextAsync(maxUserId, message, cancellationToken);
+    public Task SendDailySummaryAsync(long maxUserId, string message, CancellationToken cancellationToken = default) =>
+        _client.SendTextAsync(maxUserId, message, cancellationToken);
 
-    public async Task SendTextAsync(long maxUserId, string message, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(Token))
-        {
-            throw new InvalidOperationException("MAX Bot Token не настроен в конфигурации.");
-        }
+    public Task SendTextAsync(long maxUserId, string message, CancellationToken cancellationToken = default) =>
+        _client.SendTextAsync(maxUserId, message, cancellationToken);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"messages?user_id={maxUserId}")
-        {
-            Content = JsonContent.Create(new { text = message[..Math.Min(message.Length, 4000)], format = "markdown" })
-        };
-        request.Headers.TryAddWithoutValidation("Authorization", Token);
-        using var response = await _httpClientFactory.CreateClient(HttpClientName).SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"MAX API error: {(int)response.StatusCode} {error}");
-        }
-    }
-
-    public async Task RegisterWebhookAsync(CancellationToken cancellationToken = default)
-    {
-        if (!IsConfigured)
-        {
-            _logger.LogInformation("MAX webhook is not registered: token, URL or secret is missing.");
-            return;
-        }
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "subscriptions")
-        {
-            Content = JsonContent.Create(new { url = WebhookUrl, update_types = new[] { "bot_started", "message_created" }, secret = WebhookSecret })
-        };
-        request.Headers.TryAddWithoutValidation("Authorization", Token);
-        using var response = await _httpClientFactory.CreateClient(HttpClientName).SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        _logger.LogInformation("MAX webhook registered at {WebhookUrl}.", WebhookUrl);
-    }
+    public Task RegisterWebhookAsync(CancellationToken cancellationToken = default) =>
+        _client.RegisterWebhookAsync(cancellationToken);
 
     private async Task<NotificationResponse> SendToParentsAsync(string childId, string message, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(childId, out var childGuid))
         {
-            return new NotificationResponse { Success = false, ErrorMessage = "Invalid child id" };
+            return new NotificationResponse { Success = false, ErrorMessage = "Некорректный идентификатор ребёнка." };
         }
 
         var recipients = await _db.ParentChildLinks
@@ -102,10 +64,14 @@ public sealed class MaxBotService : IMaxBotService
         var errors = new List<string>();
         foreach (var recipient in recipients)
         {
-            try { await SendTextAsync(recipient, message, cancellationToken); delivered++; }
+            try
+            {
+                await _client.SendTextAsync(recipient, message, cancellationToken);
+                delivered++;
+            }
             catch (Exception exception)
             {
-                _logger.LogWarning(exception, "MAX notification delivery failed. MaxUserId={MaxUserId}", recipient);
+                _logger.LogWarning(exception, "Не удалось доставить уведомление MAX. MaxUserId={MaxUserId}", recipient);
                 errors.Add(exception.Message);
             }
         }
