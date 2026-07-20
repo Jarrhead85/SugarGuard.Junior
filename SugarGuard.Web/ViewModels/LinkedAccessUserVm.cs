@@ -14,6 +14,8 @@ public sealed class LinkedAccessUserVm
     public string? EmailForLogin { get; init; }
     /// <summary>Telegram ID, если привязан.</summary>
     public long?   TelegramId   { get; init; }
+    /// <summary>MAX ID, если привязан.</summary>
+    public long?   MaxUserId    { get; init; }
     /// <summary>Роль: Parent, Doctor.</summary>
     public string  UserRole     { get; init; } = string.Empty;
     /// <summary>Дата создания связи (UTC).</summary>

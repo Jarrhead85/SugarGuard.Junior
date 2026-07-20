@@ -484,6 +484,7 @@ namespace SugarGuard.API.Services
                 UserId = user.UserId,
                 EmailForLogin = user.EmailForLogin,
                 TelegramId = user.TelegramId,
+                MaxUserId = user.MaxUserId,
                 UserRole = user.Role.ToString(),
                 LinkedAt = linkedAt,
                 DisplayName = displayName,

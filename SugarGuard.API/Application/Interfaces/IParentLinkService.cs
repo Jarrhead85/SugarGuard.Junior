@@ -31,6 +31,10 @@ public interface IParentLinkService
     Task<VerifyConnectionCodeResult> VerifyConnectionCodeAsync(
         VerifyConnectionCodeRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<VerifyConnectionCodeResult> VerifyMaxConnectionCodeAsync(
+        VerifyMaxConnectionCodeRequest request,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

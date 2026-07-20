@@ -822,6 +822,22 @@ namespace SugarGuard.Web.Services
                 : null;
         }
 
+        public async Task<MaxBotStatusVm?> GetMaxBotStatusAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/max/status", cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+                var dto = await ReadOptionalAsync<MaxBotStatusApiDto>(response.Content, cancellationToken);
+                return dto is null ? null : new MaxBotStatusVm(dto.Configured, dto.BotUrl);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
         private sealed class SaveConnectionCodeApiDto
         {
             public bool Success { get; init; }
@@ -1257,6 +1273,12 @@ namespace SugarGuard.Web.Services
             {
                 return null;
             }
+        }
+
+        private sealed class MaxBotStatusApiDto
+        {
+            public bool Configured { get; init; }
+            public string? BotUrl { get; init; }
         }
 
         /// <summary>
@@ -2164,6 +2186,7 @@ namespace SugarGuard.Web.Services
             UserId = dto.UserId,
             EmailForLogin = dto.EmailForLogin,
             TelegramId = dto.TelegramId,
+            MaxUserId = dto.MaxUserId,
             UserRole = dto.UserRole,
             LinkedAt = dto.LinkedAt,
             DisplayName = dto.DisplayName,
@@ -2375,6 +2398,7 @@ namespace SugarGuard.Web.Services
             public Guid UserId { get; init; }
             public string? EmailForLogin { get; init; }
             public long? TelegramId { get; init; }
+            public long? MaxUserId { get; init; }
             public string UserRole { get; init; } = string.Empty;
             public DateTime LinkedAt { get; init; }
             public string DisplayName { get; init; } = string.Empty;

@@ -1309,6 +1309,55 @@
                 </div>
             </section>
 
+            <section class="telegram-connect" aria-labelledby="maxConnectTitle">
+                <div class="telegram-connect__head">
+                    <div>
+                        <div class="setting-label" id="maxConnectTitle">MAX-бот</div>
+                        <div class="setting-desc">
+                            @(_maxConnected
+                                ? "Подключён: уведомления будут приходить в MAX"
+                                : _maxBotStatus?.Configured == true
+                                    ? "Подключите MAX, чтобы получать критические уведомления и сводки"
+                                    : "Бот MAX ещё настраивается. Подключение станет доступно после запуска бота.")
+                        </div>
+                    </div>
+                    <span class="telegram-connect__status @(_maxConnected ? "connected" : "")">
+                        @(_maxConnected ? "Подключён" : "Не подключён")
+                    </span>
+                </div>
+
+                @if (_maxConnectionCode is not null && !_maxConnected && _maxBotStatus?.Configured == true)
+                {
+                    <div class="telegram-code" role="status">
+                        <code>@_maxConnectionCode.Code</code>
+                        <span>Действует до @_maxConnectionCode.ExpiresAt.ToLocalTime().ToString("HH:mm")</span>
+                    </div>
+                    <p class="telegram-connect__command">Отправьте MAX-боту команду <strong>@MaxConnectCommand</strong></p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_maxConnectionError))
+                {
+                    <div class="form-error" role="alert">@_maxConnectionError</div>
+                }
+
+                @if (_maxBotStatus?.Configured == true && !_maxConnected)
+                {
+                    <div class="telegram-connect__actions">
+                        <button class="btn btn--primary btn--sm" disabled="@_isCreatingMaxCode" @onclick="CreateMaxConnectionCodeAsync">
+                            @(_isCreatingMaxCode ? "Создаём код..." : "Получить код")
+                        </button>
+                        @if (_maxConnectionCode is not null)
+                        {
+                            <button class="btn btn--soft btn--sm" @onclick="CopyMaxCommandAsync">Копировать команду</button>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_maxBotStatus.BotUrl))
+                        {
+                            <a class="btn btn--ghost btn--sm" href="@_maxBotStatus.BotUrl" target="_blank" rel="noopener noreferrer">Открыть бота</a>
+                        }
+                    </div>
+                }
+            </section>
+
             <section class="map-provider-settings" aria-labelledby="mapProviderTitle">
                 <div class="setting-label" id="mapProviderTitle">Карты в критических уведомлениях</div>
                 <div class="setting-desc">Выберите сервис, в котором будут открываться координаты ребёнка.</div>
@@ -1485,9 +1534,15 @@
     private string? _telegramConnectionError;
     private bool _isCreatingTelegramCode;
     private bool _telegramConnected => _linkedParents.Any(link => link.TelegramId.HasValue);
+    private TelegramConnectionCodeVm? _maxConnectionCode;
+    private MaxBotStatusVm? _maxBotStatus;
+    private string? _maxConnectionError;
+    private bool _isCreatingMaxCode;
+    private bool _maxConnected => _linkedParents.Any(link => link.MaxUserId.HasValue);
     private string TelegramConnectCommand => _telegramConnectionCode is null
         ? string.Empty
         : $"/connect {_telegramConnectionCode.Code}";
+    private string MaxConnectCommand => _maxConnectionCode is null ? string.Empty : $"/connect {_maxConnectionCode.Code}";
 
     // Вкладки / панели
     private string TabClass(string tab) => _activeTab == tab ? "active" : "";
@@ -1702,6 +1757,7 @@
             }
             await LoadBackpackFromApiAsync(childId);
             await LoadAccessLinksAsync(childId, cancellationToken);
+            _maxBotStatus = await Api.GetMaxBotStatusAsync(cancellationToken);
             await LoadDoctorNotesAsync(childId, cancellationToken);
             await LoadInsulinLogAsync(childId, cancellationToken);
             await LoadAiConversationAsync(childId, cancellationToken);
@@ -2557,6 +2613,54 @@
         {
             Logger.LogWarning(ex, "Не удалось скопировать команду Telegram.");
             _telegramConnectionError = "Скопируйте команду вручную.";
+        }
+    }
+
+    private async Task CreateMaxConnectionCodeAsync()
+    {
+        if (_selectedChildId == Guid.Empty || _isCreatingMaxCode || _maxBotStatus?.Configured != true)
+        {
+            return;
+        }
+
+        _isCreatingMaxCode = true;
+        _maxConnectionError = null;
+        try
+        {
+            // Код общий для обоих мессенджеров, но погашается только после успешной привязки в MAX.
+            _maxConnectionCode = await Api.CreateTelegramConnectionCodeAsync(_selectedChildId);
+            if (_maxConnectionCode is null)
+            {
+                _maxConnectionError = "Не удалось создать код. Обновите страницу и попробуйте снова.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось создать код MAX. ChildId={ChildId}", _selectedChildId);
+            _maxConnectionError = "Не удалось создать код подключения MAX.";
+        }
+        finally
+        {
+            _isCreatingMaxCode = false;
+        }
+    }
+
+    private async Task CopyMaxCommandAsync()
+    {
+        if (string.IsNullOrWhiteSpace(MaxConnectCommand))
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", MaxConnectCommand);
+            _noticeMessage = "Команда для MAX скопирована.";
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось скопировать команду MAX.");
+            _maxConnectionError = "Скопируйте команду вручную.";
         }
     }
 

@@ -17,6 +17,10 @@ public class User
     [Column("telegram_id")]
     public long? TelegramId { get; set; }
 
+    /// <summary>Идентификатор пользователя, связанного через бот MAX.</summary>
+    [Column("max_user_id")]
+    public long? MaxUserId { get; set; }
+
     [Column("encrypted_first_name")]
     [MaxLength(500)]
     public string? EncryptedFirstName { get; set; }

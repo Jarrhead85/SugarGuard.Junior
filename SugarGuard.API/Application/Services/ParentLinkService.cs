@@ -95,8 +95,29 @@ public class ParentLinkService : IParentLinkService
     public async Task<VerifyConnectionCodeResult> VerifyConnectionCodeAsync(
         VerifyConnectionCodeRequest request,
         CancellationToken cancellationToken = default)
+        => await VerifyExternalConnectionCodeAsync(
+            request.ConnectionCode,
+            request.TelegramUserId,
+            isMax: false,
+            cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<VerifyConnectionCodeResult> VerifyMaxConnectionCodeAsync(
+        VerifyMaxConnectionCodeRequest request,
+        CancellationToken cancellationToken = default)
+        => await VerifyExternalConnectionCodeAsync(
+            request.ConnectionCode,
+            request.MaxUserId,
+            isMax: true,
+            cancellationToken);
+
+    private async Task<VerifyConnectionCodeResult> VerifyExternalConnectionCodeAsync(
+        string rawConnectionCode,
+        long messengerUserId,
+        bool isMax,
+        CancellationToken cancellationToken)
     {
-        var codeHash = _codeHasher.Hash(request.ConnectionCode);
+        var codeHash = _codeHasher.Hash(rawConnectionCode);
         var utcNow = DateTime.UtcNow;
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -132,7 +153,7 @@ public class ParentLinkService : IParentLinkService
         var existingLink = await db.ParentChildLinks
             .Include(l => l.ParentUser)
             .FirstOrDefaultAsync(l =>
-                l.ParentUser.TelegramId == request.TelegramUserId &&
+                (isMax ? l.ParentUser.MaxUserId : l.ParentUser.TelegramId) == messengerUserId &&
                 l.ChildId == connectionCode.ChildId,
                 cancellationToken);
 
@@ -158,11 +179,13 @@ public class ParentLinkService : IParentLinkService
 
         // Создаём User, если его ещё нет
         var user = await db.Users.FirstOrDefaultAsync(
-            u => u.TelegramId == request.TelegramUserId, cancellationToken);
+            u => (isMax ? u.MaxUserId : u.TelegramId) == messengerUserId, cancellationToken);
 
         if (user is null)
         {
-            user = new User { TelegramId = request.TelegramUserId };
+            user = isMax
+                ? new User { MaxUserId = messengerUserId }
+                : new User { TelegramId = messengerUserId };
             db.Users.Add(user);
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -179,10 +202,10 @@ public class ParentLinkService : IParentLinkService
         await tx.CommitAsync(cancellationToken);
 
         await _audit.WriteAsync(
-            "parent_link.verified",
+            isMax ? "parent_link.max_verified" : "parent_link.verified",
             "ParentChildLink",
             parentChildLink.LinkId.ToString(),
-            $"Parent={user.UserId};Child={connectionCode.ChildId};Telegram={request.TelegramUserId}",
+            $"Parent={user.UserId};Child={connectionCode.ChildId};{(isMax ? "MAX" : "Telegram")}={messengerUserId}",
             CancellationToken.None);
 
         _logger.LogInformation(

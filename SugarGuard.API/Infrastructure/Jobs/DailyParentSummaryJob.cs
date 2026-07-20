@@ -22,17 +22,20 @@ public sealed class DailyParentSummaryJob
     private readonly AppDbContext _db;
     private readonly IEmailService _emailService;
     private readonly ITelegramNotificationService _telegramService;
+    private readonly IMaxBotService _maxService;
     private readonly ILogger<DailyParentSummaryJob> _logger;
 
     public DailyParentSummaryJob(
         AppDbContext db,
         IEmailService emailService,
         ITelegramNotificationService telegramService,
+        IMaxBotService maxService,
         ILogger<DailyParentSummaryJob> logger)
     {
         _db = db;
         _emailService = emailService;
         _telegramService = telegramService;
+        _maxService = maxService;
         _logger = logger;
     }
 
@@ -52,6 +55,7 @@ public sealed class DailyParentSummaryJob
                 value.user.EmailForLogin,
                 value.user.IsEmailVerified,
                 value.user.TelegramId,
+                value.user.MaxUserId,
                 child.ChildId,
                 child.FirstName,
                 child.LastName))
@@ -98,6 +102,7 @@ public sealed class DailyParentSummaryJob
 
             await SendEmailAsync(recipient, summary, cancellationToken);
             await SendTelegramAsync(recipient, summary, cancellationToken);
+            await SendMaxAsync(recipient, summary, cancellationToken);
         }
 
         _logger.LogInformation("Daily parent summaries completed. Date={Date} Persisted={Count}", localDay, queued);
@@ -188,6 +193,23 @@ public sealed class DailyParentSummaryJob
         }
     }
 
+    private async Task SendMaxAsync(DailySummaryRecipient recipient, DailySummary summary, CancellationToken cancellationToken)
+    {
+        if (!recipient.MaxUserId.HasValue || !_maxService.IsConfigured)
+        {
+            return;
+        }
+
+        try
+        {
+            await _maxService.SendDailySummaryAsync(recipient.MaxUserId.Value, $"📋 Сводка SugarGuard\nРебёнок: {summary.ChildName}\n{summary.InboxText}", cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Daily summary MAX delivery failed. ParentUserId={ParentUserId}", recipient.ParentUserId);
+        }
+    }
+
     private static Guid CreateSourceId(Guid parentUserId, Guid childId, DateOnly date)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{SourceType}:{parentUserId:N}:{childId:N}:{date:yyyy-MM-dd}"));
@@ -210,6 +232,6 @@ public sealed class DailyParentSummaryJob
         return TimeZoneInfo.Utc;
     }
 
-    private sealed record DailySummaryRecipient(Guid ParentUserId, string? Email, bool IsEmailVerified, long? TelegramId, Guid ChildId, string? FirstName, string? LastName);
+    private sealed record DailySummaryRecipient(Guid ParentUserId, string? Email, bool IsEmailVerified, long? TelegramId, long? MaxUserId, Guid ChildId, string? FirstName, string? LastName);
     private sealed record DailySummary(string ChildName, string GlucoseLine, string NutritionLine, string InboxText, string EmailHtml);
 }

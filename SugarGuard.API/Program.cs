@@ -446,6 +446,16 @@ builder.Services.AddHttpClient(TelegramHttpClientName, client =>
 });
 builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 
+const string MaxHttpClientName = MaxBotService.HttpClientName;
+builder.Services.AddHttpClient(MaxHttpClientName, client =>
+{
+    client.BaseAddress = new Uri("https://platform-api2.max.ru/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+builder.Services.AddScoped<IMaxBotService, MaxBotService>();
+builder.Services.AddHostedService<MaxWebhookRegistrationService>();
+
 // Web Push
 builder.Services.AddScoped<IWebPushService, WebPushService>();
 

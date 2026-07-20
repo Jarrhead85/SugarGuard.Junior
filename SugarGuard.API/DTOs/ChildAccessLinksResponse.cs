@@ -24,6 +24,8 @@ public sealed class LinkedAccessUserResponse
     public string? EmailForLogin { get; set; } // Email для входа
    
     public long? TelegramId { get; set; } // Telegram ID (если задан)
+
+    public long? MaxUserId { get; set; } // MAX ID (если задан)
    
     public string UserRole { get; set; } = string.Empty; // Роль пользователя в системе
    

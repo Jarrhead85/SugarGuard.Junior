@@ -17,3 +17,16 @@ public class VerifyConnectionCodeRequest
 
     public string? TelegramUsername { get; set; } // Имя пользователя в Telegram
 }
+
+/// <summary>Запрос от MAX-бота на привязку родителя по одноразовому коду.</summary>
+public class VerifyMaxConnectionCodeRequest
+{
+    [Required]
+    [ConnectionCode]
+    public string ConnectionCode { get; set; } = string.Empty;
+
+    [Required]
+    public long MaxUserId { get; set; }
+
+    public string? MaxUsername { get; set; }
+}

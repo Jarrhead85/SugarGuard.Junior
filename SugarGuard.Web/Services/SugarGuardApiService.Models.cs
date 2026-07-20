@@ -363,6 +363,7 @@ internal sealed class LinkedAccessUserApiDto
     public Guid UserId { get; init; }
     public string? EmailForLogin { get; init; }
     public long? TelegramId { get; init; }
+    public long? MaxUserId { get; init; }
     public string UserRole { get; init; } = string.Empty;
     public DateTime LinkedAt { get; init; }
     public string DisplayName { get; init; } = string.Empty;

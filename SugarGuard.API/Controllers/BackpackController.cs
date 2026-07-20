@@ -19,6 +19,7 @@ public class BackpackController : ControllerBase
 {
     private readonly IBackpackService _backpack;
     private readonly ITelegramNotificationService _notificationService;
+    private readonly IMaxBotService _maxBotService;
     private readonly IUserNotificationService _userNotificationService;
     private readonly IChildAccessService _childAccess;
     private readonly ICurrentUserContext _currentUser;
@@ -27,6 +28,7 @@ public class BackpackController : ControllerBase
     public BackpackController(
         IBackpackService backpack,
         ITelegramNotificationService notificationService,
+        IMaxBotService maxBotService,
         IUserNotificationService userNotificationService,
         IChildAccessService childAccess,
         ICurrentUserContext currentUser,
@@ -34,6 +36,7 @@ public class BackpackController : ControllerBase
     {
         _backpack = backpack;
         _notificationService = notificationService;
+        _maxBotService = maxBotService;
         _userNotificationService = userNotificationService;
         _childAccess = childAccess;
         _currentUser = currentUser;
@@ -364,6 +367,18 @@ public class BackpackController : ControllerBase
                     CurrentGlucose = currentGlucose,
                     ConsumedAt = result.ConsumedAt
                 });
+
+            if (_maxBotService.IsConfigured)
+            {
+                await _maxBotService.SendSnackConsumedNotificationAsync(new SnackConsumedNotificationRequest
+                {
+                    ChildId = result.ChildId.ToString(),
+                    SnackName = result.SnackName,
+                    BreadUnits = result.BreadUnits,
+                    CurrentGlucose = currentGlucose,
+                    ConsumedAt = result.ConsumedAt
+                }, cancellationToken);
+            }
 
             if (notificationResult.Success)
             {

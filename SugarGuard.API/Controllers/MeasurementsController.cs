@@ -23,6 +23,7 @@ public class MeasurementsController : ControllerBase
     private readonly IGlucoseUiStateService _glucoseUiStateService;
     private readonly IChildAccessService _childAccess;
     private readonly ITelegramNotificationService _notificationService;
+    private readonly IMaxBotService _maxBotService;
     private readonly IUserNotificationService _userNotificationService;
     private readonly IPdfExportService _pdfExportService;
     private readonly ILogger<MeasurementsController> _logger;
@@ -37,6 +38,7 @@ public class MeasurementsController : ControllerBase
         IGlucoseUiStateService glucoseUiStateService,
         IChildAccessService childAccess,
         ITelegramNotificationService notificationService,
+        IMaxBotService maxBotService,
         IUserNotificationService userNotificationService,
         IPdfExportService pdfExportService,
         ILogger<MeasurementsController> logger)
@@ -47,6 +49,7 @@ public class MeasurementsController : ControllerBase
         _glucoseUiStateService = glucoseUiStateService;
         _childAccess = childAccess;
         _notificationService = notificationService;
+        _maxBotService = maxBotService;
         _userNotificationService = userNotificationService;
         _pdfExportService = pdfExportService;
         _logger = logger;
@@ -170,6 +173,18 @@ public class MeasurementsController : ControllerBase
                     Notes = measurement.Notes
                 });
 
+            if (_maxBotService.IsConfigured)
+            {
+                await _maxBotService.SendMeasurementNotificationAsync(new MeasurementNotificationRequest
+                {
+                    ChildId = measurement.ChildId.ToString(),
+                    GlucoseValue = (double)measurement.GlucoseValue,
+                    Status = glucoseStatus,
+                    MeasurementTime = measurement.MeasurementTime,
+                    Notes = measurement.Notes
+                }, cancellationToken);
+            }
+
             if (notificationResult.Success)
             {
                 _logger.LogInformation(
@@ -192,6 +207,17 @@ public class MeasurementsController : ControllerBase
                         CriticalGlucose = (double)measurement.GlucoseValue,
                         MeasurementTime = measurement.MeasurementTime
                     });
+
+                if (_maxBotService.IsConfigured)
+                {
+                    await _maxBotService.SendCriticalAlertAsync(
+                        criticalAlert ?? new CriticalAlertRequest
+                        {
+                            ChildId = measurement.ChildId.ToString(),
+                            CriticalGlucose = (double)measurement.GlucoseValue,
+                            MeasurementTime = measurement.MeasurementTime
+                        }, cancellationToken);
+                }
 
                 if (criticalResult.Success)
                 {

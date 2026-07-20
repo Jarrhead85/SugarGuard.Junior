@@ -148,6 +148,11 @@ namespace SugarGuard.API.Data
                 .HasFilter("\"telegramid\" IS NOT NULL");
 
             modelBuilder.Entity<User>()
+                .HasIndex(u => u.MaxUserId)
+                .IsUnique()
+                .HasFilter("\"max_user_id\" IS NOT NULL");
+
+            modelBuilder.Entity<User>()
                 .HasIndex(u => u.EmailForLogin)
                 .IsUnique()
                 .HasFilter("\"emailforlogin\" IS NOT NULL")
