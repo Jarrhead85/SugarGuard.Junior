@@ -21,4 +21,6 @@ public interface ITelegramNotificationService
     /// Отправляет критическое уведомление с геолокацией всем родителям ребёнка
     /// </summary>
     Task<NotificationResponse> SendCriticalAlertAsync(CriticalAlertRequest request);
+
+    Task SendDailySummaryAsync(long telegramId, string message, CancellationToken cancellationToken = default);
 }

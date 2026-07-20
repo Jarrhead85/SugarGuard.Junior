@@ -44,7 +44,9 @@ public sealed class UserNotificationService : IUserNotificationService
                     notification.Description,
                     notification.Type,
                     notification.IsRead,
-                    notification.CreatedAt
+                    notification.CreatedAt,
+                    notification.ChildId,
+                    notification.SourceType
                 })
                 .ToListAsync(cancellationToken);
 
@@ -56,7 +58,9 @@ public sealed class UserNotificationService : IUserNotificationService
                 Time = GetRelativeTime(notification.CreatedAt, DateTime.UtcNow),
                 CreatedAt = notification.CreatedAt,
                 Type = notification.Type,
-                IsUnread = !notification.IsRead
+                IsUnread = !notification.IsRead,
+                ChildId = notification.ChildId,
+                SourceType = notification.SourceType
             }).ToList();
         }
 
@@ -71,9 +75,11 @@ public sealed class UserNotificationService : IUserNotificationService
                 notification.NotificationId,
                 notification.Title,
                 notification.Description,
-                notification.Type,
-                notification.IsRead,
-                notification.CreatedAt
+            notification.Type,
+            notification.IsRead,
+            notification.CreatedAt,
+            notification.ChildId,
+            notification.SourceType
             })
             .ToListAsync(cancellationToken);
 
@@ -85,7 +91,9 @@ public sealed class UserNotificationService : IUserNotificationService
             Time = GetRelativeTime(notification.CreatedAt, now),
             CreatedAt = notification.CreatedAt,
             Type = notification.Type,
-            IsUnread = !notification.IsRead
+            IsUnread = !notification.IsRead,
+            ChildId = notification.ChildId,
+            SourceType = notification.SourceType
         }).ToList();
 
         if (notifications.Count == 0)

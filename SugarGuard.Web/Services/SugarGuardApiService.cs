@@ -1854,7 +1854,9 @@ namespace SugarGuard.Web.Services
                         d.Type,
                         d.IsUnread,
                         d.NotificationId,
-                        d.CreatedAt))
+                        d.CreatedAt,
+                        d.ChildId,
+                        d.SourceType))
                     .ToList();
             }
             catch (Exception ex)
@@ -1879,6 +1881,8 @@ namespace SugarGuard.Web.Services
             public DateTime CreatedAt { get; init; }
             public string Type { get; init; } = "info";
             public bool IsUnread { get; init; }
+            public Guid? ChildId { get; init; }
+            public string SourceType { get; init; } = string.Empty;
         }
 
         public async Task MarkAllNotificationsAsReadAsync(

@@ -190,6 +190,14 @@ public class TelegramNotificationService : ITelegramNotificationService
         }
     }
 
+    public async Task SendDailySummaryAsync(
+        long telegramId,
+        string message,
+        CancellationToken cancellationToken = default)
+    {
+        await SendTelegramMessageAsync(telegramId, message, cancellationToken);
+    }
+
     /// <summary>
     /// Единый метод пакетной отправки уведомлений всем родителям
     /// </summary>
@@ -339,7 +347,10 @@ public class TelegramNotificationService : ITelegramNotificationService
     /// <summary>
     /// Отправляет текстовое сообщение через Telegram Bot API
     /// </summary>
-    private async Task SendTelegramMessageAsync(long chatId, string message)
+    private async Task SendTelegramMessageAsync(
+        long chatId,
+        string message,
+        CancellationToken cancellationToken = default)
     {
         // Валидация chatId
         if (chatId <= 0)
@@ -368,7 +379,7 @@ public class TelegramNotificationService : ITelegramNotificationService
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         using var client = _httpClientFactory.CreateClient(HttpClientName);
-        var response = await client.PostAsync(url, content);
+        var response = await client.PostAsync(url, content, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {

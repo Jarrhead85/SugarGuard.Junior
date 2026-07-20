@@ -465,6 +465,7 @@ else
 if (!useSqlite)
 {
     builder.Services.AddScoped<MidnightCleanupJob>();
+    builder.Services.AddScoped<DailyParentSummaryJob>();
     builder.Services.AddScoped<SugarGuard.API.Application.Services.BackpackCleanupService>();
 }
 
@@ -662,6 +663,7 @@ app.MapControllers();
 if (!useSqlite)
 {
     MidnightCleanupJob.ScheduleRecurringJob();
+    DailyParentSummaryJob.ScheduleRecurringJob();
 }
 
 app.Run();

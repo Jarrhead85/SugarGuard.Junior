@@ -1123,6 +1123,36 @@
         </div>
     }
 
+    <div class="card" style="margin-bottom:var(--spacing-4)">
+        <div class="card-head">
+            <div>
+                <div class="card-title">Ежедневные сводки</div>
+                <div class="card-sub">В 21:00 сводка сохраняется здесь и отправляется на email и в Telegram.</div>
+            </div>
+        </div>
+        @if (DailyChildSummaries.Count == 0)
+        {
+            <div class="empty-state empty-state--compact" role="status">
+                Сводок пока нет. Включите ежедневную сводку в настройках, чтобы получать отчёт каждый день.
+            </div>
+        }
+        else
+        {
+            <div class="settings-group" role="list">
+                @foreach (var summary in DailyChildSummaries)
+                {
+                    <div class="setting-row" role="listitem">
+                        <div class="setting-text">
+                            <div class="setting-label">@summary.Title</div>
+                            <div class="setting-desc">@summary.Description</div>
+                        </div>
+                        <time class="setting-desc" datetime="@summary.CreatedAt.ToString("O")">@ToDisplayTime(summary.CreatedAt).ToString("dd.MM.yyyy HH:mm")</time>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
     <div class="grid-2">
         @* Сводка контроля — журнал инсулина доступен на главной странице *@
         <div class="card">
@@ -1570,6 +1600,7 @@
 
             await LoadParentProfileFromClaimsAsync();
             _userPreferences = await Api.GetUserPreferencesAsync(CancellationToken.None);
+            ApplyNotificationPreferences();
 
             // Профиль ребёнка: грузим первым, чтобы шапка не оставалась с дефолтным текстом.
             var profile = await Api.GetChildProfileAsync(childId, CancellationToken.None);
@@ -1632,6 +1663,7 @@
                 DateTime.UtcNow,
                 cancellationToken);
             var notifications = await Api.GetNotificationsAsync(cancellationToken);
+            _userNotifications = notifications;
             var notificationAlerts = notifications
                 .Where(notification => notification.NotificationId.HasValue)
                 .Select(MapNotificationAlert)
@@ -3088,10 +3120,41 @@
     }
 
     // Настройки
-    private void ToggleSetting(NotifSetting s)
+    private async Task ToggleSetting(NotifSetting s)
     {
+        var previousValue = s.Enabled;
         s.Enabled = !s.Enabled;
+
+        if (s.Key == "daily-summary")
+        {
+            var preferences = new UserPreferencesVm
+            {
+                AlertsCritical = _userPreferences.AlertsCritical,
+                AlertsDailySummary = s.Enabled,
+                AlertsMissedMeasurement = _userPreferences.AlertsMissedMeasurement,
+                MapProvider = _userPreferences.MapProvider
+            };
+
+            if (!await Api.SaveUserPreferencesAsync(preferences))
+            {
+                s.Enabled = previousValue;
+                ShowNotice("Не удалось сохранить настройку ежедневной сводки. Попробуйте ещё раз.");
+                return;
+            }
+
+            _userPreferences = preferences;
+        }
+
         ShowNotice($"Настройка «{s.Label}» {(s.Enabled ? "включена" : "выключена")}.");
+    }
+
+    private void ApplyNotificationPreferences()
+    {
+        var dailySummary = _notifSettings.FirstOrDefault(setting => setting.Key == "daily-summary");
+        if (dailySummary is not null)
+        {
+            dailySummary.Enabled = _userPreferences.AlertsDailySummary;
+        }
     }
 
     private void ConnectDevice(DeviceItem device)
@@ -3239,6 +3302,13 @@
 
     // Данные — загружаются из API
     private List<AlertItem> _allAlerts = new();
+    private List<UserNotificationItem> _userNotifications = new();
+    private IReadOnlyList<UserNotificationItem> DailyChildSummaries => _userNotifications
+        .Where(notification => notification.ChildId == _selectedChildId
+                               && string.Equals(notification.SourceType, "daily_parent_summary", StringComparison.Ordinal))
+        .OrderByDescending(notification => notification.CreatedAt)
+        .Take(30)
+        .ToList();
     private IReadOnlyList<GlucoseChart.ChartPoint> _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private IReadOnlyList<GlucoseChart.ChartPoint> _measurementChartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private readonly List<MeasurementItem> _measurements = new();
@@ -3261,11 +3331,11 @@
 
     private readonly List<NotifSetting> _notifSettings = new()
     {
-        new("Критический уровень глюкозы",    "Мгновенно при <3.5 или >13.9 ммоль/л", true),
-        new("Предупреждение о пропуске укола", "Если базальный не введён вовремя",      true),
-        new("Низкий запас в рюкзаке",          "Уведомление при остатке <3 шт.",        false),
-        new("Ежедневная сводка в Telegram",    "Отчёт в 21:00 каждый день",             true),
-        new("Email-уведомления",               "Дублировать критические в email",        false),
+        new("critical", "Критический уровень глюкозы", "Мгновенно при <3.5 или >13.9 ммоль/л", true),
+        new("missed-insulin", "Предупреждение о пропуске укола", "Если базальный не введён вовремя", true),
+        new("low-backpack", "Низкий запас в рюкзаке", "Уведомление при остатке <3 шт.", false),
+        new("daily-summary", "Ежедневная сводка", "В 21:00: Telegram, email и профиль ребёнка", true),
+        new("email-critical", "Email-уведомления", "Дублировать критические в email", false),
     };
 
     private readonly List<DeviceItem> _devices = new()
@@ -3589,13 +3659,14 @@
     /// </summary>
     private sealed class NotifSetting
     {
+        public string Key { get; }
         public string Label       { get; init; }
         public string Description { get; init; }
         public bool   Enabled     { get; set; }
 
-        public NotifSetting(string label, string desc, bool enabled)
+        public NotifSetting(string key, string label, string desc, bool enabled)
         {
-            Label = label; Description = desc; Enabled = enabled;
+            Key = key; Label = label; Description = desc; Enabled = enabled;
         }
     }
 

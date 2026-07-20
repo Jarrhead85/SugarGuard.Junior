@@ -163,6 +163,10 @@ namespace SugarGuard.API.Data
                 .Property(u => u.CreatedAt)
                 .HasDefaultValueSql("NOW()");
 
+            modelBuilder.Entity<User>()
+                .Property(u => u.DailySummaryEnabled)
+                .HasDefaultValue(true);
+
             // Children 
             modelBuilder.Entity<Child>()
                 .Property(c => c.CreatedAt)

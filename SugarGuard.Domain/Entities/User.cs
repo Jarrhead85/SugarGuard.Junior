@@ -89,6 +89,9 @@ public class User
     [Column("map_provider")]
     [MaxLength(32)]
     public string MapProvider { get; set; } = "yandex";
+
+    [Column("daily_summary_enabled")]
+    public bool DailySummaryEnabled { get; set; } = true;
    
     public virtual ICollection<ParentChildLink> ParentChildLinks { get; set; } = new List<ParentChildLink>(); // Навигационные свойства
 }

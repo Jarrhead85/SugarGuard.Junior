@@ -38,11 +38,11 @@ public class UserPreferencesController : ControllerBase
             return Unauthorized();
 
         var cacheKey = $"{CachePrefix}{userId}";
-        var mapProvider = Guid.TryParse(userId, out var parsedUserId)
+        var persistedPreferences = Guid.TryParse(userId, out var parsedUserId)
             ? await _db.Users
                 .AsNoTracking()
                 .Where(user => user.UserId == parsedUserId)
-                .Select(user => user.MapProvider)
+                .Select(user => new { user.MapProvider, user.DailySummaryEnabled })
                 .FirstOrDefaultAsync(cancellationToken)
             : null;
 
@@ -51,13 +51,17 @@ public class UserPreferencesController : ControllerBase
             return Ok(new UserPreferencesDto
             {
                 AlertsCritical = prefs.AlertsCritical,
-                AlertsDailySummary = prefs.AlertsDailySummary,
+                AlertsDailySummary = persistedPreferences?.DailySummaryEnabled ?? prefs.AlertsDailySummary,
                 AlertsMissedMeasurement = prefs.AlertsMissedMeasurement,
-                MapProvider = NormalizeMapProvider(mapProvider)
+                MapProvider = NormalizeMapProvider(persistedPreferences?.MapProvider)
             });
         }
 
-        return Ok(new UserPreferencesDto { MapProvider = NormalizeMapProvider(mapProvider) });
+        return Ok(new UserPreferencesDto
+        {
+            AlertsDailySummary = persistedPreferences?.DailySummaryEnabled ?? true,
+            MapProvider = NormalizeMapProvider(persistedPreferences?.MapProvider)
+        });
     }
 
     [HttpPut]
@@ -75,9 +79,11 @@ public class UserPreferencesController : ControllerBase
         if (Guid.TryParse(userId, out var parsedUserId))
         {
             var user = await _db.Users.FirstOrDefaultAsync(candidate => candidate.UserId == parsedUserId, cancellationToken);
-            if (user is not null && user.MapProvider != normalizedMapProvider)
+            if (user is not null && (user.MapProvider != normalizedMapProvider
+                                     || user.DailySummaryEnabled != request.AlertsDailySummary))
             {
                 user.MapProvider = normalizedMapProvider;
+                user.DailySummaryEnabled = request.AlertsDailySummary;
                 await _db.SaveChangesAsync(cancellationToken);
             }
         }
