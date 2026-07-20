@@ -302,6 +302,34 @@
             <div class="sidebar-overlay" @onclick="CloseSidebar" aria-hidden="true"></div>
         }
 
+        <AuthorizeView Roles="Doctor">
+            <Authorized Context="doctorContext">
+                <section class="doctor-context-bar" aria-label="Контекст кабинета врача">
+                    <div class="doctor-context-profile">
+                        <span class="doctor-context-avatar" aria-hidden="true">
+                            @if (!string.IsNullOrWhiteSpace(currentAccountProfile?.PhotoUrl))
+                            {
+                                <img src="@currentAccountProfile.PhotoUrl" alt="" />
+                            }
+                            else
+                            {
+                                @GetInitials(GetSidebarUserName(doctorContext.User))
+                            }
+                        </span>
+                        <span>
+                            <strong>@GetSidebarUserName(doctorContext.User)</strong>
+                            <small>@(string.IsNullOrWhiteSpace(currentAccountProfile?.Specialty) ? "Кабинет врача" : currentAccountProfile.Specialty)</small>
+                        </span>
+                    </div>
+                    <div class="doctor-context-metrics" aria-label="Сводка по пациентам">
+                        <span><b>@doctorPatientCount</b> пациентов</span>
+                        <span class="@(doctorRiskCount > 0 ? "attention" : "")"><b>@doctorRiskCount</b> требуют внимания</span>
+                    </div>
+                    <a class="doctor-context-link" href="/doctor/profile">Профиль</a>
+                </section>
+            </Authorized>
+        </AuthorizeView>
+
         <main class="page-content" id="main-content" tabindex="-1">
             @Body
         </main>
