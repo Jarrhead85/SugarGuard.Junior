@@ -138,6 +138,8 @@
             aria-controls="pane-profile"
             @onclick='() => SwitchTab("profile")'>Профиль ребёнка</button>
 
+    <a class="tab tab-link" href="/parent/articles" aria-label="Статьи для родителей">Статьи</a>
+
     <button class="tab @TabClass("settings")" role="tab"
             aria-selected="@(_activeTab == "settings")"
             aria-controls="pane-settings"
@@ -1101,46 +1103,35 @@
     }
 
     <div class="grid-2">
-        @* Журнал инсулина *@
+        @* Сводка контроля — журнал инсулина доступен на главной странице *@
         <div class="card">
             <div class="card-head">
                 <div>
-                    <div class="card-title">Журнал инсулина</div>
-                    <div class="card-sub">Последние введения из мобильного приложения ребёнка</div>
+                    <div class="card-title">Контроль за 7 дней</div>
+                    <div class="card-sub">Краткая динамика глюкозы для профиля ребёнка</div>
                 </div>
             </div>
-            <div class="ins-list" role="list">
-                @if (_insulinLog.Count == 0)
-                {
-                    <div class="empty-state empty-state--compact" role="status">
-                        Данные появятся после ввода инсулина в мобильном приложении ребёнка.
-                    </div>
-                }
-                else
-                {
-                    @foreach (var ins in PagedInsulinLog)
-                    {
-                        <div class="ins-row" role="listitem">
-                            <span class="ins-dot @ins.Type"
-                                  aria-label="@(ins.Type == "bolus" ? "Болюс" : "Базальный")"></span>
-                            <div class="ins-info">
-                                <span class="ins-name">@ins.Name</span>
-                                <span class="ins-time">@ins.Time</span>
-                            </div>
-                            <strong class="ins-dose">@ins.Dose</strong>
-                        </div>
-                    }
-                    @if (InsulinLogTotalPages > 1)
-                    {
-                        <div class="event-pagination" role="navigation" aria-label="Страницы журнала инсулина">
-                            <span>@_insulinLogPage из @InsulinLogTotalPages</span>
-                            <div class="btn-group">
-                                <button class="btn btn--ghost btn--sm" disabled="@(_insulinLogPage == 1)" @onclick="PrevInsulinLogPage">←</button>
-                                <button class="btn btn--ghost btn--sm" disabled="@(_insulinLogPage == InsulinLogTotalPages)" @onclick="NextInsulinLogPage">→</button>
-                            </div>
-                        </div>
-                    }
-                }
+            <div class="stats-list" role="list">
+                <div class="stats-row" role="listitem">
+                    <span class="stats-label">Средняя глюкоза</span>
+                    <strong>@_avgGlucose ммоль/л</strong>
+                </div>
+                <div class="stats-row" role="listitem">
+                    <span class="stats-label">В целевом диапазоне</span>
+                    <strong style="color:var(--color-glucose-normal)">@_tirNormal%</strong>
+                </div>
+                <div class="stats-row" role="listitem">
+                    <span class="stats-label">Ниже целевого диапазона</span>
+                    <strong style="color:var(--color-glucose-danger)">@_tirLow%</strong>
+                </div>
+                <div class="stats-row" role="listitem">
+                    <span class="stats-label">Выше целевого диапазона</span>
+                    <strong style="color:var(--color-glucose-warning)">@_tirHigh%</strong>
+                </div>
+                <div class="stats-row" role="listitem">
+                    <span class="stats-label">Всего измерений</span>
+                    <strong>@_totalMeas</strong>
+                </div>
             </div>
         </div>
 
@@ -1384,10 +1375,8 @@
     private int _measPage = 1;
     private int _recentEventPage = 1;
     private int _alertPage = 1;
-    private int _insulinLogPage = 1;
     private const int MeasPageSize = 10;
     private const int EventPageSize = 5;
-    private const int InsulinLogPageSize = 8;
     private static readonly TimeSpan LiveRefreshInterval = TimeSpan.FromSeconds(10);
     private const string ParentProfileStorageKey = "sg-parent-profile-v1";
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
@@ -1771,7 +1760,6 @@
                     $"{entry.InsulinUnits:0.##} ед.",
                     ToDisplayTime(entry.RecordedAt).ToString("HH:mm"),
                     MealLabel(entry.MealType))));
-            _insulinLogPage = 1;
         }
         catch (Exception ex)
         {
@@ -2646,16 +2634,6 @@
             _alertPage++;
         }
     }
-
-    private int InsulinLogTotalPages => Math.Max(1, (int)Math.Ceiling(_insulinLog.Count / (double)InsulinLogPageSize));
-
-    private IEnumerable<InsulinEntry> PagedInsulinLog => _insulinLog
-        .Skip((_insulinLogPage - 1) * InsulinLogPageSize)
-        .Take(InsulinLogPageSize);
-
-    private void PrevInsulinLogPage() => _insulinLogPage = Math.Max(1, _insulinLogPage - 1);
-
-    private void NextInsulinLogPage() => _insulinLogPage = Math.Min(InsulinLogTotalPages, _insulinLogPage + 1);
 
     private void SetAlertFilter(string filter)
     {

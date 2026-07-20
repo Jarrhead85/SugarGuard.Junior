@@ -79,6 +79,36 @@ public sealed class UserNotificationServiceTests : IDisposable
         Assert.Equal(1, await db.UserNotifications.CountAsync());
     }
 
+    [Fact]
+    public async Task SaveChangesAsync_KeepsOnlyFiveHundredNewestNotificationsPerRecipient()
+    {
+        var parent = CreateParent();
+        var oldest = DateTime.UtcNow.AddDays(-2);
+
+        await using var db = NewDb();
+        db.Users.Add(parent);
+        db.UserNotifications.AddRange(Enumerable.Range(0, 501).Select(index => new UserNotification
+        {
+            RecipientUserId = parent.UserId,
+            Type = "info",
+            Title = $"Notification {index}",
+            Description = "Retention test",
+            SourceType = "retention_test",
+            SourceId = Guid.NewGuid(),
+            CreatedAt = oldest.AddMinutes(index)
+        }));
+
+        await db.SaveChangesAsync();
+
+        var notifications = await db.UserNotifications
+            .OrderBy(notification => notification.CreatedAt)
+            .ToListAsync();
+
+        Assert.Equal(AppDbContext.MaxNotificationsPerRecipient, notifications.Count);
+        Assert.Equal(oldest.AddMinutes(1), notifications.First().CreatedAt);
+        Assert.DoesNotContain(notifications, notification => notification.CreatedAt == oldest);
+    }
+
     private UserNotificationService CreateSut(Guid currentUserId)
     {
         _currentUser.Reset();

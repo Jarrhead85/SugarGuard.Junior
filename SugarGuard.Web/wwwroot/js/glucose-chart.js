@@ -491,7 +491,13 @@
                     tension: 0.4,   // spline-сглаживание
                     pointRadius: 3,
                     pointHoverRadius: 6,
-                    pointHoverBackgroundColor: pointBgColors,
+                    // Цвет нужен и в обычном состоянии, и при наведении.
+                    // Без pointBackgroundColor Chart.js после mouseout использовал
+                    // цвет линии (зелёный) для всех точек.
+                    pointBackgroundColor: pointBgColors,
+                    pointBorderColor: pointBorderColors,
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: pointBorderColors,
                     pointHoverBorderColor: pointBorderColors,
                     pointHoverBorderWidth: 2
                 }]
@@ -590,8 +596,14 @@
 
                 ds.backgroundColor = gradient;
                 ds.borderColor = normalColor;
-                ds.pointHoverBackgroundColor = buildPointColors(payload.colors, 0.18);
-                ds.pointHoverBorderColor = buildPointColors(payload.colors, 1.0);
+                var pointBackgroundColors = buildPointColors(payload.colors, 0.18);
+                var pointBorderColors = buildPointColors(payload.colors, 1.0);
+                ds.pointBackgroundColor = pointBackgroundColors;
+                ds.pointBorderColor = pointBorderColors;
+                ds.pointBorderWidth = 2;
+                ds.pointHoverBackgroundColor = pointBorderColors;
+                ds.pointHoverBorderColor = pointBorderColors;
+                ds.pointHoverBorderWidth = 2;
 
                 // Обновляем аннотации если плагин доступен
                 if (hasAnnotationPlugin() &&

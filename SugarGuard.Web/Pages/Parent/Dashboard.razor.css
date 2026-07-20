@@ -128,6 +128,7 @@
     bottom: -1px;
     transition: color 180ms, background 180ms;
     white-space: nowrap;
+    text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 6px;

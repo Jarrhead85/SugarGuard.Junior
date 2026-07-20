@@ -121,6 +121,12 @@
                         </span>
                         <span>Профиль ребёнка</span>
                     </a>
+                    <a class="parent-nav-item @(Navigation.Uri.Contains("/parent/articles", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/parent/articles">
+                        <span class="parent-nav-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                        </span>
+                        <span>Статьи</span>
+                    </a>
 
                     <span class="parent-nav-caption parent-nav-caption--account">Аккаунт</span>
                     <a class="parent-nav-item @(Navigation.Uri.Contains("/support", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/support">
@@ -574,6 +580,7 @@
             "parent/measurements" => ("Измерения",     "История глюкозы"),
             "parent/backpack"     => ("Рюкзак",        "Перекусы и хлебные единицы"),
             "parent/doctor"       => ("Врач",          "Связь с врачом"),
+            "parent/articles"     => ("Статьи",        "Полезные материалы для родителей"),
             "parent/settings"     => ("Настройки",     "Параметры аккаунта"),
             // Врач
             "doctor/dashboard"    => ("Мои пациенты",  "Кабинет врача"),

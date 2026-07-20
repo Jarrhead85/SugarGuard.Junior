@@ -10,6 +10,12 @@ namespace SugarGuard.API.Data
     /// </summary>
     public class AppDbContext : DbContext
     {
+        /// <summary>
+        /// Maximum retained notification history for one recipient.
+        /// Timeline events and source data are deliberately not affected.
+        /// </summary>
+        public const int MaxNotificationsPerRecipient = 500;
+
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         // Пользователи и дети 
@@ -61,6 +67,75 @@ namespace SugarGuard.API.Data
         public DbSet<AiConversation> AiConversations => Set<AiConversation>();
         public DbSet<AiConversationMessage> AiConversationMessages => Set<AiConversationMessage>();
         public DbSet<AiContextSnapshot> AiContextSnapshots => Set<AiContextSnapshot>();
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            var recipients = GetRecipientsWithNewNotifications();
+            var result = base.SaveChanges(acceptAllChangesOnSuccess);
+            TrimExcessNotifications(recipients);
+            return result;
+        }
+
+        public override async Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            var recipients = GetRecipientsWithNewNotifications();
+            var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            await TrimExcessNotificationsAsync(recipients, cancellationToken);
+            return result;
+        }
+
+        private HashSet<Guid> GetRecipientsWithNewNotifications() => ChangeTracker
+            .Entries<UserNotification>()
+            .Where(entry => entry.State == EntityState.Added)
+            .Select(entry => entry.Entity.RecipientUserId)
+            .Where(userId => userId != Guid.Empty)
+            .ToHashSet();
+
+        private void TrimExcessNotifications(IReadOnlySet<Guid> recipientUserIds)
+        {
+            foreach (var recipientUserId in recipientUserIds)
+            {
+                var expiredNotifications = UserNotifications
+                    .Where(notification => notification.RecipientUserId == recipientUserId)
+                    .OrderByDescending(notification => notification.CreatedAt)
+                    .ThenByDescending(notification => notification.NotificationId)
+                    .Skip(MaxNotificationsPerRecipient)
+                    .ToList();
+
+                if (expiredNotifications.Count == 0)
+                {
+                    continue;
+                }
+
+                UserNotifications.RemoveRange(expiredNotifications);
+                base.SaveChanges();
+            }
+        }
+
+        private async Task TrimExcessNotificationsAsync(
+            IReadOnlySet<Guid> recipientUserIds,
+            CancellationToken cancellationToken)
+        {
+            foreach (var recipientUserId in recipientUserIds)
+            {
+                var expiredNotifications = await UserNotifications
+                    .Where(notification => notification.RecipientUserId == recipientUserId)
+                    .OrderByDescending(notification => notification.CreatedAt)
+                    .ThenByDescending(notification => notification.NotificationId)
+                    .Skip(MaxNotificationsPerRecipient)
+                    .ToListAsync(cancellationToken);
+
+                if (expiredNotifications.Count == 0)
+                {
+                    continue;
+                }
+
+                UserNotifications.RemoveRange(expiredNotifications);
+                await base.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
