@@ -78,6 +78,8 @@ public class MeasurementsController : ControllerBase
             return Forbid();
 
         Domain.Entities.Measurement measurement;
+        var measurementAlreadyExists = request.MeasurementId.HasValue &&
+            await _measurements.GetByIdAsync(request.MeasurementId.Value, cancellationToken) is not null;
         try
         {
             measurement = await _measurements.CreateAsync(request, cancellationToken);
@@ -112,12 +114,15 @@ public class MeasurementsController : ControllerBase
             }
             : null;
 
-        await SendMeasurementNotificationsAsync(
-            measurement,
-            glucoseStatus,
-            isCritical,
-            criticalAlert,
-            cancellationToken);
+        if (!measurementAlreadyExists && request.NotifyParents)
+        {
+            await SendMeasurementNotificationsAsync(
+                measurement,
+                glucoseStatus,
+                isCritical,
+                criticalAlert,
+                cancellationToken);
+        }
 
         return CreatedAtAction(
             nameof(GetMeasurement),

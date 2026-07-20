@@ -3,6 +3,9 @@ using Microsoft.Extensions.Logging;
 using Plugin.LocalNotification;
 using SugarGuard.Junior.Extensions;
 using SugarGuard.Junior.Services.Interfaces;
+#if ANDROID
+using SugarGuard.Junior.Platforms.Android.Glucose;
+#endif
 
 namespace SugarGuard.Junior;
 
@@ -65,6 +68,12 @@ public static class MauiProgram
         builder.Services.AddTransient(sp =>
             new Lazy<IAuthenticationService>(sp.GetRequiredService<IAuthenticationService>));
 
-        return builder.Build();
+        var app = builder.Build();
+
+#if ANDROID
+        JugglucoBroadcastRuntime.Configure(app.Services);
+#endif
+
+        return app;
     }
 }

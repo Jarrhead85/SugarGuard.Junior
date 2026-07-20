@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStorageService, StorageService>();
         services.AddSingleton<IScheduleService, ScheduleService>();
         services.AddSingleton<IChildSessionBootstrapService, ChildSessionBootstrapService>();
+        services.AddSingleton<ISensorGlucoseIngestionService, SensorGlucoseIngestionService>();
         // Фабрика для разрыва цикла INotificationService <-> IScheduleService (ScheduleService получает уведомления лениво)
         services.AddScoped<Func<INotificationService>>(sp => () => sp.GetRequiredService<INotificationService>());
         

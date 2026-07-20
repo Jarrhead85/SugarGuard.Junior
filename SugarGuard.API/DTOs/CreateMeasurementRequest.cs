@@ -31,6 +31,12 @@ public class CreateMeasurementRequest
     public string? DataSource { get; set; } = "mobile_app";
 
     /// <summary>
+    /// Разрешает уведомление родителей. Поток CGM может создавать измерение каждую минуту,
+    /// поэтому клиент включает это поле только для значимых критических переходов.
+    /// </summary>
+    public bool NotifyParents { get; set; } = true;
+
+    /// <summary>
     /// Широта устройства в момент критического измерения, если мобильное приложение смогло её получить.
     /// </summary>
     public double? Latitude { get; set; }

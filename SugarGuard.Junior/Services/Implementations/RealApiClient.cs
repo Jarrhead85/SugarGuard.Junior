@@ -347,6 +347,7 @@ public class RealApiClient : IApiClient
             childState = request.ChildState,
             notes = request.Notes,
             dataSource = request.DataSource ?? "mobile_app",
+            notifyParents = request.NotifyParents,
             latitude = request.Latitude,
             longitude = request.Longitude,
             address = request.Address

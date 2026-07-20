@@ -2,6 +2,9 @@
 using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Models.Enums;
 
+using SugarGuard.Junior.Core.Sensors;
+using SugarGuard.Junior.Models.Sensors;
+
 namespace SugarGuard.Junior.Services.Interfaces;
 
 // Сервис для работы с измерениями глюкозы
@@ -24,6 +27,14 @@ public interface IMeasurementService
         double glucoseValue,
         string childState = "normal",
         DateTime? measurementTimeUtc = null);
+
+    /// <summary>
+    /// Сохраняет показание внешнего датчика без запроса к ИИ.
+    /// Метод идемпотентен для повторно доставленного broadcast и работает офлайн.
+    /// </summary>
+    Task<SensorMeasurementSaveResult> ProcessSensorMeasurementAsync(
+        string childId,
+        SensorGlucoseReading reading);
 
     /// <summary>
     /// Получает количество измерений за сегодня

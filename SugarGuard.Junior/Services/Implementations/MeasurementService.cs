@@ -6,9 +6,11 @@ using SugarGuard.Junior.Database;
 using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Models.Core;
 using SugarGuard.Junior.Models.Enums;
+using SugarGuard.Junior.Models.Sensors;
 using SugarGuard.Junior.Security;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
+using SugarGuard.Junior.Core.Sensors;
 
 namespace SugarGuard.Junior.Services.Implementations;
 
@@ -31,6 +33,7 @@ public class MeasurementService : IMeasurementService
     private readonly INotificationService _notificationService;
     private readonly ICryptoService _cryptoService;
     private readonly ISyncService _syncService;
+    private readonly IStorageService _storageService;
 
     public MeasurementService(
         IDbContextFactory<AppDbContext> factory,
@@ -41,7 +44,8 @@ public class MeasurementService : IMeasurementService
         ILocationService locationService,
         INotificationService notificationService,
         ICryptoService cryptoService,
-        ISyncService syncService)
+        ISyncService syncService,
+        IStorageService storageService)
     {
         _factory = factory;
         _logger = logger;
@@ -52,6 +56,7 @@ public class MeasurementService : IMeasurementService
         _notificationService = notificationService;
         _cryptoService = cryptoService;
         _syncService = syncService;
+        _storageService = storageService;
     }
 
     /// <summary>
@@ -265,6 +270,151 @@ public class MeasurementService : IMeasurementService
         return GlucoseClassifier.Classify(glucoseValue);
     }
 
+    /// <summary>
+    /// Сохраняет показание CGM, полученное через локальный Android broadcast.
+    /// Поток датчика не запрашивает совет у ИИ: минутные значения нужны для журнала и синхронизации,
+    /// а не для генерации повторяющихся рекомендаций.
+    /// </summary>
+    public async Task<SensorMeasurementSaveResult> ProcessSensorMeasurementAsync(
+        string childId,
+        SensorGlucoseReading reading)
+    {
+        if (string.IsNullOrWhiteSpace(childId))
+        {
+            return new SensorMeasurementSaveResult(false, false, null, "Не выбран профиль ребёнка.");
+        }
+
+        if (!GlucoseLevels.IsValidInput(reading.GlucoseMmolPerLiter))
+        {
+            return new SensorMeasurementSaveResult(false, false, null, "Значение датчика вне допустимого диапазона.");
+        }
+
+        try
+        {
+            var measurementTime = NormalizeMeasurementTime(reading.MeasurementTimeUtc);
+            var duplicateFrom = measurementTime.AddSeconds(-1);
+            var duplicateTo = measurementTime.AddSeconds(1);
+
+            await using var context = await _factory.CreateDbContextAsync();
+            var isDuplicate = await context.Measurements.AnyAsync(item =>
+                item.ChildId == childId &&
+                item.DataSource == DataSource.CGMSystem &&
+                item.MeasurementTime >= duplicateFrom &&
+                item.MeasurementTime <= duplicateTo);
+
+            if (isDuplicate)
+            {
+                _logger.LogDebug(
+                    "Повторное показание Juggluco пропущено. ChildId={ChildId}; Time={MeasurementTime:O}",
+                    childId,
+                    measurementTime);
+                return new SensorMeasurementSaveResult(false, true, null, null);
+            }
+
+            var status = GlucoseClassifier.Classify(reading.GlucoseMmolPerLiter);
+            var childState = status switch
+            {
+                GlucoseStatus.CriticallyLow or GlucoseStatus.Low => ChildState.Hypoglycemia,
+                GlucoseStatus.CriticallyHigh or GlucoseStatus.High => ChildState.Hyperglycemia,
+                _ => ChildState.Normal
+            };
+
+            var isCritical = GlucoseLevels.IsCritical(reading.GlucoseMmolPerLiter);
+            var notifyParents = await ShouldNotifyParentsAboutSensorReadingAsync(childId, isCritical);
+            Interfaces.Location? criticalLocation = null;
+
+            if (isCritical && notifyParents)
+            {
+                try
+                {
+                    criticalLocation = await _locationService.GetCurrentLocationAsync(TimeSpan.FromSeconds(5));
+                    if (criticalLocation is null)
+                    {
+                        await _notificationService.SendCriticalAlertAsync(
+                            "Критический уровень глюкозы!",
+                            $"Глюкоза: {reading.GlucoseMmolPerLiter:F1} ммоль/л. Срочно проверьте ребёнка!",
+                            reading.GlucoseMmolPerLiter);
+                    }
+                }
+                catch (Exception locationEx)
+                {
+                    _logger.LogWarning(locationEx, "Не удалось получить геолокацию для критического показания датчика.");
+                }
+            }
+
+            var measurement = new MeasurementEntity
+            {
+                MeasurementId = Guid.NewGuid().ToString(),
+                ChildId = childId,
+                EncryptedGlucoseValue = await _cryptoService.EncryptAsync(
+                    reading.GlucoseMmolPerLiter.ToString("F1", CultureInfo.InvariantCulture)),
+                MeasurementTime = measurementTime,
+                EncryptedChildState = await _cryptoService.EncryptAsync(childState.ToString()),
+                DataSource = DataSource.CGMSystem,
+                IsSynced = false
+            };
+
+            context.Measurements.Add(measurement);
+            await context.SaveChangesAsync();
+
+            var payload = new SendMeasurementRequest
+            {
+                MeasurementId = measurement.MeasurementId,
+                ChildId = childId,
+                GlucoseValue = reading.GlucoseMmolPerLiter,
+                MeasurementTime = measurementTime,
+                ChildState = childState.ToString(),
+                DataSource = DataSource.CGMSystem.ToString(),
+                RequestRecommendation = false,
+                NotifyParents = notifyParents,
+                LastModifiedAt = DateTime.UtcNow,
+                Latitude = criticalLocation?.Latitude,
+                Longitude = criticalLocation?.Longitude,
+                Address = criticalLocation?.Address
+            };
+
+            try
+            {
+                await _syncService.QueueItemAsync(
+                    measurement.MeasurementId,
+                    "Measurement",
+                    "Insert",
+                    Newtonsoft.Json.JsonConvert.SerializeObject(payload));
+            }
+            catch (Exception syncEx)
+            {
+                _logger.LogWarning(
+                    syncEx,
+                    "Показание датчика {MeasurementId} сохранено локально, но не добавлено в очередь синхронизации.",
+                    measurement.MeasurementId);
+            }
+
+            if (isCritical && notifyParents)
+            {
+                await _storageService.SaveAsync(GetSensorCriticalAlertStorageKey(childId), DateTime.UtcNow.ToString("O"));
+            }
+            else if (!isCritical)
+            {
+                await _storageService.DeleteAsync(GetSensorCriticalAlertStorageKey(childId));
+            }
+
+            await _notificationService.MarkMeasurementCompletedAsync(childId);
+            _logger.LogInformation(
+                "Показание датчика сохранено. ChildId={ChildId}; Value={GlucoseValue}; Time={MeasurementTime:O}; NotifyParents={NotifyParents}",
+                childId,
+                reading.GlucoseMmolPerLiter,
+                measurementTime,
+                notifyParents);
+
+            return new SensorMeasurementSaveResult(true, false, measurement.MeasurementId, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка сохранения показания датчика для ChildId={ChildId}.", childId);
+            return new SensorMeasurementSaveResult(false, false, null, "Не удалось сохранить показание датчика.");
+        }
+    }
+
     private static DateTime NormalizeMeasurementTime(DateTime? measurementTimeUtc)
     {
         if (!measurementTimeUtc.HasValue)
@@ -279,6 +429,29 @@ public class MeasurementService : IMeasurementService
             _ => DateTime.SpecifyKind(measurementTimeUtc.Value, DateTimeKind.Local).ToUniversalTime()
         };
     }
+
+    /// <summary>
+    /// Не допускает поток одинаковых критических оповещений от CGM. Новое оповещение
+    /// создаётся после нормального значения либо по истечении 15 минут непрерывной критической ситуации.
+    /// </summary>
+    private async Task<bool> ShouldNotifyParentsAboutSensorReadingAsync(string childId, bool isCritical)
+    {
+        if (!isCritical)
+        {
+            return false;
+        }
+
+        var stored = await _storageService.GetAsync(GetSensorCriticalAlertStorageKey(childId));
+        if (!DateTime.TryParse(stored, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var lastAlertTime))
+        {
+            return true;
+        }
+
+        return lastAlertTime.ToUniversalTime() <= DateTime.UtcNow.AddMinutes(-15);
+    }
+
+    private static string GetSensorCriticalAlertStorageKey(string childId) =>
+        $"sensor_critical_alert_{childId}";
 
     /// <summary>
     /// Проверяет, критично ли значение глюкозы

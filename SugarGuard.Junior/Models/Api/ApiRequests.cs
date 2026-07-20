@@ -106,6 +106,13 @@ public class SendMeasurementRequest
     public bool RequestRecommendation { get; set; }
 
     /// <summary>
+    /// Нужно ли отправлять родителям оповещение об этом измерении.
+    /// Для минутного потока CGM оповещения отправляются только при критическом переходе,
+    /// чтобы не создавать поток одинаковых сообщений.
+    /// </summary>
+    public bool NotifyParents { get; set; } = true;
+
+    /// <summary>
     /// Время последнего изменения (для обнаружения конфликтов, M-2)
     /// </summary>
     public DateTime? LastModifiedAt { get; set; }
