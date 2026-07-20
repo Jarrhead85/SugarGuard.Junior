@@ -142,7 +142,7 @@ public sealed class ChildAccessService : IChildAccessService
         var hasSelfLink = await _context.ParentChildLinks.AsNoTracking()
             .AnyAsync(link => link.ParentUserId == userId
                               && link.ChildId == childId
-                              && link.Notes == "Self-link for child mobile account",
+                              && link.LinkType == ParentChildLinkType.SelfLinkChildDevice,
                 cancellationToken);
 
         return hasSelfLink;
@@ -154,7 +154,7 @@ public sealed class ChildAccessService : IChildAccessService
     {
         var linkedIds = await _context.ParentChildLinks.AsNoTracking()
             .Where(link => link.ParentUserId == userId
-                           && link.Notes == "Self-link for child mobile account")
+                           && link.LinkType == ParentChildLinkType.SelfLinkChildDevice)
             .Select(link => link.ChildId)
             .ToListAsync(cancellationToken);
 

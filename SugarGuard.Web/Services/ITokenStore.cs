@@ -9,7 +9,13 @@ public interface ITokenStore
 
     Task RemoveTokenAsync();
 
-    Task<string?> GetRefreshTokenAsync();
+    Task<RefreshAccessTokenResult?> RefreshAccessTokenAsync(string accessToken);
+
     Task SetRefreshTokenAsync(string refreshToken);
     Task RemoveRefreshTokenAsync();
 }
+
+/// <summary>
+/// Результат обновления access-токена через refresh cookie.
+/// </summary>
+public sealed record RefreshAccessTokenResult(string AccessToken);

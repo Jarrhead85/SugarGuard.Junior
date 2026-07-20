@@ -3,7 +3,7 @@
 namespace SugarGuard.Web.Services;
 
 /// <summary>
-/// Хранит JWT access- и refresh-токены в браузерном localStorage через JS Interop
+/// Хранит access-токен только в памяти вкладки и передаёт refresh-токен в httpOnly cookie.
 /// </summary>
 public sealed class LocalStorageTokenStore : ITokenStore
 {
@@ -56,11 +56,14 @@ public sealed class LocalStorageTokenStore : ITokenStore
     }
 
     /// <inheritdoc/>
-    public async Task<string?> GetRefreshTokenAsync()
+    public async Task<RefreshAccessTokenResult?> RefreshAccessTokenAsync(string accessToken)
     {
         try
         {
-            return await _js.InvokeAsync<string?>("tokenStore.getRefreshToken", TimeSpan.FromSeconds(3));
+            return await _js.InvokeAsync<RefreshAccessTokenResult?>(
+                "tokenStore.refreshAccessToken",
+                TimeSpan.FromSeconds(10),
+                accessToken);
         }
         catch (InvalidOperationException) { return null; }
         catch (JSDisconnectedException) { return null; }
@@ -73,7 +76,7 @@ public sealed class LocalStorageTokenStore : ITokenStore
     {
         try
         {
-            await _js.InvokeVoidAsync("tokenStore.setRefreshToken", TimeSpan.FromSeconds(3), token);
+            await _js.InvokeVoidAsync("tokenStore.setRefreshToken", TimeSpan.FromSeconds(5), token);
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }
@@ -86,7 +89,7 @@ public sealed class LocalStorageTokenStore : ITokenStore
     {
         try
         {
-            await _js.InvokeVoidAsync("tokenStore.removeRefreshToken", TimeSpan.FromSeconds(3));
+            await _js.InvokeVoidAsync("tokenStore.removeRefreshToken", TimeSpan.FromSeconds(5));
         }
         catch (InvalidOperationException) { }
         catch (JSDisconnectedException) { }

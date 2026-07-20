@@ -42,6 +42,16 @@ public sealed class AdminService : IAdminService
         UserRole.SupportAdmin
     };
 
+    // Учётные записи интеграций выдаются только при серверном provisioning, не через UI.
+    private static readonly HashSet<UserRole> AllowedAssignableRoles = new()
+    {
+        UserRole.Parent,
+        UserRole.Doctor,
+        UserRole.Admin,
+        UserRole.SupportAdmin,
+        UserRole.ChildDevice
+    };
+
     public AdminService(
         IUserRepository users,
         IChildRepository children,
@@ -102,6 +112,9 @@ public sealed class AdminService : IAdminService
         if (!Enum.TryParse<UserRole>(newRole, ignoreCase: true, out var parsedRole))
             throw new ArgumentException($"Unknown role '{newRole}'.");
 
+        if (!AllowedAssignableRoles.Contains(parsedRole))
+            throw new ArgumentException($"Role '{parsedRole}' cannot be assigned manually.");
+
         var user = await _users.FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
 
         if (user is null)
@@ -111,6 +124,16 @@ public sealed class AdminService : IAdminService
         }
 
         var oldRole = user.Role;
+
+        if (oldRole == UserRole.Admin && parsedRole != UserRole.Admin && user.IsActive)
+        {
+            var activeAdministrators = await _users.Query()
+                .CountAsync(candidate => candidate.Role == UserRole.Admin && candidate.IsActive, cancellationToken);
+
+            if (activeAdministrators <= 1)
+                throw new InvalidOperationException("Нельзя снять роль с последнего активного администратора.");
+        }
+
         user.Role = parsedRole;
         _users.Update(user);
         await _users.SaveChangesAsync(cancellationToken);

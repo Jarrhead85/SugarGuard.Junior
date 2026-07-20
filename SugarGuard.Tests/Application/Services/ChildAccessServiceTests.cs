@@ -362,6 +362,32 @@ public class ChildAccessServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CanAccessChildAsync_ChildDevice_ReturnsTrue_OnlyForStructuredSelfLink()
+    {
+        var device = CreateUser(UserRole.ChildDevice);
+        var child = CreateChild();
+        using (var db = CreateContext())
+        {
+            db.Users.Add(device);
+            db.Children.Add(child);
+            db.ParentChildLinks.Add(new ParentChildLink
+            {
+                ParentUserId = device.UserId,
+                ChildId = child.ChildId,
+                CreatedAt = DateTime.UtcNow,
+                LinkType = ParentChildLinkType.SelfLinkChildDevice,
+                Notes = "Обычная заметка, не участвующая в авторизации"
+            });
+            await db.SaveChangesAsync();
+        }
+        SetUserContext(device.UserId, null);
+
+        var sut = CreateSut();
+
+        Assert.True(await sut.CanAccessChildAsync(child.ChildId));
+    }
+
+    [Fact]
     public async Task CanAccessChildAsync_ParentCannotAccessUnrelatedChild()
     {
         // SECURITY: Parent ребёнка A не должен видеть ребёнка B (IDOR guard)

@@ -1,36 +1,49 @@
-// SugarGuard JWT token store — localStorage interop helpers
-// All methods are wrapped in try-catch to guard against unavailable localStorage
-// (e.g., private browsing mode, storage quota exceeded).
+// Access-токен существует только в памяти страницы. Refresh-токен сохраняется
+// сервером в httpOnly cookie и недоступен JavaScript.
+
+let accessToken = null;
 
 window.tokenStore = {
     getToken: function () {
-        try { return localStorage.getItem('sg_access_token'); }
-        catch (e) { console.warn('SugarGuard: localStorage недоступен', e); return null; }
+        return accessToken;
     },
     setToken: function (token) {
-        try { localStorage.setItem('sg_access_token', token); }
-        catch (e) { console.warn('SugarGuard: не удалось сохранить токен', e); }
+        accessToken = token || null;
     },
     removeToken: function () {
-        try { localStorage.removeItem('sg_access_token'); }
-        catch (e) { }
+        accessToken = null;
     },
-    getRefreshToken: function () {
-        try { return localStorage.getItem('sg_refresh_token'); }
-        catch (e) { return null; }
+    setRefreshToken: async function (token) {
+        const response = await fetch('/session/refresh-token', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: token })
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось сохранить сессию.');
+        }
     },
-    setRefreshToken: function (token) {
-        try { localStorage.setItem('sg_refresh_token', token); }
-        catch (e) { console.warn('SugarGuard: не удалось сохранить refresh-токен', e); }
+    refreshAccessToken: async function (expiredAccessToken) {
+        const response = await fetch('/session/refresh', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: expiredAccessToken })
+        });
+
+        return response.ok ? await response.json() : null;
     },
-    removeRefreshToken: function () {
-        try { localStorage.removeItem('sg_refresh_token'); }
-        catch (e) { }
+    removeRefreshToken: async function () {
+        await fetch('/session/refresh-token', {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: accessToken })
+        });
     },
     clearAll: function () {
-        try {
-            localStorage.removeItem('sg_access_token');
-            localStorage.removeItem('sg_refresh_token');
-        } catch (e) { }
+        accessToken = null;
     }
 };

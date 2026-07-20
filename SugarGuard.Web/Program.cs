@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.StaticFiles;
 using SugarGuard.Web;
 using SugarGuard.Web.Components;
+using SugarGuard.Web.Endpoints;
 using SugarGuard.Web.Services;
 using System.Globalization;
 
@@ -47,7 +48,7 @@ builder.Services.AddAuthorization();
 // Каскадный AuthenticationState для всего дерева компонентов
 builder.Services.AddCascadingAuthenticationState();
 
-// Хранилище JWT access- и refresh-токенов в браузерном localStorage (JS Interop)
+// Access-токен живёт только в памяти вкладки. Refresh-токен передаётся в защищённую httpOnly cookie.
 builder.Services.AddScoped<ITokenStore, LocalStorageTokenStore>();
 
 // HTTP-обработчик: подставляет Authorization: Bearer <token> в каждый запрос к API
@@ -128,37 +129,6 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 });
 
 // -----------------------------------------------------------------------
-// Security Headers (XSS, clickjacking, MIME-sniffing)
-// -----------------------------------------------------------------------
-app.Use(async (context, next) =>
-{
-    var headers = context.Response.Headers;
-
-    // Запрет встраивания в iframe (clickjacking)
-    headers["X-Frame-Options"] = "DENY";
-    // Запрет MIME-sniffing Content-Type
-    headers["X-Content-Type-Options"] = "nosniff";
-    // Минимальная утечка referrer при переходе на внешние ресурсы
-    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    // Запрет доступа к камере, микрофону, геолокации без явного разрешения
-    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-
-    // Content Security Policy:
-    // - Шрифты разрешены с api.fontshare.com и fonts.gstatic.com
-    // - SignalR WebSocket разрешён через connect-src wss://*
-    headers["Content-Security-Policy"] =
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +   // 'unsafe-inline' нужен Blazor Server
-        "style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com; " +
-        "font-src 'self' data: https://api.fontshare.com https://cdn.fontshare.com https://fonts.gstatic.com; " +
-        "connect-src 'self' https://cdn.jsdelivr.net wss://* ws://*; " +   // SignalR WebSocket
-        "img-src 'self' data:; " +
-        "frame-ancestors 'none';";
-
-    await next();
-});
-
-// -----------------------------------------------------------------------
 // HTTP-пайплайн
 // -----------------------------------------------------------------------
 
@@ -190,21 +160,18 @@ app.Use(async (context, next) =>
 
     // CSP: разрешить inline styles (нужно Blazor), но не inline scripts.
     // 'self' для скриптов и стилей; data: для favicon.
-    if (!headers.ContainsKey("Content-Security-Policy"))
-    {
-        headers["Content-Security-Policy"] =
-            "default-src 'self'; " +
-            "script-src 'self'; " +
-            // Blazor использует inline style для динамических компонентов.
-            "style-src 'self' 'unsafe-inline'; " +
-            "img-src 'self' data: https:; " +
-            "font-src 'self' data:; " +
-            "connect-src 'self' https://gigachat.devices.sberbank.ru; " +
-            "frame-ancestors 'none'; " +
-            "form-action 'self'; " +
-            "base-uri 'self'; " +
-            "object-src 'none';";
-    }
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' https://cdn.jsdelivr.net; " +
+        // Blazor использует inline style для динамических компонентов.
+        "style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com; " +
+        "img-src 'self' data: https:; " +
+        "font-src 'self' data: https://api.fontshare.com https://cdn.fontshare.com https://fonts.gstatic.com; " +
+        "connect-src 'self' https://gigachat.devices.sberbank.ru; " +
+        "frame-ancestors 'none'; " +
+        "form-action 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none';";
 
     await next();
 });
@@ -252,6 +219,8 @@ app.MapGet("/uploads/{**path}", async (
     await response.Content.CopyToAsync(context.Response.Body, cancellationToken);
     return Results.Empty;
 }).AllowAnonymous();
+
+app.MapSessionCookieEndpoints();
 
 // Razor-компоненты с поддержкой Blazor Server
 app.MapRazorComponents<App>()

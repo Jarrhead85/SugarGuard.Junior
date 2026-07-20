@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.Domain.Entities;
 
@@ -30,6 +31,9 @@ public sealed class ParentChildLink
     [Column("notes")]
     [MaxLength(1000)]
     public string? Notes { get; set; } // Административная заметка к связи
+
+    [Column("link_type")]
+    public ParentChildLinkType LinkType { get; set; } = ParentChildLinkType.Regular;
 
     // Навигационные свойства 
     public User ParentUser { get; set; } = null!; // Пользователь-родитель, которому принадлежит эта связь

@@ -633,6 +633,10 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("linkedbyuserid");
 
+                    b.Property<int>("LinkType")
+                        .HasColumnType("integer")
+                        .HasColumnName("link_type");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")

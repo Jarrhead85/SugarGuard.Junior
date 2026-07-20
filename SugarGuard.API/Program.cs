@@ -1,6 +1,7 @@
 ﻿using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -252,6 +253,8 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiProblemDetailsResultFilter>();
+    // Все action с параметром childId получают централизованную проверку доступа.
+    options.Filters.AddService<ChildAccessAuthorizationFilter>();
 });
 
 // Аутентификация и авторизация
@@ -279,6 +282,13 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));
+
+    // Операции, меняющие полномочия пользователей, доступны только полному администратору.
+    options.AddPolicy("FullAdminOnly", policy =>
+        policy.RequireRole(UserRole.Admin.ToString()));
+
+    options.AddPolicy(ChildAccessRequirement.PolicyName, policy =>
+        policy.Requirements.Add(new ChildAccessRequirement()));
 
     options.AddPolicy("DoctorOrAdmin", policy =>
         policy.RequireRole(
@@ -369,6 +379,8 @@ builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IRolePermissionService, RolePermissionService>();
 builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 builder.Services.AddScoped<IChildAccessService, ChildAccessService>();
+builder.Services.AddScoped<IAuthorizationHandler, ChildAccessAuthorizationHandler>();
+builder.Services.AddScoped<ChildAccessAuthorizationFilter>();
 builder.Services.AddSingleton<IServerMetricsService, ServerMetricsService>();
 
 if (builder.Environment.IsDevelopment())
@@ -420,6 +432,7 @@ builder.Services.AddScoped<IAiRecommendationWorkflowService, AiRecommendationWor
 builder.Services.AddScoped<IExportJobService, ExportJobService>();
 builder.Services.AddScoped<IPdfExportService, PdfExportService>();
 builder.Services.AddScoped<IHealthService, HealthService>();
+builder.Services.AddScoped<IGigaChatUsageService, GigaChatUsageService>();
 builder.Services.AddScoped<IFaqContentService, FaqContentService>();
 builder.Services.AddScoped<ISyncLogService, SyncLogService>();
 builder.Services.AddScoped<IExportJobApiService, ExportJobApiService>();
@@ -551,8 +564,7 @@ builder.Services.AddCors(options =>
             "Authorization",
             "Content-Type",
             "X-Requested-With",
-            "X-CSRF-TOKEN",
-            "X-Telegram-Webhook-Secret"
+            "X-CSRF-TOKEN"
         };
 
         policy.WithOrigins(allowedOrigins)

@@ -222,9 +222,9 @@ public sealed class ChildrenService : IChildrenService
                 ChildId = child.ChildId,
                 CreatedAt = now,
                 LinkedByUserId = userId,
-                Notes = role == UserRole.ChildDevice
-                    ? "Self-link for child mobile account"
-                    : null
+                LinkType = role == UserRole.ChildDevice
+                    ? ParentChildLinkType.SelfLinkChildDevice
+                    : ParentChildLinkType.Regular
             });
         }
 

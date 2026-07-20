@@ -74,10 +74,10 @@ public class JwtAuthStateProviderTests
             .Setup(s => s.RemoveTokenAsync())
             .Returns(Task.CompletedTask);
 
-        // Refresh-токены: возвращаем null по умолчанию — тесты не проверяют ротацию
+        // Refresh cookie: по умолчанию обновление не выполняется.
         tokenStoreMock
-            .Setup(s => s.GetRefreshTokenAsync())
-            .ReturnsAsync((string?)null);
+            .Setup(s => s.RefreshAccessTokenAsync(It.IsAny<string>()))
+            .ReturnsAsync((RefreshAccessTokenResult?)null);
 
         tokenStoreMock
             .Setup(s => s.RemoveRefreshTokenAsync())
@@ -156,6 +156,31 @@ public class JwtAuthStateProviderTests
             "Истёкший токен должен быть удалён из хранилища.");
     }
 
+    [Fact]
+    public async Task GetAuthenticationStateAsync_ExpiredToken_UsesHttpOnlyRefreshCookieBridge()
+    {
+        var expiredToken = CreateToken(
+            claims: [new Claim(ClaimTypes.Email, "parent@example.com")],
+            notBefore: DateTime.UtcNow.AddHours(-2),
+            expires: DateTime.UtcNow.AddHours(-1));
+        var refreshedToken = CreateToken(
+            claims: [new Claim(ClaimTypes.Email, "parent@example.com"), new Claim(ClaimTypes.Role, "Parent")]);
+
+        var (provider, tokenStoreMock) = CreateProvider(expiredToken);
+        tokenStoreMock
+            .Setup(store => store.RefreshAccessTokenAsync(expiredToken))
+            .ReturnsAsync(new RefreshAccessTokenResult(refreshedToken));
+        tokenStoreMock
+            .Setup(store => store.SetTokenAsync(refreshedToken))
+            .Returns(Task.CompletedTask);
+
+        var state = await provider.GetAuthenticationStateAsync();
+
+        Assert.True(state.User.Identity?.IsAuthenticated);
+        tokenStoreMock.Verify(store => store.RefreshAccessTokenAsync(expiredToken), Times.Once);
+        tokenStoreMock.Verify(store => store.SetTokenAsync(refreshedToken), Times.Once);
+    }
+
     // -----------------------------------------------------------------------
     // Req 14.4 — Logout → анонимный AuthenticationState
     // -----------------------------------------------------------------------
@@ -190,8 +215,8 @@ public class JwtAuthStateProviderTests
             .Returns(Task.CompletedTask);
 
         tokenStoreMock
-            .Setup(s => s.GetRefreshTokenAsync())
-            .ReturnsAsync((string?)null);
+            .Setup(s => s.RefreshAccessTokenAsync(It.IsAny<string>()))
+            .ReturnsAsync((RefreshAccessTokenResult?)null);
 
         tokenStoreMock
             .Setup(s => s.RemoveRefreshTokenAsync())

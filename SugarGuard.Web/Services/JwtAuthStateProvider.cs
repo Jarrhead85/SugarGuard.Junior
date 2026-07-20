@@ -64,34 +64,30 @@ public sealed class JwtAuthStateProvider : AuthenticationStateProvider
             if (!IsTokenExpired(token))
                 return new AuthenticationState(BuildPrincipal(token));
 
-            // Access-токен истёк — пробуем Refresh Token Rotation
-            string? refreshToken;
+            // Access-токен истёк — выполняем Refresh Token Rotation через httpOnly cookie.
+            RefreshAccessTokenResult? refreshed;
             try
             {
-                refreshToken = await _tokenStore.GetRefreshTokenAsync();
+                refreshed = await _tokenStore.RefreshAccessTokenAsync(token);
             }
             catch (Exception ex) when (ex is InvalidOperationException or JSException)
             {
                 return Anonymous;
             }
 
-            if (!string.IsNullOrWhiteSpace(refreshToken))
+            if (!string.IsNullOrWhiteSpace(refreshed?.AccessToken))
             {
-                var refreshed = await TryRefreshAsync(token, refreshToken);
-                if (refreshed is not null)
+                try
                 {
-                    try
-                    {
-                        await _tokenStore.SetTokenAsync(refreshed.AccessToken!);
-                        await _tokenStore.SetRefreshTokenAsync(refreshed.RefreshToken!);
-                    }
-                    catch (Exception ex) when (ex is InvalidOperationException or JSException)
-                    {
-                        _logger.LogWarning(ex, "JwtAuthStateProvider: не удалось сохранить обновлённый токен.");
-                    }
-                    _logger.LogInformation("JwtAuthStateProvider: токен успешно обновлён через refresh.");
-                    return new AuthenticationState(BuildPrincipal(refreshed.AccessToken!));
+                    await _tokenStore.SetTokenAsync(refreshed.AccessToken);
                 }
+                catch (Exception ex) when (ex is InvalidOperationException or JSException)
+                {
+                    _logger.LogWarning(ex, "JwtAuthStateProvider: не удалось сохранить обновлённый токен.");
+                }
+
+                _logger.LogInformation("JwtAuthStateProvider: токен успешно обновлён через refresh.");
+                return new AuthenticationState(BuildPrincipal(refreshed.AccessToken));
             }
 
             _logger.LogWarning("JwtAuthStateProvider: refresh не удался, сессия сброшена.");
@@ -183,25 +179,6 @@ public sealed class JwtAuthStateProvider : AuthenticationStateProvider
     /// </summary>
     public async Task LogoutAsync()
     {
-        var refreshToken = await _tokenStore.GetRefreshTokenAsync();
-        if (!string.IsNullOrWhiteSpace(refreshToken))
-        {
-            try
-            {
-                var client = _httpClientFactory.CreateClient("SugarGuardApi");
-                var accessToken = await _tokenStore.GetTokenAsync();
-                if (!string.IsNullOrWhiteSpace(accessToken))
-                    client.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", accessToken);
-
-                await client.PostAsJsonAsync("api/auth/logout", new { refreshToken });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "JwtAuthStateProvider: не удалось отозвать refresh-токен на сервере.");
-            }
-        }
-
         await _tokenStore.RemoveTokenAsync();
         await _tokenStore.RemoveRefreshTokenAsync();
 
@@ -210,31 +187,6 @@ public sealed class JwtAuthStateProvider : AuthenticationStateProvider
     }
 
     // Вспомогательные методы
-    /// <summary>
-    /// Выполняет POST api/auth/refresh
-    /// </summary>
-    private async Task<LoginSuccessResponse?> TryRefreshAsync(string accessToken, string refreshToken)
-    {
-        try
-        {
-            var client = _httpClientFactory.CreateClient("SugarGuardApi");
-            var res = await client.PostAsJsonAsync(
-                "api/auth/refresh",
-                new { accessToken, refreshToken });
-
-            if (!res.IsSuccessStatusCode)
-                return null;
-
-            var data = await res.Content.ReadFromJsonAsync<LoginSuccessResponse>();
-            return string.IsNullOrWhiteSpace(data?.AccessToken ?? data?.Token) ? null : data;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "JwtAuthStateProvider: TryRefreshAsync завершился с ошибкой.");
-            return null;
-        }
-    }
-
     /// <summary>
     /// Строит ClaimsPrincipal из JWT без сетевых вызовов
     /// </summary>
@@ -351,7 +303,7 @@ public sealed class JwtAuthStateProvider : AuthenticationStateProvider
     {       
         public string? AccessToken { get; set; } // Access-токен       
         public string? Token { get; set; } // Access-токен       
-        public string? RefreshToken { get; set; } // Refresh-токен
+        public string? RefreshToken { get; set; } // Refresh-токен передаётся в httpOnly cookie
     }
 
     /// <summary>

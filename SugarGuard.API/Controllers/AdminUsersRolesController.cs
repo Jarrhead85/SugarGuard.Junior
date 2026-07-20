@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Services;
 using SugarGuard.API.DTOs;
 using SugarGuard.Domain.Enums;
 using SugarGuard.Shared.Dto;
@@ -13,10 +14,12 @@ namespace SugarGuard.API.Controllers;
 public class AdminUsersRolesController : ControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly ICurrentUserContext _currentUser;
 
-    public AdminUsersRolesController(IAdminService adminService)
+    public AdminUsersRolesController(IAdminService adminService, ICurrentUserContext currentUser)
     {
         _adminService = adminService;
+        _currentUser = currentUser;
     }
 
     // GET api/admin/users-roles/users
@@ -32,11 +35,21 @@ public class AdminUsersRolesController : ControllerBase
 
     // PUT api/admin/users-roles/users/{userId}/role
     [HttpPut("users/{userId:guid}/role")]
+    [Authorize(Policy = "FullAdminOnly")]
     public async Task<ActionResult<AdminUserResponse>> UpdateRole(
         Guid userId,
         [FromBody] UpdateUserRoleRequest request,
         CancellationToken cancellationToken)
     {
+        if (_currentUser.GetUserId() == userId)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                error = "self_role_change_forbidden",
+                message = "Нельзя изменять собственную роль."
+            });
+        }
+
         AdminUserResponse? result;
         try
         {
@@ -45,6 +58,10 @@ public class AdminUsersRolesController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = "invalid_role", message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = "role_change_not_allowed", message = ex.Message });
         }
 
         return result is null
