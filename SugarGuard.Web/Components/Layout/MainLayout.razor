@@ -148,6 +148,7 @@
                 <Authorized>
                     <div class="doctor-nav-block">
                         <span class="doctor-nav-caption">Рабочее пространство</span>
+                        <NavItem Href="/doctor/dashboard" Icon="grid" Label="Обзор" />
                         <NavItem Href="/doctor/patients" Icon="users" Label="Мои пациенты" Badge="@doctorPatientCount.ToString()" />
                         <NavItem Href="/doctor/alerts" Icon="bell" Label="Группы риска" Badge="@doctorRiskCount.ToString()" BadgeClass="danger" />
                         <NavItem Href="/doctor/reports" Icon="activity" Label="Аналитика группы" />
@@ -330,6 +331,36 @@
             </Authorized>
         </AuthorizeView>
 
+        <AuthorizeView Roles="Doctor">
+            <Authorized>
+                <nav class="portal-tabs" aria-label="Разделы кабинета врача">
+                    <a class="@PortalTabClass("/doctor/dashboard")" href="/doctor/dashboard">Обзор</a>
+                    <a class="@PortalTabClass("/doctor/patients")" href="/doctor/patients">Мои пациенты</a>
+                    <a class="@PortalTabClass("/doctor/alerts")" href="/doctor/alerts">Группы риска</a>
+                    <a class="@PortalTabClass("/doctor/reports")" href="/doctor/reports">Аналитика</a>
+                    <a class="@PortalTabClass("/doctor/notes")" href="/doctor/notes">Записки врача</a>
+                    <a class="@PortalTabClass("/doctor/support")" href="/doctor/support">Поддержка</a>
+                    <a class="@PortalTabClass("/doctor/profile")" href="/doctor/profile">Профиль</a>
+                </nav>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Admin,SupportAdmin">
+            <Authorized>
+                <nav class="portal-tabs" aria-label="Разделы кабинета администратора">
+                    <a class="@PortalTabClass("/admin", "/admin/dashboard")" href="/admin/dashboard">Дашборд</a>
+                    <a class="@PortalTabClass("/admin/users")" href="/admin/users">Пользователи</a>
+                    <a class="@PortalTabClass("/admin/doctor-requests")" href="/admin/doctor-requests">Верификация</a>
+                    <a class="@PortalTabClass("/admin/links")" href="/admin/links">Связи</a>
+                    <a class="@PortalTabClass("/admin/audit", "/admin/audit-log")" href="/admin/audit">Журнал аудита</a>
+                    <a class="@PortalTabClass("/admin/system", "/admin/system-stats")" href="/admin/system">Система</a>
+                    <a class="@PortalTabClass("/admin/support")" href="/admin/support">Поддержка</a>
+                    <a class="@PortalTabClass("/admin/tokens")" href="/admin/tokens">Токены ИИ</a>
+                    <a class="@PortalTabClass("/admin/roles")" href="/admin/roles">Права доступа</a>
+                </nav>
+            </Authorized>
+        </AuthorizeView>
+
         <main class="page-content" id="main-content" tabindex="-1">
             @Body
         </main>
@@ -362,6 +393,14 @@
     private int unreadCount => notifications.Count(n => n.IsUnread);
     private bool HasUnread => unreadCount > 0;
     private string PortalClass => GetPortalClass(Navigation.Uri);
+
+    private string PortalTabClass(params string[] paths)
+    {
+        var currentPath = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        return paths.Any(path => string.Equals(currentPath, path, StringComparison.OrdinalIgnoreCase))
+            ? "portal-tab active"
+            : "portal-tab";
+    }
 
     protected override void OnInitialized()
     {
