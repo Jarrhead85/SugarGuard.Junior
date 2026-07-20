@@ -331,6 +331,34 @@
             </Authorized>
         </AuthorizeView>
 
+        <AuthorizeView Roles="Admin,SupportAdmin">
+            <Authorized Context="adminContext">
+                <section class="doctor-context-bar admin-context-bar" aria-label="Контекст кабинета администратора">
+                    <div class="doctor-context-profile">
+                        <span class="doctor-context-avatar admin-context-avatar" aria-hidden="true">
+                            @if (!string.IsNullOrWhiteSpace(currentAccountProfile?.PhotoUrl))
+                            {
+                                <img src="@currentAccountProfile.PhotoUrl" alt="" />
+                            }
+                            else
+                            {
+                                @GetInitials(GetSidebarUserName(adminContext.User))
+                            }
+                        </span>
+                        <span>
+                            <strong>@GetSidebarUserName(adminContext.User)</strong>
+                            <small>Панель управления SugarGuard</small>
+                        </span>
+                    </div>
+                    <div class="doctor-context-metrics" aria-label="Сводка по системе">
+                        <span><b>@adminUserCount</b> пользователей</span>
+                        <span class="@(adminPendingDoctorCount > 0 ? "attention" : "")"><b>@adminPendingDoctorCount</b> ожидают проверки</span>
+                    </div>
+                    <a class="doctor-context-link" href="/admin/dashboard">Дашборд</a>
+                </section>
+            </Authorized>
+        </AuthorizeView>
+
         <AuthorizeView Roles="Doctor">
             <Authorized>
                 <nav class="portal-tabs" aria-label="Разделы кабинета врача">
@@ -914,7 +942,7 @@
 
         return path.StartsWith("parent/", StringComparison.Ordinal)
             ? "app-shell--care app-shell--parent"
-            : "app-shell--admin";
+            : "app-shell--care app-shell--admin";
     }
 
     private static string GetPortalSubtitle(string uri)

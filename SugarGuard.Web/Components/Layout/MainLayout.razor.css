@@ -609,6 +609,14 @@
     background: linear-gradient(90deg, rgba(255,255,255,.94), rgba(240,251,250,.86));
 }
 
+.admin-context-bar {
+    background: linear-gradient(90deg, rgba(255,255,255,.94), rgba(240,247,255,.88));
+}
+
+.admin-context-avatar {
+    background: linear-gradient(135deg, #1b8e8b, #2d7ee2);
+}
+
 .doctor-context-profile {
     display: inline-flex;
     align-items: center;
@@ -695,6 +703,10 @@
     background: linear-gradient(90deg, rgba(17,24,37,.96), rgba(14,31,39,.92));
 }
 
+[data-theme="dark"] .admin-context-bar {
+    background: linear-gradient(90deg, rgba(17,24,37,.96), rgba(17,29,48,.92));
+}
+
 @media (max-width: 700px) {
     .doctor-context-bar {
         flex-wrap: wrap;
@@ -717,6 +729,10 @@
 
     .doctor-context-metrics::-webkit-scrollbar {
         display: none;
+    }
+
+    .admin-context-bar .doctor-context-link {
+        margin-left: auto;
     }
 }
 
@@ -1188,6 +1204,8 @@
 
     .page-content {
         padding: var(--space-16);
+        min-width: 0;
+        overflow-x: clip;
     }
 
     .topbar {
@@ -1205,6 +1223,10 @@
 
     .topbar-page-sub {
         font-size: 12px;
+    }
+
+    .app-shell--admin .page-content {
+        padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
     }
 }
 
