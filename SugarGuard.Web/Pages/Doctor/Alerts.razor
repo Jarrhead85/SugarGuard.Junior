@@ -395,4 +395,36 @@
         color: #16213e;
         font-weight: 900;
     }
+
+    @@media (max-width: 640px) {
+        .doctor-simple-hero {
+            flex-direction: column;
+        }
+
+        .doctor-risk-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .doctor-risk-card {
+            padding: 17px;
+            border-radius: 18px;
+        }
+
+        .doctor-risk-card__top {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .doctor-risk-card__top > strong {
+            grid-column: 2;
+            justify-self: start;
+        }
+
+        .doctor-risk-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .doctor-simple-button {
+            width: 100%;
+        }
+    }
 </style>

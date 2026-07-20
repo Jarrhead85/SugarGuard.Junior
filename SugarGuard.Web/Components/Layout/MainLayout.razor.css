@@ -515,19 +515,36 @@
     -webkit-backdrop-filter: blur(18px);
 }
 
-.app-shell--admin .topbar,
-.app-shell--doctor .topbar {
+.app-shell--admin .topbar {
     justify-content: flex-end;
 }
 
-.app-shell--admin .topbar-title,
-.app-shell--doctor .topbar-title {
+.app-shell--admin .topbar-title {
     display: none;
 }
 
-.app-shell--admin .topbar-actions,
-.app-shell--doctor .topbar-actions {
+.app-shell--admin .topbar-actions {
     margin-left: auto;
+}
+
+/* Кабинет врача использует ту же информативную верхнюю панель, что и кабинет родителя. */
+.app-shell--doctor .topbar {
+    justify-content: initial;
+    background: rgba(255,255,255,.88);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.app-shell--doctor .topbar-title {
+    display: flex;
+}
+
+.app-shell--doctor .topbar-actions {
+    margin-left: 0;
+}
+
+[data-theme="dark"] .app-shell--doctor .topbar {
+    background: rgba(17,24,37,.9);
 }
 
 .app-shell--admin .page-content {

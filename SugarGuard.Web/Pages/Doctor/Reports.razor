@@ -421,11 +421,13 @@
     }
 
     .doctor-report-table-card {
-        overflow: hidden;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .doctor-report-table {
         width: 100%;
+        min-width: 760px;
         border-collapse: collapse;
     }
 
@@ -478,6 +480,27 @@
 
         .doctor-report-toolbar {
             grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .doctor-report-hero {
+            flex-direction: column;
+        }
+
+        .doctor-report-kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .doctor-report-toolbar input,
+        .doctor-report-toolbar select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .doctor-report-table-card {
+            margin-inline: -4px;
+            border-radius: 18px;
         }
     }
 </style>
