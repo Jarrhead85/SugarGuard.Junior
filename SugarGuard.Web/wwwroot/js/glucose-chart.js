@@ -434,13 +434,18 @@
      * @returns {string[]}
      */
     function buildPointColors(colorKeys, alpha) {
-        var fallback = getGlucoseColor('normal');
         if (!colorKeys || !colorKeys.length) return [];
         return colorKeys.map(function (k) {
             var stateMap = { safe: 'normal', warning: 'warning', danger: 'danger' };
             var state = stateMap[k] || 'normal';
             return hexToRgba(getGlucoseColor(state), alpha);
         });
+    }
+
+    function pointColorResolver(colors, fallback) {
+        return function (context) {
+            return colors[context.dataIndex] || fallback;
+        };
     }
 
     /**
@@ -470,8 +475,10 @@
         gradient.addColorStop(0, hexToRgba(normalColor, 0.28));
         gradient.addColorStop(1, hexToRgba(normalColor, 0.00));
 
-        var pointBgColors = buildPointColors(payload.colors, 0.18);
+        var pointColors = buildPointColors(payload.colors, 1.0);
         var pointBorderColors = buildPointColors(payload.colors, 1.0);
+        var pointColor = pointColorResolver(pointColors, normalColor);
+        var pointBorderColor = pointColorResolver(pointBorderColors, normalColor);
 
         // Плагин аннотаций — подключаем только если CDN загрузил его
         var annotationPlugin = hasAnnotationPlugin()
@@ -494,11 +501,11 @@
                     // Цвет нужен и в обычном состоянии, и при наведении.
                     // Без pointBackgroundColor Chart.js после mouseout использовал
                     // цвет линии (зелёный) для всех точек.
-                    pointBackgroundColor: pointBgColors,
-                    pointBorderColor: pointBorderColors,
+                    pointBackgroundColor: pointColor,
+                    pointBorderColor: pointBorderColor,
                     pointBorderWidth: 2,
-                    pointHoverBackgroundColor: pointBorderColors,
-                    pointHoverBorderColor: pointBorderColors,
+                    pointHoverBackgroundColor: pointColor,
+                    pointHoverBorderColor: pointBorderColor,
                     pointHoverBorderWidth: 2
                 }]
             },
@@ -596,13 +603,15 @@
 
                 ds.backgroundColor = gradient;
                 ds.borderColor = normalColor;
-                var pointBackgroundColors = buildPointColors(payload.colors, 0.18);
+                var pointBackgroundColors = buildPointColors(payload.colors, 1.0);
                 var pointBorderColors = buildPointColors(payload.colors, 1.0);
-                ds.pointBackgroundColor = pointBackgroundColors;
-                ds.pointBorderColor = pointBorderColors;
+                var pointColor = pointColorResolver(pointBackgroundColors, normalColor);
+                var pointBorderColor = pointColorResolver(pointBorderColors, normalColor);
+                ds.pointBackgroundColor = pointColor;
+                ds.pointBorderColor = pointBorderColor;
                 ds.pointBorderWidth = 2;
-                ds.pointHoverBackgroundColor = pointBorderColors;
-                ds.pointHoverBorderColor = pointBorderColors;
+                ds.pointHoverBackgroundColor = pointColor;
+                ds.pointHoverBorderColor = pointBorderColor;
                 ds.pointHoverBorderWidth = 2;
 
                 // Обновляем аннотации если плагин доступен

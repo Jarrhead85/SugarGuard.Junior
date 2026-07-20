@@ -4,8 +4,12 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.Globalization
 @inject SugarGuardApiService Api
+@inject NavigationManager Navigation
 
-<PageTitle>Статьи для родителей — SugarGuard</PageTitle>
+@if (!Embedded)
+{
+    <PageTitle>Статьи для родителей — SugarGuard</PageTitle>
+}
 
 <section class="parent-articles" aria-labelledby="articles-title">
     <header class="parent-articles__header">
@@ -62,7 +66,19 @@
     private bool _isLoading = true;
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    [Parameter]
+    public bool Embedded { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Embedded)
+        {
+            Navigation.NavigateTo("/parent/dashboard?tab=articles", replace: true);
+            return;
+        }
+
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

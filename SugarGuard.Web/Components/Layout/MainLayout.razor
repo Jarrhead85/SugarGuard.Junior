@@ -121,7 +121,7 @@
                         </span>
                         <span>Профиль ребёнка</span>
                     </a>
-                    <a class="parent-nav-item @(Navigation.Uri.Contains("/parent/articles", StringComparison.OrdinalIgnoreCase) ? "active" : "")" href="/parent/articles">
+                    <a class="parent-nav-item @ParentNavClass("articles")" href="@ParentNavHref("articles")">
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
                         </span>
@@ -627,6 +627,7 @@
                 "ai" => ("Контроль ИИ", "Запросы ребёнка и ответы помощника"),
                 "doctor" => ("Записки врача", "Рекомендации и назначения"),
                 "profile" => ("Профиль ребёнка", "Личные и медицинские данные"),
+                "articles" => ("Статьи", "Полезные материалы для родителей"),
                 "settings" => ("Настройки", "Параметры кабинета"),
                 _ => ("Главная", "Обзор состояния")
             };

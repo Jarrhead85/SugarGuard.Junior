@@ -138,7 +138,12 @@
             aria-controls="pane-profile"
             @onclick='() => SwitchTab("profile")'>Профиль ребёнка</button>
 
-    <a class="tab tab-link" href="/parent/articles" aria-label="Статьи для родителей">Статьи</a>
+    <button class="tab @TabClass("articles")" role="tab"
+            aria-selected="@(_activeTab == "articles")"
+            aria-controls="pane-articles"
+            @onclick='() => SwitchTab("articles")'>Статьи</button>
+
+    <a class="tab tab-link" href="/support" aria-label="Поддержка SugarGuard">Поддержка</a>
 
     <button class="tab @TabClass("settings")" role="tab"
             aria-selected="@(_activeTab == "settings")"
@@ -497,7 +502,8 @@
     </div>
 
     @* Таблица *@
-    <div class="card" style="padding:0;overflow:hidden">
+    <div class="card measurements-table-card">
+        <div class="measurements-table-scroll">
         <table class="data-table" aria-label="История измерений глюкозы">
             <thead>
                 <tr>
@@ -538,6 +544,7 @@
                 }
             </tbody>
         </table>
+        </div>
     </div>
 
     @* Пагинация *@
@@ -556,6 +563,11 @@
                     aria-label="Следующая страница">Вперёд →</button>
         </div>
     </div>
+</div>
+
+@* СТАТЬИ *@
+<div class="tab-pane @PaneClass("articles")" id="pane-articles" role="tabpanel">
+    <ParentArticles Embedded="true" />
 </div>
 
 @* УВЕДОМЛЕНИЯ *@

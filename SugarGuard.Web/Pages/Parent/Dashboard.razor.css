@@ -264,7 +264,9 @@
 }
 
 .ai-control-card {
-    max-width: 1180px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
 }
 
 .ai-control-summary {
@@ -748,6 +750,19 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
+}
+
+.measurements-table-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.measurements-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
     .data-table th {
@@ -1674,6 +1689,23 @@
 
     .measurement-chart-wrap {
         height: 220px;
+    }
+
+    .data-table {
+        min-width: 0;
+        font-size: 13px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 8px;
+    }
+
+    .data-table th:nth-child(3),
+    .data-table td:nth-child(3),
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4) {
+        display: none;
     }
 
     .filter-actions {
