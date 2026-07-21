@@ -24,28 +24,31 @@ public sealed class DailyParentSummaryJob
     private readonly ITelegramNotificationService _telegramService;
     private readonly IMaxBotService _maxService;
     private readonly ILogger<DailyParentSummaryJob> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public DailyParentSummaryJob(
         AppDbContext db,
         IEmailService emailService,
         ITelegramNotificationService telegramService,
         IMaxBotService maxService,
-        ILogger<DailyParentSummaryJob> logger)
+        ILogger<DailyParentSummaryJob> logger,
+        TimeProvider? timeProvider = null)
     {
         _db = db;
         _emailService = emailService;
         _telegramService = telegramService;
         _maxService = maxService;
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 60, 300 })]
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, MoscowTimeZone);
-        var localDay = DateOnly.FromDateTime(now);
-        var periodStart = ToUtc(localDay, TimeOnly.MinValue);
-        var periodEnd = ToUtc(localDay.AddDays(1), TimeOnly.MinValue);
+        var now = TimeZoneInfo.ConvertTimeFromUtc(_timeProvider.GetUtcNow().UtcDateTime, MoscowTimeZone);
+        var summaryDay = ResolveSummaryDay(now);
+        var periodStart = ToUtc(summaryDay, TimeOnly.MinValue);
+        var periodEnd = ToUtc(summaryDay.AddDays(1), TimeOnly.MinValue);
 
         var subscriptions = await _db.ParentChildLinks
             .AsNoTracking()
@@ -72,7 +75,7 @@ public sealed class DailyParentSummaryJob
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var sourceId = CreateSourceId(recipient.ParentUserId, recipient.ChildId, localDay);
+            var sourceId = CreateSourceId(recipient.ParentUserId, recipient.ChildId, summaryDay);
             var alreadyCreated = await _db.UserNotifications
                 .AsNoTracking()
                 .AnyAsync(notification => notification.RecipientUserId == recipient.ParentUserId
@@ -105,7 +108,7 @@ public sealed class DailyParentSummaryJob
             await SendMaxAsync(recipient, summary, cancellationToken);
         }
 
-        _logger.LogInformation("Daily parent summaries completed. Date={Date} Persisted={Count}", localDay, queued);
+        _logger.LogInformation("Daily parent summaries completed. Date={Date} Persisted={Count}", summaryDay, queued);
     }
 
     public static void ScheduleRecurringJob() => RecurringJob.AddOrUpdate<DailyParentSummaryJob>(
@@ -217,6 +220,19 @@ public sealed class DailyParentSummaryJob
     }
 
     private static DateTime ToUtc(DateOnly date, TimeOnly time) => TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(time, DateTimeKind.Unspecified), MoscowTimeZone);
+
+    /// <summary>
+    /// Определяет дату, за которую формируется сводка. Если отложенная задача
+    /// запускается после полуночи, она должна описывать завершившийся день, а не
+    /// несколько минут нового дня.
+    /// </summary>
+    public static DateOnly ResolveSummaryDay(DateTime nowInMoscow)
+    {
+        var today = DateOnly.FromDateTime(nowInMoscow);
+        return nowInMoscow.TimeOfDay < TimeSpan.FromHours(6)
+            ? today.AddDays(-1)
+            : today;
+    }
 
     private static readonly TimeZoneInfo MoscowTimeZone = ResolveMoscowTimeZone();
 
