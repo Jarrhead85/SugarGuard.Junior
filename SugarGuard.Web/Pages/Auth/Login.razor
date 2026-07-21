@@ -483,6 +483,7 @@
         var destination = user switch
         {
             var u when u.IsInRole("Admin") || u.IsInRole("SupportAdmin") => "/admin",
+            var u when u.IsInRole("DoctorPending") => "/doctor/verification",
             var u when u.IsInRole("Doctor") => "/doctor/patients",
             _ => "/parent/dashboard"
         };

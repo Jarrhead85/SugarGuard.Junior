@@ -13,7 +13,7 @@ public static class SessionCookieEndpointExtensions
     public static void MapSessionCookieEndpoints(this WebApplication app)
     {
         app.MapPost("/session/refresh-token", (
-            RefreshTokenCookieRequest request,
+            [Microsoft.AspNetCore.Mvc.FromBody] RefreshTokenCookieRequest request,
             HttpContext context) =>
         {
             if (string.IsNullOrWhiteSpace(request.RefreshToken) || request.RefreshToken.Length > 1024)
@@ -26,9 +26,9 @@ public static class SessionCookieEndpointExtensions
         }).AllowAnonymous();
 
         app.MapPost("/session/refresh", async (
-            RefreshAccessTokenRequest request,
+            [Microsoft.AspNetCore.Mvc.FromBody] RefreshAccessTokenRequest request,
             HttpContext context,
-            IHttpClientFactory httpClientFactory,
+            [Microsoft.AspNetCore.Mvc.FromServices] IHttpClientFactory httpClientFactory,
             CancellationToken cancellationToken) =>
         {
             var refreshToken = context.Request.Cookies[RefreshCookieName];
@@ -65,9 +65,9 @@ public static class SessionCookieEndpointExtensions
         }).AllowAnonymous();
 
         app.MapDelete("/session/refresh-token", async (
-            SessionLogoutRequest request,
+            [Microsoft.AspNetCore.Mvc.FromBody] SessionLogoutRequest request,
             HttpContext context,
-            IHttpClientFactory httpClientFactory,
+            [Microsoft.AspNetCore.Mvc.FromServices] IHttpClientFactory httpClientFactory,
             CancellationToken cancellationToken) =>
         {
             var refreshToken = context.Request.Cookies[RefreshCookieName];

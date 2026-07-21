@@ -14,11 +14,20 @@ public sealed class UploadPathProvider : IUploadPathProvider
                 : Path.Combine(environment.ContentRootPath, "wwwroot", "uploads");
 
         ProfilesDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, "profiles"));
+        DoctorVerificationDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, "doctor-verification"));
     }
 
     public string ProfilesDirectory { get; }
 
+    public string DoctorVerificationDirectory { get; }
+
     public string GetProfileFilePath(string fileName)
+        => GetSafePath(ProfilesDirectory, fileName);
+
+    public string GetDoctorVerificationFilePath(string fileName)
+        => GetSafePath(DoctorVerificationDirectory, fileName);
+
+    private static string GetSafePath(string directory, string fileName)
     {
         var safeName = Path.GetFileName(fileName);
         if (!string.Equals(safeName, fileName, StringComparison.Ordinal))
@@ -26,6 +35,6 @@ public sealed class UploadPathProvider : IUploadPathProvider
             throw new ArgumentException("Некорректное имя файла.", nameof(fileName));
         }
 
-        return Path.Combine(ProfilesDirectory, safeName);
+        return Path.Combine(directory, safeName);
     }
 }

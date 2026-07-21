@@ -121,6 +121,7 @@ public sealed class AuthApiClient : IAuthApiClient
     public async Task<RegisterResult> RegisterAsync(
         string email,
         string password,
+        string role = "Parent",
         CancellationToken cancellationToken = default)
     {
         try
@@ -128,7 +129,7 @@ public sealed class AuthApiClient : IAuthApiClient
             var client = CreateAnonymousClient();
             var response = await client.PostAsJsonAsync(
                 RouteRegister,
-                new { email, password },
+                new { email, password, role },
                 cancellationToken);
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken);

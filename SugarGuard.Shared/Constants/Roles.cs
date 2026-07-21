@@ -10,6 +10,9 @@ public static class Roles
 
     public const string Doctor = "Doctor";
 
+    /// <summary>Кандидат в врачи до проверки документов администратором.</summary>
+    public const string DoctorPending = "DoctorPending";
+
     public const string Admin = "Admin";
 
     public const string SupportAdmin = "SupportAdmin"; // Вспомогательный администратор. // Не может изменять роли других Admin/SupportAdmin.
@@ -44,6 +47,7 @@ public static class Roles
     {
         Parent => true,
         Doctor => true,
+        DoctorPending => true,
         Admin => true,
         SupportAdmin => true,
         ChildDevice => true,

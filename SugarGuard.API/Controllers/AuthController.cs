@@ -233,10 +233,12 @@ public sealed class AuthController : ControllerBase
             return UserRole.Parent;
         }
 
-        return Enum.TryParse<UserRole>(role.Trim(), ignoreCase: true, out var parsed)
-               && parsed is UserRole.Parent or UserRole.ChildDevice
-            ? parsed
-            : null;
+        return role.Trim().ToLowerInvariant() switch
+        {
+            "parent" => UserRole.Parent,
+            "doctor" => UserRole.DoctorPending,
+            _ => null
+        };
     }
 
     [HttpPost("verify-email")]

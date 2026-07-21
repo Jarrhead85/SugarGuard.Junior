@@ -7,5 +7,10 @@ public enum UserRole
     Admin = 2,
     SupportAdmin = 3,
     ChildDevice = 4,
-    ServiceAccount = 5
+    ServiceAccount = 5,
+    /// <summary>
+    /// Учётная запись врача, ожидающая проверки документов администратором.
+    /// Такая роль не даёт доступ к данным пациентов.
+    /// </summary>
+    DoctorPending = 6
 }

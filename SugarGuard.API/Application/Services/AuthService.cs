@@ -53,7 +53,7 @@ public class AuthService : IAuthService
         UserRole role,
         CancellationToken cancellationToken = default)
     {
-        if (role is UserRole.Admin or UserRole.SupportAdmin or UserRole.ServiceAccount)
+        if (role is UserRole.Admin or UserRole.Doctor or UserRole.SupportAdmin or UserRole.ServiceAccount)
         {
             return new AuthRegistrationResult(
                 null,

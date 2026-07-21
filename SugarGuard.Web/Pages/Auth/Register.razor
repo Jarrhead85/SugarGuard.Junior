@@ -79,7 +79,7 @@
         @if (_step == 1)
         {
             <h1 class="login-card__title">Создать аккаунт</h1>
-            <p class="login-card__subtitle">Заполните данные для регистрации</p>
+            <p class="login-card__subtitle">Выберите тип аккаунта и заполните данные для регистрации</p>
 
             @if (!string.IsNullOrWhiteSpace(_errorMessage))
             {
@@ -96,6 +96,20 @@
 
             <EditForm Model="_registerModel" OnValidSubmit="HandleRegisterAsync" FormName="register-form" novalidate>
                 <DataAnnotationsValidator />
+
+                <fieldset class="account-type" disabled="@_isLoading">
+                    <legend class="input-label">Кто вы?</legend>
+                    <label class="account-type__option @(_registerModel.Role == "Parent" ? "selected" : "")">
+                        <input type="radio" name="account-type" checked="@(_registerModel.Role == "Parent")" @onchange='@(() => SelectRole("Parent"))' />
+                        <span class="account-type__icon" aria-hidden="true">👨‍👩‍👧</span>
+                        <span><strong>Я родитель</strong><small>Веду дневник ребёнка и получаю уведомления.</small></span>
+                    </label>
+                    <label class="account-type__option @(_registerModel.Role == "Doctor" ? "selected" : "")">
+                        <input type="radio" name="account-type" checked="@(_registerModel.Role == "Doctor")" @onchange='@(() => SelectRole("Doctor"))' />
+                        <span class="account-type__icon" aria-hidden="true">🩺</span>
+                        <span><strong>Я врач</strong><small>После регистрации потребуется подтвердить квалификацию.</small></span>
+                    </label>
+                </fieldset>
 
                 @* Email *@
                 <div class="input-group">
@@ -586,6 +600,16 @@
         margin: 0;
     }
 
+    .account-type { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+    .account-type__option { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; transition: border-color var(--transition), background var(--transition), transform var(--transition); }
+    .account-type__option:hover { border-color: var(--color-primary); transform: translateY(-1px); }
+    .account-type__option.selected { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+    .account-type__option input { position: absolute; opacity: 0; pointer-events: none; }
+    .account-type__icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(27,142,139,.11); }
+    .account-type__option strong, .account-type__option small { display: block; }
+    .account-type__option strong { font-size: 14px; color: var(--color-text); }
+    .account-type__option small { margin-top: 2px; color: var(--color-text-muted); font-size: 12px; line-height: 1.35; }
+
     /* Кнопки */
     .btn {
         min-height: 44px;
@@ -744,6 +768,9 @@
         [Required(ErrorMessage = "Подтвердите пароль")]
         [Compare(nameof(Password), ErrorMessage = "Пароли не совпадают")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required]
+        public string Role { get; set; } = "Parent";
     }
 
     private sealed class VerifyModel
@@ -788,7 +815,8 @@
         {
             var result = await AuthApi.RegisterAsync(
                 _registerModel.Email.Trim().ToLowerInvariant(),
-                _registerModel.Password);
+                _registerModel.Password,
+                _registerModel.Role);
 
             if (!result.Success)
             {
@@ -887,6 +915,9 @@
 
     private void TogglePasswordVisibility()
         => _showPassword = !_showPassword;
+
+    private void SelectRole(string role)
+        => _registerModel.Role = role;
 
     private void GoToLogin()
         => Navigation.NavigateTo("/login", replace: true);

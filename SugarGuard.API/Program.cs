@@ -441,6 +441,7 @@ builder.Services.AddScoped<IBotUserContextService, BotUserContextService>();
 builder.Services.AddScoped<IParentLinkService, ParentLinkService>();
 builder.Services.AddScoped<IMeasurementsService, MeasurementsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDoctorVerificationService, DoctorVerificationService>();
 builder.Services.AddScoped<IBotApiKeyValidator, BotApiKeyValidatorAdapter>();
 
 if (builder.Configuration.GetValue<bool>("DemoSeed:Enabled")

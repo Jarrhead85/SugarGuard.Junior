@@ -17,9 +17,9 @@ public interface IAuthApiClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Регистрирует нового пользователя с ролью Parent
+    /// Регистрирует нового пользователя как родителя или кандидата в врачи.
     /// </summary>
-    Task<RegisterResult> RegisterAsync(string email, string password,
+    Task<RegisterResult> RegisterAsync(string email, string password, string role = "Parent",
         CancellationToken cancellationToken = default);
 
     /// <summary>

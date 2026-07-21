@@ -196,8 +196,8 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.MapGet("/uploads/{**path}", async (
     string path,
-    IHttpClientFactory httpClientFactory,
     HttpContext context,
+    [Microsoft.AspNetCore.Mvc.FromServices] IHttpClientFactory httpClientFactory,
     CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(path)

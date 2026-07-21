@@ -84,6 +84,29 @@ public class AuthServiceTests : IDisposable
         CreatedAt = DateTime.UtcNow
     };
 
+    [Fact]
+    public async Task RegisterAsync_DoctorPending_CreatesCandidateWithoutGrantingDoctorRole()
+    {
+        var sut = CreateSut();
+        var result = await sut.RegisterAsync("doctor-candidate@test.local", "SafePassword123!", UserRole.DoctorPending);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.User);
+        Assert.Equal(UserRole.DoctorPending, result.User!.Role);
+        Assert.False(result.User.IsEmailVerified);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_Doctor_IsRejectedToPreventVerificationBypass()
+    {
+        var sut = CreateSut();
+
+        var result = await sut.RegisterAsync("doctor@test.local", "SafePassword123!", UserRole.Doctor);
+
+        Assert.False(result.Success);
+        Assert.Equal("role_not_allowed", result.ErrorCode);
+    }
+
     // ───────────────────────────────────────────────────────────────────
     // LoginAsync — 5 failure paths + success matrix
     // ───────────────────────────────────────────────────────────────────

@@ -162,6 +162,16 @@
                 </Authorized>
             </AuthorizeView>
 
+            <AuthorizeView Roles="DoctorPending">
+                <Authorized>
+                    <div class="doctor-nav-block">
+                        <span class="doctor-nav-caption">ПОДТВЕРЖДЕНИЕ</span>
+                        <NavItem Href="/doctor/verification" Icon="user-check" Label="Моя заявка" />
+                        <NavItem Href="/support" Icon="message-circle" Label="Поддержка" />
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
             <AdminNavMenu UserCount="@adminUserCount.ToString()"
                           PendingDoctorCount="@adminPendingDoctorCount.ToString()" />
         </nav>
@@ -685,6 +695,7 @@
             "doctor/notes"        => ("Записки врача", "Клинические заметки по пациентам"),
             "doctor/support"      => ("Поддержка", "Диалоги по обращениям"),
             "doctor/profile"      => ("Профиль",       "Мои данные"),
+            "doctor/verification" => ("Подтверждение врача", "Проверка документов квалификации"),
             // Администратор
             "admin"               => ("Дашборд",       "Кабинет администратора"),
             "admin/dashboard"     => ("Дашборд",       "Кабинет администратора"),

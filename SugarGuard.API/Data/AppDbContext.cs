@@ -67,6 +67,8 @@ namespace SugarGuard.API.Data
         public DbSet<AiConversation> AiConversations => Set<AiConversation>();
         public DbSet<AiConversationMessage> AiConversationMessages => Set<AiConversationMessage>();
         public DbSet<AiContextSnapshot> AiContextSnapshots => Set<AiContextSnapshot>();
+        public DbSet<DoctorVerificationRequest> DoctorVerificationRequests => Set<DoctorVerificationRequest>();
+        public DbSet<DoctorVerificationDocument> DoctorVerificationDocuments => Set<DoctorVerificationDocument>();
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
@@ -171,6 +173,23 @@ namespace SugarGuard.API.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.DailySummaryEnabled)
                 .HasDefaultValue(true);
+
+            modelBuilder.Entity<DoctorVerificationRequest>(entity =>
+            {
+                entity.Property(request => request.Status).HasConversion<string>().HasMaxLength(24);
+                entity.HasIndex(request => request.UserId).IsUnique();
+                entity.HasIndex(request => new { request.Status, request.SubmittedAt })
+                    .HasDatabaseName("ix_doctor_verification_requests_status_submitted");
+                entity.HasOne(request => request.User).WithMany()
+                    .HasForeignKey(request => request.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<DoctorVerificationDocument>(entity =>
+            {
+                entity.HasIndex(document => document.RequestId);
+                entity.HasOne(document => document.Request).WithMany(request => request.Documents)
+                    .HasForeignKey(document => document.RequestId).OnDelete(DeleteBehavior.Cascade);
+            });
 
             // Children 
             modelBuilder.Entity<Child>()

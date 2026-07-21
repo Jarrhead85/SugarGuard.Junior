@@ -104,6 +104,56 @@ namespace SugarGuard.Web.Services
             public string PhotoUrl { get; init; } = string.Empty;
         }
 
+        /// <summary>Возвращает статус собственной заявки кандидата в врачи.</summary>
+        public async Task<HttpResponseMessage> GetMyDoctorVerificationAsync(CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await client.GetAsync("api/doctor-verification/mine", cancellationToken);
+        }
+
+        /// <summary>Отправляет заявление и документы на проверку роли врача.</summary>
+        public async Task<HttpResponseMessage> SubmitDoctorVerificationAsync(
+            string specialty, string licenseNumber, string? organizationName, string? comment,
+            IReadOnlyCollection<Microsoft.AspNetCore.Components.Forms.IBrowserFile> documents,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(specialty), "Specialty");
+            content.Add(new StringContent(licenseNumber), "LicenseNumber");
+            if (!string.IsNullOrWhiteSpace(organizationName)) content.Add(new StringContent(organizationName), "OrganizationName");
+            if (!string.IsNullOrWhiteSpace(comment)) content.Add(new StringContent(comment), "Comment");
+            foreach (var document in documents)
+            {
+                var streamContent = new StreamContent(document.OpenReadStream(10L * 1024 * 1024, cancellationToken));
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(document.ContentType);
+                content.Add(streamContent, "documents", document.Name);
+            }
+            return await client.PostAsync("api/doctor-verification/submit", content, cancellationToken);
+        }
+
+        /// <summary>Возвращает очередь заявок врачей для полного администратора.</summary>
+        public async Task<HttpResponseMessage> GetPendingDoctorVerificationsAsync(CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await client.GetAsync("api/doctor-verification/admin/pending", cancellationToken);
+        }
+
+        /// <summary>Подтверждает или отклоняет заявку врача.</summary>
+        public async Task<HttpResponseMessage> ReviewDoctorVerificationAsync(Guid requestId, bool approved, string? comment, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var action = approved ? "approve" : "reject";
+            return await client.PostAsJsonAsync($"api/doctor-verification/admin/{requestId}/{action}", new { comment }, cancellationToken);
+        }
+
+        /// <summary>Загружает закрытый документ заявки врача через авторизованный серверный API-клиент.</summary>
+        public async Task<HttpResponseMessage> GetDoctorVerificationDocumentAsync(Guid documentId, CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await client.GetAsync($"api/doctor-verification/admin/documents/{documentId}", cancellationToken);
+        }
+
         // Разрешение ChildId
         /// <summary>
         /// Пытается получить ChildId из конфигурации
