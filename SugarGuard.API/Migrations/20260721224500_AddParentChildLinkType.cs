@@ -1,9 +1,13 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using SugarGuard.API.Data;
 
 #nullable disable
 
 namespace SugarGuard.API.Migrations;
 
+[DbContext(typeof(AppDbContext))]
+[Migration("20260721224500_AddParentChildLinkType")]
 /// <summary>
 /// Убирает использование текстовой заметки как признака технической связи детского устройства.
 /// </summary>
