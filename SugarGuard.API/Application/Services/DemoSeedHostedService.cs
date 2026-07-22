@@ -12,21 +12,30 @@ public sealed class DemoSeedHostedService : IHostedService
     private static readonly Guid DemoChildId = new("7fdbd8ec-0e0c-4bcf-93ac-8c0d1b968319");
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IHostEnvironment _environment;
     private readonly IConfiguration _configuration;
     private readonly ILogger<DemoSeedHostedService> _logger;
 
     public DemoSeedHostedService(
         IServiceScopeFactory scopeFactory,
+        IHostEnvironment environment,
         IConfiguration configuration,
         ILogger<DemoSeedHostedService> logger)
     {
         _scopeFactory = scopeFactory;
+        _environment = environment;
         _configuration = configuration;
         _logger = logger;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (!_environment.IsDevelopment())
+        {
+            _logger.LogWarning("Запуск DemoSeedHostedService вне Development заблокирован.");
+            return;
+        }
+
         var enabled = _configuration.GetValue<bool>("DemoSeed:Enabled")
             || string.Equals(
                 Environment.GetEnvironmentVariable("DEMO_SEED_ENABLED"),
@@ -61,10 +70,9 @@ public sealed class DemoSeedHostedService : IHostedService
         await db.SaveChangesAsync(cancellationToken);
 
         _logger.LogWarning(
-            "Demo seed ensured. Parent={ParentEmail}; Doctor={DoctorEmail}; Password={Password}; ChildId={ChildId}",
+            "Демо-данные подготовлены. Parent={ParentEmail}; Doctor={DoctorEmail}; ChildId={ChildId}",
             parentEmail,
             doctorEmail,
-            password,
             child.ChildId);
     }
 

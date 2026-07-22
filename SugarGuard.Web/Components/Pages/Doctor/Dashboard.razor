@@ -76,74 +76,76 @@
 
     @* Список пациентов *@
     <section class="doctor-dashboard__patients" aria-labelledby="doctor-dashboard-patients-title">
-        <div class="doctor-dashboard__section-header">
-            <div>
-                <p class="doctor-dashboard__eyebrow">Пациенты</p>
-                <h2 id="doctor-dashboard-patients-title">Мои пациенты</h2>
-                <p class="doctor-dashboard__description">
-                    @if (!_isLoadingPatients)
+        <div class="doctor-dashboard__patient-panel">
+            <div class="doctor-dashboard__section-header">
+                <div>
+                    <p class="doctor-dashboard__eyebrow">Пациенты</p>
+                    <h2 id="doctor-dashboard-patients-title">Мои пациенты</h2>
+                    <p class="doctor-dashboard__description">
+                        @if (!_isLoadingPatients)
+                        {
+                            @(_patients.Count == 0 ? "Пока нет прикреплённых пациентов." : $"Всего: {_patients.Count}")
+                        }
+                    </p>
+                </div>
+
+                <div class="doctor-dashboard__controls">
+                    <label class="sr-only" for="sort-select">Сортировка пациентов</label>
+                    <select id="sort-select"
+                            class="doctor-dashboard__select"
+                            @bind="_sortBy"
+                            @bind:after="OnSortChangedAsync">
+                        <option value="@PatientSortBy.Name">По имени</option>
+                        <option value="@PatientSortBy.Tir">По TIR</option>
+                        <option value="@PatientSortBy.LastMeasurement">По последнему измерению</option>
+                    </select>
+
+                    <a class="btn btn-ghost" href="/doctor/patients">
+                        Все пациенты
+                    </a>
+                </div>
+            </div>
+
+            @if (_isLoadingPatients)
+            {
+                <div class="doctor-dashboard__patient-grid" aria-label="Загрузка пациентов">
+                    @for (var i = 0; i < 3; i++)
                     {
-                        @(_patients.Count == 0 ? "Пока нет прикреплённых пациентов." : $"Всего: {_patients.Count}")
+                        <div class="doctor-dashboard__patient-skeleton">
+                            <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
+                        </div>
                     }
-                </p>
-            </div>
+                </div>
+            }
+            else if (_patients.Count == 0)
+            {
+                <EmptyState Title="Пациентов нет"
+                            Description="Пока ни один ребёнок не привязан к вашему аккаунту. Обратитесь к администратору.">
+                    <Icon>
+                        <span>🩺</span>
+                    </Icon>
+                </EmptyState>
+            }
+            else
+            {
+                <div class="doctor-dashboard__patient-grid @(_patients.Count == 1 ? "doctor-dashboard__patient-grid--single" : string.Empty)">
+                    @foreach (var patient in _patients.Take(MaxPatientsOnDashboard))
+                    {
+                        <PatientCard Patient="@patient"
+                                     OnViewDetail="@(() => NavigateToPatient(patient.ChildId))" />
+                    }
 
-            <div class="doctor-dashboard__controls">
-                <label class="sr-only" for="sort-select">Сортировка пациентов</label>
-                <select id="sort-select"
-                        class="doctor-dashboard__select"
-                        @bind="_sortBy"
-                        @bind:after="OnSortChangedAsync">
-                    <option value="@PatientSortBy.Name">По имени</option>
-                    <option value="@PatientSortBy.Tir">По TIR</option>
-                    <option value="@PatientSortBy.LastMeasurement">По последнему измерению</option>
-                </select>
-
-                <a class="btn btn-ghost" href="/doctor/patients">
-                    Все пациенты
-                </a>
-            </div>
+                    @if (_patients.Count > MaxPatientsOnDashboard)
+                    {
+                        <div class="doctor-dashboard__more">
+                            <a class="btn btn-ghost" href="/doctor/patients">
+                                Показать ещё @(_patients.Count - MaxPatientsOnDashboard) пациентов →
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
         </div>
-
-        @if (_isLoadingPatients)
-        {
-            <div class="doctor-dashboard__patient-grid" aria-label="Загрузка пациентов">
-                @for (var i = 0; i < 3; i++)
-                {
-                    <div class="doctor-dashboard__patient-skeleton">
-                        <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
-                    </div>
-                }
-            </div>
-        }
-        else if (_patients.Count == 0)
-        {
-            <EmptyState Title="Пациентов нет"
-                        Description="Пока ни один ребёнок не привязан к вашему аккаунту. Обратитесь к администратору.">
-                <Icon>
-                    <span>🩺</span>
-                </Icon>
-            </EmptyState>
-        }
-        else
-        {
-            <div class="doctor-dashboard__patient-grid">
-                @foreach (var patient in _patients.Take(MaxPatientsOnDashboard))
-                {
-                    <PatientCard Patient="@patient"
-                                 OnViewDetail="@(() => NavigateToPatient(patient.ChildId))" />
-                }
-
-                @if (_patients.Count > MaxPatientsOnDashboard)
-                {
-                    <div class="doctor-dashboard__more">
-                        <a class="btn btn-ghost" href="/doctor/patients">
-                            Показать ещё @(_patients.Count - MaxPatientsOnDashboard) пациентов →
-                        </a>
-                    </div>
-                }
-            </div>
-        }
     </section>
 
 </div>
@@ -412,9 +414,18 @@
     .doctor-dashboard__kpi.kpi-card--success { border-color: rgba(55, 165, 99, .24); background: rgba(248, 253, 250, .94); }
 
     .doctor-dashboard__patients {
-        display: grid;
-        gap: 14px;
         min-width: 0;
+    }
+
+    .doctor-dashboard__patient-panel {
+        display: grid;
+        gap: 18px;
+        min-width: 0;
+        padding: clamp(18px, 2vw, 24px);
+        border: 1px solid rgba(22, 33, 62, .10);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, .92);
+        box-shadow: 0 10px 28px rgba(22, 33, 62, .05);
     }
 
     .doctor-dashboard__section-header {
@@ -475,8 +486,7 @@
 
     .doctor-dashboard__patient-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
-        justify-content: start;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
         gap: 14px;
         min-width: 0;
     }
@@ -485,11 +495,11 @@
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
-        min-height: 206px;
+        min-height: 220px;
     }
 
     .doctor-dashboard__patient-skeleton {
-        min-height: 206px;
+        min-height: 220px;
         padding: 18px;
         border: 1px solid rgba(22, 33, 62, .10);
         border-radius: 20px;
@@ -498,7 +508,7 @@
 
     .doctor-dashboard__more {
         display: grid;
-        min-height: 206px;
+        min-height: 220px;
         place-items: center;
         padding: 18px;
         border: 1px dashed rgba(27, 142, 139, .28);
@@ -514,6 +524,7 @@
 
     @@media (max-width: 700px) {
         .doctor-dashboard { gap: 18px; }
+        .doctor-dashboard__patient-panel { gap: 16px; }
         .doctor-dashboard__section-header { align-items: stretch; flex-direction: column; }
         .doctor-dashboard__controls { width: 100%; }
         .doctor-dashboard__select { flex: 1; max-width: none; min-width: 0; }

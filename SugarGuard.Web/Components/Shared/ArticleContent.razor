@@ -1,19 +1,18 @@
-@using System.Text.Encodings.Web
-@using System.Text.RegularExpressions
 @using Microsoft.AspNetCore.Components
+@using SugarGuard.Web.Services
 
 <div class="article-content">
     @foreach (var block in Parse(Content))
     {
         @switch (block.Kind)
         {
-            case ArticleBlockKind.Heading:
+            case ArticleMarkdownBlockKind.Heading:
                 <h3>@block.Text</h3>
                 break;
-            case ArticleBlockKind.ListItem:
-                <div class="article-content__item">@((MarkupString)RenderInline(block.Text))</div>
+            case ArticleMarkdownBlockKind.ListItem:
+                <div class="article-content__item">@((MarkupString)_renderer.RenderInline(block.Text))</div>
                 break;
-            case ArticleBlockKind.Image:
+            case ArticleMarkdownBlockKind.Image:
                 <figure>
                     <img src="@block.Url" alt="@block.Text" loading="lazy" />
                     @if (!string.IsNullOrWhiteSpace(block.Text))
@@ -23,7 +22,7 @@
                 </figure>
                 break;
             default:
-                <p>@((MarkupString)RenderInline(block.Text))</p>
+                <p>@((MarkupString)_renderer.RenderInline(block.Text))</p>
                 break;
         }
     }
@@ -33,52 +32,9 @@
     [Parameter]
     public string Content { get; set; } = string.Empty;
 
-    private static readonly Regex ImageLine = new(
-        "^!\\[(?<alt>[^\\]]{0,200})\\]\\((?<url>/uploads/articles/[a-z0-9-]+\\.(?:png|jpe?g|webp))\\)$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private readonly ArticleMarkdownRenderer _renderer = new();
 
-    private static readonly Regex Bold = new("\\*\\*(.+?)\\*\\*", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex Italic = new("(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    private static IReadOnlyList<ArticleBlock> Parse(string content)
-    {
-        var blocks = new List<ArticleBlock>();
-        foreach (var rawLine in (content ?? string.Empty).ReplaceLineEndings("\n").Split('\n'))
-        {
-            var line = rawLine.Trim();
-            if (line.Length == 0) continue;
-
-            var image = ImageLine.Match(line);
-            if (image.Success)
-            {
-                blocks.Add(new(ArticleBlockKind.Image, image.Groups["alt"].Value, image.Groups["url"].Value));
-            }
-            else if (line.StartsWith("## ", StringComparison.Ordinal))
-            {
-                blocks.Add(new(ArticleBlockKind.Heading, line[3..]));
-            }
-            else if (line.StartsWith("- ", StringComparison.Ordinal))
-            {
-                blocks.Add(new(ArticleBlockKind.ListItem, line[2..]));
-            }
-            else
-            {
-                blocks.Add(new(ArticleBlockKind.Paragraph, line));
-            }
-        }
-
-        return blocks;
-    }
-
-    private static string RenderInline(string text)
-    {
-        var escaped = HtmlEncoder.Default.Encode(text);
-        escaped = Bold.Replace(escaped, "<strong>$1</strong>");
-        return Italic.Replace(escaped, "<em>$1</em>");
-    }
-
-    private sealed record ArticleBlock(ArticleBlockKind Kind, string Text, string? Url = null);
-    private enum ArticleBlockKind { Paragraph, Heading, ListItem, Image }
+    private IReadOnlyList<ArticleMarkdownBlock> Parse(string content) => _renderer.Parse(content);
 }
 
 <style>

@@ -22,14 +22,9 @@
 <section class="support-page" aria-label="Поддержка SugarGuard">
     @if (!_isSupport && !IsDoctorPortal)
     {
-        <header class="support-header">
-            <div>
-                <span class="support-eyebrow">Центр помощи</span>
-                <h1 id="supportTitle">Поддержка SugarGuard</h1>
-                <p>Опишите вопрос, приложите скриншот при необходимости. Ответ придёт на email вашей учётной записи.</p>
-            </div>
+        <div class="support-toolbar">
             <button class="support-primary" type="button" @onclick="ShowNewConversation">+ Новое обращение</button>
-        </header>
+        </div>
     }
 
     @if (!string.IsNullOrWhiteSpace(_error))

@@ -63,18 +63,26 @@ window.SugarGuard.articleEditor = window.SugarGuard.articleEditor || {
     window.SugarGuard.downloadCsv = downloadCsv;
     window.SugarGuard.downloadBase64 = function (fileName, contentType, base64) {
         const binary = atob(base64 || '');
-        // Файл уже подготовлен сервером: нельзя дописывать BOM в браузере.
-        // Иначе UTF-16 CSV превращается в смесь UTF-8 и UTF-16, которую Excel
-        // открывает с «кракозябрами».
-        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        // Файл уже подготовлен сервером: не добавляем и не заменяем BOM в браузере.
+        // Это сохраняет корректную UTF-16 LE кодировку CSV для Microsoft Excel.
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+        }
+
         const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = fileName;
+        link.download = fileName || 'sugarguard-export';
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        // Загрузка запускается асинхронно. Немедленное освобождение URL иногда
+        // отменяет её в Chromium/WebKit, поэтому очищаем ресурсы после старта.
+        window.setTimeout(function () {
+            link.remove();
+            URL.revokeObjectURL(url);
+        }, 1000);
     };
 })();

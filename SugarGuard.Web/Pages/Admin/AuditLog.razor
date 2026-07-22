@@ -52,79 +52,75 @@
                       Status="neutral" />
         </section>
 
+        <section class="sg-panel sg-audit-filters">
+            <SectionHeader Title="Фильтры"
+                           Description="Пустые поля не отправляются в запрос. Все даты указываются по московскому времени.">
+                <TrailingContent>
+                    <span class="sg-pill sg-pill-neutral">
+                        По @_filter.Limit на странице
+                    </span>
+                </TrailingContent>
+            </SectionHeader>
+
+            <div class="sg-audit-filter-grid">
+                <div class="sg-field">
+                    <label class="sg-label" for="audit-actor-user-id">ActorUserId</label>
+                    <input id="audit-actor-user-id"
+                           class="sg-input"
+                           type="text"
+                           @bind="_filter.ActorUserId"
+                           @bind:event="oninput"
+                           placeholder="GUID пользователя" />
+                </div>
+
+                <div class="sg-field">
+                    <label class="sg-label" for="audit-action">Action</label>
+                    <input id="audit-action"
+                           class="sg-input"
+                           type="text"
+                           @bind="_filter.Action"
+                           @bind:event="oninput"
+                           placeholder="Например: admin.rolechanged" />
+                </div>
+
+                <div class="sg-field">
+                    <label class="sg-label" for="audit-from">С (МСК)</label>
+                    <input id="audit-from"
+                           class="sg-input"
+                           type="datetime-local"
+                           value="@_filter.FromText"
+                           @onchange="OnFromChanged" />
+                </div>
+
+                <div class="sg-field">
+                    <label class="sg-label" for="audit-to">По (МСК)</label>
+                    <input id="audit-to"
+                           class="sg-input"
+                           type="datetime-local"
+                           value="@_filter.ToText"
+                           @onchange="OnToChanged" />
+                </div>
+            </div>
+
+            <div class="sg-filter-actions sg-audit-filter-actions">
+                <button class="sg-btn sg-btn-primary"
+                        type="button"
+                        @onclick="ApplyFiltersAsync"
+                        disabled="@_isRefreshing">
+                    @(_isRefreshing ? "Применяем..." : "Применить")
+                </button>
+
+                <button class="sg-btn sg-btn-soft"
+                        type="button"
+                        @onclick="ResetFiltersAsync"
+                        disabled="@_isRefreshing">
+                    Сбросить
+                </button>
+            </div>
+        </section>
+
         <section class="sg-main-layout">
             <div class="sg-main-column">
-                <section class="sg-panel">
-                    <SectionHeader Title="Фильтры"
-                                   Description="Фильтрация выполняется через endpoint audit log. Пустые поля не отправляются в query string.">
-                        <TrailingContent>
-                            <span class="sg-pill sg-pill-neutral">
-                                По @_filter.Limit на странице
-                            </span>
-                        </TrailingContent>
-                    </SectionHeader>
-
-                    <div class="sg-form-grid sg-form-grid-filters sg-compact-filters">
-                        <div class="sg-field">
-                            <label class="sg-label" for="audit-actor-user-id">ActorUserId</label>
-                            <input id="audit-actor-user-id"
-                                   class="sg-input"
-                                   type="text"
-                                   @bind="_filter.ActorUserId"
-                                   @bind:event="oninput"
-                                   placeholder="GUID пользователя" />
-                        </div>
-
-                        <div class="sg-field">
-                            <label class="sg-label" for="audit-action">Action</label>
-                            <input id="audit-action"
-                                   class="sg-input"
-                                   type="text"
-                                   @bind="_filter.Action"
-                                   @bind:event="oninput"
-                                   placeholder="Например: admin.rolechanged" />
-                        </div>
-
-                        <div class="sg-field">
-                            <label class="sg-label" for="audit-from">С (МСК)</label>
-                            <input id="audit-from"
-                                   class="sg-input"
-                                   type="datetime-local"
-                                   value="@_filter.FromText"
-                                   @onchange="OnFromChanged" />
-                        </div>
-
-                        <div class="sg-field">
-                            <label class="sg-label" for="audit-to">По (МСК)</label>
-                            <input id="audit-to"
-                                   class="sg-input"
-                                   type="datetime-local"
-                                   value="@_filter.ToText"
-                                   @onchange="OnToChanged" />
-                        </div>
-
-                        <div class="sg-field">
-                            <label class="sg-label">На странице</label>
-                            <span class="sg-static-value">20 событий</span>
-                        </div>
-
-                        <div class="sg-filter-actions">
-                            <button class="sg-btn sg-btn-primary"
-                                    type="button"
-                                    @onclick="ApplyFiltersAsync"
-                                    disabled="@_isRefreshing">
-                                @(_isRefreshing ? "Применяем..." : "Применить")
-                            </button>
-
-                            <button class="sg-btn sg-btn-soft"
-                                    type="button"
-                                    @onclick="ResetFiltersAsync"
-                                    disabled="@_isRefreshing">
-                                Сбросить
-                            </button>
-                        </div>
-                    </div>
-                </section>
 
                 <section class="sg-panel">
                     <SectionHeader Title="События"
@@ -384,7 +380,7 @@
 
     .sg-main-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+        grid-template-columns: minmax(0, 1fr) minmax(290px, 360px);
         gap: 20px;
         align-items: start;
     }
@@ -393,6 +389,7 @@
     .sg-side-column {
         display: grid;
         gap: 20px;
+        min-width: 0;
     }
 
     .sg-section-header {
@@ -422,14 +419,10 @@
         gap: 14px;
     }
 
-    .sg-form-grid-filters {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-items: end;
-    }
-
     .sg-field {
         display: grid;
         gap: 8px;
+        min-width: 0;
     }
 
     .sg-label {
@@ -466,6 +459,22 @@
         gap: 12px;
         flex-wrap: wrap;
         align-items: center;
+    }
+
+    .sg-audit-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+        gap: 12px;
+        align-items: end;
+    }
+
+    .sg-audit-filter-grid .sg-input {
+        min-width: 0;
+    }
+
+    .sg-audit-filter-actions {
+        margin-top: 16px;
+        justify-content: flex-start;
     }
 
     .sg-btn {
@@ -970,65 +979,42 @@
 
     .sg-audit-pagination .sg-btn { width: auto; }
 
-    .sg-compact-filters {
-        grid-template-columns: minmax(170px, 1.25fr) minmax(170px, 1.25fr) minmax(145px, .9fr) minmax(145px, .9fr) minmax(92px, .5fr) auto;
-        gap: 10px;
-    }
-
-    .sg-compact-filters .sg-field {
-        gap: 4px;
-    }
-
-    .sg-compact-filters .sg-label {
-        font-size: 10px;
-    }
-
-    .sg-compact-filters .sg-input,
-    .sg-compact-filters .sg-select {
-        min-height: 40px;
-        padding: 8px 10px;
-        border-radius: 12px;
-        font-size: 13px;
-    }
-
-    .sg-compact-filters .sg-filter-actions {
-        min-height: 40px;
-        gap: 8px;
-        flex-wrap: nowrap;
-    }
-
-    .sg-compact-filters .sg-filter-actions .sg-btn {
-        min-height: 40px;
-        padding-inline: 12px;
-        width: auto;
-    }
-
-    @@media (max-width: 1180px) {
-        .sg-compact-filters {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    @@media (max-width: 900px) {
-        .sg-compact-filters {
+    @@media (max-width: 1024px) {
+        .sg-main-layout {
             grid-template-columns: 1fr;
         }
 
-        .sg-compact-filters .sg-filter-actions {
-            flex-wrap: wrap;
+        .sg-side-column {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .sg-compact-filters .sg-filter-actions .sg-btn {
+        .sg-side-column > :last-child {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .sg-audit-filter-grid,
+        .sg-side-column {
+            grid-template-columns: 1fr;
+        }
+
+        .sg-side-column > :last-child {
+            grid-column: auto;
+        }
+
+        .sg-audit-filter-actions {
+            align-items: stretch;
+        }
+
+        .sg-audit-filter-actions .sg-btn,
+        .sg-audit-pagination .sg-btn {
             width: 100%;
         }
 
         .sg-audit-pagination {
             align-items: stretch;
             flex-direction: column;
-        }
-
-        .sg-audit-pagination .sg-btn {
-            width: 100%;
         }
     }
 </style>

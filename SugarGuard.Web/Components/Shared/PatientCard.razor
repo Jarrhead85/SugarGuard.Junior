@@ -2,7 +2,6 @@
 
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
-@using static SugarGuard.Web.Services.SugarGuardApiService
 
 @inject NavigationManager NavigationManager
 
@@ -12,7 +11,7 @@
          role="article"
          aria-label="@PatientAriaLabel">
 
-    @* Верхняя строка: аватар + имя + возраст *@
+    @* Верхняя строка: аватар, данные ребёнка и последнее измерение *@
     <div class="sg-patient-card__header">
 
         <div class="sg-patient-card__avatar" aria-hidden="true">
@@ -35,11 +34,15 @@
         <div class="sg-patient-card__glucose-block" aria-label="@GlucoseAriaLabel">
             @if (Patient.LatestGlucose.HasValue)
             {
-                <span class="sg-patient-card__glucose-value sg-glucose--@GlucoseUiStateClass">
-                    @Patient.LatestGlucose.Value.ToString("F1")
+                <span class="sg-patient-card__glucose-reading">
+                    <span class="sg-patient-card__glucose-value sg-glucose--@GlucoseUiStateClass">
+                        @Patient.LatestGlucose.Value.ToString("F1")
+                    </span>
+                    <span class="sg-patient-card__glucose-unit">ммоль/л</span>
                 </span>
-                <span class="sg-patient-card__glucose-unit">ммоль/л</span>
-                <GlucoseStatusBadge GlucoseValue="Patient.LatestGlucose.Value" />
+                <span class="sg-patient-card__glucose-state sg-patient-card__glucose-state--@GlucoseUiStateClass">
+                    @GlucoseStateLabel
+                </span>
             }
             else
             {
@@ -68,42 +71,30 @@
         </div>
     </div>
 
-    @* Нижняя строка: статистика + кнопка *@
+    @* Нижняя строка: компактная статистика + переход к карточке *@
     <div class="sg-patient-card__footer">
 
         <div class="sg-patient-card__stats">
-            @* Критические события *@
             @if (Patient.CriticalEventsLast7Days > 0)
             {
                 <span class="sg-patient-card__stat sg-patient-card__stat--danger"
                       title="Критические события за 7 дней">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                         stroke-width="1.8" aria-hidden="true">
-                        <path d="M8 2L14 13H2L8 2z" />
-                        <line x1="8" y1="7" x2="8" y2="10" />
-                        <circle cx="8" cy="12" r="0.6" fill="currentColor" stroke="none" />
-                    </svg>
-                    @Patient.CriticalEventsLast7Days
+                    <span class="sg-patient-card__stat-label">Критических за 7 дней</span>
+                    <strong>@Patient.CriticalEventsLast7Days</strong>
                 </span>
             }
 
-            @* Количество измерений *@
             <span class="sg-patient-card__stat sg-patient-card__stat--muted"
                   title="Измерений за 7 дней">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                     stroke-width="1.8" aria-hidden="true">
-                    <rect x="2" y="2" width="12" height="12" rx="2" />
-                    <line x1="5" y1="8" x2="11" y2="8" />
-                    <line x1="8" y1="5" x2="8" y2="11" />
-                </svg>
-                @Patient.MeasurementsLast7Days
+                <span class="sg-patient-card__stat-label">Измерений за 7 дней</span>
+                <strong>@Patient.MeasurementsLast7Days</strong>
             </span>
 
-            @* Время последнего измерения *@
             @if (Patient.LatestMeasurementTime.HasValue)
             {
                 <span class="sg-patient-card__stat sg-patient-card__stat--muted"
                       title="Последнее измерение">
+                    <span class="sg-patient-card__stat-label">Последнее</span>
                     <time datetime="@Patient.LatestMeasurementTime.Value.ToString("yyyy-MM-ddTHH:mm:ssZ")">
                         @FormatLastMeasurementTime(Patient.LatestMeasurementTime.Value)
                     </time>
@@ -115,6 +106,7 @@
                 type="button"
                 @onclick="NavigateToDetailAsync"
                 aria-label="Открыть карточку пациента @FullName">
+            <span>Открыть</span>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
                  stroke-width="1.8" aria-hidden="true">
                 <path d="M6 4l4 4-4 4" />
@@ -131,10 +123,10 @@
         background: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius-xl);
-        padding: var(--space-5);
+        padding: 20px;
         display: flex;
         flex-direction: column;
-        gap: var(--space-4);
+        gap: 16px;
         box-shadow: var(--shadow-sm);
         transition: box-shadow var(--transition-interactive), border-color var(--transition-interactive), transform var(--transition-interactive);
         cursor: default;
@@ -154,9 +146,10 @@
 
     /* Шапка карточки: аватар + имя + глюкоза */
     .sg-patient-card__header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 12px;
     }
 
     /* Круглый аватар с инициалами */
@@ -178,11 +171,10 @@
 
     /* Блок с именем и метаинформацией */
     .sg-patient-card__identity {
-        flex: 1;
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: var(--space-1);
+        gap: 4px;
     }
 
     .sg-patient-card__name {
@@ -202,6 +194,7 @@
         color: var(--color-text-muted);
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: var(--space-1);
     }
 
@@ -214,8 +207,16 @@
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        gap: var(--space-1);
+        gap: 5px;
         flex-shrink: 0;
+    }
+
+    .sg-patient-card__glucose-reading {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 4px;
+        white-space: nowrap;
     }
 
     .sg-patient-card__glucose-value {
@@ -246,7 +247,45 @@
     .sg-patient-card__glucose-unit {
         font-size: var(--text-xs);
         color: var(--color-text-muted);
+        line-height: 1.2;
+    }
+
+    .sg-patient-card__glucose-state {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 2px 8px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        font-weight: 750;
         line-height: 1;
+        white-space: nowrap;
+    }
+
+    .sg-patient-card__glucose-state--normal {
+        color: var(--color-glucose-normal, #1B8E8B);
+        background: color-mix(in oklab, var(--color-glucose-normal, #1B8E8B) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-normal, #1B8E8B) 22%, transparent);
+    }
+
+    .sg-patient-card__glucose-state--warning {
+        color: var(--color-glucose-warning, #E3A32B);
+        background: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-warning, #E3A32B) 22%, transparent);
+    }
+
+    .sg-patient-card__glucose-state--danger,
+    .sg-patient-card__glucose-state--critical {
+        color: var(--color-glucose-danger, #DB5967);
+        background: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 12%, transparent);
+        border-color: color-mix(in oklab, var(--color-glucose-danger, #DB5967) 22%, transparent);
+    }
+
+    .sg-patient-card__glucose-state--muted {
+        color: var(--color-text-muted);
+        background: var(--color-surface-offset);
+        border-color: var(--color-border);
     }
 
     .sg-patient-card__glucose-empty {
@@ -260,6 +299,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
     }
 
     .sg-patient-card__tir-label {
@@ -317,31 +357,41 @@
     /* Нижняя строка: статистика + кнопка */
     .sg-patient-card__footer {
         display: flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: space-between;
-        gap: var(--space-3);
+        gap: 14px;
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid color-mix(in oklab, var(--color-border) 72%, transparent);
     }
 
     .sg-patient-card__stats {
         display: flex;
         align-items: center;
-        gap: var(--space-3);
+        gap: 8px 14px;
         flex-wrap: wrap;
+        min-width: 0;
     }
 
     .sg-patient-card__stat {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-1);
+        gap: 5px;
+        min-height: 24px;
         font-size: var(--text-xs);
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
 
-        .sg-patient-card__stat svg {
-            width: 13px;
-            height: 13px;
-            flex-shrink: 0;
-        }
+    .sg-patient-card__stat-label {
+        color: var(--color-text-muted);
+    }
+
+    .sg-patient-card__stat strong,
+    .sg-patient-card__stat time {
+        color: currentColor;
+        font-weight: 750;
+    }
 
     .sg-patient-card__stat--danger {
         color: var(--color-error);
@@ -384,7 +434,7 @@
 
     .sg-btn--sm {
         min-height: 36px;
-        padding: 0 var(--space-4);
+        padding: 0 12px;
         font-size: var(--text-xs);
     }
 
@@ -402,6 +452,43 @@
             width: 14px;
             height: 14px;
         }
+
+    @@media (max-width: 560px) {
+        .sg-patient-card {
+            padding: 18px;
+        }
+
+        .sg-patient-card__header {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .sg-patient-card__glucose-block {
+            grid-column: 1 / -1;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .sg-patient-card__glucose-reading {
+            justify-content: flex-start;
+        }
+
+        .sg-patient-card__footer {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .sg-patient-card__stats {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sg-btn--sm {
+            justify-content: center;
+            width: 100%;
+        }
+    }
 </style>
 
 @* логика компонента *@
@@ -469,6 +556,19 @@
             "danger" => "danger",
             "critical" => "critical",
             _ => "muted"
+        };
+
+    /// <summary>
+    /// Короткая текстовая метка состояния последнего измерения.
+    /// </summary>
+    private string GlucoseStateLabel =>
+        GlucoseUiStateClass switch
+        {
+            "normal" => "В норме",
+            "warning" => "Внимание",
+            "danger" => "Вне диапазона",
+            "critical" => "Критическая",
+            _ => "Нет данных"
         };
 
     /// <summary>

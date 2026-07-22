@@ -41,8 +41,8 @@
             <div class="doctor-article-editor__toolbar" aria-label="Форматирование текста">
                 <button type="button" @onclick='() => WrapSelectionAsync("**", "**")'><strong>Ж</strong><span class="sr-only">Полужирный</span></button>
                 <button type="button" @onclick='() => WrapSelectionAsync("*", "*")'><em>К</em><span class="sr-only">Курсив</span></button>
-                <button type="button" @onclick='() => InsertAtCursorAsync("## Заголовок\\n")'>Заголовок</button>
-                <button type="button" @onclick='() => InsertAtCursorAsync("- Пункт списка\\n")'>Список</button>
+                <button type="button" @onclick='() => InsertAtCursorAsync("\n## Заголовок\n")'>Заголовок</button>
+                <button type="button" @onclick='() => InsertAtCursorAsync("\n- Пункт списка\n")'>Список</button>
                 <label class="doctor-article-editor__upload">
                     <span>@(_imageUploading ? "Загрузка…" : "Добавить рисунок")</span>
                     <InputFile OnChange="UploadImageAsync" accept="image/jpeg,image/png,image/webp" disabled="@_imageUploading" />
@@ -116,7 +116,7 @@
         {
             _imageUploading = true;
             var url = await Api.UploadFaqImageAsync(file);
-            await InsertAtCursorAsync($"![]({url})\\n");
+            await InsertAtCursorAsync($"\n![]({url})\n");
             _isError = false;
             _message = "Рисунок добавлен в текст статьи.";
         }

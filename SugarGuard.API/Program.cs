@@ -445,11 +445,13 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorVerificationService, DoctorVerificationService>();
 builder.Services.AddScoped<IBotApiKeyValidator, BotApiKeyValidatorAdapter>();
 
-if (builder.Configuration.GetValue<bool>("DemoSeed:Enabled")
+// Демо-данные допустимы только в локальной среде разработки.
+if (builder.Environment.IsDevelopment()
+    && (builder.Configuration.GetValue<bool>("DemoSeed:Enabled")
     || string.Equals(
         Environment.GetEnvironmentVariable("DEMO_SEED_ENABLED"),
         "true",
-        StringComparison.OrdinalIgnoreCase))
+        StringComparison.OrdinalIgnoreCase)))
 {
     builder.Services.AddHostedService<DemoSeedHostedService>();
 }

@@ -305,8 +305,12 @@
                     <p>Сравнение ХЕ и фактически введённого инсулина.</p>
                 </div>
                 <div class="nutrition-export-actions">
-                    <button @onclick='() => ExportAsync("csv")'>CSV</button>
-                    <button @onclick='() => ExportAsync("pdf")'>PDF</button>
+                    <button type="button" @onclick='() => ExportAsync("csv")' disabled="@(_exportingFormat is not null)">
+                        @(_exportingFormat == "csv" ? "Готовим…" : "CSV")
+                    </button>
+                    <button type="button" @onclick='() => ExportAsync("pdf")' disabled="@(_exportingFormat is not null)">
+                        @(_exportingFormat == "pdf" ? "Готовим…" : "PDF")
+                    </button>
                 </div>
             </div>
 
@@ -358,6 +362,7 @@
     private bool _loading = true;
     private bool _showEntryForm;
     private bool _showScheduleForm;
+    private string? _exportingFormat;
     private string _error = string.Empty;
     private int _entryPage;
     private const int PageSize = 8;
@@ -587,8 +592,14 @@
 
     private async Task ExportAsync(string format)
     {
+        if (_selectedChildId == Guid.Empty || _exportingFormat is not null)
+        {
+            return;
+        }
+
         try
         {
+            _exportingFormat = format;
             var bytes = await Api.ExportNutritionAsync(
                 _selectedChildId,
                 DateTime.Today.AddDays(-29),
@@ -598,15 +609,18 @@
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadBase64",
                 $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                // Не используем text/csv: старые версии interop.js добавляли
-                // UTF-8 BOM к уже готовому UTF-16 CSV. MIME-тип Excel сохраняет
-                // исходные байты и корректно открывается в Microsoft Excel.
-                format == "csv" ? "application/vnd.ms-excel;charset=utf-16" : "application/pdf",
+                // Байты CSV уже содержат UTF-16 LE BOM. Браузер не должен
+                // изменять их, иначе Microsoft Excel покажет некорректную кодировку.
+                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
                 Convert.ToBase64String(bytes));
         }
         catch (Exception)
         {
             _error = "Не удалось сформировать файл.";
+        }
+        finally
+        {
+            _exportingFormat = null;
         }
     }
 
