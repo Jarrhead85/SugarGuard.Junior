@@ -111,6 +111,8 @@ builder.Services.AddScoped(sp =>
 // Локализация (ru-RU)
 // -----------------------------------------------------------------------
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ExportDownloadStore>();
 
 // -----------------------------------------------------------------------
 // Сборка приложения
@@ -221,6 +223,24 @@ app.MapGet("/uploads/{**path}", async (
 }).AllowAnonymous();
 
 app.MapSessionCookieEndpoints();
+
+// Файл доступен только по одноразовому непредсказуемому идентификатору,
+// который создаёт авторизованный интерактивный компонент и хранит не более двух минут.
+app.MapGet("/downloads/{ticket:guid}", (
+    Guid ticket,
+    HttpContext context,
+    ExportDownloadStore exportDownloadStore) =>
+{
+    if (!exportDownloadStore.TryTake(ticket, out var export))
+    {
+        return Results.NotFound();
+    }
+
+    context.Response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+    context.Response.Headers.Pragma = "no-cache";
+
+    return Results.File(export.Content, export.ContentType, export.FileName);
+}).AllowAnonymous();
 
 // Razor-компоненты с поддержкой Blazor Server
 app.MapRazorComponents<App>()

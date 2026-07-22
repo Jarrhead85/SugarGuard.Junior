@@ -23,6 +23,7 @@
 @inject ILogger<Dashboard> Logger
 @inject SugarGuardApiService Api
 @inject ICurrentUserService CurrentUser
+@inject ExportDownloadStore ExportDownloads
 
 <PageTitle>Кабинет родителя — SugarGuard</PageTitle>
 
@@ -2714,7 +2715,7 @@
         if (_measPage * MeasPageSize < _totalMeas) _measPage++;
     }
 
-    private async Task ExportCsvAsync()
+    private void ExportCsvAsync()
     {
         var rows = new System.Text.StringBuilder();
         rows.AppendLine("Время,Глюкоза,Тренд,Статус,Заметка");
@@ -2729,14 +2730,15 @@
                 .Append("\r\n");
         }
 
-        try
-        {
-            await JS.InvokeVoidAsync(
-                "SugarGuard.downloadCsv",
-                "sugarguard-export.csv",
-                "\uFEFF" + rows);
-        }
-        catch (JSException) { }
+        var bytes = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(rows.ToString()))
+            .ToArray();
+        var ticket = ExportDownloads.Create(
+            bytes,
+            "text/csv;charset=utf-8",
+            "sugarguard-export.csv");
+
+        Navigation.NavigateTo($"/downloads/{ticket}", forceLoad: true);
     }
 
     private static string Csv(string? value)

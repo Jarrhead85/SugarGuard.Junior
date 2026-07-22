@@ -7,8 +7,8 @@
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
 @inject SugarGuardApiService Api
-@inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject ExportDownloadStore ExportDownloads
 
 @if (!Embedded)
 {
@@ -606,13 +606,15 @@
                 DateTime.Today.AddDays(1).AddTicks(-1),
                 format);
 
-            await JS.InvokeVoidAsync(
-                "SugarGuard.downloadBase64",
-                $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                // Байты CSV уже содержат UTF-16 LE BOM. Браузер не должен
-                // изменять их, иначе Microsoft Excel покажет некорректную кодировку.
-                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
-                Convert.ToBase64String(bytes));
+            var contentType = format == "csv"
+                ? "text/csv;charset=utf-16"
+                : "application/pdf";
+            var ticket = ExportDownloads.Create(
+                bytes,
+                contentType,
+                $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}");
+
+            Navigation.NavigateTo($"/downloads/{ticket}", forceLoad: true);
         }
         catch (Exception)
         {

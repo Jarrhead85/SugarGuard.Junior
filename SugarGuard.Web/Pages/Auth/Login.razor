@@ -484,7 +484,7 @@
         {
             var u when u.IsInRole("Admin") || u.IsInRole("SupportAdmin") => "/admin",
             var u when u.IsInRole("DoctorPending") => "/doctor/verification",
-            var u when u.IsInRole("Doctor") => "/doctor/patients",
+            var u when u.IsInRole("Doctor") => "/doctor/dashboard",
             _ => "/parent/dashboard"
         };
         Navigation.NavigateTo(destination, replace: true);

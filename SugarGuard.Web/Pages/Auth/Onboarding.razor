@@ -846,7 +846,7 @@ else
 
         var target = role switch
         {
-            "Doctor" => "/doctor/patients",
+            "Doctor" => "/doctor/dashboard",
             "Admin" or "SupportAdmin" or "ServiceAccount" => "/admin/dashboard",
             _ => "/parent/dashboard"
         };

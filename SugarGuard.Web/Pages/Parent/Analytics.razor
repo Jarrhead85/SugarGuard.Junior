@@ -1,12 +1,11 @@
 ﻿@page "/parent/analytics/{ChildId:guid}"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.JSInterop
 @using SugarGuard.Web.Shared
 @using SugarGuard.Web.Models.Analytics
 @attribute [Authorize(Roles = "Parent")]
 @inject SugarGuardApiService ApiService
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JS
+@inject ExportDownloadStore ExportDownloads
 
 <PageTitle>Аналитика — SugarGuard</PageTitle>
 
@@ -514,7 +513,8 @@
                     $"SugarGuard_{_selectedPeriod}_{DateTime.Today:yyyyMMdd}" +
                     (detailed ? "_detailed" : "") + ".pdf";
 
-                await JS.InvokeVoidAsync("sugarGuardDownload", fileName, "application/pdf", bytes);
+                var ticket = ExportDownloads.Create(bytes, "application/pdf", fileName);
+                NavigationManager.NavigateTo($"/downloads/{ticket}", forceLoad: true);
             }
             else
             {
