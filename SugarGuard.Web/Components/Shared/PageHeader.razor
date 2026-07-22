@@ -1,11 +1,13 @@
 ﻿@using SugarGuard.Web.Components.Shared
 @* заголовок страницы *@
 
-<header class="page-header @(IsAdminPage ? "page-header--admin-compact" : string.Empty) @CssClass" role="banner">
+<header class="page-header @(IsPortalPage ? "page-header--portal-compact" : string.Empty) @CssClass" role="banner">
 
     @* Верхняя строка: leading + title + trailing *@
     <div class="page-header__bar">
 
+        @if (!IsPortalPage)
+        {
         @* Leading: кнопка «Назад» или произвольный контент *@
         <div class="page-header__leading">
             @if (LeadingContent is not null)
@@ -27,7 +29,10 @@
                 </button>
             }
         </div>
+        }
 
+        @if (!IsPortalPage)
+        {
         @* Title блок *@
         <div class="page-header__title-block @(Centered ? "page-header__title-block--centered" : "")">
 
@@ -54,6 +59,7 @@
             }
 
         </div>
+        }
 
         @* Trailing: кнопки действий или произвольный контент *@
         <div class="page-header__trailing">
@@ -66,7 +72,7 @@
     </div>
 
     @* Breadcrumbs *@
-    @if (Breadcrumbs is { Count: > 0 })
+    @if (!IsPortalPage && Breadcrumbs is { Count: > 0 })
     {
         <nav class="page-header__breadcrumbs"
              aria-label="Навигационная цепочка">
@@ -109,7 +115,7 @@
     }
 
     @* Горизонтальный разделитель *@
-    @if (ShowDivider)
+    @if (!IsPortalPage && ShowDivider)
     {
         <div class="page-header__divider" role="separator" aria-hidden="true"></div>
     }
@@ -178,6 +184,13 @@
 
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
-    private bool IsAdminPage => Navigation.ToAbsoluteUri(Navigation.Uri)
-        .AbsolutePath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
+    private bool IsPortalPage
+    {
+        get
+        {
+            var path = Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath;
+            return path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)
+                   || path.StartsWith("/doctor", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }

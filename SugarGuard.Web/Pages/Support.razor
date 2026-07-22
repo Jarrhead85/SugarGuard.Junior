@@ -20,7 +20,7 @@
 <PageTitle>Поддержка - SugarGuard</PageTitle>
 
 <section class="support-page" aria-label="Поддержка SugarGuard">
-    @if (!_isSupport)
+    @if (!_isSupport && !IsDoctorPortal)
     {
         <header class="support-header">
             <div>
@@ -210,6 +210,9 @@
     private string? _error;
     private string? _attachmentError;
     private Task? _pollTask;
+
+    private bool IsDoctorPortal => Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath
+        .StartsWith("/doctor", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {

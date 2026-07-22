@@ -30,6 +30,12 @@ public interface IAdminService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Возвращает все профили детей для административного управления связями.
+    /// </summary>
+    Task<List<ChildResponse>> GetAllChildrenAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Изменяет роль пользователя и записывает событие в audit log
     /// </summary>
     Task<AdminUserResponse?> UpdateUserRoleAsync(

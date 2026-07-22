@@ -875,6 +875,34 @@ namespace SugarGuard.Web.Services
                 : null;
         }
 
+        /// <summary>
+        /// GET api/admin/users-roles/children — все профили детей для администратора.
+        /// </summary>
+        public async Task<List<ChildProfileVm>> GetAdminChildrenAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var children = await GetRequiredAsync<List<ChildProfileApiDto>>(
+                client,
+                "api/admin/users-roles/children",
+                cancellationToken);
+
+            return children.Select(child => new ChildProfileVm
+            {
+                ChildId = child.ChildId,
+                FirstName = child.FirstName ?? string.Empty,
+                LastName = child.LastName ?? string.Empty,
+                DateOfBirth = child.DateOfBirth,
+                DiabetesType = child.DiabetesType ?? string.Empty,
+                PhotoUrl = child.PhotoUrl,
+                DiagnosisDate = child.DiagnosisDate,
+                Weight = child.Weight,
+                Height = child.Height,
+                InsulinScheme = child.InsulinScheme,
+                TimeZoneId = child.TimeZoneId ?? "Europe/Moscow"
+            }).ToList();
+        }
+
         public async Task<MaxBotStatusVm?> GetMaxBotStatusAsync(CancellationToken cancellationToken = default)
         {
             try

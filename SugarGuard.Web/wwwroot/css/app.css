@@ -1546,3 +1546,38 @@ select {
 /* Public legal and support information pages. */
 .legal-page{min-height:100dvh;padding:clamp(20px,4vw,56px);color:#12334a;background:#f4faf9 url('/images/landing-hero-watercolor-v2.png') center/cover fixed;font-family:Inter,system-ui,sans-serif}.legal-page::before{content:"";position:fixed;inset:0;background:rgba(250,252,249,.84);backdrop-filter:blur(8px);pointer-events:none}.legal-back,.legal-card{position:relative;z-index:1}.legal-back{display:inline-flex;margin-bottom:18px;color:#087f7d;font-weight:750;text-decoration:none}.legal-card{max-width:900px;margin:0 auto;padding:clamp(24px,5vw,54px);border:1px solid rgba(28,123,119,.2);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 24px 70px rgba(23,67,79,.14)}.legal-card header{padding-bottom:24px;border-bottom:1px solid rgba(18,51,74,.1)}.legal-kicker{color:#0b8d88;font-size:13px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.legal-card h1{margin:8px 0;font-family:Georgia,serif;font-size:clamp(34px,5vw,56px);line-height:1.03}.legal-card header p,.legal-card section p{color:#536d7e;line-height:1.65}.legal-card section{padding-top:24px}.legal-card h2{margin:0 0 8px;font-family:Georgia,serif;font-size:23px}.legal-note{margin-top:28px;padding:18px 20px;border-left:4px solid #d4a43b;border-radius:10px;color:#5a4a26;background:#fff8e8;line-height:1.55}.legal-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.legal-actions a{padding:11px 16px;border:1px solid rgba(11,141,136,.3);border-radius:999px;color:#087f7d;text-decoration:none;font-weight:800}.legal-actions a.primary{color:#fff;background:linear-gradient(100deg,#159a96,#2d7ee2)}
 @media(max-width:600px){.legal-page{padding:16px}.legal-card{padding:22px 18px;border-radius:18px}}
+/* В кабинете врача название раздела уже отображается общей шапкой и верхними вкладками. */
+.app-shell--doctor .doctor-hero,
+.app-shell--doctor .doctor-report-hero,
+.app-shell--doctor .doctor-simple-hero,
+.app-shell--doctor .doctor-notes-hero,
+.app-shell--doctor .doctor-profile-hero {
+    min-width: 0;
+    margin: 0 0 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    justify-content: flex-end;
+}
+
+.app-shell--doctor .doctor-hero > div:first-child,
+.app-shell--doctor .doctor-report-hero > div:first-child,
+.app-shell--doctor .doctor-simple-hero > div:first-child,
+.app-shell--doctor .doctor-notes-hero > div:first-child,
+.app-shell--doctor .doctor-profile-hero > div:first-child {
+    display: none;
+}
+
+.app-shell--doctor .doctor-portal,
+.app-shell--doctor .doctor-report-page,
+.app-shell--doctor .doctor-simple-page,
+.app-shell--doctor .doctor-notes-index,
+.app-shell--doctor .doctor-profile-page {
+    min-width: 0;
+}
+
+.app-shell--doctor .doctor-hero-actions,
+.app-shell--doctor .doctor-notes-actions {
+    flex-wrap: wrap;
+}

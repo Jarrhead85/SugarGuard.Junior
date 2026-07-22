@@ -40,11 +40,24 @@
     window.SugarGuard.clickById = clickById;
     window.SugarGuard.downloadCsv = downloadCsv;
     window.SugarGuard.downloadBase64 = function (fileName, contentType, base64) {
+        const binary = atob(base64 || '');
+        let bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        if (contentType && contentType.toLowerCase().startsWith('text/csv')
+            && !(bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)) {
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const withBom = new Uint8Array(bom.length + bytes.length);
+            withBom.set(bom);
+            withBom.set(bytes, bom.length);
+            bytes = withBom;
+        }
+        const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = `data:${contentType};base64,${base64}`;
+        link.href = url;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
         link.remove();
+        URL.revokeObjectURL(url);
     };
 })();

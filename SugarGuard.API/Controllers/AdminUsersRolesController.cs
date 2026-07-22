@@ -51,6 +51,13 @@ public class AdminUsersRolesController : ControllerBase
         return Ok(await _adminService.GetUsersPageAsync(role, search, page, pageSize, cancellationToken));
     }
 
+    [HttpGet("children")]
+    [ProducesResponseType(typeof(IReadOnlyList<ChildResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ChildResponse>>> GetChildren(CancellationToken cancellationToken)
+    {
+        return Ok(await _adminService.GetAllChildrenAsync(cancellationToken));
+    }
+
     // PUT api/admin/users-roles/users/{userId}/role
     [HttpPut("users/{userId:guid}/role")]
     [Authorize(Policy = "FullAdminOnly")]

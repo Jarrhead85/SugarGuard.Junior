@@ -230,6 +230,21 @@
                         }
                     }
                 </section>
+
+                <section class="sg-panel">
+                    <SectionHeader Title="Профили детей"
+                                   Description="Дети — отдельные профили, а не учётные записи. Здесь отображаются все профили, доступные для связей." />
+                    <div class="sg-child-catalog">
+                        @foreach (var child in _children)
+                        {
+                            <div class="sg-child-catalog__item">
+                                <strong>@child.FullName</strong>
+                                <span>@child.DiabetesType · @child.DateOfBirth.ToString("dd.MM.yyyy")</span>
+                                <small>@child.ChildId</small>
+                            </div>
+                        }
+                    </div>
+                </section>
             </div>
 
             <aside class="sg-side-column">
@@ -555,6 +570,28 @@
         border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
         background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
         box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-child-catalog {
+        display: grid;
+        gap: 8px;
+        max-height: 360px;
+        overflow: auto;
+    }
+
+    .sg-child-catalog__item {
+        display: grid;
+        gap: 3px;
+        padding: 10px 12px;
+        border: 1px solid var(--sg-border, rgba(22,33,62,.1));
+        border-radius: 12px;
+    }
+
+    .sg-child-catalog__item span,
+    .sg-child-catalog__item small {
+        color: var(--sg-text-muted, #667694);
+        font-size: 12px;
+        overflow-wrap: anywhere;
     }
 
     .sg-user-select {
@@ -1069,7 +1106,7 @@
             if (_linkCandidates.Count == 0 || requestedPage is null)
             {
                 candidatesTask = Api.GetAdminUsersAsync(limit: 1000, cancellationToken: cancellationToken);
-                childrenTask = Api.GetMyChildrenAsync(pageSize: 200, cancellationToken: cancellationToken);
+                childrenTask = Api.GetAdminChildrenAsync(cancellationToken);
             }
 
             var userPage = await userPageTask;

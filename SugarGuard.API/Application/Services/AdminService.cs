@@ -155,6 +155,33 @@ public sealed class AdminService : IAdminService
         };
     }
 
+    public async Task<List<ChildResponse>> GetAllChildrenAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _children.Query()
+            .AsNoTracking()
+            .OrderBy(child => child.FirstName)
+            .ThenBy(child => child.LastName)
+            .Select(child => new ChildResponse
+            {
+                ChildId = child.ChildId,
+                FirstName = child.FirstName,
+                LastName = child.LastName,
+                DateOfBirth = child.DateOfBirth,
+                Weight = child.Weight,
+                Height = child.Height,
+                DiabetesType = child.DiabetesType,
+                DiagnosisDate = child.DiagnosisDate,
+                InsulinScheme = child.InsulinScheme,
+                CurrentInsulins = child.CurrentInsulins,
+                TimeZoneId = child.TimeZoneId,
+                CreatedAt = child.CreatedAt,
+                UpdatedAt = child.UpdatedAt,
+                PhotoUrl = child.PhotoUrl
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<AdminUserResponse?> UpdateUserRoleAsync(
         Guid userId,
         string newRole,
