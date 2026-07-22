@@ -117,16 +117,8 @@
                         </div>
 
                         <div class="sg-field">
-                            <label class="sg-label" for="audit-limit">На странице</label>
-                            <select id="audit-limit"
-                                    class="sg-select"
-                                    value="@_filter.Limit.ToString(CultureInfo.InvariantCulture)"
-                                    @onchange="OnLimitChanged">
-                                @foreach (var limit in _availableLimits)
-                                {
-                                    <option value="@limit.ToString(CultureInfo.InvariantCulture)">@limit</option>
-                                }
-                            </select>
+                            <label class="sg-label">На странице</label>
+                            <span class="sg-static-value">20 событий</span>
                         </div>
 
                         <div class="sg-filter-actions">
@@ -258,7 +250,7 @@
                         <li>Фильтр <strong>Action</strong> работает как contains / LIKE на стороне API.</li>
                         <li>Диапазон <strong>From/To</strong> должен быть корректным: from не позже to.</li>
                         <li><strong>ActorUserId</strong> может быть пустым у системных или анонимных событий.</li>
-                        <li><strong>Limit</strong> ограничен API значениями от 1 до 1000.</li>
+                        <li>В журнале отображается по 20 событий на странице.</li>
                         <li>Время в карточках отображается по Москве; в API и БД оно хранится в UTC.</li>
                     </ul>
                 </section>
@@ -683,6 +675,19 @@
         overflow-x: auto;
     }
 
+    .sg-static-value {
+        display: inline-flex;
+        align-items: center;
+        min-height: 42px;
+        padding: 0 12px;
+        border: 1px solid var(--sg-border, rgba(22,33,62,.12));
+        border-radius: 12px;
+        background: var(--sg-surface-offset, #f6f8fc);
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
     .sg-audit-details {
         color: var(--sg-text-muted, #667694);
         font-size: 12px;
@@ -1058,8 +1063,6 @@
     private Task NextPageAsync() => LoadAuditLogsAsync(Math.Min(PageCount, _page + 1));
     private Task LastPageAsync() => LoadAuditLogsAsync(PageCount);
 
-    private static readonly int[] _availableLimits = [20, 50, 100];
-
     private static readonly string[] _commonActions =
     [
         "auth.login",
@@ -1208,14 +1211,6 @@
         _filter.ToUtc = ParseDateTimeLocal(args.Value?.ToString());
     }
 
-    private void OnLimitChanged(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var limit))
-        {
-            _filter.Limit = Math.Clamp(limit, 10, 100);
-        }
-    }
-
     private bool ValidateRange()
     {
         if (_filter.FromUtc.HasValue && _filter.ToUtc.HasValue && _filter.FromUtc.Value > _filter.ToUtc.Value)
@@ -1231,7 +1226,7 @@
             return false;
         }
 
-        _filter.Limit = Math.Clamp(_filter.Limit, 10, 100);
+        _filter.Limit = 20;
 
         return true;
     }
@@ -1362,7 +1357,7 @@
         public string Action { get; set; } = string.Empty;
         public DateTime? FromUtc { get; set; }
         public DateTime? ToUtc { get; set; }
-        public int Limit { get; set; } = 200;
+        public int Limit { get; set; } = 20;
 
         public string FromText =>
             FromUtc.HasValue

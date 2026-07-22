@@ -312,12 +312,12 @@
             <div class="nutrition-bars" role="img" aria-label="График ХЕ и инсулина по дням">
                 @foreach (var day in _summary.Days.TakeLast(14))
                 {
-                    <div class="nutrition-bar-row">
-                        <time>@day.Date.ToString("dd.MM")</time>
+                    <div class="nutrition-bar-day">
                         <div class="nutrition-bar-track">
-                            <span class="xe" style='width:@BarWidth(day.BreadUnits, "xe")%' title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
-                            <span class="insulin" style='width:@BarWidth(day.InsulinUnits, "insulin")%' title="@day.InsulinUnits.ToString("0.##") ед."></span>
+                            <span class="xe" style='height:@BarHeight(day.BreadUnits, "xe")%' title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
+                            <span class="insulin" style='height:@BarHeight(day.InsulinUnits, "insulin")%' title="@day.InsulinUnits.ToString("0.##") ед."></span>
                         </div>
+                        <time>@day.Date.ToString("dd.MM")</time>
                         <strong>@day.BreadUnits.ToString("0.#") / @day.InsulinUnits.ToString("0.#")</strong>
                     </div>
                 }
@@ -569,7 +569,7 @@
 
     private void NextPage() => _entryPage = Math.Min(EntryPages - 1, _entryPage + 1);
 
-    private decimal BarWidth(decimal value, string series)
+    private decimal BarHeight(decimal value, string series)
     {
         var max = _summary.Days
             .Select(day => series == "insulin" ? day.InsulinUnits : day.BreadUnits)

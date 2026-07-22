@@ -189,6 +189,29 @@
     padding-top: var(--space-12);
 }
 
+/* В админке название и описание уже находятся в общей шапке кабинета.
+   Оставляем только действия страницы, чтобы не тратить полезную высоту экрана. */
+.page-header--admin-compact .page-header__bar {
+    grid-template-columns: 1fr auto;
+    min-height: 0;
+    padding: 0;
+}
+
+.page-header--admin-compact .page-header__leading,
+.page-header--admin-compact .page-header__title-block,
+.page-header--admin-compact .page-header__divider {
+    display: none;
+}
+
+.page-header--admin-compact .page-header__trailing {
+    grid-column: 2;
+    justify-content: flex-end;
+}
+
+.page-header--admin-compact .page-header__bottom {
+    padding-top: var(--space-8);
+}
+
 /* Адаптив */
 @media (max-width: 640px) {
     .page-header__bar {

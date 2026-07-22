@@ -1864,3 +1864,25 @@
         transition-duration: .01ms !important;
     }
 }
+
+.inline-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    color: var(--color-text-muted, #667694);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .inline-pager {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .inline-pager .btn {
+        width: 100%;
+    }
+}

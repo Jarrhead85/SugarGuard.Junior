@@ -14,14 +14,14 @@
                 Title="Сессии и авторизация"
                 Subtitle="Метаданные входов и обновлений сессий. Содержимое токенов и секреты не передаются в браузер.">
         <TrailingContent>
-            <button class="security-button" type="button" @onclick="LoadAsync" disabled="@_loading">@(_loading ? "Обновление..." : "Обновить")</button>
+            <button class="security-button" type="button" @onclick="() => LoadAsync(1)" disabled="@_loading">@(_loading ? "Обновление..." : "Обновить")</button>
         </TrailingContent>
     </PageHeader>
 
     @if (!string.IsNullOrWhiteSpace(_error)) { <div class="security-alert">@_error</div> }
 
     <section class="security-stats">
-        <article><span>Событий</span><strong>@_events.Count</strong></article>
+        <article><span>Событий на странице</span><strong>@_events.Count</strong></article>
         <article><span>Ошибок входа</span><strong class="@(_failedCount > 0 ? "danger" : "safe")">@_failedCount</strong></article>
         <article><span>Обновлений сессий</span><strong>@_refreshCount</strong></article>
     </section>
@@ -43,12 +43,22 @@
                 }
             </div>
         }
+        @if (_totalCount > 0)
+        {
+            <div class="security-pagination" aria-label="Страницы событий безопасности">
+                <span>Страница @_page из @PageCount · по @PageSize</span>
+                <button class="security-button" type="button" @onclick="FirstPageAsync" disabled="@(_page <= 1 || _loading)">Первая</button>
+                <button class="security-button" type="button" @onclick="PreviousPageAsync" disabled="@(_page <= 1 || _loading)">Назад</button>
+                <button class="security-button" type="button" @onclick="NextPageAsync" disabled="@(_page >= PageCount || _loading)">Далее</button>
+                <button class="security-button" type="button" @onclick="LastPageAsync" disabled="@(_page >= PageCount || _loading)">Последняя</button>
+            </div>
+        }
         <a class="security-link" href="/admin/audit">Открыть полный журнал аудита →</a>
     </section>
 </div>
 
 <style>
-    .admin-security-overview{display:grid;gap:20px;color:var(--sg-text,#16213E)}.security-button{min-height:40px;padding:9px 14px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:999px;background:var(--sg-surface,#fff);color:var(--sg-primary,#1B8E8B);font:inherit;font-weight:800;cursor:pointer}.security-alert{padding:12px 14px;border-radius:14px;background:rgba(197,63,85,.12);color:#a62f45}.security-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.security-stats article,.security-panel{padding:18px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:20px;background:var(--sg-surface,#fff);box-shadow:var(--shadow-sm,0 12px 28px rgba(18,31,58,.07))}.security-stats article{display:grid;gap:8px}.security-stats span{color:var(--sg-text-muted,#667694);font-size:12px;font-weight:800;text-transform:uppercase}.security-stats strong{font-size:26px}.safe{color:#17845e}.danger{color:#c53f55}.security-list{display:grid;gap:8px}.security-event{display:grid;grid-template-columns:150px minmax(160px,1fr) 120px minmax(0,1.5fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:14px;font-size:13px}.security-event--danger{border-color:rgba(197,63,85,.32);background:rgba(197,63,85,.05)}.security-event__time,.security-event span,.security-event small{color:var(--sg-text-muted,#667694)}.security-link{display:block;margin-top:16px;color:var(--sg-primary,#1B8E8B);font-size:13px;font-weight:800;text-decoration:none}@@media(max-width:760px){.security-stats{grid-template-columns:1fr}.security-event{grid-template-columns:1fr;gap:5px}.security-event strong{margin-top:4px}}
+    .admin-security-overview{display:grid;gap:20px;color:var(--sg-text,#16213E)}.security-button{min-height:40px;padding:9px 14px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:999px;background:var(--sg-surface,#fff);color:var(--sg-primary,#1B8E8B);font:inherit;font-weight:800;cursor:pointer}.security-alert{padding:12px 14px;border-radius:14px;background:rgba(197,63,85,.12);color:#a62f45}.security-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.security-stats article,.security-panel{padding:18px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:20px;background:var(--sg-surface,#fff);box-shadow:var(--shadow-sm,0 12px 28px rgba(18,31,58,.07))}.security-stats article{display:grid;gap:8px}.security-stats span{color:var(--sg-text-muted,#667694);font-size:12px;font-weight:800;text-transform:uppercase}.security-stats strong{font-size:26px}.safe{color:#17845e}.danger{color:#c53f55}.security-list{display:grid;gap:8px}.security-event{display:grid;grid-template-columns:150px minmax(160px,1fr) 120px minmax(0,1.5fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:14px;font-size:13px}.security-event--danger{border-color:rgba(197,63,85,.32);background:rgba(197,63,85,.05)}.security-event__time,.security-event span,.security-event small{color:var(--sg-text-muted,#667694)}.security-pagination{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:16px;color:var(--sg-text-muted,#667694);font-size:13px;font-weight:700}.security-link{display:block;margin-top:16px;color:var(--sg-primary,#1B8E8B);font-size:13px;font-weight:800;text-decoration:none}@@media(max-width:760px){.security-stats{grid-template-columns:1fr}.security-event{grid-template-columns:1fr;gap:5px}.security-event strong{margin-top:4px}.security-pagination{align-items:stretch;flex-direction:column}.security-pagination .security-button{width:100%}}
 </style>
 
 @code {
@@ -57,17 +67,34 @@
     private string? _error;
     private int _failedCount;
     private int _refreshCount;
+    private const int PageSize = 20;
+    private int _page = 1;
+    private int _totalCount;
+    private int PageCount => Math.Max(1, (int)Math.Ceiling(_totalCount / (double)PageSize));
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    private async Task LoadAsync()
+    private Task FirstPageAsync() => LoadAsync(1);
+
+    private Task PreviousPageAsync() => LoadAsync(Math.Max(1, _page - 1));
+
+    private Task NextPageAsync() => LoadAsync(Math.Min(PageCount, _page + 1));
+
+    private Task LastPageAsync() => LoadAsync(PageCount);
+
+    private async Task LoadAsync(int? requestedPage = null)
     {
         _loading = true;
         _error = null;
         try
         {
-            var page = await Api.GetAdminAuditLogsPageAsync(action: "auth", pageSize: 100);
+            var page = await Api.GetAdminAuditLogsPageAsync(
+                action: "auth",
+                page: requestedPage ?? _page,
+                pageSize: PageSize);
             _events = page.Items.OrderByDescending(item => item.CreatedAt).ToList();
+            _page = page.Page;
+            _totalCount = page.TotalCount;
             _failedCount = _events.Count(IsFailure);
             _refreshCount = _events.Count(item => item.Action.Contains("refresh", StringComparison.OrdinalIgnoreCase));
         }

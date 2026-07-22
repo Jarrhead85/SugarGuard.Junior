@@ -548,36 +548,50 @@
 
 .nutrition-bars {
     display: grid;
-    gap: 10px;
-}
-
-.nutrition-bar-row {
-    display: grid;
-    grid-template-columns: 62px 1fr 86px;
-    align-items: center;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    align-items: end;
     gap: 12px;
+    min-height: 250px;
 }
 
-.nutrition-bar-row time,
-.nutrition-bar-row strong {
+.nutrition-bar-day {
+    display: grid;
+    grid-template-rows: 190px auto auto;
+    align-items: end;
+    justify-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.nutrition-bar-day time,
+.nutrition-bar-day strong {
     color: var(--color-text-muted, #6b7a99);
     font-size: 12px;
 }
 
-.nutrition-bar-row strong {
-    text-align: right;
+.nutrition-bar-day strong {
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .nutrition-bar-track {
-    display: grid;
-    gap: 4px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 190px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-divider, rgba(22,33,62,.12));
 }
 
 .nutrition-bar-track span {
     display: block;
-    min-width: 0;
-    height: 9px;
-    border-radius: 999px;
+    width: min(18px, 38%);
+    min-height: 0;
+    border-radius: 8px 8px 3px 3px;
+    transition: height 180ms ease;
 }
 
 .nutrition-bar-track .xe,
@@ -720,8 +734,14 @@
         font-size: 26px;
     }
 
-    .nutrition-bar-row {
-        grid-template-columns: 48px 1fr 64px;
+    .nutrition-bars {
+        grid-template-columns: repeat(7, minmax(48px, 1fr));
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .nutrition-bar-day {
+        min-width: 48px;
     }
 
     .nutrition-schedule-card {

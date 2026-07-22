@@ -19,22 +19,18 @@
 
 <PageTitle>Поддержка - SugarGuard</PageTitle>
 
-<section class="support-page" aria-labelledby="supportTitle">
-    <header class="support-header">
-        <div>
-            <span class="support-eyebrow">Центр помощи</span>
-            <h1 id="supportTitle">Поддержка SugarGuard</h1>
-            <p>
-                @(_isSupport
-                    ? "Здесь видны обращения пользователей. Основной ответ пользователю отправляйте на email."
-                    : "Опишите вопрос, приложите скриншот при необходимости. Ответ придёт на email вашей учётной записи.")
-            </p>
-        </div>
-        @if (!_isSupport)
-        {
+<section class="support-page" aria-label="Поддержка SugarGuard">
+    @if (!_isSupport)
+    {
+        <header class="support-header">
+            <div>
+                <span class="support-eyebrow">Центр помощи</span>
+                <h1 id="supportTitle">Поддержка SugarGuard</h1>
+                <p>Опишите вопрос, приложите скриншот при необходимости. Ответ придёт на email вашей учётной записи.</p>
+            </div>
             <button class="support-primary" type="button" @onclick="ShowNewConversation">+ Новое обращение</button>
-        }
-    </header>
+        </header>
+    }
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {

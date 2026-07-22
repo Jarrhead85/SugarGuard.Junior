@@ -83,6 +83,11 @@
     gap: var(--space-20, 20px);
 }
 
+/* Создание связи перенесено в удобную карточку на странице «Пользователи». */
+.link-manager-create-panel {
+    display: none;
+}
+
 /* Секция-карточка */
 .section-card {
     background: var(--color-surface, rgba(255,255,255,0.85));
@@ -208,6 +213,23 @@
     letter-spacing: 0.01em;
 }
 
+.link-person {
+    display: grid;
+    gap: 3px;
+    min-width: 180px;
+}
+
+.link-person strong {
+    overflow-wrap: anywhere;
+}
+
+.link-person small {
+    color: var(--color-text-faint, #96A2B8);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
 .date-cell {
     font-size: 13px;
     color: var(--color-text-muted, #667694);
@@ -233,6 +255,18 @@
     justify-content: center;
     min-height: 200px;
     padding: var(--space-24, 24px);
+}
+
+.links-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-8, 8px);
+    padding: var(--space-12, 12px) var(--space-16, 16px);
+    border-top: 1px solid var(--color-divider, rgba(22,33,62,.08));
+    color: var(--color-text-muted, #667694);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Диалог подтверждения */
@@ -389,6 +423,24 @@
 
     .tab {
         white-space: nowrap;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+    }
+
+    .link-person {
+        min-width: 150px;
+    }
+
+    .links-pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .links-pagination .btn {
+        width: 100%;
     }
 
     .dialog__footer {

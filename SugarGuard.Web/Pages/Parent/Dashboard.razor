@@ -1139,7 +1139,7 @@
         else
         {
             <div class="settings-group" role="list">
-                @foreach (var summary in DailyChildSummaries)
+                @foreach (var summary in PagedDailyChildSummaries)
                 {
                     <div class="setting-row" role="listitem">
                         <div class="setting-text">
@@ -1150,6 +1150,14 @@
                     </div>
                 }
             </div>
+            @if (DailySummaryPageCount > 1)
+            {
+                <div class="inline-pager" aria-label="Страницы ежедневных сводок">
+                    <span>Страница @_dailySummaryPage из @DailySummaryPageCount</span>
+                    <button class="btn btn--ghost btn--sm" type="button" @onclick="PreviousDailySummaryPage" disabled="@(_dailySummaryPage <= 1)">Назад</button>
+                    <button class="btn btn--ghost btn--sm" type="button" @onclick="NextDailySummaryPage" disabled="@(_dailySummaryPage >= DailySummaryPageCount)">Далее</button>
+                </div>
+            }
         }
     </div>
 
@@ -1719,6 +1727,7 @@
                 cancellationToken);
             var notifications = await Api.GetNotificationsAsync(cancellationToken);
             _userNotifications = notifications;
+            _dailySummaryPage = Math.Clamp(_dailySummaryPage, 1, DailySummaryPageCount);
             var notificationAlerts = notifications
                 .Where(notification => notification.NotificationId.HasValue)
                 .Select(MapNotificationAlert)
@@ -3407,12 +3416,22 @@
     // Данные — загружаются из API
     private List<AlertItem> _allAlerts = new();
     private List<UserNotificationItem> _userNotifications = new();
+    private const int DailySummaryPageSize = 5;
+    private int _dailySummaryPage = 1;
     private IReadOnlyList<UserNotificationItem> DailyChildSummaries => _userNotifications
         .Where(notification => notification.ChildId == _selectedChildId
                                && string.Equals(notification.SourceType, "daily_parent_summary", StringComparison.Ordinal))
         .OrderByDescending(notification => notification.CreatedAt)
-        .Take(30)
         .ToList();
+    private int DailySummaryPageCount => Math.Max(1, (int)Math.Ceiling(DailyChildSummaries.Count / (double)DailySummaryPageSize));
+    private IReadOnlyList<UserNotificationItem> PagedDailyChildSummaries => DailyChildSummaries
+        .Skip((_dailySummaryPage - 1) * DailySummaryPageSize)
+        .Take(DailySummaryPageSize)
+        .ToList();
+
+    private void PreviousDailySummaryPage() => _dailySummaryPage = Math.Max(1, _dailySummaryPage - 1);
+
+    private void NextDailySummaryPage() => _dailySummaryPage = Math.Min(DailySummaryPageCount, _dailySummaryPage + 1);
     private IReadOnlyList<GlucoseChart.ChartPoint> _chartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private IReadOnlyList<GlucoseChart.ChartPoint> _measurementChartPoints = Array.Empty<GlucoseChart.ChartPoint>();
     private readonly List<MeasurementItem> _measurements = new();

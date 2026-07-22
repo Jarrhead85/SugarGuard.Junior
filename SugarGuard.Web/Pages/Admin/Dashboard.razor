@@ -15,27 +15,19 @@
 <PageTitle>Дашборд — SugarGuard Admin</PageTitle>
 
 <div class="admin-dashboard-v2">
-    <header class="admin-hero">
-        <div>
-            <div class="admin-eyebrow">Кабинет администратора</div>
-            <div class="admin-title-row">
-                <h1>Дашборд</h1>
-                <span class="admin-health-pill admin-health-pill--@HealthTone">
-                    <span></span>
-                    @HealthLabel
-                </span>
-            </div>
-            <p>Операционная картина SugarGuard: пользователи, роли, связи, синхронизация и аудит.</p>
-        </div>
-
+    <div class="admin-hero admin-hero--compact" aria-label="Действия дашборда">
         <div class="admin-hero-actions">
+            <span class="admin-health-pill admin-health-pill--@HealthTone">
+                <span></span>
+                @HealthLabel
+            </span>
             <span class="admin-updated">Обновлено: @FormatLocal(_loadedAt)</span>
             <button class="admin-btn admin-btn--soft" type="button" @onclick="() => LoadAsync()" disabled="@_isLoading">
                 @(_isLoading ? "Обновление..." : "Обновить")
             </button>
             <a class="admin-btn admin-btn--primary" href="/admin/export-logs">Экспорт</a>
         </div>
-    </header>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
@@ -696,6 +688,10 @@
         box-shadow: none;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
+    }
+
+    .admin-hero--compact {
+        justify-content: flex-end;
     }
 
     .admin-eyebrow {
