@@ -15,6 +15,8 @@ namespace SugarGuard.API.Application.Services;
 
 public sealed class NutritionTrackerService : INutritionTrackerService
 {
+    private static readonly UTF8Encoding CsvEncoding = new(encoderShouldEmitUTF8Identifier: true);
+
     private static readonly AchievementDefinition[] AchievementDefinitions =
     [
         new("first_steps", "Первые шаги", "Заполни первые 3 записи дневника", "achievement_first_steps.png", 3),
@@ -218,7 +220,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
     public async Task<byte[]> ExportCsvAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
     {
         var entries = await GetEntriesAsync(childId, from, to, cancellationToken);
-        var builder = new StringBuilder("sep=,\r\n");
+        var builder = new StringBuilder("sep=;\r\n");
         builder.AppendLine(ToCsvRow("Дата и время", "Приём пищи", "Описание", "ХЕ", "Инсулин, ед.", "Глюкоза до", "Источник", "Заметка"));
 
         foreach (var entry in entries.OrderBy(entry => entry.RecordedAt))
@@ -234,9 +236,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 entry.Notes));
         }
 
-        // Microsoft Excel on Windows reliably detects UTF-16 LE through its BOM.
-        // UTF-8 CSV is frequently opened as a legacy code page and produces mojibake.
-        return Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes(builder.ToString())).ToArray();
+        // UTF-8 с BOM корректно определяется современным Microsoft Excel на Windows,
+        // в том числе при открытии файла из браузера.
+        return CsvEncoding.GetPreamble().Concat(CsvEncoding.GetBytes(builder.ToString())).ToArray();
     }
 
     public async Task<byte[]> ExportPdfAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
@@ -248,47 +250,90 @@ public sealed class NutritionTrackerService : INutritionTrackerService
             .Select(child => child.FirstName + " " + child.LastName)
             .SingleAsync(cancellationToken);
 
+        var locale = CultureInfo.GetCultureInfo("ru-RU");
+        var entriesByDay = entries
+            .OrderBy(item => item.RecordedAt)
+            .GroupBy(item => ToDisplayTime(item.RecordedAt).Date)
+            .ToList();
+
         return Document.Create(document => document.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.Margin(32);
+            page.Margin(36);
             page.DefaultTextStyle(style => style.FontSize(10));
-            page.Header().Text($"SugarGuard: питание и инсулин — {childName}")
-                .Bold()
-                .FontSize(18)
-                .FontColor(Colors.Teal.Darken2);
+            page.Header().Column(header =>
+            {
+                header.Item().Text("SugarGuard | Дневник питания")
+                    .Bold()
+                    .FontSize(18)
+                    .FontColor(Colors.Teal.Darken2);
+                header.Item().PaddingTop(3).Text($"{childName} · период: {ToDisplayTime(from):dd.MM.yyyy} - {ToDisplayTime(to):dd.MM.yyyy}")
+                    .FontSize(10)
+                    .FontColor(Colors.Grey.Darken1);
+                header.Item().PaddingTop(10).Row(row =>
+                {
+                    row.AutoItem().Background(Colors.Teal.Lighten5).PaddingHorizontal(7).PaddingVertical(3)
+                        .Text("Основные приёмы пищи").FontSize(8);
+                    row.ConstantItem(8);
+                    row.AutoItem().Background(Colors.Grey.Lighten4).PaddingHorizontal(7).PaddingVertical(3)
+                        .Text("Перекусы").FontSize(8);
+                });
+            });
             page.Content().PaddingTop(16).Column(column =>
             {
-                column.Item().Text($"Период: {ToDisplayTime(from):dd.MM.yyyy} — {ToDisplayTime(to):dd.MM.yyyy}");
-                column.Item().PaddingTop(12).Table(table =>
+                column.Spacing(10);
+
+                foreach (var day in entriesByDay)
                 {
-                    table.ColumnsDefinition(columns =>
+                    column.Item().EnsureSpace(100).Column(dayColumn =>
                     {
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn(3);
-                        columns.RelativeColumn();
-                        columns.RelativeColumn();
+                        dayColumn.Item()
+                            .BorderBottom(1)
+                            .BorderColor(Colors.Teal.Lighten2)
+                            .PaddingBottom(4)
+                            .Text(day.Key.ToString("dddd, d MMMM yyyy", locale))
+                            .Bold()
+                            .FontSize(12)
+                            .FontColor(Colors.Teal.Darken2);
+
+                        dayColumn.Item().PaddingTop(6).Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(4);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                            });
+
+                            foreach (var header in new[] { "Время", "Тип", "Описание", "ХЕ", "Инсулин" })
+                            {
+                                table.Cell().Background(Colors.Teal.Lighten4).Padding(5).Text(header).Bold().FontSize(8);
+                            }
+
+                            foreach (var entry in day)
+                            {
+                                var rowColor = entry.MealType switch
+                                {
+                                    MealType.Snack => Colors.Grey.Lighten4,
+                                    MealType.Other => Colors.Amber.Lighten5,
+                                    _ => Colors.Teal.Lighten5
+                                };
+
+                                table.Cell().Background(rowColor).Padding(5).Text(ToDisplayTime(entry.RecordedAt).ToString("HH:mm"));
+                                table.Cell().Background(rowColor).Padding(5).Text(MealLabel(entry.MealType));
+                                table.Cell().Background(rowColor).Padding(5).Text(entry.MealName).FontSize(9);
+                                table.Cell().Background(rowColor).Padding(5).Text(entry.BreadUnits.ToString("0.##", CultureInfo.InvariantCulture));
+                                table.Cell().Background(rowColor).Padding(5).Text(entry.InsulinUnits.ToString("0.##", CultureInfo.InvariantCulture));
+                            }
+                        });
                     });
-
-                    foreach (var header in new[] { "Дата", "Тип", "Описание", "ХЕ", "Инсулин" })
-                    {
-                        table.Cell().Background(Colors.Teal.Lighten4).Padding(5).Text(header).Bold();
-                    }
-
-                    foreach (var entry in entries.OrderBy(item => item.RecordedAt))
-                    {
-                        table.Cell().Padding(4).Text(ToDisplayTime(entry.RecordedAt).ToString("dd.MM HH:mm"));
-                        table.Cell().Padding(4).Text(MealLabel(entry.MealType));
-                        table.Cell().Padding(4).Text(entry.MealName);
-                        table.Cell().Padding(4).Text(entry.BreadUnits.ToString("0.##", CultureInfo.InvariantCulture));
-                        table.Cell().Padding(4).Text(entry.InsulinUnits.ToString("0.##", CultureInfo.InvariantCulture));
-                    }
-                });
+                }
             });
             page.Footer().AlignCenter().Text(text =>
             {
-                text.Span("Сформировано SugarGuard · ");
+                text.Span("Сформировано SugarGuard | ");
                 text.CurrentPageNumber();
             });
         })).GeneratePdf();
@@ -434,7 +479,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         }
     }
 
-    private static string ToCsvRow(params string?[] values) => string.Join(',', values.Select(Csv));
+    private static string ToCsvRow(params string?[] values) => string.Join(';', values.Select(Csv));
 
     private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
 

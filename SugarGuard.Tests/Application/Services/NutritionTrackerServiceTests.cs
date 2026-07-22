@@ -78,7 +78,7 @@ public sealed class NutritionTrackerServiceTests
     }
 
     [Fact]
-    public async Task ExportCsvAsync_UsesUtf16LeBomAndPreservesRussianTextForExcel()
+    public async Task ExportCsvAsync_UsesUtf8BomAndPreservesRussianTextForExcel()
     {
         await using var context = CreateContext();
         var child = CreateChild();
@@ -105,12 +105,53 @@ public sealed class NutritionTrackerServiceTests
             DateTime.UtcNow.AddDays(1),
             CancellationToken.None);
 
-        Assert.True(bytes.AsSpan().StartsWith(Encoding.Unicode.GetPreamble()));
+        var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+        Assert.True(bytes.AsSpan().StartsWith(encoding.GetPreamble()));
 
-        var csv = Encoding.Unicode.GetString(bytes.AsSpan(Encoding.Unicode.GetPreamble().Length));
-        Assert.StartsWith("sep=,\r\n", csv, StringComparison.Ordinal);
+        var csv = encoding.GetString(bytes.AsSpan(encoding.GetPreamble().Length));
+        Assert.StartsWith("sep=;\r\n", csv, StringComparison.Ordinal);
         Assert.Contains("Приём пищи", csv, StringComparison.Ordinal);
         Assert.Contains("Гречка с овощами", csv, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExportPdfAsync_ReturnsPdfForEntriesFromDifferentDays()
+    {
+        await using var context = CreateContext();
+        var child = CreateChild();
+        context.Children.Add(child);
+        context.NutritionEntries.AddRange(
+            new NutritionEntry
+            {
+                ChildId = child.ChildId,
+                RecordedAt = DateTime.UtcNow.AddDays(-1),
+                MealType = MealType.Breakfast,
+                MealName = "Каша",
+                BreadUnits = 2m,
+                CreatedByUserId = Guid.NewGuid()
+            },
+            new NutritionEntry
+            {
+                ChildId = child.ChildId,
+                RecordedAt = DateTime.UtcNow,
+                MealType = MealType.Snack,
+                MealName = "Йогурт",
+                BreadUnits = 1m,
+                CreatedByUserId = Guid.NewGuid()
+            });
+        await context.SaveChangesAsync();
+
+        var currentUser = new Mock<ICurrentUserContext>();
+        currentUser.Setup(service => service.GetRole()).Returns(UserRole.Parent);
+        var service = new NutritionTrackerService(context, currentUser.Object);
+
+        var pdf = await service.ExportPdfAsync(
+            child.ChildId,
+            DateTime.UtcNow.AddDays(-2),
+            DateTime.UtcNow.AddDays(1),
+            CancellationToken.None);
+
+        Assert.True(pdf.AsSpan().StartsWith("%PDF"u8));
     }
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()
