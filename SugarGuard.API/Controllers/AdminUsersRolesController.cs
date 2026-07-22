@@ -33,6 +33,24 @@ public class AdminUsersRolesController : ControllerBase
         return Ok(result);
     }
 
+    // GET api/admin/users-roles/users/paged
+    [HttpGet("users/paged")]
+    [ProducesResponseType(typeof(PagedResult<AdminUserResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResult<AdminUserResponse>>> GetUsersPage(
+        [FromQuery] UserRole? role,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1 || pageSize is < 10 or > 100)
+        {
+            return BadRequest(new { error = "invalid_paging", message = "page должен быть >= 1, pageSize — от 10 до 100." });
+        }
+
+        return Ok(await _adminService.GetUsersPageAsync(role, search, page, pageSize, cancellationToken));
+    }
+
     // PUT api/admin/users-roles/users/{userId}/role
     [HttpPut("users/{userId:guid}/role")]
     [Authorize(Policy = "FullAdminOnly")]
@@ -67,6 +85,44 @@ public class AdminUsersRolesController : ControllerBase
         return result is null
             ? NotFound(new { error = "user_not_found", message = "User not found" })
             : Ok(result);
+    }
+
+    // PUT api/admin/users-roles/users/activity
+    [HttpPut("users/activity")]
+    [Authorize(Policy = "FullAdminOnly")]
+    [ProducesResponseType(typeof(UpdateUsersActivityResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UpdateUsersActivityResponse>> UpdateUsersActivity(
+        [FromBody] UpdateUsersActivityRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actorUserId = _currentUser.GetUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var updatedCount = await _adminService.SetUsersActivityAsync(
+                request.UserIds,
+                request.IsActive,
+                actorUserId.Value,
+                cancellationToken);
+
+            return Ok(new UpdateUsersActivityResponse
+            {
+                UpdatedCount = updatedCount,
+                IsActive = request.IsActive
+            });
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { error = "invalid_users", message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { error = "activity_change_not_allowed", message = exception.Message });
+        }
     }
 
     // POST api/admin/users-roles/links/parent-child

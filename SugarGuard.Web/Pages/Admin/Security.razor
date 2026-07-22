@@ -1,0 +1,88 @@
+@page "/admin/security"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Web.ViewModels
+
+@inject SugarGuardApiService Api
+
+<PageTitle>Безопасность — SugarGuard Admin</PageTitle>
+
+<div class="admin-security-overview">
+    <PageHeader Eyebrow="Безопасность"
+                Title="Сессии и авторизация"
+                Subtitle="Метаданные входов и обновлений сессий. Содержимое токенов и секреты не передаются в браузер.">
+        <TrailingContent>
+            <button class="security-button" type="button" @onclick="LoadAsync" disabled="@_loading">@(_loading ? "Обновление..." : "Обновить")</button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_error)) { <div class="security-alert">@_error</div> }
+
+    <section class="security-stats">
+        <article><span>Событий</span><strong>@_events.Count</strong></article>
+        <article><span>Ошибок входа</span><strong class="@(_failedCount > 0 ? "danger" : "safe")">@_failedCount</strong></article>
+        <article><span>Обновлений сессий</span><strong>@_refreshCount</strong></article>
+    </section>
+
+    <section class="security-panel">
+        @if (_loading && _events.Count == 0) { <p>Загружаем события...</p> }
+        else if (_events.Count == 0) { <p>События авторизации пока не найдены.</p> }
+        else
+        {
+            <div class="security-list">
+                @foreach (var item in _events)
+                {
+                    <article class="security-event @(IsFailure(item) ? "security-event--danger" : "")">
+                        <span class="security-event__time">@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        <strong>@item.Action</strong>
+                        <span>@(item.TargetType ?? "Сессия")</span>
+                        @if (!string.IsNullOrWhiteSpace(item.Details)) { <small>@Short(item.Details)</small> }
+                    </article>
+                }
+            </div>
+        }
+        <a class="security-link" href="/admin/audit">Открыть полный журнал аудита →</a>
+    </section>
+</div>
+
+<style>
+    .admin-security-overview{display:grid;gap:20px;color:var(--sg-text,#16213E)}.security-button{min-height:40px;padding:9px 14px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:999px;background:var(--sg-surface,#fff);color:var(--sg-primary,#1B8E8B);font:inherit;font-weight:800;cursor:pointer}.security-alert{padding:12px 14px;border-radius:14px;background:rgba(197,63,85,.12);color:#a62f45}.security-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.security-stats article,.security-panel{padding:18px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:20px;background:var(--sg-surface,#fff);box-shadow:var(--shadow-sm,0 12px 28px rgba(18,31,58,.07))}.security-stats article{display:grid;gap:8px}.security-stats span{color:var(--sg-text-muted,#667694);font-size:12px;font-weight:800;text-transform:uppercase}.security-stats strong{font-size:26px}.safe{color:#17845e}.danger{color:#c53f55}.security-list{display:grid;gap:8px}.security-event{display:grid;grid-template-columns:150px minmax(160px,1fr) 120px minmax(0,1.5fr);gap:12px;align-items:center;padding:12px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:14px;font-size:13px}.security-event--danger{border-color:rgba(197,63,85,.32);background:rgba(197,63,85,.05)}.security-event__time,.security-event span,.security-event small{color:var(--sg-text-muted,#667694)}.security-link{display:block;margin-top:16px;color:var(--sg-primary,#1B8E8B);font-size:13px;font-weight:800;text-decoration:none}@@media(max-width:760px){.security-stats{grid-template-columns:1fr}.security-event{grid-template-columns:1fr;gap:5px}.security-event strong{margin-top:4px}}
+</style>
+
+@code {
+    private List<AuditLogVm> _events = [];
+    private bool _loading = true;
+    private string? _error;
+    private int _failedCount;
+    private int _refreshCount;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var page = await Api.GetAdminAuditLogsPageAsync(action: "auth", pageSize: 100);
+            _events = page.Items.OrderByDescending(item => item.CreatedAt).ToList();
+            _failedCount = _events.Count(IsFailure);
+            _refreshCount = _events.Count(item => item.Action.Contains("refresh", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception)
+        {
+            _error = "Не удалось загрузить события безопасности.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static bool IsFailure(AuditLogVm item) => item.Action.Contains("failed", StringComparison.OrdinalIgnoreCase)
+        || item.Action.Contains("error", StringComparison.OrdinalIgnoreCase);
+
+    private static string Short(string value) => value.Length <= 140 ? value : $"{value[..140]}…";
+}

@@ -104,6 +104,57 @@ public sealed class AdminService : IAdminService
         return users.Select(MapAdminUser).ToList();
     }
 
+    public async Task<PagedResult<AdminUserResponse>> GetUsersPageAsync(
+        UserRole? role,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var safePage = Math.Max(1, page);
+        var safePageSize = Math.Clamp(pageSize, 10, 100);
+        IQueryable<User> query = _users.Query().AsNoTracking();
+
+        if (role.HasValue)
+        {
+            query = query.Where(user => user.Role == role.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchTerm = search.Trim();
+
+            if (Guid.TryParse(searchTerm, out var userId))
+            {
+                query = query.Where(user => user.UserId == userId);
+            }
+            else
+            {
+                var roleMatches = Enum.TryParse<UserRole>(searchTerm, ignoreCase: true, out var parsedRole);
+                query = query.Where(user =>
+                    (user.EmailForLogin != null && EF.Functions.ILike(user.EmailForLogin, $"%{searchTerm}%"))
+                    || (user.TelegramId.HasValue && user.TelegramId.Value.ToString().Contains(searchTerm))
+                    || (roleMatches && user.Role == parsedRole));
+            }
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var users = await query
+            .OrderByDescending(user => user.CreatedAt)
+            .ThenBy(user => user.UserId)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<AdminUserResponse>
+        {
+            Items = users.Select(MapAdminUser).ToArray(),
+            TotalCount = totalCount,
+            Page = safePage,
+            PageSize = safePageSize
+        };
+    }
+
     public async Task<AdminUserResponse?> UpdateUserRoleAsync(
         Guid userId,
         string newRole,
@@ -169,7 +220,8 @@ public sealed class AdminService : IAdminService
             DisplayName = displayName,
             PhotoUrl = user.ProfilePhotoUrl,
             Specialty = user.DoctorSpecialty,
-            LicenseNumber = Decrypt(user.EncryptedDoctorLicense),
+            // Полный номер лицензии доступен только в карточке заявки на верификацию.
+            LicenseNumber = MaskLicenseNumber(Decrypt(user.EncryptedDoctorLicense)),
             IsEmailVerified = user.IsEmailVerified
         };
     }
@@ -189,6 +241,17 @@ public sealed class AdminService : IAdminService
         {
             return value;
         }
+    }
+
+    private static string MaskLicenseNumber(string licenseNumber)
+    {
+        if (string.IsNullOrWhiteSpace(licenseNumber))
+        {
+            return string.Empty;
+        }
+
+        var visibleLength = Math.Min(4, licenseNumber.Length);
+        return $"••••{licenseNumber[^visibleLength..]}";
     }
 
     public async Task<bool> DeactivateUserAsync(
@@ -224,6 +287,68 @@ public sealed class AdminService : IAdminService
 
         _logger.LogInformation("Пользователь {UserId} деактивирован.", userId);
         return true;
+    }
+
+    public async Task<int> SetUsersActivityAsync(
+        IReadOnlyCollection<Guid> userIds,
+        bool isActive,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctUserIds = userIds.Distinct().ToArray();
+        if (distinctUserIds.Length is < 1 or > 100)
+        {
+            throw new ArgumentException("Нужно выбрать от 1 до 100 пользователей.");
+        }
+
+        if (!isActive && distinctUserIds.Contains(actorUserId))
+        {
+            throw new InvalidOperationException("Нельзя деактивировать собственную учётную запись.");
+        }
+
+        var users = await _users.Query()
+            .Where(user => distinctUserIds.Contains(user.UserId))
+            .ToListAsync(cancellationToken);
+
+        if (users.Count != distinctUserIds.Length)
+        {
+            throw new ArgumentException("Один или несколько пользователей не найдены.");
+        }
+
+        if (!isActive)
+        {
+            var activeAdministrators = await _users.Query()
+                .CountAsync(user => user.Role == UserRole.Admin && user.IsActive, cancellationToken);
+            var administratorsToDeactivate = users.Count(user => user.Role == UserRole.Admin && user.IsActive);
+
+            if (activeAdministrators - administratorsToDeactivate <= 0)
+            {
+                throw new InvalidOperationException("Нельзя деактивировать последнего активного администратора.");
+            }
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var user in users)
+        {
+            user.IsActive = isActive;
+            user.DeactivatedAt = isActive ? null : now;
+        }
+
+        await _users.SaveChangesAsync(cancellationToken);
+
+        await _audit.WriteAsync(
+            action: isActive ? "admin.usersactivated" : "admin.usersdeactivated",
+            targetType: "Users",
+            targetId: string.Join(',', distinctUserIds),
+            details: $"count:{users.Count}",
+            cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Администратор изменил статус {Count} пользователей. IsActive={IsActive}.",
+            users.Count,
+            isActive);
+
+        return users.Count;
     }
 
     public async Task CreateParentChildLinkAsync(
@@ -536,22 +661,7 @@ public sealed class AdminService : IAdminService
 
         var safeLimit = Math.Clamp(limit, 1, 1000);
 
-        var query = _auditLogs.Query();
-
-        if (actorUserId.HasValue)
-            query = query.Where(a => a.ActorUserId == actorUserId.Value);
-
-        if (!string.IsNullOrWhiteSpace(action))
-        {
-            var actionFilter = action.Trim();
-            query = query.Where(a => EF.Functions.ILike(a.Action, $"%{actionFilter}%"));
-        }
-
-        if (from.HasValue)
-            query = query.Where(a => a.CreatedAt >= from.Value);
-
-        if (to.HasValue)
-            query = query.Where(a => a.CreatedAt <= to.Value);
+        var query = BuildAuditLogsQuery(actorUserId, action, from, to);
 
         return await query
             .OrderByDescending(a => a.CreatedAt)
@@ -567,6 +677,82 @@ public sealed class AdminService : IAdminService
                 CreatedAt = a.CreatedAt
             })
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<AuditLogResponse>> GetAuditLogsPageAsync(
+        Guid? actorUserId,
+        string? action,
+        DateTime? from,
+        DateTime? to,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+        {
+            throw new ArgumentException("Параметр 'from' не может быть позже 'to'.");
+        }
+
+        var safePage = Math.Max(1, page);
+        var safePageSize = Math.Clamp(pageSize, 10, 100);
+        var query = BuildAuditLogsQuery(actorUserId, action, from, to);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(item => item.CreatedAt)
+            .ThenByDescending(item => item.AuditLogId)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
+            .Select(item => new AuditLogResponse
+            {
+                AuditLogId = item.AuditLogId,
+                ActorUserId = item.ActorUserId,
+                Action = item.Action,
+                TargetType = item.TargetType,
+                TargetId = item.TargetId,
+                Details = item.Details,
+                CreatedAt = item.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<AuditLogResponse>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = safePage,
+            PageSize = safePageSize
+        };
+    }
+
+    private IQueryable<AuditLog> BuildAuditLogsQuery(
+        Guid? actorUserId,
+        string? action,
+        DateTime? from,
+        DateTime? to)
+    {
+        var query = _auditLogs.Query().AsNoTracking();
+
+        if (actorUserId.HasValue)
+        {
+            query = query.Where(item => item.ActorUserId == actorUserId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            var actionFilter = action.Trim();
+            query = query.Where(item => EF.Functions.ILike(item.Action, $"%{actionFilter}%"));
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(item => item.CreatedAt >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(item => item.CreatedAt <= to.Value);
+        }
+
+        return query;
     }
 
     public async Task<OnboardingFunnelResponse> GetOnboardingFunnelAsync(

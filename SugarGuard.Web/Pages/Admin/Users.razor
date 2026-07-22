@@ -17,7 +17,7 @@
         <TrailingContent>
             <button class="sg-btn sg-btn-soft"
                     type="button"
-                    @onclick="LoadUsersAsync"
+                    @onclick="() => LoadUsersAsync()"
                     disabled="@_isRefreshing">
                 @(_isRefreshing ? "Обновление..." : "Обновить")
             </button>
@@ -42,8 +42,8 @@
     {
         <section class="sg-stats-grid">
             <StatCard Label="Всего пользователей"
-                      Value="@_users.Count.ToString()"
-                      Subtitle="Лимит загрузки: 500"
+                      Value="@_totalUsers.ToString()"
+                      Subtitle="С учётом фильтров"
                       Status="neutral" />
 
             <StatCard Label="Активные"
@@ -66,10 +66,10 @@
             <div class="sg-main-column">
                 <section class="sg-panel">
                     <SectionHeader Title="Список пользователей"
-                                   Description="Фильтрация выполняется на странице, роли обновляются через API.">
+                            Description="Поиск и фильтры применяются на сервере; изменения ролей и статусов записываются в аудит.">
                         <TrailingContent>
                             <span class="sg-pill sg-pill-neutral">
-                                Найдено: @FilteredUsers.Count
+                                Найдено: @_totalUsers
                             </span>
                         </TrailingContent>
                     </SectionHeader>
@@ -81,7 +81,7 @@
                                    class="sg-input"
                                    type="search"
                                    value="@_searchTerm"
-                                   @oninput="OnSearchChanged"
+                                   @onchange="OnSearchChangedAsync"
                                    placeholder="Email, Telegram ID, GUID, роль" />
                         </div>
 
@@ -90,7 +90,7 @@
                             <select id="users-role-filter"
                                     class="sg-select"
                                     value="@_selectedRoleFilter"
-                                    @onchange="OnRoleFilterChanged">
+                                    @onchange="OnRoleFilterChangedAsync">
                                 <option value="">Все роли</option>
                                 @foreach (var role in _assignableRoles)
                                 {
@@ -100,7 +100,7 @@
                         </div>
                     </div>
 
-                    @if (!FilteredUsers.Any())
+                    @if (_users.Count == 0)
                     {
                         <div class="sg-empty-state">
                             <div class="sg-empty-icon">∅</div>
@@ -111,9 +111,15 @@
                     else
                     {
                         <div class="sg-users-list">
-                            @foreach (var user in PagedUsers)
+                            @foreach (var user in _users)
                             {
                                 <article class="sg-user-row" @key="user.UserId">
+                                    <label class="sg-user-select" title="Выбрать пользователя">
+                                        <input type="checkbox"
+                                               checked="@_selectedUserIds.Contains(user.UserId)"
+                                               @onchange="args => ToggleUserSelection(user.UserId, args)" />
+                                        <span class="visually-hidden">Выбрать @GetUserTitle(user)</span>
+                                    </label>
                                     <div class="sg-user-main">
                                         <div class="sg-user-identity">
                                             <div class="sg-user-avatar" aria-hidden="true">
@@ -195,15 +201,33 @@
                         </div>
 
                         <div class="sg-pagination" aria-label="Страницы пользователей">
-                            <span>Показано @UsersPageStart–@UsersPageEnd из @FilteredUsers.Count</span>
+                            <span>Показано @UsersPageStart–@UsersPageEnd из @_totalUsers</span>
                             <div class="sg-pagination-actions">
-                                <button class="sg-btn sg-btn-soft" type="button" @onclick="FirstUsersPage" disabled="@(_usersPage <= 1)">Первая</button>
-                                <button class="sg-btn sg-btn-soft" type="button" @onclick="PreviousUsersPage" disabled="@(_usersPage <= 1)">Назад</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="FirstUsersPageAsync" disabled="@(_usersPage <= 1 || _isRefreshing)">Первая</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="PreviousUsersPageAsync" disabled="@(_usersPage <= 1 || _isRefreshing)">Назад</button>
                                 <span class="sg-pagination-current">@_usersPage / @UsersPageCount</span>
-                                <button class="sg-btn sg-btn-soft" type="button" @onclick="NextUsersPage" disabled="@(_usersPage >= UsersPageCount)">Далее</button>
-                                <button class="sg-btn sg-btn-soft" type="button" @onclick="LastUsersPage" disabled="@(_usersPage >= UsersPageCount)">Последняя</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="NextUsersPageAsync" disabled="@(_usersPage >= UsersPageCount || _isRefreshing)">Далее</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="LastUsersPageAsync" disabled="@(_usersPage >= UsersPageCount || _isRefreshing)">Последняя</button>
                             </div>
                         </div>
+
+                        @if (_selectedUserIds.Count > 0)
+                        {
+                            <div class="sg-bulk-actions" role="status">
+                                @if (_pendingBulkActivityState.HasValue)
+                                {
+                                    <span>Подтвердите: @(_pendingBulkActivityState.Value ? "активировать" : "деактивировать") @_selectedUserIds.Count пользователей.</span>
+                                    <button class="sg-btn sg-btn-primary" type="button" @onclick="ConfirmBulkActivityAsync" disabled="@_isBulkUpdating">Подтвердить</button>
+                                    <button class="sg-btn sg-btn-soft" type="button" @onclick="CancelBulkActivity" disabled="@_isBulkUpdating">Отмена</button>
+                                }
+                                else
+                                {
+                                    <span>Выбрано: @_selectedUserIds.Count</span>
+                                    <button class="sg-btn sg-btn-soft" type="button" @onclick="() => RequestBulkActivity(true)" disabled="@_isBulkUpdating">Активировать</button>
+                                    <button class="sg-btn sg-btn-danger" type="button" @onclick="() => RequestBulkActivity(false)" disabled="@_isBulkUpdating">Деактивировать</button>
+                                }
+                            </div>
+                        }
                     }
                 </section>
             </div>
@@ -234,13 +258,14 @@
                         </div>
 
                         <div class="sg-field">
-                            <label class="sg-label" for="parent-child-id">ChildId</label>
-                            <input id="parent-child-id"
-                                   class="sg-input"
-                                   type="text"
-                                   @bind="_parentLinkForm.ChildId"
-                                   @bind:event="oninput"
-                                   placeholder="GUID ребёнка" />
+                            <label class="sg-label" for="parent-child-id">Ребёнок</label>
+                            <select id="parent-child-id" class="sg-select" @bind="_parentLinkForm.ChildId">
+                                <option value="">Выберите ребёнка</option>
+                                @foreach (var child in _children)
+                                {
+                                    <option value="@child.ChildId">@child.FullName</option>
+                                }
+                            </select>
                         </div>
 
                         <button class="sg-btn sg-btn-primary"
@@ -277,13 +302,14 @@
                         </div>
 
                         <div class="sg-field">
-                            <label class="sg-label" for="doctor-child-id">ChildId</label>
-                            <input id="doctor-child-id"
-                                   class="sg-input"
-                                   type="text"
-                                   @bind="_doctorLinkForm.ChildId"
-                                   @bind:event="oninput"
-                                   placeholder="GUID ребёнка" />
+                            <label class="sg-label" for="doctor-child-id">Ребёнок</label>
+                            <select id="doctor-child-id" class="sg-select" @bind="_doctorLinkForm.ChildId">
+                                <option value="">Выберите ребёнка</option>
+                                @foreach (var child in _children)
+                                {
+                                    <option value="@child.ChildId">@child.FullName</option>
+                                }
+                            </select>
                         </div>
 
                         <button class="sg-btn sg-btn-primary"
@@ -302,8 +328,8 @@
                     <ul class="sg-hints-list">
                         <li>Для parent-child выбирайте только пользователей с ролью <strong>Parent</strong>.</li>
                         <li>Для doctor-child допустимы роли <strong>Doctor</strong>, <strong>Admin</strong> и <strong>SupportAdmin</strong>.</li>
-                        <li>ChildId вводится вручную GUID-значением ребёнка.</li>
-                        <li>После смены роли список кандидатов в формах обновляется автоматически.</li>
+                        <li>Родитель, врач и ребёнок выбираются из списков — GUID вводить не нужно.</li>
+                        <li>Массовая смена статуса требует отдельного подтверждения и фиксируется в журнале аудита.</li>
                     </ul>
                 </section>
             </aside>
@@ -521,7 +547,7 @@
 
     .sg-user-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 18px;
         align-items: center;
         padding: 18px;
@@ -529,6 +555,35 @@
         border: 1px solid var(--sg-border, rgba(22, 33, 62, 0.10));
         background: var(--sg-surface-2, rgba(255, 255, 255, 0.95));
         box-shadow: var(--shadow-sm, 0 12px 28px rgba(18, 31, 58, 0.07));
+    }
+
+    .sg-user-select {
+        display: grid;
+        place-items: center;
+        align-self: stretch;
+        padding: 0 2px;
+        cursor: pointer;
+    }
+
+    .sg-user-select input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--sg-primary, #1B8E8B);
+    }
+
+    .sg-bulk-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid rgba(27, 142, 139, 0.22);
+        border-radius: 14px;
+        background: rgba(27, 142, 139, 0.08);
+        color: var(--sg-text, #16213E);
+        font-size: 13px;
+        font-weight: 700;
     }
 
     .sg-user-main {
@@ -884,6 +939,12 @@
         font-weight: 700;
     }
 
+    .sg-btn-danger {
+        background: #C53F55;
+        color: #fff;
+        box-shadow: 0 10px 20px rgba(197, 63, 85, .22);
+    }
+
     .sg-pagination-actions {
         display: flex;
         align-items: center;
@@ -923,7 +984,10 @@
 @code {
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly List<AdminUserItem> _users = [];
+    private readonly List<AdminUserItem> _linkCandidates = [];
+    private readonly List<ChildProfileVm> _children = [];
     private readonly Dictionary<Guid, string> _roleDrafts = new();
+    private readonly HashSet<Guid> _selectedUserIds = [];
 
     private readonly ParentChildLinkFormModel _parentLinkForm = new();
     private readonly DoctorChildLinkFormModel _doctorLinkForm = new();
@@ -940,7 +1004,9 @@
     private bool _isRefreshing;
     private bool _isParentLinkSubmitting;
     private bool _isDoctorLinkSubmitting;
+    private bool _isBulkUpdating;
     private Guid? _roleSavingUserId;
+    private bool? _pendingBulkActivityState;
 
     private string _searchTerm = string.Empty;
     private string _selectedRoleFilter = string.Empty;
@@ -948,31 +1014,20 @@
     private StatusTone _statusTone = StatusTone.Info;
     private const int UsersPageSize = 20;
     private int _usersPage = 1;
+    private int _totalUsers;
 
-    private IReadOnlyList<AdminUserItem> FilteredUsers =>
-        _users
-            .Where(MatchesRoleFilter)
-            .Where(MatchesSearch)
-            .OrderByDescending(x => x.CreatedAt)
-            .ThenBy(x => x.EmailForLogin ?? string.Empty)
-            .ToList();
-
-    private int UsersPageCount => Math.Max(1, (int)Math.Ceiling(FilteredUsers.Count / (double)UsersPageSize));
-    private int UsersPageStart => FilteredUsers.Count == 0 ? 0 : ((_usersPage - 1) * UsersPageSize) + 1;
-    private int UsersPageEnd => Math.Min(_usersPage * UsersPageSize, FilteredUsers.Count);
-    private IReadOnlyList<AdminUserItem> PagedUsers => FilteredUsers
-        .Skip((_usersPage - 1) * UsersPageSize)
-        .Take(UsersPageSize)
-        .ToList();
+    private int UsersPageCount => Math.Max(1, (int)Math.Ceiling(_totalUsers / (double)UsersPageSize));
+    private int UsersPageStart => _totalUsers == 0 ? 0 : ((_usersPage - 1) * UsersPageSize) + 1;
+    private int UsersPageEnd => Math.Min(_usersPage * UsersPageSize, _totalUsers);
 
     private IEnumerable<AdminUserItem> ParentCandidates =>
-        _users
+        _linkCandidates
             .Where(IsVerifiedParent)
             .OrderBy(x => x.EmailForLogin ?? string.Empty)
             .ThenBy(x => x.CreatedAt);
 
     private IEnumerable<AdminUserItem> DoctorCandidates =>
-        _users
+        _linkCandidates
             .Where(x => x.IsActive && IsDoctorLinkRole(x.Role))
             .OrderBy(x => x.EmailForLogin ?? string.Empty)
             .ThenBy(x => x.CreatedAt);
@@ -982,7 +1037,7 @@
         await LoadUsersAsync();
     }
 
-    private async Task LoadUsersAsync()
+    private async Task LoadUsersAsync(int? requestedPage = null)
     {
         if (_isRefreshing)
         {
@@ -1002,17 +1057,49 @@
 
             ClearStatus();
 
-            var users = await Api.GetAdminUsersAsync(limit: 500, cancellationToken: cancellationToken);
+            var userPageTask = Api.GetAdminUsersPageAsync(
+                _selectedRoleFilter,
+                _searchTerm,
+                requestedPage ?? _usersPage,
+                UsersPageSize,
+                cancellationToken);
+
+            Task<List<AdminUserVm>>? candidatesTask = null;
+            Task<List<ChildProfileVm>>? childrenTask = null;
+            if (_linkCandidates.Count == 0 || requestedPage is null)
+            {
+                candidatesTask = Api.GetAdminUsersAsync(limit: 1000, cancellationToken: cancellationToken);
+                childrenTask = Api.GetMyChildrenAsync(pageSize: 200, cancellationToken: cancellationToken);
+            }
+
+            var userPage = await userPageTask;
 
             _users.Clear();
-            _users.AddRange(users.Select(AdminUserItem.FromVm).OrderByDescending(x => x.CreatedAt));
-            _usersPage = 1;
+            _users.AddRange(userPage.Items.Select(AdminUserItem.FromVm));
+            _usersPage = userPage.Page;
+            _totalUsers = userPage.TotalCount;
+            _selectedUserIds.Clear();
+            _pendingBulkActivityState = null;
 
             _roleDrafts.Clear();
 
             foreach (var user in _users)
             {
                 _roleDrafts[user.UserId] = user.Role;
+            }
+
+            if (candidatesTask is not null)
+            {
+                var candidates = await candidatesTask;
+                _linkCandidates.Clear();
+                _linkCandidates.AddRange(candidates.Select(AdminUserItem.FromVm));
+            }
+
+            if (childrenTask is not null)
+            {
+                var children = await childrenTask;
+                _children.Clear();
+                _children.AddRange(children.OrderBy(child => child.FullName));
             }
 
             NormalizeForms();
@@ -1168,22 +1255,82 @@
         }
     }
 
-    private void OnSearchChanged(ChangeEventArgs args)
+    private async Task OnSearchChangedAsync(ChangeEventArgs args)
     {
         _searchTerm = args.Value?.ToString()?.Trim() ?? string.Empty;
-        _usersPage = 1;
+        await LoadUsersAsync(1);
     }
 
-    private void OnRoleFilterChanged(ChangeEventArgs args)
+    private async Task OnRoleFilterChangedAsync(ChangeEventArgs args)
     {
         _selectedRoleFilter = args.Value?.ToString()?.Trim() ?? string.Empty;
-        _usersPage = 1;
+        await LoadUsersAsync(1);
     }
 
-    private void FirstUsersPage() => _usersPage = 1;
-    private void PreviousUsersPage() => _usersPage = Math.Max(1, _usersPage - 1);
-    private void NextUsersPage() => _usersPage = Math.Min(UsersPageCount, _usersPage + 1);
-    private void LastUsersPage() => _usersPage = UsersPageCount;
+    private Task FirstUsersPageAsync() => LoadUsersAsync(1);
+    private Task PreviousUsersPageAsync() => LoadUsersAsync(Math.Max(1, _usersPage - 1));
+    private Task NextUsersPageAsync() => LoadUsersAsync(Math.Min(UsersPageCount, _usersPage + 1));
+    private Task LastUsersPageAsync() => LoadUsersAsync(UsersPageCount);
+
+    private void ToggleUserSelection(Guid userId, ChangeEventArgs args)
+    {
+        if (args.Value is bool isSelected && isSelected)
+        {
+            _selectedUserIds.Add(userId);
+        }
+        else
+        {
+            _selectedUserIds.Remove(userId);
+        }
+
+        _pendingBulkActivityState = null;
+    }
+
+    private void RequestBulkActivity(bool isActive)
+    {
+        _pendingBulkActivityState = isActive;
+    }
+
+    private void CancelBulkActivity()
+    {
+        _pendingBulkActivityState = null;
+    }
+
+    private async Task ConfirmBulkActivityAsync()
+    {
+        if (!_pendingBulkActivityState.HasValue || _selectedUserIds.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _isBulkUpdating = true;
+            ClearStatus();
+            await Api.UpdateAdminUsersActivityAsync(
+                _selectedUserIds,
+                _pendingBulkActivityState.Value,
+                _disposeCts.Token);
+            SetStatus(
+                _pendingBulkActivityState.Value
+                    ? "Выбранные учётные записи активированы."
+                    : "Выбранные учётные записи деактивированы.",
+                StatusTone.Success);
+            await LoadUsersAsync(_usersPage);
+        }
+        catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Не удалось изменить статус пользователей: {exception.Message}", StatusTone.Danger);
+        }
+        finally
+        {
+            _isBulkUpdating = false;
+            _pendingBulkActivityState = null;
+        }
+    }
 
     private void OnRoleDraftChanged(Guid userId, ChangeEventArgs args)
     {
@@ -1208,27 +1355,6 @@
         return _roleDrafts.TryGetValue(userId, out var role) && !string.IsNullOrWhiteSpace(role)
             ? role
             : fallbackRole;
-    }
-
-    private bool MatchesSearch(AdminUserItem user)
-    {
-        if (string.IsNullOrWhiteSpace(_searchTerm))
-        {
-            return true;
-        }
-
-        var term = _searchTerm.Trim();
-
-        return (user.EmailForLogin?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-               || user.UserId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase)
-               || user.Role.Contains(term, StringComparison.OrdinalIgnoreCase)
-               || (user.TelegramId?.ToString()?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
-    }
-
-    private bool MatchesRoleFilter(AdminUserItem user)
-    {
-        return string.IsNullOrWhiteSpace(_selectedRoleFilter)
-               || string.Equals(user.Role, _selectedRoleFilter, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsAssignableRole(string? role)

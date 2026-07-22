@@ -1,0 +1,136 @@
+@page "/admin/work-queue"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,SupportAdmin")]
+
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Domain.Enums
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+
+@inject SugarGuardApiService Api
+
+<PageTitle>Рабочая очередь — SugarGuard Admin</PageTitle>
+
+<div class="admin-work-queue">
+    <PageHeader Eyebrow="Администрирование"
+                Title="Рабочая очередь"
+                Subtitle="Задачи, требующие действий: поддержка, проверка врачей, состояние системы и лимит ИИ.">
+        <TrailingContent>
+            <button class="queue-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
+                @(_isLoading ? "Обновление..." : "Обновить")
+            </button>
+        </TrailingContent>
+    </PageHeader>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="queue-alert">@_message</div>
+    }
+
+    <section class="queue-stats" aria-label="Сводка задач">
+        <article><span>Ожидают поддержки</span><strong>@WaitingForSupportCount</strong></article>
+        <article><span>Заявки врачей</span><strong>@_pendingDoctorRequests</strong></article>
+        <article><span>Лимит ИИ</span><strong>@GetAiBudgetText()</strong></article>
+        <article><span>Система</span><strong class="@(_isSystemHealthy ? "safe" : "danger")">@(_isSystemHealthy ? "В норме" : "Проверить")</strong></article>
+    </section>
+
+    @if (_isLoading && _items.Count == 0)
+    {
+        <section class="queue-panel">Загружаем задачи...</section>
+    }
+    else if (_items.Count == 0)
+    {
+        <section class="queue-panel queue-empty">
+            <strong>Открытых задач нет</strong>
+            <span>Новые обращения, заявки врачей и системные предупреждения появятся здесь автоматически.</span>
+        </section>
+    }
+    else
+    {
+        <section class="queue-panel">
+            <div class="queue-list">
+                @foreach (var item in _items)
+                {
+                    <a class="queue-item queue-item--@item.Tone" href="@item.Href">
+                        <span class="queue-item__icon" aria-hidden="true">@item.Icon</span>
+                        <span class="queue-item__content"><strong>@item.Title</strong><small>@item.Description</small></span>
+                        <span class="queue-item__action">Открыть →</span>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+<style>
+    .admin-work-queue{display:grid;gap:20px;color:var(--sg-text,#16213E)}.queue-button{min-height:40px;padding:9px 14px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:999px;background:var(--sg-surface,#fff);color:var(--sg-primary,#1B8E8B);font:inherit;font-weight:800;cursor:pointer}.queue-button:disabled{opacity:.6;cursor:wait}.queue-alert{padding:12px 14px;border-radius:14px;background:rgba(217,119,6,.12);color:#9A650A}.queue-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.queue-stats article,.queue-panel{border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:20px;background:var(--sg-surface,#fff);box-shadow:var(--shadow-sm,0 12px 28px rgba(18,31,58,.07))}.queue-stats article{display:grid;gap:8px;padding:18px}.queue-stats span{color:var(--sg-text-muted,#667694);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.queue-stats strong{font-size:24px}.safe{color:#17845e}.danger{color:#c53f55}.queue-panel{padding:18px}.queue-empty{display:grid;gap:6px;justify-items:center;padding:50px 20px;text-align:center}.queue-empty span{color:var(--sg-text-muted,#667694)}.queue-list{display:grid;gap:10px}.queue-item{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--sg-border,rgba(22,33,62,.1));border-radius:16px;color:inherit;text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}.queue-item:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm,0 12px 28px rgba(18,31,58,.07))}.queue-item__icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(27,142,139,.12);font-size:20px}.queue-item--warning .queue-item__icon{background:rgba(217,119,6,.13)}.queue-item--danger .queue-item__icon{background:rgba(197,63,85,.12)}.queue-item__content{display:grid;gap:3px;min-width:0;flex:1}.queue-item__content small{color:var(--sg-text-muted,#667694);line-height:1.45}.queue-item__action{color:var(--sg-primary,#1B8E8B);font-size:13px;font-weight:800;white-space:nowrap}@@media(max-width:900px){.queue-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@@media(max-width:560px){.admin-work-queue{gap:14px}.queue-stats{grid-template-columns:1fr}.queue-item{align-items:flex-start}.queue-item__action{display:none}}
+</style>
+
+@code {
+    private readonly List<QueueItem> _items = [];
+    private bool _isLoading = true;
+    private string? _message;
+    private int _pendingDoctorRequests;
+    private int WaitingForSupportCount { get; set; }
+    private bool _isSystemHealthy;
+    private GigaChatUsageVm? _gigaChatUsage;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _message = null;
+        try
+        {
+            var supportTask = Api.GetSupportConversationsAsync();
+            var healthTask = Api.GetAdminHealthAsync();
+            var usageTask = Api.GetAdminGigaChatUsageAsync();
+            using var doctorResponse = await Api.GetPendingDoctorVerificationsAsync();
+
+            var support = await supportTask;
+            var health = await healthTask;
+            _gigaChatUsage = await usageTask;
+            _pendingDoctorRequests = doctorResponse.IsSuccessStatusCode
+                ? (await doctorResponse.Content.ReadFromJsonAsync<List<DoctorRequestSummary>>() ?? []).Count
+                : 0;
+            WaitingForSupportCount = support.Count(item => item.Status == SupportConversationStatus.WaitingForSupport);
+            _isSystemHealthy = health?.DatabaseOk == true
+                && string.Equals(health.Status, "healthy", StringComparison.OrdinalIgnoreCase);
+
+            _items.Clear();
+            if (WaitingForSupportCount > 0)
+            {
+                _items.Add(new("💬", "Обращения поддержки", $"Ответа ожидают: {WaitingForSupportCount}", "/admin/support", "warning"));
+            }
+            if (_pendingDoctorRequests > 0)
+            {
+                _items.Add(new("🩺", "Проверка врачей", $"Новых заявок: {_pendingDoctorRequests}", "/admin/doctor-requests", "warning"));
+            }
+            if (!_isSystemHealthy)
+            {
+                _items.Add(new("⚠", "Состояние системы", "Проверьте базу данных и доступность сервисов.", "/admin/system", "danger"));
+            }
+            if (_gigaChatUsage?.MonthlyTokenBudget is > 0 && _gigaChatUsage.MonthlyBudgetUsedPercent >= 70)
+            {
+                _items.Add(new("✦", "Лимит GigaChat", $"Использовано {_gigaChatUsage.MonthlyBudgetUsedPercent:0}% месячного бюджета.", "/admin/tokens", _gigaChatUsage.MonthlyBudgetUsedPercent >= 90 ? "danger" : "warning"));
+            }
+        }
+        catch (Exception)
+        {
+            _message = "Не удалось обновить рабочую очередь. Повторите попытку.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetAiBudgetText() => _gigaChatUsage?.MonthlyTokenBudget is > 0
+        ? $"{_gigaChatUsage.MonthlyBudgetUsedPercent:0}%"
+        : "Не задан";
+
+    private sealed record QueueItem(string Icon, string Title, string Description, string Href, string Tone);
+    private sealed class DoctorRequestSummary { public Guid RequestId { get; init; } }
+}

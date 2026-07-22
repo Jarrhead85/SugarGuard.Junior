@@ -87,3 +87,25 @@ public class UpdateUserRoleRequest
 {
     public string NewRole { get; init; } = string.Empty;
 }
+
+/// <summary>
+/// Запрос на массовое изменение статуса учётных записей.
+/// </summary>
+public sealed class UpdateUsersActivityRequest
+{
+    [Required]
+    [MinLength(1)]
+    [MaxLength(100)]
+    public IReadOnlyList<Guid> UserIds { get; init; } = [];
+
+    public bool IsActive { get; init; }
+}
+
+/// <summary>
+/// Результат массового изменения статуса учётных записей.
+/// </summary>
+public sealed class UpdateUsersActivityResponse
+{
+    public int UpdatedCount { get; init; }
+    public bool IsActive { get; init; }
+}

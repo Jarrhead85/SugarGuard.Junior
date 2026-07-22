@@ -173,6 +173,34 @@ public class AdminController : ControllerBase
         }
     }
 
+    // GET api/admin/audit-logs/paged
+    [HttpGet("audit-logs/paged")]
+    [ProducesResponseType(typeof(PagedResult<AuditLogResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAuditLogsPageAsync(
+        [FromQuery] Guid? actorUserId,
+        [FromQuery] string? action,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1 || pageSize is < 10 or > 100)
+        {
+            return BadRequest(new { error = "invalid_paging", message = "page должен быть >= 1, pageSize — от 10 до 100." });
+        }
+
+        try
+        {
+            return Ok(await _adminService.GetAuditLogsPageAsync(
+                actorUserId, action, from, to, page, pageSize, cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { error = "invalid_argument", message = exception.Message });
+        }
+    }
+
     // GET api/admin/onboarding/funnel
     /// <summary>
     /// Возвращает аналитику воронки онбординга

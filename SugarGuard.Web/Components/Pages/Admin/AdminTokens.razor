@@ -8,12 +8,12 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>JWT / Токены - SugarGuard Admin</PageTitle>
+<PageTitle>ИИ и лимиты - SugarGuard Admin</PageTitle>
 
 <div class="admin-security-page">
-    <PageHeader Eyebrow="Безопасность"
-                Title="JWT / Токены"
-                Subtitle="Контроль сессий, refresh-token событий, признаков подозрительной активности и расхода GigaChat. Секреты и подписи не отображаются в UI.">
+    <PageHeader Eyebrow="ИИ и лимиты"
+                Title="Расход GigaChat"
+                Subtitle="Расход токенов, месячный бюджет и детализация по детям. События авторизации вынесены в отдельный раздел «Безопасность».">
         <TrailingContent>
             <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
                 @(_isLoading ? "Обновление..." : "Обновить")
@@ -27,6 +27,8 @@
     }
 
     <section class="admin-kpi-grid">
+        @if (ShowSecurityDetails)
+        {
         <StatCard Label="Auth-событий"
                   Value="@_authEvents.Count.ToString(CultureInfo.InvariantCulture)"
                   Subtitle="Последние записи audit"
@@ -39,6 +41,7 @@
                   Value="@RefreshEvents.ToString(CultureInfo.InvariantCulture)"
                   Subtitle="Обновление сессий"
                   Status="neutral" />
+        }
         <StatCard Label="GigaChat за месяц"
                   Value="@FormatInt(_gigaChatUsage?.Month.TotalTokens)"
                   Subtitle="@FormatGigaChatBudgetSubtitle()"
@@ -153,6 +156,8 @@
                 }
             </section>
 
+            @if (ShowSecurityDetails)
+            {
             <section class="admin-panel">
                 <SectionHeader Title="Последние события авторизации"
                                Description="Показываются только метаданные audit log: действие, цель и время. Токены и секреты не раскрываются.">
@@ -205,8 +210,11 @@
                     </div>
                 }
             </section>
+            }
         </div>
 
+        @if (ShowSecurityDetails)
+        {
         <aside class="admin-side-column">
             <section class="admin-panel">
                 <SectionHeader Title="Правила безопасности"
@@ -219,11 +227,14 @@
                 </ul>
             </section>
         </aside>
+        }
     </section>
 </div>
 
 @code {
     private List<AuditLogVm> _authEvents = [];
+    // История сессий отображается на отдельной странице «Безопасность».
+    private bool ShowSecurityDetails => false;
     private GigaChatUsageVm? _gigaChatUsage;
     private bool _isLoading = true;
     private string? _message;
@@ -260,17 +271,9 @@
             _isLoading = true;
             _message = null;
 
-            var logsTask = Api.GetAdminAuditLogsAsync(limit: 200);
-            var usageTask = Api.GetAdminGigaChatUsageAsync();
-
-            var logs = await logsTask;
-            _gigaChatUsage = await usageTask;
+            _gigaChatUsage = await Api.GetAdminGigaChatUsageAsync();
             _childrenPage = 1;
-            _authEvents = logs
-                .Where(IsAuthEvent)
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(80)
-                .ToList();
+            _authEvents = [];
         }
         catch (Exception ex)
         {

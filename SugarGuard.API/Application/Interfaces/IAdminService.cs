@@ -20,6 +20,16 @@ public interface IAdminService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Возвращает страницу пользователей для административного списка.
+    /// </summary>
+    Task<PagedResult<AdminUserResponse>> GetUsersPageAsync(
+        UserRole? role,
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Изменяет роль пользователя и записывает событие в audit log
     /// </summary>
     Task<AdminUserResponse?> UpdateUserRoleAsync(
@@ -32,6 +42,15 @@ public interface IAdminService
     /// </summary>
     Task<bool> DeactivateUserAsync(
         Guid userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Массово изменяет статус учётных записей и пишет агрегированное событие в аудит.
+    /// </summary>
+    Task<int> SetUsersActivityAsync(
+        IReadOnlyCollection<Guid> userIds,
+        bool isActive,
+        Guid actorUserId,
         CancellationToken cancellationToken = default);
 
     // Связи родитель-ребёнок
@@ -120,6 +139,18 @@ public interface IAdminService
         DateTime? from,
         DateTime? to,
         int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает страницу журнала аудита с фильтрацией на стороне базы данных.
+    /// </summary>
+    Task<PagedResult<AuditLogResponse>> GetAuditLogsPageAsync(
+        Guid? actorUserId,
+        string? action,
+        DateTime? from,
+        DateTime? to,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken = default);
 
     // Онбординг

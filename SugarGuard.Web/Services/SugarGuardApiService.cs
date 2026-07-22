@@ -663,13 +663,16 @@ namespace SugarGuard.Web.Services
         /// GET api/children
         /// </summary>
         public async Task<List<ChildProfileVm>> GetMyChildrenAsync(
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            int pageSize = 50)
         {
             try
             {
                 var client = await CreateAuthorizedClientAsync(cancellationToken);
                 var page = await GetRequiredAsync<PagedResult<ChildSummaryApiDto>>(
-                    client, "api/children", cancellationToken);
+                    client,
+                    BuildUrl("api/children", ("pageSize", Math.Clamp(pageSize, 1, 200).ToString())),
+                    cancellationToken);
 
                 return page.Items
                     .Select(c => new ChildProfileVm
@@ -1233,6 +1236,47 @@ namespace SugarGuard.Web.Services
             return users.Select(AdminUserVm.FromDto).ToList();
         }
 
+        /// <summary>
+        /// GET api/admin/users-roles/users/paged — серверная страница пользователей.
+        /// </summary>
+        public async Task<PagedResult<AdminUserVm>> GetAdminUsersPageAsync(
+            string? role = null,
+            string? search = null,
+            int page = 1,
+            int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var queryParams = new List<(string Key, string Value)>
+            {
+                ("page", Math.Max(1, page).ToString()),
+                ("pageSize", Math.Clamp(pageSize, 10, 100).ToString())
+            };
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                queryParams.Add(("role", role.Trim()));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                queryParams.Add(("search", search.Trim()));
+            }
+
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            var response = await GetRequiredAsync<PagedResult<AdminUserResponseDto>>(
+                client,
+                BuildUrl("api/admin/users-roles/users/paged", queryParams.ToArray()),
+                cancellationToken);
+
+            return new PagedResult<AdminUserVm>
+            {
+                Items = response.Items.Select(AdminUserVm.FromDto).ToList(),
+                TotalCount = response.TotalCount,
+                Page = response.Page,
+                PageSize = response.PageSize
+            };
+        }
+
         public async Task<List<AuditLogVm>> GetAdminAuditLogsAsync(
             Guid? actorUserId = null,
             string? action = null,
@@ -1270,6 +1314,29 @@ namespace SugarGuard.Web.Services
             return await GetRequiredAsync<List<AuditLogVm>>(
                 client,
                 BuildUrl("api/admin/audit-logs", queryParams.ToArray()),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// GET api/admin/audit-logs/paged — серверная страница событий аудита.
+        /// </summary>
+        public async Task<PagedResult<AuditLogVm>> GetAdminAuditLogsPageAsync(
+            Guid? actorUserId = null,
+            string? action = null,
+            DateTime? from = null,
+            DateTime? to = null,
+            int page = 1,
+            int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var queryParams = BuildAuditLogQueryParameters(actorUserId, action, from, to);
+            queryParams.Add(("page", Math.Max(1, page).ToString()));
+            queryParams.Add(("pageSize", Math.Clamp(pageSize, 10, 100).ToString()));
+
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            return await GetRequiredAsync<PagedResult<AuditLogVm>>(
+                client,
+                BuildUrl("api/admin/audit-logs/paged", queryParams.ToArray()),
                 cancellationToken);
         }
 
@@ -1968,6 +2035,30 @@ namespace SugarGuard.Web.Services
             response.EnsureSuccessStatusCode();
         }
 
+        /// <summary>
+        /// PUT api/admin/users-roles/users/activity.
+        /// Массово активирует или деактивирует выбранные учётные записи.
+        /// </summary>
+        public async Task UpdateAdminUsersActivityAsync(
+            IReadOnlyCollection<Guid> userIds,
+            bool isActive,
+            CancellationToken cancellationToken = default)
+        {
+            var uniqueIds = userIds.Distinct().Take(100).ToArray();
+            if (uniqueIds.Length == 0)
+            {
+                throw new ArgumentException("Не выбраны пользователи для изменения статуса.", nameof(userIds));
+            }
+
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PutAsJsonAsync(
+                "api/admin/users-roles/users/activity",
+                new UpdateUsersActivityApiRequest { UserIds = uniqueIds, IsActive = isActive },
+                _jsonOptions,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+
         public async Task MarkNotificationAsReadAsync(
             Guid notificationId,
             CancellationToken cancellationToken = default)
@@ -2061,6 +2152,37 @@ namespace SugarGuard.Web.Services
             var query = string.Join("&", queryParams.Select(p =>
                 $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
             return $"{path}?{query}";
+        }
+
+        private static List<(string Key, string Value)> BuildAuditLogQueryParameters(
+            Guid? actorUserId,
+            string? action,
+            DateTime? from,
+            DateTime? to)
+        {
+            var queryParams = new List<(string Key, string Value)>();
+
+            if (actorUserId.HasValue)
+            {
+                queryParams.Add(("actorUserId", actorUserId.Value.ToString()));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action))
+            {
+                queryParams.Add(("action", action.Trim()));
+            }
+
+            if (from.HasValue)
+            {
+                queryParams.Add(("from", from.Value.ToUniversalTime().ToString("O")));
+            }
+
+            if (to.HasValue)
+            {
+                queryParams.Add(("to", to.Value.ToUniversalTime().ToString("O")));
+            }
+
+            return queryParams;
         }
 
         // Приватный DTO для разбора ошибок onboarding/auth
@@ -2481,6 +2603,12 @@ namespace SugarGuard.Web.Services
         private sealed class UpdateUserRoleApiRequest
         {
             public string NewRole { get; init; } = string.Empty;
+        }
+
+        private sealed class UpdateUsersActivityApiRequest
+        {
+            public IReadOnlyList<Guid> UserIds { get; init; } = [];
+            public bool IsActive { get; init; }
         }
 
         private sealed class UpdateDoctorUserRoleRequest
