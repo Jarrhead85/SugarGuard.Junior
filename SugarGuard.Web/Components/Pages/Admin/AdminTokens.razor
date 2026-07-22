@@ -101,7 +101,7 @@
                     <div class="usage-child-section">
                         <div class="usage-child-section__title">
                             <strong>Расход по детям</strong>
-                            <span>@_gigaChatUsage.Children.Count записей</span>
+                            <span>Показано @ChildrenPageStart–@ChildrenPageEnd из @_gigaChatUsage.Children.Count</span>
                         </div>
                         @if (_gigaChatUsage.Children.Count == 0)
                         {
@@ -124,7 +124,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach (var child in _gigaChatUsage.Children)
+                                        @foreach (var child in PagedChildren)
                                         {
                                             <tr @key="child.ChildId">
                                                 <td>
@@ -139,6 +139,14 @@
                                         }
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <div class="admin-pagination" aria-label="Страницы расхода токенов по детям">
+                                <button class="admin-btn admin-btn--soft" type="button" @onclick="FirstChildrenPage" disabled="@(_childrenPage <= 1)">Первая</button>
+                                <button class="admin-btn admin-btn--soft" type="button" @onclick="PreviousChildrenPage" disabled="@(_childrenPage <= 1)">Назад</button>
+                                <span>@_childrenPage / @ChildrenPageCount</span>
+                                <button class="admin-btn admin-btn--soft" type="button" @onclick="NextChildrenPage" disabled="@(_childrenPage >= ChildrenPageCount)">Далее</button>
+                                <button class="admin-btn admin-btn--soft" type="button" @onclick="LastChildrenPage" disabled="@(_childrenPage >= ChildrenPageCount)">Последняя</button>
                             </div>
                         }
                     </div>
@@ -219,6 +227,19 @@
     private GigaChatUsageVm? _gigaChatUsage;
     private bool _isLoading = true;
     private string? _message;
+    private const int ChildrenPageSize = 10;
+    private int _childrenPage = 1;
+
+    private int ChildrenPageCount => Math.Max(1, (int)Math.Ceiling((_gigaChatUsage?.Children.Count ?? 0) / (double)ChildrenPageSize));
+    private int ChildrenPageStart => _gigaChatUsage is null || _gigaChatUsage.Children.Count == 0
+        ? 0
+        : ((_childrenPage - 1) * ChildrenPageSize) + 1;
+    private int ChildrenPageEnd => Math.Min(_childrenPage * ChildrenPageSize, _gigaChatUsage?.Children.Count ?? 0);
+    private IReadOnlyList<GigaChatChildUsageVm> PagedChildren => _gigaChatUsage?.Children
+        .Skip((_childrenPage - 1) * ChildrenPageSize)
+        .Take(ChildrenPageSize)
+        .ToArray()
+        ?? [];
 
     private int FailedAuthEvents => _authEvents.Count(x =>
         x.Action.Contains("failed", StringComparison.OrdinalIgnoreCase)
@@ -244,6 +265,7 @@
 
             var logs = await logsTask;
             _gigaChatUsage = await usageTask;
+            _childrenPage = 1;
             _authEvents = logs
                 .Where(IsAuthEvent)
                 .OrderByDescending(x => x.CreatedAt)
@@ -272,6 +294,11 @@
             || action.Contains("refresh", StringComparison.OrdinalIgnoreCase)
             || target.Contains("token", StringComparison.OrdinalIgnoreCase);
     }
+
+    private void FirstChildrenPage() => _childrenPage = 1;
+    private void PreviousChildrenPage() => _childrenPage = Math.Max(1, _childrenPage - 1);
+    private void NextChildrenPage() => _childrenPage = Math.Min(ChildrenPageCount, _childrenPage + 1);
+    private void LastChildrenPage() => _childrenPage = ChildrenPageCount;
 
     private string GetGigaChatStatus()
     {
@@ -599,6 +626,22 @@
         line-height: 1.65;
     }
 
+    .admin-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+        color: var(--color-text-muted, #667694);
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .admin-pagination .admin-btn {
+        min-height: 36px;
+        padding-inline: 12px;
+    }
+
     @@media (max-width: 1100px) {
         .admin-kpi-grid,
         .gigachat-usage {
@@ -618,6 +661,20 @@
 
         .admin-panel {
             padding: 18px;
+        }
+
+        .admin-pagination {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .admin-pagination > span {
+            display: grid;
+            place-items: center;
+        }
+
+        .admin-pagination .admin-btn {
+            width: 100%;
         }
     }
 </style>

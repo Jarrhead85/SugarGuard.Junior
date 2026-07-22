@@ -69,7 +69,7 @@
                                    Description="Фильтрация выполняется на странице, роли обновляются через API.">
                         <TrailingContent>
                             <span class="sg-pill sg-pill-neutral">
-                                Показано: @FilteredUsers.Count()
+                                Найдено: @FilteredUsers.Count
                             </span>
                         </TrailingContent>
                     </SectionHeader>
@@ -111,7 +111,7 @@
                     else
                     {
                         <div class="sg-users-list">
-                            @foreach (var user in FilteredUsers)
+                            @foreach (var user in PagedUsers)
                             {
                                 <article class="sg-user-row" @key="user.UserId">
                                     <div class="sg-user-main">
@@ -192,6 +192,17 @@
                                     </div>
                                 </article>
                             }
+                        </div>
+
+                        <div class="sg-pagination" aria-label="Страницы пользователей">
+                            <span>Показано @UsersPageStart–@UsersPageEnd из @FilteredUsers.Count</span>
+                            <div class="sg-pagination-actions">
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="FirstUsersPage" disabled="@(_usersPage <= 1)">Первая</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="PreviousUsersPage" disabled="@(_usersPage <= 1)">Назад</button>
+                                <span class="sg-pagination-current">@_usersPage / @UsersPageCount</span>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="NextUsersPage" disabled="@(_usersPage >= UsersPageCount)">Далее</button>
+                                <button class="sg-btn sg-btn-soft" type="button" @onclick="LastUsersPage" disabled="@(_usersPage >= UsersPageCount)">Последняя</button>
+                            </div>
                         </div>
                     }
                 </section>
@@ -862,6 +873,51 @@
             width: 100%;
         }
     }
+    .sg-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 18px;
+        color: var(--sg-text-muted, #667694);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .sg-pagination-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .sg-pagination .sg-btn {
+        width: auto;
+        min-height: 38px;
+        padding-inline: 12px;
+    }
+
+    .sg-pagination-current {
+        min-width: 48px;
+        text-align: center;
+        color: var(--sg-text, #16213E);
+    }
+
+    @@media (max-width: 700px) {
+        .sg-pagination {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .sg-pagination-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sg-pagination .sg-btn {
+            width: 100%;
+        }
+    }
 </style>
 
 @code {
@@ -890,13 +946,24 @@
     private string _selectedRoleFilter = string.Empty;
     private string? _statusMessage;
     private StatusTone _statusTone = StatusTone.Info;
+    private const int UsersPageSize = 20;
+    private int _usersPage = 1;
 
-    private IEnumerable<AdminUserItem> FilteredUsers =>
+    private IReadOnlyList<AdminUserItem> FilteredUsers =>
         _users
             .Where(MatchesRoleFilter)
             .Where(MatchesSearch)
             .OrderByDescending(x => x.CreatedAt)
-            .ThenBy(x => x.EmailForLogin ?? string.Empty);
+            .ThenBy(x => x.EmailForLogin ?? string.Empty)
+            .ToList();
+
+    private int UsersPageCount => Math.Max(1, (int)Math.Ceiling(FilteredUsers.Count / (double)UsersPageSize));
+    private int UsersPageStart => FilteredUsers.Count == 0 ? 0 : ((_usersPage - 1) * UsersPageSize) + 1;
+    private int UsersPageEnd => Math.Min(_usersPage * UsersPageSize, FilteredUsers.Count);
+    private IReadOnlyList<AdminUserItem> PagedUsers => FilteredUsers
+        .Skip((_usersPage - 1) * UsersPageSize)
+        .Take(UsersPageSize)
+        .ToList();
 
     private IEnumerable<AdminUserItem> ParentCandidates =>
         _users
@@ -939,6 +1006,7 @@
 
             _users.Clear();
             _users.AddRange(users.Select(AdminUserItem.FromVm).OrderByDescending(x => x.CreatedAt));
+            _usersPage = 1;
 
             _roleDrafts.Clear();
 
@@ -1103,12 +1171,19 @@
     private void OnSearchChanged(ChangeEventArgs args)
     {
         _searchTerm = args.Value?.ToString()?.Trim() ?? string.Empty;
+        _usersPage = 1;
     }
 
     private void OnRoleFilterChanged(ChangeEventArgs args)
     {
         _selectedRoleFilter = args.Value?.ToString()?.Trim() ?? string.Empty;
+        _usersPage = 1;
     }
+
+    private void FirstUsersPage() => _usersPage = 1;
+    private void PreviousUsersPage() => _usersPage = Math.Max(1, _usersPage - 1);
+    private void NextUsersPage() => _usersPage = Math.Min(UsersPageCount, _usersPage + 1);
+    private void LastUsersPage() => _usersPage = UsersPageCount;
 
     private void OnRoleDraftChanged(Guid userId, ChangeEventArgs args)
     {
