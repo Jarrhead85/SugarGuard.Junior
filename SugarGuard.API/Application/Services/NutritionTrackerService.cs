@@ -234,7 +234,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 entry.Notes));
         }
 
-        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray();
+        // Microsoft Excel on Windows reliably detects UTF-16 LE through its BOM.
+        // UTF-8 CSV is frequently opened as a legacy code page and produces mojibake.
+        return Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes(builder.ToString())).ToArray();
     }
 
     public async Task<byte[]> ExportPdfAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)

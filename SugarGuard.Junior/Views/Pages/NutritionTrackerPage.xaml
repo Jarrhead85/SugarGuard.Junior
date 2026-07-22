@@ -40,6 +40,7 @@
                         <Label Text="Новая запись" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
                         <Picker Title="Тип приёма пищи" ItemsSource="{Binding MealTypeOptions}" SelectedIndex="{Binding SelectedMealTypeIndex}" TextColor="{DynamicResource TextPrimary}" />
                         <Entry Placeholder="Что ты ел?" Text="{Binding MealName}" Style="{StaticResource TrackerField}" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><DatePicker Date="{Binding EntryDate}" TextColor="{DynamicResource TextPrimary}" /><TimePicker Grid.Column="1" Time="{Binding EntryTime}" TextColor="{DynamicResource TextPrimary}" /></Grid>
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><Entry Placeholder="ХЕ" Text="{Binding BreadUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /><Entry Grid.Column="1" Placeholder="Инсулин, ед." Text="{Binding InsulinUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /></Grid>
                         <Entry Placeholder="Сахар до еды (необязательно)" Text="{Binding GlucoseBeforeText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" />
                         <Entry Placeholder="Заметка (необязательно)" Text="{Binding Notes}" Style="{StaticResource TrackerField}" />

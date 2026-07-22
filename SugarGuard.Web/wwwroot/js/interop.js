@@ -36,14 +36,38 @@
         URL.revokeObjectURL(url);
     }
 
-    window.SugarGuard = window.SugarGuard || {};
+window.SugarGuard = window.SugarGuard || {};
+
+window.SugarGuard.articleEditor = window.SugarGuard.articleEditor || {
+    wrapSelection: function (id, before, after) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        const start = input.selectionStart || 0;
+        const end = input.selectionEnd || start;
+        const selected = input.value.slice(start, end) || "текст";
+        input.setRangeText(before + selected + after, start, end, "end");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+    },
+    insertAtCursor: function (id, text) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        const start = input.selectionStart || 0;
+        const end = input.selectionEnd || start;
+        input.setRangeText(text, start, end, "end");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+    }
+};
     window.SugarGuard.clickById = clickById;
     window.SugarGuard.downloadCsv = downloadCsv;
     window.SugarGuard.downloadBase64 = function (fileName, contentType, base64) {
         const binary = atob(base64 || '');
         let bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-        if (contentType && contentType.toLowerCase().startsWith('text/csv')
-            && !(bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)) {
+        const hasBom = (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)
+            || (bytes.length >= 2 && ((bytes[0] === 0xFF && bytes[1] === 0xFE)
+                || (bytes[0] === 0xFE && bytes[1] === 0xFF)));
+        if (contentType && contentType.toLowerCase().startsWith('text/csv') && !hasBom) {
             const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             const withBom = new Uint8Array(bom.length + bytes.length);
             withBom.set(bom);

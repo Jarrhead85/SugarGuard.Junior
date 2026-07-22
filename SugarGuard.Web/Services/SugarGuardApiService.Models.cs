@@ -158,6 +158,11 @@ public sealed class FaqArticleRequestVm
     public bool IsPublished { get; init; } = true;
 }
 
+public sealed class FaqImageUploadVm
+{
+    public string ImageUrl { get; init; } = string.Empty;
+}
+
 /// <summary>
 /// Краткое резюме пациента для врача
 /// </summary>

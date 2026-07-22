@@ -1,0 +1,176 @@
+@page "/doctor/articles"
+@attribute [Authorize(Roles = "Doctor")]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inject SugarGuardApiService Api
+@inject IJSRuntime Js
+
+<PageTitle>Статьи — SugarGuard</PageTitle>
+
+<section class="doctor-articles" aria-labelledby="doctor-articles-title">
+    <header class="doctor-articles__header">
+        <div>
+            <span>База знаний</span>
+            <h2 id="doctor-articles-title">Статьи для родителей</h2>
+            <p>Подготовьте понятный материал. Поддерживаются заголовки, выделение, списки и безопасные иллюстрации.</p>
+        </div>
+        <button class="doctor-articles__secondary" type="button" @onclick="LoadAsync" disabled="@_loading">Обновить</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="doctor-articles__message @(_isError ? "is-error" : "")" role="alert">@_message</div>
+    }
+
+    <div class="doctor-articles__grid">
+        <form class="doctor-article-editor" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
+            <div class="doctor-article-editor__heading">
+                <div>
+                    <span class="doctor-articles__eyebrow">Новая статья</span>
+                    <h3>Поделитесь полезным материалом</h3>
+                </div>
+                <span class="doctor-articles__status">После публикации увидят родители</span>
+            </div>
+
+            <label>
+                <span>Название</span>
+                <InputText @bind-Value="_title" maxlength="512" placeholder="Например, как подготовиться к прогулке" />
+            </label>
+
+            <div class="doctor-article-editor__toolbar" aria-label="Форматирование текста">
+                <button type="button" @onclick='() => WrapSelectionAsync("**", "**")'><strong>Ж</strong><span class="sr-only">Полужирный</span></button>
+                <button type="button" @onclick='() => WrapSelectionAsync("*", "*")'><em>К</em><span class="sr-only">Курсив</span></button>
+                <button type="button" @onclick='() => InsertAtCursorAsync("## Заголовок\\n")'>Заголовок</button>
+                <button type="button" @onclick='() => InsertAtCursorAsync("- Пункт списка\\n")'>Список</button>
+                <label class="doctor-article-editor__upload">
+                    <span>@(_imageUploading ? "Загрузка…" : "Добавить рисунок")</span>
+                    <InputFile OnChange="UploadImageAsync" accept="image/jpeg,image/png,image/webp" disabled="@_imageUploading" />
+                </label>
+            </div>
+
+            <label>
+                <span>Текст статьи</span>
+                <textarea id="doctor-article-content" @bind="_content" @bind:event="oninput" maxlength="8000" placeholder="Напишите статью простым и доброжелательным языком."></textarea>
+            </label>
+            <p class="doctor-article-editor__help">Используйте <code>**выделение**</code>, <code>*курсив*</code>, <code>## заголовок</code>. Изображения добавляются автоматически.</p>
+            <div class="doctor-article-editor__actions">
+                <button class="doctor-articles__secondary" type="button" @onclick="Clear">Очистить</button>
+                <button class="doctor-articles__primary" type="submit" disabled="@_saving">@(_saving ? "Публикуем…" : "Опубликовать статью")</button>
+            </div>
+        </form>
+
+        <aside class="doctor-article-preview">
+            <span class="doctor-articles__eyebrow">Предпросмотр</span>
+            <h3>@(string.IsNullOrWhiteSpace(_title) ? "Название статьи" : _title)</h3>
+            @if (string.IsNullOrWhiteSpace(_content))
+            {
+                <p>Здесь будет показан материал в том виде, в котором его увидят родители.</p>
+            }
+            else
+            {
+                <ArticleContent Content="@_content" />
+            }
+        </aside>
+    </div>
+</section>
+
+@code {
+    private string _title = string.Empty;
+    private string _content = string.Empty;
+    private string? _message;
+    private bool _isError;
+    private bool _saving;
+    private bool _loading;
+    private bool _imageUploading;
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _message = null;
+        _isError = false;
+        await Task.Yield();
+        _loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_content))
+        {
+            _isError = true;
+            _message = "Заполните название и текст статьи.";
+            return;
+        }
+
+        try
+        {
+            _saving = true;
+            await Api.CreateDoctorFaqAsync(new FaqArticleRequestVm { Title = _title.Trim(), Content = _content.Trim(), IsPublished = true });
+            Clear();
+            _isError = false;
+            _message = "Статья опубликована и уже доступна родителям.";
+        }
+        catch
+        {
+            _isError = true;
+            _message = "Не удалось опубликовать статью. Повторите попытку.";
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task UploadImageAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null) return;
+        try
+        {
+            _imageUploading = true;
+            var url = await Api.UploadFaqImageAsync(file);
+            await InsertAtCursorAsync($"![]({url})\\n");
+            _isError = false;
+            _message = "Рисунок добавлен в текст статьи.";
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _message = ex.Message;
+        }
+        finally { _imageUploading = false; }
+    }
+
+    private Task WrapSelectionAsync(string before, string after) => Js.InvokeVoidAsync("SugarGuard.articleEditor.wrapSelection", "doctor-article-content", before, after).AsTask();
+    private Task InsertAtCursorAsync(string text) => Js.InvokeVoidAsync("SugarGuard.articleEditor.insertAtCursor", "doctor-article-content", text).AsTask();
+    private void Clear() { _title = string.Empty; _content = string.Empty; _message = null; _isError = false; }
+}
+
+<style>
+    .doctor-articles { display: grid; gap: 18px; width: min(1320px, 100%); margin: 0 auto; }
+    .doctor-articles__header, .doctor-article-editor, .doctor-article-preview { border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 22px; background: rgba(255,255,255,.9); box-shadow: 0 10px 26px rgba(22,33,62,.05); }
+    .doctor-articles__header { display: flex; align-items: start; justify-content: space-between; gap: 18px; padding: 24px; background: linear-gradient(135deg, rgba(27,142,139,.12), rgba(45,126,226,.08)); }
+    .doctor-articles__header > div > span, .doctor-articles__eyebrow { color: var(--color-primary, #1b8e8b); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .doctor-articles h2, .doctor-articles h3 { margin: 5px 0 0; color: var(--color-text, #16213e); }
+    .doctor-articles__header p, .doctor-article-preview > p { margin: 8px 0 0; color: var(--color-text-muted, #667694); line-height: 1.55; }
+    .doctor-articles__grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 18px; align-items: start; }
+    .doctor-article-editor, .doctor-article-preview { display: grid; gap: 16px; padding: 22px; }
+    .doctor-article-editor__heading { display: flex; justify-content: space-between; gap: 12px; }
+    .doctor-articles__status { align-self: start; padding: 7px 10px; border-radius: 999px; background: rgba(27,142,139,.12); color: var(--color-primary, #1b8e8b); font-size: 12px; font-weight: 750; }
+    .doctor-article-editor label { display: grid; gap: 7px; color: var(--color-text-muted, #667694); font-size: 13px; font-weight: 750; }
+    .doctor-article-editor input, .doctor-article-editor textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--color-border, rgba(22,33,62,.16)); border-radius: 14px; background: #fff; color: var(--color-text, #16213e); font: inherit; outline: none; }
+    .doctor-article-editor input { min-height: 44px; padding: 0 13px; }
+    .doctor-article-editor textarea { min-height: 280px; padding: 13px; resize: vertical; line-height: 1.55; }
+    .doctor-article-editor input:focus, .doctor-article-editor textarea:focus { border-color: var(--color-primary, #1b8e8b); box-shadow: 0 0 0 4px rgba(27,142,139,.11); }
+    .doctor-article-editor__toolbar, .doctor-article-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .doctor-article-editor__toolbar button, .doctor-article-editor__upload, .doctor-articles__primary, .doctor-articles__secondary { min-height: 38px; padding: 0 12px; border: 1px solid rgba(27,142,139,.18); border-radius: 12px; background: #fff; color: var(--color-primary, #1b8e8b); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .doctor-article-editor__upload { display: inline-flex !important; align-items: center; position: relative; overflow: hidden; }
+    .doctor-article-editor__upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .doctor-article-editor__actions { justify-content: flex-end; }
+    .doctor-articles__primary { border: 0; background: linear-gradient(135deg, #1b8e8b, #2d7ee2); color: #fff; padding-inline: 17px; }
+    .doctor-articles__secondary { flex: 0 0 auto; }
+    .doctor-article-editor__help { margin: -7px 0 0; color: var(--color-text-faint, #96a2b8); font-size: 12px; }
+    .doctor-article-editor__help code { padding: 1px 4px; border-radius: 5px; background: rgba(45,126,226,.08); }
+    .doctor-articles__message { padding: 13px 16px; border: 1px solid rgba(27,142,139,.22); border-radius: 16px; background: rgba(27,142,139,.10); color: var(--color-primary, #1b8e8b); font-weight: 700; }
+    .doctor-articles__message.is-error { border-color: rgba(219,89,103,.24); background: rgba(219,89,103,.1); color: #b64050; }
+    @@media (max-width: 900px) { .doctor-articles__grid { grid-template-columns: 1fr; } }
+    @@media (max-width: 620px) { .doctor-articles__header, .doctor-article-editor__heading { display: grid; } .doctor-articles__header, .doctor-article-editor, .doctor-article-preview { padding: 18px; border-radius: 18px; } .doctor-articles__secondary { width: 100%; } .doctor-article-editor__actions { display: grid; } .doctor-article-editor__actions button { width: 100%; } }
+</style>

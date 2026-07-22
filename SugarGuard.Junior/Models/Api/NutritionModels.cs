@@ -102,3 +102,13 @@ public sealed class AchievementApiModel
         _ => "achievement_default.svg"
     };
 }
+
+/// <summary>
+/// Данные записи питания, ожидающей отправки после восстановления сети.
+/// </summary>
+public sealed class PendingNutritionEntrySync
+{
+    public string ChildId { get; set; } = string.Empty;
+    public Guid? NutritionEntryId { get; set; }
+    public SaveNutritionEntryApiRequest Request { get; set; } = new();
+}

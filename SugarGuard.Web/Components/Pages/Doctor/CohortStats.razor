@@ -11,7 +11,7 @@
 @* Состояние: загрузка *@
 @if (_isLoading)
 {
-    <div class="sg-cohort-skeleton" aria-busy="true" aria-label="Загрузка статистики когорты">
+    <div class="sg-cohort-skeleton" aria-busy="true" aria-label="Загрузка статистики пациентов">
         <div class="sg-cohort-kpi-grid">
             <div class="sg-skeleton sg-skeleton--kpi"></div>
             <div class="sg-skeleton sg-skeleton--kpi"></div>
@@ -56,13 +56,13 @@ else if (_vm is not null && _vm.TotalPatients == 0)
             </svg>
         </div>
         <p class="sg-cohort-empty__title">Нет прикреплённых пациентов</p>
-        <p class="sg-cohort-empty__sub">Статистика когорты появится после добавления пациентов.</p>
+        <p class="sg-cohort-empty__sub">Статистика появится после добавления пациентов.</p>
     </div>
 }
 @* Состояние: данные получены *@
 else if (_vm is not null)
 {
-    <div class="sg-cohort" role="region" aria-label="Статистика когорты пациентов">
+    <div class="sg-cohort" role="region" aria-label="Статистика пациентов">
 
         @* KPI-карточки *@
         <div class="sg-cohort-kpi-grid" role="list">
@@ -139,7 +139,7 @@ else if (_vm is not null)
         </div>
 
         @* Детальная разбивка *@
-        <div class="sg-cohort-detail" role="region" aria-label="Детали когорты">
+        <div class="sg-cohort-detail" role="region" aria-label="Детали по пациентам">
 
             @* TIR-блок *@
             <section class="sg-cohort-section" aria-labelledby="cohort-tir-heading">
@@ -244,7 +244,7 @@ else if (_vm is not null)
                 <button class="sg-btn sg-btn--ghost sg-btn--sm sg-cohort-refresh"
                         @onclick="LoadAsync"
                         disabled="@_isLoading"
-                        aria-label="Обновить статистику когорты">
+                    aria-label="Обновить статистику пациентов">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
                          stroke-width="1.6" aria-hidden="true">
                         <path d="M1.5 8A6.5 6.5 0 0 1 13.3 4.3" />

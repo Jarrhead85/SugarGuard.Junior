@@ -54,7 +54,7 @@
                         </span>
                         <span class="parent-article__chevron" aria-hidden="true">⌄</span>
                     </summary>
-                    <div class="parent-article__content">@article.Content</div>
+                    <div class="parent-article__content"><ArticleContent Content="@article.Content" /></div>
                 </details>
             }
         </div>
@@ -124,7 +124,7 @@
     .parent-article__heading small { color: var(--color-text-faint, #96A2B8); font-size: 12px; }
     .parent-article__chevron { color: var(--color-primary, #1B8E8B); font-size: 24px; line-height: 1; transition: transform 160ms ease; }
     .parent-article[open] .parent-article__chevron { transform: rotate(180deg); }
-    .parent-article__content { padding: 0 18px 20px 74px; color: var(--color-text-muted, #667694); line-height: 1.7; white-space: pre-line; }
+    .parent-article__content { padding: 0 18px 20px 74px; }
     .parent-articles__loading, .parent-articles__empty { min-height: 180px; display: grid; place-content: center; gap: 8px; padding: 24px; border: 1px dashed var(--color-border, rgba(22,33,62,.18)); border-radius: 20px; color: var(--color-text-muted, #667694); text-align: center; }
     .parent-articles__empty > span { font-size: 32px; }
     .parent-articles__empty strong { color: var(--color-text, #16213E); }

@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Newtonsoft.Json;
+using SugarGuard.Junior.Database;
 using SugarGuard.Domain.Enums;
 using SugarGuard.Junior.Models.Api;
 using SugarGuard.Junior.Services.Interfaces;
@@ -14,15 +16,17 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     private readonly IApiClient _apiClient;
     private readonly IStorageService _storage;
     private readonly INotificationService _notifications;
+    private readonly ISyncService _syncService;
     private string? _childId;
     private Guid? _editingEntryId;
     private Guid? _editingScheduleId;
 
-    public NutritionTrackerPageViewModel(IApiClient apiClient, IStorageService storage, INotificationService notifications)
+    public NutritionTrackerPageViewModel(IApiClient apiClient, IStorageService storage, INotificationService notifications, ISyncService syncService)
     {
         _apiClient = apiClient;
         _storage = storage;
         _notifications = notifications;
+        _syncService = syncService;
     }
 
     public IReadOnlyList<string> MealTypeOptions { get; } = ["Завтрак", "Обед", "Ужин", "Перекус", "Другое"];
@@ -39,6 +43,8 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     [ObservableProperty] private string insulinUnitsText = string.Empty;
     [ObservableProperty] private string glucoseBeforeText = string.Empty;
     [ObservableProperty] private string notes = string.Empty;
+    [ObservableProperty] private DateTime entryDate = DateTime.Today;
+    [ObservableProperty] private TimeSpan entryTime = DateTime.Now.TimeOfDay;
     [ObservableProperty] private decimal totalBreadUnits;
     [ObservableProperty] private decimal totalInsulinUnits;
     [ObservableProperty] private string scheduleTitle = string.Empty;
@@ -117,16 +123,52 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         try
         {
             IsBusy = true; ErrorMessage = string.Empty;
-            var saved = await _apiClient.SaveNutritionEntryAsync(_childId, _editingEntryId, new SaveNutritionEntryApiRequest
+            var request = new SaveNutritionEntryApiRequest
             {
-                RecordedAt = DateTime.Now.ToUniversalTime(), MealType = (MealType)SelectedMealTypeIndex, MealName = MealName.Trim(),
+                RecordedAt = DateTime.SpecifyKind(EntryDate.Date.Add(EntryTime), DateTimeKind.Local).ToUniversalTime(),
+                MealType = (MealType)SelectedMealTypeIndex,
+                MealName = MealName.Trim(),
                 BreadUnits = breadUnits, InsulinUnits = insulin, GlucoseBefore = glucose, Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim()
-            });
+            };
+            var saved = await _apiClient.SaveNutritionEntryAsync(_childId, _editingEntryId, request);
             if (saved is null) { ErrorMessage = "Сервер не сохранил запись. Попробуй ещё раз."; return; }
             ResetEntryForm();
             await LoadAsyncAfterBusy();
         }
-        catch (Exception) { ErrorMessage = "Не удалось сохранить запись."; }
+        catch (Exception)
+        {
+            if (!await _syncService.IsConnectedAsync())
+            {
+                var queued = await _syncService.QueueItemAsync(
+                    _editingEntryId?.ToString("D") ?? Guid.NewGuid().ToString("D"),
+                    "NutritionEntry",
+                    (_editingEntryId.HasValue ? SyncOperationType.Update : SyncOperationType.Insert).ToString(),
+                    JsonConvert.SerializeObject(new PendingNutritionEntrySync
+                    {
+                        ChildId = _childId,
+                        NutritionEntryId = _editingEntryId,
+                        Request = new SaveNutritionEntryApiRequest
+                        {
+                            RecordedAt = DateTime.SpecifyKind(EntryDate.Date.Add(EntryTime), DateTimeKind.Local).ToUniversalTime(),
+                            MealType = (MealType)SelectedMealTypeIndex,
+                            MealName = MealName.Trim(),
+                            BreadUnits = breadUnits,
+                            InsulinUnits = insulin,
+                            GlucoseBefore = glucose,
+                            Notes = string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim()
+                        }
+                    }));
+
+                if (queued)
+                {
+                    ResetEntryForm();
+                    ErrorMessage = "Нет сети: запись сохранена на телефоне и будет отправлена автоматически.";
+                    return;
+                }
+            }
+
+            ErrorMessage = "Не удалось сохранить запись.";
+        }
         finally { IsBusy = false; }
     }
 
@@ -135,6 +177,9 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     {
         if (entry is null) return;
         _editingEntryId = entry.NutritionEntryId; SelectedMealTypeIndex = (int)entry.MealType; MealName = entry.MealName;
+        var localRecordedAt = entry.RecordedAt.ToLocalTime();
+        EntryDate = localRecordedAt.Date;
+        EntryTime = localRecordedAt.TimeOfDay;
         BreadUnitsText = entry.BreadUnits.ToString("0.##", CultureInfo.CurrentCulture); InsulinUnitsText = entry.InsulinUnits.ToString("0.##", CultureInfo.CurrentCulture);
         GlucoseBeforeText = entry.GlucoseBefore?.ToString("0.0", CultureInfo.CurrentCulture) ?? string.Empty; Notes = entry.Notes ?? string.Empty; ShowEntryForm = true;
         OnPropertyChanged(nameof(EntryButtonText));
@@ -233,7 +278,7 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         Replace(Days, rows.Select(item => new NutritionDayDisplay(item.Date.ToString("dd.MM"), item.BreadUnits, item.InsulinUnits, (double)(item.BreadUnits / max), (double)(item.InsulinUnits / max))));
     }
 
-    private void ResetEntryForm() { _editingEntryId = null; MealName = BreadUnitsText = InsulinUnitsText = GlucoseBeforeText = Notes = string.Empty; ShowEntryForm = false; OnPropertyChanged(nameof(EntryButtonText)); }
+    private void ResetEntryForm() { _editingEntryId = null; MealName = BreadUnitsText = InsulinUnitsText = GlucoseBeforeText = Notes = string.Empty; EntryDate = DateTime.Today; EntryTime = DateTime.Now.TimeOfDay; ShowEntryForm = false; OnPropertyChanged(nameof(EntryButtonText)); }
     private void ResetScheduleForm() { _editingScheduleId = null; ScheduleTitle = PlannedBreadUnitsText = string.Empty; ScheduleTime = new TimeSpan(8, 0, 0); ShowScheduleForm = false; OnPropertyChanged(nameof(ScheduleButtonText)); }
     private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); }
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> source) { target.Clear(); foreach (var item in source) target.Add(item); }

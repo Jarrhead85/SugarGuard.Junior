@@ -156,6 +156,7 @@
                     <div class="doctor-nav-block">
                         <span class="doctor-nav-caption">Клиническая работа</span>
                         <NavItem Href="/doctor/notes" Icon="file-text" Label="Записки врача" />
+                        <NavItem Href="/doctor/articles" Icon="book-open" Label="Статьи" />
                         <NavItem Href="/doctor/support" Icon="message-circle" Label="Поддержка" />
                         <NavItem Href="/doctor/profile" Icon="settings" Label="Профиль и настройки" />
                     </div>
@@ -377,6 +378,7 @@
                     <a class="@PortalTabClass("/doctor/alerts")" href="/doctor/alerts">Группы риска</a>
                     <a class="@PortalTabClass("/doctor/reports")" href="/doctor/reports">Аналитика</a>
                     <a class="@PortalTabClass("/doctor/notes")" href="/doctor/notes">Записки врача</a>
+                    <a class="@PortalTabClass("/doctor/articles")" href="/doctor/articles">Статьи</a>
                     <a class="@PortalTabClass("/doctor/support")" href="/doctor/support">Поддержка</a>
                     <a class="@PortalTabClass("/doctor/profile")" href="/doctor/profile">Профиль</a>
                 </nav>
@@ -691,9 +693,11 @@
             // Врач
             "doctor/dashboard"    => ("Мои пациенты",  "Кабинет врача"),
             "doctor/patients"     => ("Мои пациенты",  "Кабинет врача"),
+            "doctor/cohort-stats" => ("Статистика пациентов", "Сводные показатели вашей группы пациентов"),
             "doctor/alerts"       => ("Группы риска",  "Пациенты, которым нужно внимание"),
-            "doctor/reports"      => ("Аналитика группы", "Отчёты и динамика когорты"),
+            "doctor/reports"      => ("Аналитика группы", "Отчёты и динамика пациентов"),
             "doctor/notes"        => ("Записки врача", "Клинические заметки по пациентам"),
+            "doctor/articles"     => ("Статьи", "Материалы для родителей"),
             "doctor/support"      => ("Поддержка", "Диалоги по обращениям"),
             "doctor/profile"      => ("Профиль",       "Мои данные"),
             "doctor/verification" => ("Подтверждение врача", "Проверка документов квалификации"),

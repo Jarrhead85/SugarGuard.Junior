@@ -500,9 +500,15 @@ public class GigaChatService : IGigaChatService
 
     private static string BuildConversationLine(ClinicalContext context)
     {
+        var summary = TrimForPrompt(
+            context.Conversation.Summary.ReplaceLineEndings(" ").Trim(),
+            450);
+
         if (context.Conversation.RecentMessages.Count == 0)
         {
-            return "Недавний диалог: нет предыдущих сообщений.";
+            return string.IsNullOrWhiteSpace(summary)
+                ? "Память диалога: нет предыдущих сообщений."
+                : $"Краткое резюме предыдущего диалога: {summary}";
         }
 
         var messages = context.Conversation.RecentMessages
@@ -511,7 +517,10 @@ public class GigaChatService : IGigaChatService
             .OrderBy(item => item.CreatedAt)
             .Select(item => $"{item.Role}: {TrimForPrompt(item.Text.ReplaceLineEndings(" "), 160)}");
 
-        return $"Недавний диалог: {string.Join(" | ", messages)}.";
+        var history = $"Недавний диалог: {string.Join(" | ", messages)}.";
+        return string.IsNullOrWhiteSpace(summary)
+            ? history
+            : $"Краткое резюме предыдущего диалога: {summary}. {history}";
     }
 
     private static string Format(decimal value) =>

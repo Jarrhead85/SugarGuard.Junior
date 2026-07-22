@@ -20,7 +20,7 @@
                 Subtitle="Сводная информация по когорте пациентов и их текущее состояние.">
         <TrailingContent>
             <a class="btn btn-ghost" href="/doctor/cohort-stats">
-                Статистика когорты
+                Статистика пациентов
             </a>
             <button class="btn btn-secondary"
                     type="button"
@@ -59,7 +59,7 @@
                 <strong class="kpi-card__value">
                     @(_cohort?.TotalPatients.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
                 </strong>
-                <p class="kpi-card__hint">в моей когорте</p>
+                <p class="kpi-card__hint">в моей группе пациентов</p>
             </div>
 
             <div class="kpi-card card @GetKpiClass(_cohort?.PatientsWithCriticalToday, 0, KpiVariant.Danger)">

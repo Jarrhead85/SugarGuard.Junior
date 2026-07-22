@@ -15,15 +15,18 @@ public class MeasurementsService : IMeasurementsService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IAuditService _audit;
+    private readonly IDailyParentSummaryRefreshService _dailySummaryRefresh;
     private readonly ILogger<MeasurementsService> _logger;
 
     public MeasurementsService(
         IDbContextFactory<AppDbContext> dbFactory,
         IAuditService audit,
+        IDailyParentSummaryRefreshService dailySummaryRefresh,
         ILogger<MeasurementsService> logger)
     {
         _dbFactory = dbFactory;
         _audit = audit;
+        _dailySummaryRefresh = dailySummaryRefresh;
         _logger = logger;
     }
 
@@ -350,6 +353,11 @@ public class MeasurementsService : IMeasurementsService
             db.Measurements.AddRange(newMeasurements);
             db.SyncLogs.AddRange(syncLogs);
             await db.SaveChangesAsync(cancellationToken);
+        }
+
+        foreach (var childId in newMeasurements.Select(item => item.ChildId).Distinct())
+        {
+            await _dailySummaryRefresh.RefreshCurrentDayAsync(childId, cancellationToken);
         }
 
         await _audit.WriteAsync(

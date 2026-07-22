@@ -248,6 +248,9 @@ public class SyncService : ISyncService
                 case "MeasurementSchedule":
                     return await SyncScheduleItemAsync(item);
 
+                case "NutritionEntry":
+                    return await SyncNutritionEntryAsync(item);
+
                 default:
                     _logger.LogWarning("Неизвестный тип сущности: {EntityType}", item.EntityType);
                     return false;
@@ -574,6 +577,24 @@ public class SyncService : ISyncService
             _logger.LogError(ex, " Ошибка при добавлении в очередь: {EntityId}", entityId);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Отправляет сохранённую офлайн запись дневника питания.
+    /// </summary>
+    private async Task<bool> SyncNutritionEntryAsync(SyncQueueItem item)
+    {
+        var pending = JsonConvert.DeserializeObject<PendingNutritionEntrySync>(item.Payload);
+        if (pending is null || string.IsNullOrWhiteSpace(pending.ChildId))
+        {
+            return false;
+        }
+
+        var saved = await _apiClient.SaveNutritionEntryAsync(
+            pending.ChildId,
+            pending.NutritionEntryId,
+            pending.Request);
+        return saved is not null;
     }
 
     private void ScheduleImmediateSyncIfPossible()

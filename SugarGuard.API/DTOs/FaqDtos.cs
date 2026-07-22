@@ -24,3 +24,8 @@ public class FaqArticleResponse
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+public sealed class FaqImageUploadResponse
+{
+    public string ImageUrl { get; init; } = string.Empty;
+}

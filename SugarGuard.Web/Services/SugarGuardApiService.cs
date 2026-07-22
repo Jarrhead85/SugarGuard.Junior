@@ -1798,6 +1798,49 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>
+        /// POST api/faq-content/doctor — создаёт опубликованную статью от врача.
+        /// </summary>
+        public async Task<FaqVm> CreateDoctorFaqAsync(
+            FaqArticleRequestVm request,
+            CancellationToken cancellationToken = default)
+        {
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var response = await client.PostAsJsonAsync("api/faq-content/doctor", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var raw = await response.Content.ReadFromJsonAsync<FaqArticleApiDto>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустое тело для CreateDoctorFaq.");
+            return MapFaq(raw);
+        }
+
+        /// <summary>
+        /// Загружает безопасную иллюстрацию и возвращает относительный URL для Markdown-статьи.
+        /// </summary>
+        public async Task<string> UploadFaqImageAsync(
+            Microsoft.AspNetCore.Components.Forms.IBrowserFile file,
+            CancellationToken cancellationToken = default)
+        {
+            const long maxImageBytes = 5 * 1024 * 1024;
+            if (file.Size is <= 0 or > maxImageBytes)
+            {
+                throw new InvalidOperationException("Размер изображения должен быть не больше 5 МБ.");
+            }
+
+            var client = await CreateAuthorizedClientAsync(cancellationToken);
+            using var stream = file.OpenReadStream(maxImageBytes, cancellationToken);
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            using var form = new MultipartFormDataContent();
+            form.Add(fileContent, "file", file.Name);
+            using var response = await client.PostAsync("api/faq-content/images", form, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<FaqImageUploadVm>(_jsonOptions, cancellationToken)
+                ?? throw new InvalidOperationException("API вернул пустой адрес иллюстрации.");
+            return result.ImageUrl;
+        }
+
+        /// <summary>
         /// PUT api/faq-content/{id}
         /// </summary>
         public async Task<FaqVm> UpdateFaqAsync(

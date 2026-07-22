@@ -1,0 +1,95 @@
+@using System.Text.Encodings.Web
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components
+
+<div class="article-content">
+    @foreach (var block in Parse(Content))
+    {
+        @switch (block.Kind)
+        {
+            case ArticleBlockKind.Heading:
+                <h3>@block.Text</h3>
+                break;
+            case ArticleBlockKind.ListItem:
+                <div class="article-content__item">@((MarkupString)RenderInline(block.Text))</div>
+                break;
+            case ArticleBlockKind.Image:
+                <figure>
+                    <img src="@block.Url" alt="@block.Text" loading="lazy" />
+                    @if (!string.IsNullOrWhiteSpace(block.Text))
+                    {
+                        <figcaption>@block.Text</figcaption>
+                    }
+                </figure>
+                break;
+            default:
+                <p>@((MarkupString)RenderInline(block.Text))</p>
+                break;
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+
+    private static readonly Regex ImageLine = new(
+        "^!\\[(?<alt>[^\\]]{0,200})\\]\\((?<url>/uploads/articles/[a-z0-9-]+\\.(?:png|jpe?g|webp))\\)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    private static readonly Regex Bold = new("\\*\\*(.+?)\\*\\*", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex Italic = new("(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static IReadOnlyList<ArticleBlock> Parse(string content)
+    {
+        var blocks = new List<ArticleBlock>();
+        foreach (var rawLine in (content ?? string.Empty).ReplaceLineEndings("\n").Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0) continue;
+
+            var image = ImageLine.Match(line);
+            if (image.Success)
+            {
+                blocks.Add(new(ArticleBlockKind.Image, image.Groups["alt"].Value, image.Groups["url"].Value));
+            }
+            else if (line.StartsWith("## ", StringComparison.Ordinal))
+            {
+                blocks.Add(new(ArticleBlockKind.Heading, line[3..]));
+            }
+            else if (line.StartsWith("- ", StringComparison.Ordinal))
+            {
+                blocks.Add(new(ArticleBlockKind.ListItem, line[2..]));
+            }
+            else
+            {
+                blocks.Add(new(ArticleBlockKind.Paragraph, line));
+            }
+        }
+
+        return blocks;
+    }
+
+    private static string RenderInline(string text)
+    {
+        var escaped = HtmlEncoder.Default.Encode(text);
+        escaped = Bold.Replace(escaped, "<strong>$1</strong>");
+        return Italic.Replace(escaped, "<em>$1</em>");
+    }
+
+    private sealed record ArticleBlock(ArticleBlockKind Kind, string Text, string? Url = null);
+    private enum ArticleBlockKind { Paragraph, Heading, ListItem, Image }
+}
+
+<style>
+    .article-content { color: var(--color-text-muted, #667694); line-height: 1.7; }
+    .article-content > :first-child { margin-top: 0; }
+    .article-content > :last-child { margin-bottom: 0; }
+    .article-content h3 { margin: 20px 0 8px; color: var(--color-text, #16213e); font-size: 18px; }
+    .article-content p { margin: 10px 0; }
+    .article-content__item { position: relative; padding-left: 20px; margin: 7px 0; }
+    .article-content__item::before { content: ""; position: absolute; left: 3px; top: .72em; width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary, #1b8e8b); }
+    .article-content figure { margin: 18px 0; }
+    .article-content img { display: block; max-width: min(100%, 720px); border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 16px; }
+    .article-content figcaption { margin-top: 7px; color: var(--color-text-faint, #96a2b8); font-size: 13px; }
+</style>

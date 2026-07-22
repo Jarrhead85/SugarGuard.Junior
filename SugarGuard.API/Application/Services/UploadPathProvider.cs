@@ -15,17 +15,23 @@ public sealed class UploadPathProvider : IUploadPathProvider
 
         ProfilesDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, "profiles"));
         DoctorVerificationDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, "doctor-verification"));
+        ArticleImagesDirectory = Path.GetFullPath(Path.Combine(uploadsRoot, "article-images"));
     }
 
     public string ProfilesDirectory { get; }
 
     public string DoctorVerificationDirectory { get; }
 
+    public string ArticleImagesDirectory { get; }
+
     public string GetProfileFilePath(string fileName)
         => GetSafePath(ProfilesDirectory, fileName);
 
     public string GetDoctorVerificationFilePath(string fileName)
         => GetSafePath(DoctorVerificationDirectory, fileName);
+
+    public string GetArticleImageFilePath(string fileName)
+        => GetSafePath(ArticleImagesDirectory, fileName);
 
     private static string GetSafePath(string directory, string fileName)
     {

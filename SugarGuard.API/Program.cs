@@ -440,6 +440,7 @@ builder.Services.AddScoped<ICsvExportService, CsvExportService>();
 builder.Services.AddScoped<IBotUserContextService, BotUserContextService>();
 builder.Services.AddScoped<IParentLinkService, ParentLinkService>();
 builder.Services.AddScoped<IMeasurementsService, MeasurementsService>();
+builder.Services.AddScoped<IDailyParentSummaryRefreshService, DailyParentSummaryRefreshService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDoctorVerificationService, DoctorVerificationService>();
 builder.Services.AddScoped<IBotApiKeyValidator, BotApiKeyValidatorAdapter>();
@@ -679,6 +680,30 @@ app.MapGet("/uploads/profiles/{fileName}", (string fileName, IUploadPathProvider
     }
 
     var path = uploadPaths.GetProfileFilePath(fileName);
+    return File.Exists(path)
+        ? Results.File(path, contentType, enableRangeProcessing: false)
+        : Results.NotFound();
+}).AllowAnonymous();
+
+app.MapGet("/uploads/articles/{fileName}", (string fileName, IUploadPathProvider uploadPaths) =>
+{
+    if (string.IsNullOrWhiteSpace(fileName)
+        || fileName != Path.GetFileName(fileName)
+        || fileName.Any(character => !(char.IsLetterOrDigit(character) || character is '-' or '_' or '.')))
+    {
+        return Results.BadRequest();
+    }
+
+    var contentType = Path.GetExtension(fileName).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        _ => null
+    };
+
+    if (contentType is null) return Results.BadRequest();
+    var path = uploadPaths.GetArticleImageFilePath(fileName);
     return File.Exists(path)
         ? Results.File(path, contentType, enableRangeProcessing: false)
         : Results.NotFound();

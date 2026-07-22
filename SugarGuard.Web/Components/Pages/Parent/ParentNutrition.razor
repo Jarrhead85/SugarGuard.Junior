@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Parent,Admin,SupportAdmin")]
 @using Microsoft.AspNetCore.Authorization
+@using System.Globalization
 @using SugarGuard.Domain.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
@@ -314,8 +315,8 @@
                 {
                     <div class="nutrition-bar-day">
                         <div class="nutrition-bar-track">
-                            <span class="xe" style='height:@BarHeight(day.BreadUnits, "xe")%' title="@day.BreadUnits.ToString("0.##") ХЕ"></span>
-                            <span class="insulin" style='height:@BarHeight(day.InsulinUnits, "insulin")%' title="@day.InsulinUnits.ToString("0.##") ед."></span>
+                            <span class="xe" style='@GetBarStyle(day.BreadUnits, "xe")' title='@GetBarTitle(day.BreadUnits, "ХЕ")'></span>
+                            <span class="insulin" style='@GetBarStyle(day.InsulinUnits, "insulin")' title='@GetBarTitle(day.InsulinUnits, "ед.")'></span>
                         </div>
                         <time>@day.Date.ToString("dd.MM")</time>
                         <strong>@day.BreadUnits.ToString("0.#") / @day.InsulinUnits.ToString("0.#")</strong>
@@ -569,15 +570,20 @@
 
     private void NextPage() => _entryPage = Math.Min(EntryPages - 1, _entryPage + 1);
 
-    private decimal BarHeight(decimal value, string series)
+    private string BarHeight(decimal value, string series)
     {
         var max = _summary.Days
             .Select(day => series == "insulin" ? day.InsulinUnits : day.BreadUnits)
             .DefaultIfEmpty(1)
             .Max();
 
-        return max <= 0 ? 0 : Math.Round(value / max * 100, 1);
+        return (max <= 0 ? 0m : Math.Round(value / max * 100, 1))
+            .ToString("0.#", CultureInfo.InvariantCulture);
     }
+
+    private string GetBarStyle(decimal value, string series) => $"height:{BarHeight(value, series)}%";
+
+    private static string GetBarTitle(decimal value, string unit) => $"{value:0.##} {unit}";
 
     private async Task ExportAsync(string format)
     {
@@ -592,7 +598,7 @@
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadBase64",
                 $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                format == "csv" ? "text/csv;charset=utf-8" : "application/pdf",
+                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
                 Convert.ToBase64String(bytes));
         }
         catch (Exception)

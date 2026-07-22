@@ -1581,3 +1581,104 @@ select {
 .app-shell--doctor .doctor-notes-actions {
     flex-wrap: wrap;
 }
+
+/* Единая компактная сводка пациентов врача. Это глобальный стиль, поскольку
+   компонент может быть отрисован напрямую по маршруту без CSS-isolation. */
+.app-shell--doctor .sg-cohort,
+.app-shell--doctor .sg-cohort-skeleton,
+.app-shell--doctor .sg-cohort-empty,
+.app-shell--doctor .sg-cohort-error {
+    width: min(100%, 1360px);
+    margin: 0 auto;
+}
+
+.app-shell--doctor .sg-cohort {
+    display: grid;
+    gap: 18px;
+    padding: 4px 0 28px;
+}
+
+.app-shell--doctor .sg-cohort-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.app-shell--doctor .sg-cohort-kpi {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 108px;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid rgba(22, 33, 62, .10);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .88);
+    box-shadow: 0 10px 28px rgba(22, 33, 62, .06);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon {
+    display: grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 14px;
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon svg { width: 20px; height: 20px; }
+.app-shell--doctor .sg-cohort-kpi__icon--primary { color: #087f7d; background: rgba(27, 142, 139, .12); }
+.app-shell--doctor .sg-cohort-kpi__icon--tir-good { color: #2a9b57; background: rgba(55, 165, 99, .12); }
+.app-shell--doctor .sg-cohort-kpi__icon--tir-warning,
+.app-shell--doctor .sg-cohort-kpi__icon--warning { color: #aa7100; background: rgba(227, 163, 43, .15); }
+.app-shell--doctor .sg-cohort-kpi__icon--tir-danger,
+.app-shell--doctor .sg-cohort-kpi__icon--danger { color: #c94152; background: rgba(219, 89, 103, .13); }
+.app-shell--doctor .sg-cohort-kpi__icon--muted { color: #667694; background: #eef3fa; }
+.app-shell--doctor .sg-cohort-kpi__body { display: grid; min-width: 0; gap: 4px; }
+.app-shell--doctor .sg-cohort-kpi__value { color: #16213e; font-size: 27px; font-weight: 800; line-height: 1; }
+.app-shell--doctor .sg-cohort-kpi__label { color: #667694; font-size: 13px; font-weight: 700; }
+
+.app-shell--doctor .sg-cohort-detail { display: grid; gap: 14px; }
+.app-shell--doctor .sg-cohort-section,
+.app-shell--doctor .sg-cohort-alert-card {
+    padding: 20px;
+    border: 1px solid rgba(22, 33, 62, .10);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .88);
+    box-shadow: 0 10px 28px rgba(22, 33, 62, .05);
+}
+.app-shell--doctor .sg-cohort-section__header,
+.app-shell--doctor .sg-cohort-alert-card__head,
+.app-shell--doctor .sg-cohort-alert-card__body,
+.app-shell--doctor .sg-cohort-footer { display: flex; align-items: center; gap: 10px; }
+.app-shell--doctor .sg-cohort-section__header { justify-content: space-between; }
+.app-shell--doctor .sg-cohort-section__title,
+.app-shell--doctor .sg-cohort-alert-card__title { margin: 0; color: #16213e; font-size: 16px; font-weight: 800; }
+.app-shell--doctor .sg-cohort-section__value,
+.app-shell--doctor .sg-cohort-alert-card__count { color: #16213e; font-size: 26px; font-weight: 800; }
+.app-shell--doctor .sg-cohort-section__badge { padding: 4px 9px; border-radius: 999px; font-size: 12px; }
+.app-shell--doctor .sg-cohort-alerts-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.app-shell--doctor .sg-cohort-alert-card { display: grid; gap: 12px; }
+.app-shell--doctor .sg-cohort-alert-card__dot { width: 8px; height: 8px; border-radius: 50%; background: #b6c2d4; }
+.app-shell--doctor .sg-cohort-alert-card__dot--danger { background: #db5967; }
+.app-shell--doctor .sg-cohort-alert-card__dot--warning { background: #e3a32b; }
+.app-shell--doctor .sg-cohort-alert-card__of,
+.app-shell--doctor .sg-cohort-alert-card__hint,
+.app-shell--doctor .sg-cohort-footer { color: #667694; font-size: 13px; }
+.app-shell--doctor .sg-cohort-footer { padding-top: 14px; border-top: 1px solid rgba(22, 33, 62, .08); }
+.app-shell--doctor .sg-cohort-footer time { flex: 1; }
+.app-shell--doctor .sg-cohort-refresh { margin-left: auto; }
+
+@media (max-width: 980px) {
+    .app-shell--doctor .sg-cohort-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+    .app-shell--doctor .sg-cohort { padding-bottom: 18px; }
+    .app-shell--doctor .sg-cohort-kpi-grid,
+    .app-shell--doctor .sg-cohort-alerts-row { grid-template-columns: 1fr; }
+    .app-shell--doctor .sg-cohort-kpi,
+    .app-shell--doctor .sg-cohort-section,
+    .app-shell--doctor .sg-cohort-alert-card { border-radius: 16px; }
+    .app-shell--doctor .sg-cohort-section__title { flex-wrap: wrap; }
+}

@@ -9,7 +9,11 @@ public interface IUploadPathProvider
 
     string DoctorVerificationDirectory { get; }
 
+    string ArticleImagesDirectory { get; }
+
     string GetProfileFilePath(string fileName);
 
     string GetDoctorVerificationFilePath(string fileName);
+
+    string GetArticleImageFilePath(string fileName);
 }
