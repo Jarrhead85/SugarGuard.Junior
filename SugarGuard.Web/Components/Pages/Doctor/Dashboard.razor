@@ -13,23 +13,7 @@
 
 <PageTitle>Дашборд врача — SugarGuard</PageTitle>
 
-<div class="doctor-dashboard">
-
-    <PageHeader Eyebrow="Врач"
-                Title="Дашборд"
-                Subtitle="Сводная информация по когорте пациентов и их текущее состояние.">
-        <TrailingContent>
-            <a class="btn btn-ghost" href="/doctor/cohort-stats">
-                Статистика пациентов
-            </a>
-            <button class="btn btn-secondary"
-                    type="button"
-                    @onclick="RefreshAsync"
-                    disabled="@_isLoading">
-                Обновить
-            </button>
-        </TrailingContent>
-    </PageHeader>
+<div class="doctor-dashboard" aria-label="Обзор кабинета врача">
 
     @* Ошибка загрузки *@
     @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -38,23 +22,25 @@
                      Title="Не удалось загрузить данные"
                      Message="@_errorMessage"
                      IsDismissible="true"
-                     OnDismissed="ClearError" />
+                     OnDismissed="ClearError"
+                     ActionText="Повторить"
+                     OnAction="RefreshAsync" />
     }
 
     @* KPI-карточки когорты *@
-    <section class="kpi-grid">
+    <section class="doctor-dashboard__kpis" aria-label="Сводные показатели">
         @if (_isLoadingCohort)
         {
             @for (var i = 0; i < 4; i++)
             {
-                <div class="kpi-skeleton card">
+                <div class="doctor-dashboard__kpi-skeleton card">
                     <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
                 </div>
             }
         }
         else
         {
-            <div class="kpi-card card @GetKpiClass(_cohort?.TotalPatients, null, KpiVariant.Neutral)">
+            <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.TotalPatients, null, KpiVariant.Neutral)">
                 <p class="kpi-card__label">Всего пациентов</p>
                 <strong class="kpi-card__value">
                     @(_cohort?.TotalPatients.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
@@ -62,7 +48,7 @@
                 <p class="kpi-card__hint">в моей группе пациентов</p>
             </div>
 
-            <div class="kpi-card card @GetKpiClass(_cohort?.PatientsWithCriticalToday, 0, KpiVariant.Danger)">
+            <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.PatientsWithCriticalToday, 0, KpiVariant.Danger)">
                 <p class="kpi-card__label">Критических сегодня</p>
                 <strong class="kpi-card__value kpi-card__value--danger">
                     @(_cohort?.PatientsWithCriticalToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
@@ -70,7 +56,7 @@
                 <p class="kpi-card__hint">пациентов с критическим сахаром</p>
             </div>
 
-            <div class="kpi-card card @GetTirKpiClass(_cohort?.AverageTimeInTargetRange)">
+            <div class="doctor-dashboard__kpi card @GetTirKpiClass(_cohort?.AverageTimeInTargetRange)">
                 <p class="kpi-card__label">Средний TIR</p>
                 <strong class="kpi-card__value">
                     @FormatPercent(_cohort?.AverageTimeInTargetRange)
@@ -78,7 +64,7 @@
                 <p class="kpi-card__hint">время в целевом диапазоне</p>
             </div>
 
-            <div class="kpi-card card @GetKpiClass(_cohort?.PatientsWithoutMeasurementsToday, 0, KpiVariant.Warning)">
+            <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.PatientsWithoutMeasurementsToday, 0, KpiVariant.Warning)">
                 <p class="kpi-card__label">Без измерений</p>
                 <strong class="kpi-card__value kpi-card__value--warning">
                     @(_cohort?.PatientsWithoutMeasurementsToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
@@ -89,32 +75,31 @@
     </section>
 
     @* Список пациентов *@
-    <section class="patients-section card">
-        <div class="patients-section__header">
+    <section class="doctor-dashboard__patients" aria-labelledby="doctor-dashboard-patients-title">
+        <div class="doctor-dashboard__section-header">
             <div>
-                <h2>Мои пациенты</h2>
-                <p class="patients-section__description">
+                <p class="doctor-dashboard__eyebrow">Пациенты</p>
+                <h2 id="doctor-dashboard-patients-title">Мои пациенты</h2>
+                <p class="doctor-dashboard__description">
                     @if (!_isLoadingPatients)
                     {
-                        @($"Найдено: {_patients.Count}")
+                        @(_patients.Count == 0 ? "Пока нет прикреплённых пациентов." : $"Всего: {_patients.Count}")
                     }
                 </p>
             </div>
 
-            <div class="patients-section__controls">
-                <div class="form-field sort-field">
-                    <label class="form-field__label" for="sort-select">Сортировка</label>
-                    <select id="sort-select"
-                            class="input-field"
-                            @bind="_sortBy"
-                            @bind:after="OnSortChangedAsync">
-                        <option value="@PatientSortBy.Name">По имени</option>
-                        <option value="@PatientSortBy.Tir">По TIR</option>
-                        <option value="@PatientSortBy.LastMeasurement">По последнему измерению</option>
-                    </select>
-                </div>
+            <div class="doctor-dashboard__controls">
+                <label class="sr-only" for="sort-select">Сортировка пациентов</label>
+                <select id="sort-select"
+                        class="doctor-dashboard__select"
+                        @bind="_sortBy"
+                        @bind:after="OnSortChangedAsync">
+                    <option value="@PatientSortBy.Name">По имени</option>
+                    <option value="@PatientSortBy.Tir">По TIR</option>
+                    <option value="@PatientSortBy.LastMeasurement">По последнему измерению</option>
+                </select>
 
-                <a class="btn btn-primary" href="/doctor/patients">
+                <a class="btn btn-ghost" href="/doctor/patients">
                     Все пациенты
                 </a>
             </div>
@@ -122,10 +107,10 @@
 
         @if (_isLoadingPatients)
         {
-            <div class="patients-skeleton">
+            <div class="doctor-dashboard__patient-grid" aria-label="Загрузка пациентов">
                 @for (var i = 0; i < 3; i++)
                 {
-                    <div class="patient-skeleton-row">
+                    <div class="doctor-dashboard__patient-skeleton">
                         <LoadingSkeleton Variant="SkeletonVariant.KpiCard" />
                     </div>
                 }
@@ -142,7 +127,7 @@
         }
         else
         {
-            <div class="patients-list">
+            <div class="doctor-dashboard__patient-grid">
                 @foreach (var patient in _patients.Take(MaxPatientsOnDashboard))
                 {
                     <PatientCard Patient="@patient"
@@ -151,7 +136,7 @@
 
                 @if (_patients.Count > MaxPatientsOnDashboard)
                 {
-                    <div class="patients-list__more">
+                    <div class="doctor-dashboard__more">
                         <a class="btn btn-ghost" href="/doctor/patients">
                             Показать ещё @(_patients.Count - MaxPatientsOnDashboard) пациентов →
                         </a>
@@ -363,244 +348,182 @@
 }
 
 <style>
-    /* Страница */
     .doctor-dashboard {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-20);
+        display: grid;
+        gap: 22px;
+        width: min(100%, 1440px);
+        margin: 0 auto;
+        padding-bottom: 24px;
     }
 
-    /* Шапка */
-    .page-header {
-        padding: var(--space-24);
-    }
-
-    .page-header__content {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: var(--space-16);
-        flex-wrap: wrap;
-    }
-
-    .page-eyebrow {
-        margin: 0 0 var(--space-8);
-        font-size: 12px;
-        line-height: 1.4;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--color-text-faint);
-        font-weight: 700;
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .page-description {
-        margin: var(--space-8) 0 0;
-        color: var(--color-text-muted);
-        max-width: 60ch;
-    }
-
-    .page-header__actions {
-        display: flex;
-        align-items: center;
-        gap: var(--space-12);
-        flex-wrap: wrap;
-    }
-
-    /* KPI-сетка */
-    .kpi-grid {
+    .doctor-dashboard__kpis {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: var(--space-16);
+        gap: 14px;
     }
 
-    .kpi-card {
+    .doctor-dashboard__kpi,
+    .doctor-dashboard__kpi-skeleton {
+        min-width: 0;
+        min-height: 132px;
+        padding: 20px;
+        border: 1px solid rgba(22, 33, 62, .10);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, .92);
+        box-shadow: 0 10px 28px rgba(22, 33, 62, .05);
+    }
+
+    .doctor-dashboard__kpi {
         display: flex;
         flex-direction: column;
-        gap: var(--space-8);
-        padding: var(--space-20);
-        transition: box-shadow var(--transition);
-    }
-
-    .kpi-skeleton {
-        min-height: 120px;
-    }
-
-    .kpi-card__label {
-        margin: 0;
-        font-size: 12px;
-        line-height: 1.4;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--color-text-faint);
-        font-weight: 700;
-    }
-
-    .kpi-card__value {
-        font-family: var(--font-display);
-        font-size: clamp(28px, 3vw, 36px);
-        line-height: 1;
-        color: var(--color-text);
-    }
-
-    .kpi-card__value--danger {
-        color: var(--color-glucose-danger, #DB5967);
-    }
-
-    .kpi-card__value--warning {
-        color: var(--color-glucose-warning, #E3A32B);
-    }
-
-    .kpi-card__hint {
-        margin: 0;
-        font-size: 13px;
-        color: var(--color-text-muted);
-    }
-
-    /* Цветовые модификаторы KPI-карточек */
-    .kpi-card--danger {
-        border-color: rgba(219, 89, 103, 0.28);
-        background: rgba(219, 89, 103, 0.05);
-    }
-
-    .kpi-card--warning {
-        border-color: rgba(227, 163, 43, 0.28);
-        background: rgba(227, 163, 43, 0.05);
-    }
-
-    .kpi-card--success {
-        border-color: rgba(27, 142, 139, 0.28);
-        background: rgba(27, 142, 139, 0.05);
-    }
-
-    /* Секция пациентов */
-    .patients-section {
-        padding: 0;
-        overflow: hidden;
-    }
-
-    .patients-section__header {
-        display: flex;
-        align-items: flex-end;
         justify-content: space-between;
-        gap: var(--space-16);
-        flex-wrap: wrap;
-        padding: var(--space-20) var(--space-20) var(--space-16);
+        gap: 10px;
     }
 
-        .patients-section__header h2 {
-            margin: 0;
-        }
+    .doctor-dashboard__kpi .kpi-card__label {
+        margin: 0;
+        color: var(--color-text-faint);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+    }
 
-    .patients-section__description {
-        margin: var(--space-4) 0 0;
-        font-size: 13px;
+    .doctor-dashboard__kpi .kpi-card__value {
+        color: var(--color-text);
+        font-family: var(--font-display);
+        font-size: clamp(30px, 2.5vw, 38px);
+        font-weight: 850;
+        letter-spacing: -.04em;
+        line-height: 1;
+    }
+
+    .doctor-dashboard__kpi .kpi-card__hint {
+        margin: 0;
         color: var(--color-text-muted);
+        font-size: 13px;
+        line-height: 1.35;
     }
 
-    .patients-section__controls {
+    .doctor-dashboard__kpi .kpi-card__value--danger { color: var(--color-glucose-danger, #db5967); }
+    .doctor-dashboard__kpi .kpi-card__value--warning { color: var(--color-glucose-warning, #e3a32b); }
+    .doctor-dashboard__kpi.kpi-card--danger { border-color: rgba(219, 89, 103, .26); background: rgba(255, 249, 250, .94); }
+    .doctor-dashboard__kpi.kpi-card--warning { border-color: rgba(227, 163, 43, .28); background: rgba(255, 252, 244, .94); }
+    .doctor-dashboard__kpi.kpi-card--success { border-color: rgba(55, 165, 99, .24); background: rgba(248, 253, 250, .94); }
+
+    .doctor-dashboard__patients {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    .doctor-dashboard__section-header {
         display: flex;
-        align-items: flex-end;
-        gap: var(--space-12);
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .doctor-dashboard__eyebrow {
+        margin: 0 0 4px;
+        color: var(--color-primary);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .doctor-dashboard__section-header h2 {
+        margin: 0;
+        color: var(--color-text);
+        font-family: var(--font-display);
+        font-size: clamp(20px, 2vw, 24px);
+        letter-spacing: -.025em;
+    }
+
+    .doctor-dashboard__description {
+        margin: 5px 0 0;
+        color: var(--color-text-muted);
+        font-size: 13px;
+    }
+
+    .doctor-dashboard__controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         flex-wrap: wrap;
     }
 
-    .sort-field {
-        min-width: 200px;
-    }
-
-    /* Список пациентов */
-    .patients-list {
-        display: flex;
-        flex-direction: column;
-        padding: 0 var(--space-20) var(--space-20);
-        gap: var(--space-12);
-    }
-
-    .patients-list__more {
-        display: flex;
-        justify-content: center;
-        padding-top: var(--space-8);
-    }
-
-    /* Скелетоны пациентов */
-    .patients-skeleton {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-12);
-        padding: 0 var(--space-20) var(--space-20);
-    }
-
-    .patient-skeleton-row {
-        min-height: 80px;
-    }
-
-    /* Form */
-    .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .form-field__label {
+    .doctor-dashboard__select {
+        min-height: 40px;
+        max-width: 240px;
+        padding: 0 32px 0 12px;
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        background: var(--color-surface);
+        color: var(--color-text);
+        font: inherit;
         font-size: 13px;
-        font-weight: 600;
-        color: var(--color-text-muted);
+        font-weight: 650;
     }
 
-    /* Responsive */
-    @@media (max-width: 1100px) {
-        .kpi-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .doctor-dashboard__select:focus-visible {
+        outline: 3px solid rgba(27, 142, 139, .18);
+        outline-offset: 2px;
+        border-color: var(--color-primary);
     }
 
-    @@media (max-width: 768px) {
-        .page-header,
-        .patients-section__header,
-        .patients-list,
-        .patients-skeleton {
-            padding-left: var(--space-16);
-            padding-right: var(--space-16);
-        }
-
-        .patients-section__header {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .patients-section__controls {
-            width: 100%;
-            justify-content: flex-start;
-        }
-
-        .sort-field {
-            min-width: 0;
-            flex: 1;
-        }
+    .doctor-dashboard__patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 420px));
+        justify-content: start;
+        gap: 14px;
+        min-width: 0;
     }
 
-    @@media (max-width: 640px) {
-        .kpi-grid {
-            grid-template-columns: 1fr;
-        }
+    .doctor-dashboard__patient-grid .sg-patient-card {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        min-height: 206px;
+    }
 
-        .page-header__content {
-            flex-direction: column;
-            align-items: stretch;
-        }
+    .doctor-dashboard__patient-skeleton {
+        min-height: 206px;
+        padding: 18px;
+        border: 1px solid rgba(22, 33, 62, .10);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, .92);
+    }
 
-        .page-header__actions {
-            width: 100%;
-            flex-direction: column;
-        }
+    .doctor-dashboard__more {
+        display: grid;
+        min-height: 206px;
+        place-items: center;
+        padding: 18px;
+        border: 1px dashed rgba(27, 142, 139, .28);
+        border-radius: 20px;
+        background: rgba(27, 142, 139, .04);
+        text-align: center;
+    }
 
-            .page-header__actions .btn {
-                width: 100%;
-                text-align: center;
-            }
+    @@media (max-width: 1080px) {
+        .doctor-dashboard__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .doctor-dashboard__patient-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @@media (max-width: 700px) {
+        .doctor-dashboard { gap: 18px; }
+        .doctor-dashboard__section-header { align-items: stretch; flex-direction: column; }
+        .doctor-dashboard__controls { width: 100%; }
+        .doctor-dashboard__select { flex: 1; max-width: none; min-width: 0; }
+        .doctor-dashboard__patient-grid { grid-template-columns: 1fr; }
+    }
+
+    @@media (max-width: 520px) {
+        .doctor-dashboard__kpis { grid-template-columns: 1fr; }
+        .doctor-dashboard__kpi,
+        .doctor-dashboard__kpi-skeleton { min-height: 112px; padding: 18px; border-radius: 18px; }
+        .doctor-dashboard__controls .btn { flex: 1; justify-content: center; }
     }
 </style>

@@ -398,7 +398,7 @@
     }
 
 /* Responsive */
-@@media (max-width: 900px) {
+@media (max-width: 900px) {
     .form-row {
         grid-template-columns: 1fr 1fr;
     }
@@ -412,7 +412,7 @@
         }
 }
 
-@@media (max-width: 640px) {
+@media (max-width: 640px) {
     .form-row {
         grid-template-columns: 1fr;
     }

@@ -6,6 +6,7 @@ using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
 using SugarGuard.Domain.Entities;
 using SugarGuard.Domain.Enums;
+using System.Text;
 
 namespace SugarGuard.Tests.Application.Services;
 
@@ -74,6 +75,42 @@ public sealed class NutritionTrackerServiceTests
         var firstSteps = Assert.Single(achievements, achievement => achievement.Code == "first_steps");
         Assert.True(firstSteps.IsUnlocked);
         Assert.Equal(3, firstSteps.Progress);
+    }
+
+    [Fact]
+    public async Task ExportCsvAsync_UsesUtf16LeBomAndPreservesRussianTextForExcel()
+    {
+        await using var context = CreateContext();
+        var child = CreateChild();
+        context.Children.Add(child);
+        context.NutritionEntries.Add(new NutritionEntry
+        {
+            ChildId = child.ChildId,
+            RecordedAt = DateTime.UtcNow,
+            MealType = MealType.Dinner,
+            MealName = "Гречка с овощами",
+            BreadUnits = 3.5m,
+            InsulinUnits = 2m,
+            CreatedByUserId = Guid.NewGuid()
+        });
+        await context.SaveChangesAsync();
+
+        var currentUser = new Mock<ICurrentUserContext>();
+        currentUser.Setup(service => service.GetRole()).Returns(UserRole.Parent);
+        var service = new NutritionTrackerService(context, currentUser.Object);
+
+        var bytes = await service.ExportCsvAsync(
+            child.ChildId,
+            DateTime.UtcNow.AddDays(-1),
+            DateTime.UtcNow.AddDays(1),
+            CancellationToken.None);
+
+        Assert.True(bytes.AsSpan().StartsWith(Encoding.Unicode.GetPreamble()));
+
+        var csv = Encoding.Unicode.GetString(bytes.AsSpan(Encoding.Unicode.GetPreamble().Length));
+        Assert.StartsWith("sep=,\r\n", csv, StringComparison.Ordinal);
+        Assert.Contains("Приём пищи", csv, StringComparison.Ordinal);
+        Assert.Contains("Гречка с овощами", csv, StringComparison.Ordinal);
     }
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()

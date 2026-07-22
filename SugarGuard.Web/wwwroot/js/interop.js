@@ -63,17 +63,10 @@ window.SugarGuard.articleEditor = window.SugarGuard.articleEditor || {
     window.SugarGuard.downloadCsv = downloadCsv;
     window.SugarGuard.downloadBase64 = function (fileName, contentType, base64) {
         const binary = atob(base64 || '');
-        let bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-        const hasBom = (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF)
-            || (bytes.length >= 2 && ((bytes[0] === 0xFF && bytes[1] === 0xFE)
-                || (bytes[0] === 0xFE && bytes[1] === 0xFF)));
-        if (contentType && contentType.toLowerCase().startsWith('text/csv') && !hasBom) {
-            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-            const withBom = new Uint8Array(bom.length + bytes.length);
-            withBom.set(bom);
-            withBom.set(bytes, bom.length);
-            bytes = withBom;
-        }
+        // Файл уже подготовлен сервером: нельзя дописывать BOM в браузере.
+        // Иначе UTF-16 CSV превращается в смесь UTF-8 и UTF-16, которую Excel
+        // открывает с «кракозябрами».
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
         const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');

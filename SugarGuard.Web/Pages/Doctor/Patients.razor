@@ -22,10 +22,6 @@
         </div>
 
         <div class="doctor-hero-actions">
-            <span class="doctor-sync-pill">
-                <span class="doctor-sync-dot" aria-hidden="true"></span>
-                @_lastUpdatedLabel
-            </span>
             <a class="doctor-btn doctor-btn--soft @(ExportDisabled ? "is-disabled" : null)"
                href="@PatientsCsvHref"
                download="sugarguard-doctor-patients.csv"
@@ -337,7 +333,6 @@
 
     private bool _isLoading = true;
     private string? _errorMessage;
-    private DateTime? _lastLoadedAt;
 
     private List<DoctorPatientSummaryVm> _patients = [];
     private DoctorCohortSummaryVm? _cohortSummary;
@@ -353,11 +348,6 @@
     private bool _noteIsImportant;
     private bool _isNoteSubmitting;
     private string? _noteError;
-
-    private string _lastUpdatedLabel =>
-        _lastLoadedAt is null
-            ? "Данные загружаются"
-            : $"Данные обновлены: {_lastLoadedAt.Value:HH:mm}";
 
     private int TotalPatients => _cohortSummary?.TotalPatients ?? _patients.Count;
 
@@ -414,7 +404,6 @@
 
             _patients = (await patientsTask).ToList();
             _cohortSummary = await cohortTask;
-            _lastLoadedAt = ToMoscowTime(_cohortSummary?.GeneratedAt ?? DateTime.UtcNow);
 
             await LoadLatestNotesAsync();
         }

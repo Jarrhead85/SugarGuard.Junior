@@ -16,25 +16,6 @@
 <PageTitle>Состояние системы — SugarGuard Admin</PageTitle>
 
 <div class="system-stats-page">
-
-    <PageHeader Eyebrow="Администрирование"
-                Title="Состояние системы"
-                Subtitle="Мониторинг ключевых метрик. Данные обновляются автоматически каждые 10 секунд.">
-        <TrailingContent>
-            <span class="last-updated-label">
-                @(_lastUpdated.HasValue
-                                ? $"Обновлено: {_lastUpdated.Value.ToLocalTime():HH:mm:ss}"
-                                : "Ожидание данных…")
-            </span>
-            <button class="btn btn--secondary"
-                    type="button"
-                    @onclick="RefreshAllAsync"
-                    disabled="@_isLoading">
-                Обновить сейчас
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @* Глобальная ошибка *@
     @if (_statsError is not null)
     {
@@ -346,20 +327,6 @@
         }
     </div>
 
-    @* Строка автообновления *@
-    <div class="refresh-info" role="status" aria-live="polite">
-        <svg class="refresh-info__icon" width="16" height="16" viewBox="0 0 24 24"
-             fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-        </svg>
-        <span>
-            Автообновление каждые <strong>10 секунд</strong>.
-            Следующее через: <strong class="tabular-nums">@_nextRefreshInSeconds с</strong>
-        </span>
-    </div>
-
 </div>
 
 @code {
@@ -378,17 +345,10 @@
 
     private string? _serverMetricsError; // Сообщение ошибки метрик сервера
 
-    private DateTime? _lastUpdated; // Время последнего успешного обновления
-
     // Таймеры    
     private Timer? _refreshTimer; // Таймер автообновления данных
 
-    private Timer? _countdownTimer; // Таймер обратного отсчёта до следующего обновления
-
-    private int _nextRefreshInSeconds = 10; // Секунд до следующего автообновления
-
     private const int RefreshIntervalMs = 10_000;
-    private const int CountdownIntervalMs = 1_000;
 
     // Жизненный цикл 
     /// <inheritdoc />
@@ -404,19 +364,17 @@
     // Таймеры 
 
     /// <summary>
-    /// Запускает таймер автообновления и таймер обратного отсчёта
+    /// Запускает таймер автообновления.
     /// </summary>
     private void StartTimers()
     {
         _refreshTimer = new Timer(RefreshIntervalMs) { AutoReset = true, Enabled = true };
         _refreshTimer.Elapsed += OnRefreshTimerElapsed;
 
-        _countdownTimer = new Timer(CountdownIntervalMs) { AutoReset = true, Enabled = true };
-        _countdownTimer.Elapsed += OnCountdownElapsed;
     }
 
     /// <summary>
-    /// Останавливает и освобождает оба таймера
+    /// Останавливает и освобождает таймер.
     /// </summary>
     private void StopTimers()
     {
@@ -427,12 +385,6 @@
             _refreshTimer = null;
         }
 
-        if (_countdownTimer is not null)
-        {
-            _countdownTimer.Elapsed -= OnCountdownElapsed;
-            _countdownTimer.Dispose();
-            _countdownTimer = null;
-        }
     }
 
     /// <summary>
@@ -442,22 +394,7 @@
     {
         await InvokeAsync(async () =>
         {
-            _nextRefreshInSeconds = 10;
             await RefreshAllAsync();
-            StateHasChanged();
-        });
-    }
-
-    /// <summary>
-    /// Срабатывает каждую секунду — уменьшает счётчик до следующего обновления
-    /// </summary>
-    private void OnCountdownElapsed(object? sender, ElapsedEventArgs e)
-    {
-        InvokeAsync(() =>
-        {
-            if (_nextRefreshInSeconds > 0)
-                _nextRefreshInSeconds--;
-
             StateHasChanged();
         });
     }
@@ -479,7 +416,6 @@
             LoadServerMetricsAsync(cts.Token));
 
         _isLoading = false;
-        _lastUpdated = DateTime.UtcNow;
         StateHasChanged();
     }
 

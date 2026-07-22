@@ -11,16 +11,6 @@
 <PageTitle>ИИ и лимиты - SugarGuard Admin</PageTitle>
 
 <div class="admin-security-page">
-    <PageHeader Eyebrow="ИИ и лимиты"
-                Title="Расход GigaChat"
-                Subtitle="Расход токенов, месячный бюджет и детализация по детям. События авторизации вынесены в отдельный раздел «Безопасность».">
-        <TrailingContent>
-            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_message))
     {
         <div class="admin-alert admin-alert--danger">@_message</div>

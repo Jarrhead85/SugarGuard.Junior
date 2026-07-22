@@ -32,7 +32,7 @@ public class FaqContentController : ControllerBase
     /// Создаёт статью, подготовленную врачом. Врач не получает прав на изменение
     /// чужих материалов, а созданная им статья сразу доступна в базе знаний.
     /// </summary>
-    [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+    [Authorize(Policy = "DoctorOrAdmin")]
     [HttpPost("doctor")]
     [ProducesResponseType(typeof(FaqArticleResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<FaqArticleResponse>> CreateByDoctor(
@@ -53,7 +53,7 @@ public class FaqContentController : ControllerBase
     /// Принимает иллюстрацию для статьи. Формат и сигнатура файла проверяются
     /// до записи на диск, а ссылка ограничена каталогом статей.
     /// </summary>
-    [Authorize(Roles = "Doctor,Admin,SupportAdmin")]
+    [Authorize(Policy = "DoctorOrAdmin")]
     [HttpPost("images")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<ActionResult<FaqImageUploadResponse>> UploadImage(
@@ -75,10 +75,42 @@ public class FaqContentController : ControllerBase
             return BadRequest(new { error = "invalid_image", message = "Допустимы изображения JPEG, PNG и WebP." });
         }
 
-        Directory.CreateDirectory(_uploadPaths.ArticleImagesDirectory);
         var fileName = $"{Guid.NewGuid():N}{extension}";
-        var path = _uploadPaths.GetArticleImageFilePath(fileName);
-        await System.IO.File.WriteAllBytesAsync(path, bytes, cancellationToken);
+
+        try
+        {
+            Directory.CreateDirectory(_uploadPaths.ArticleImagesDirectory);
+            var path = _uploadPaths.GetArticleImageFilePath(fileName);
+            await System.IO.File.WriteAllBytesAsync(path, bytes, cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogError(
+                exception,
+                "FaqContent.UploadImage: у процесса нет доступа к каталогу иллюстраций.");
+
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new
+                {
+                    error = "article_image_storage_unavailable",
+                    message = "Хранилище иллюстраций временно недоступно. Повторите попытку позже."
+                });
+        }
+        catch (IOException exception)
+        {
+            _logger.LogError(
+                exception,
+                "FaqContent.UploadImage: не удалось сохранить иллюстрацию.");
+
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new
+                {
+                    error = "article_image_storage_unavailable",
+                    message = "Хранилище иллюстраций временно недоступно. Повторите попытку позже."
+                });
+        }
 
         return Ok(new FaqImageUploadResponse { ImageUrl = $"/uploads/articles/{fileName}" });
     }

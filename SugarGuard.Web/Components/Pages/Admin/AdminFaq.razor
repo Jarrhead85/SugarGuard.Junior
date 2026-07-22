@@ -10,16 +10,6 @@
 <PageTitle>FAQ — SugarGuard Admin</PageTitle>
 
 <div class="admin-faq-page">
-    <PageHeader Eyebrow="Администрирование"
-                Title="FAQ"
-                Subtitle="Управление справочными материалами, которые видят родители и врачи в кабинетах SugarGuard.">
-        <TrailingContent>
-            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_message))
     {
         <div class="admin-alert admin-alert--@_messageTone">@_message</div>

@@ -10,14 +10,6 @@
 <PageTitle>Безопасность — SugarGuard Admin</PageTitle>
 
 <div class="admin-security-overview">
-    <PageHeader Eyebrow="Безопасность"
-                Title="Сессии и авторизация"
-                Subtitle="Метаданные входов и обновлений сессий. Содержимое токенов и секреты не передаются в браузер.">
-        <TrailingContent>
-            <button class="security-button" type="button" @onclick="() => LoadAsync(1)" disabled="@_loading">@(_loading ? "Обновление..." : "Обновить")</button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_error)) { <div class="security-alert">@_error</div> }
 
     <section class="security-stats">

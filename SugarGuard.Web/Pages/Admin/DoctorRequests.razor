@@ -13,11 +13,6 @@
 <PageTitle>Проверка врачей — SugarGuard</PageTitle>
 
 <div class="requests-page">
-    <PageHeader Eyebrow="АДМИНИСТРИРОВАНИЕ" Title="Проверка заявок врачей"
-                Subtitle="Проверьте квалификационные документы, затем подтвердите или отклоните регистрацию.">
-        <TrailingContent><button class="btn btn-ghost" @onclick="LoadAsync" disabled="@_loading">Обновить</button></TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_message)) { <div class="request-alert @(_error ? "request-alert--error" : "request-alert--success")">@_message</div> }
     @if (_loading) { <section class="requests-panel"><p>Загружаем заявки…</p></section> }
     else if (_requests.Count == 0) { <section class="requests-panel empty"><span>✓</span><h2>Нет заявок на проверку</h2><p>Когда кандидат отправит документы, заявка появится здесь.</p></section> }

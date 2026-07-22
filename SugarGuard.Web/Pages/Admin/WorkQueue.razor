@@ -13,16 +13,6 @@
 <PageTitle>Рабочая очередь — SugarGuard Admin</PageTitle>
 
 <div class="admin-work-queue">
-    <PageHeader Eyebrow="Администрирование"
-                Title="Рабочая очередь"
-                Subtitle="Задачи, требующие действий: поддержка, проверка врачей, состояние системы и лимит ИИ.">
-        <TrailingContent>
-            <button class="queue-button" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_message))
     {
         <div class="queue-alert">@_message</div>

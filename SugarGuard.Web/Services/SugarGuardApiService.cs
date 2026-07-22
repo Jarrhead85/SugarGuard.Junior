@@ -3,6 +3,7 @@ using SugarGuard.Domain.Enums;
 using SugarGuard.Shared.Constants;
 using SugarGuard.Shared.Dto;
 using SugarGuard.Web.Models.Analytics;
+using SugarGuard.Web.Services.Models;
 using SugarGuard.Web.ViewModels;
 using System.Net;
 using System.Net.Http;
@@ -1833,7 +1834,14 @@ namespace SugarGuard.Web.Services
             using var form = new MultipartFormDataContent();
             form.Add(fileContent, "file", file.Name);
             using var response = await client.PostAsync("api/faq-content/images", form, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>(_jsonOptions, cancellationToken);
+                throw new InvalidOperationException(
+                    error?.Message
+                    ?? error?.Detail
+                    ?? "Не удалось загрузить иллюстрацию. Повторите попытку позже.");
+            }
 
             var result = await response.Content.ReadFromJsonAsync<FaqImageUploadVm>(_jsonOptions, cancellationToken)
                 ?? throw new InvalidOperationException("API вернул пустой адрес иллюстрации.");

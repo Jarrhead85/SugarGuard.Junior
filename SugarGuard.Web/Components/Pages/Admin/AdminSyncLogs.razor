@@ -10,16 +10,6 @@
 <PageTitle>Sync Logs — SugarGuard Admin</PageTitle>
 
 <div class="admin-ops-page">
-    <PageHeader Eyebrow="Администрирование"
-                Title="Журнал синхронизации"
-                Subtitle="Контроль очереди синхронизации MAUI-клиента, конфликтов и ошибок обмена данными.">
-        <TrailingContent>
-            <button class="admin-btn admin-btn--soft" type="button" @onclick="LoadAsync" disabled="@_isLoading">
-                @(_isLoading ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_message))
     {
         <div class="admin-alert admin-alert--@_messageTone">@_message</div>

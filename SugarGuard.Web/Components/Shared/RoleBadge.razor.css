@@ -108,7 +108,7 @@
     }
 
 /* Responsive */
-@@media (max-width: 640px) {
+@media (max-width: 640px) {
     .role-badge {
         min-height: 26px;
         padding: 4px 9px;

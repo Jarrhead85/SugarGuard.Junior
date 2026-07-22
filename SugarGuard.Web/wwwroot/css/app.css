@@ -1682,3 +1682,143 @@ select {
     .app-shell--doctor .sg-cohort-alert-card { border-radius: 16px; }
     .app-shell--doctor .sg-cohort-section__title { flex-wrap: wrap; }
 }
+
+/* --------------------------------------------------------------------------
+   Единый стандарт рабочих кабинетов
+   --------------------------------------------------------------------------
+   Родительский «Обзор» задаёт спокойную иерархию: одна общая шапка, далее
+   данные без дублирующих локальных hero-блоков. Эти правила выравнивают
+   исторические страницы врача и администратора по той же сетке и не дают
+   длинному содержимому раздвигать экран на небольших устройствах. */
+
+.app-shell .page-content > * {
+    min-width: 0;
+}
+
+.app-shell--parent :is(.nutrition-page, .parent-access-page, .sg-page),
+.app-shell--doctor :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort),
+.app-shell--admin :is(.admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page) {
+    width: min(100%, 1560px);
+    min-width: 0;
+    margin-inline: auto;
+    font-family: var(--font-body);
+}
+
+.app-shell--doctor :is(.doctor-detail, .verification-page, .sg-page),
+.app-shell :is(.support-page) {
+    width: min(100%, 1560px);
+    min-width: 0;
+    margin-inline: auto;
+    font-family: var(--font-body);
+}
+
+/* Редактор заметки не имеет общего контейнера: выравниваем его соседние блоки. */
+.app-shell--doctor .page-content > :is(.sg-breadcrumb, .sg-editor-skeleton, .sg-page-header, .sg-editor-card) {
+    width: min(100%, 980px);
+    min-width: 0;
+    margin-inline: auto;
+}
+
+.app-shell--admin :is(.admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page),
+.app-shell--doctor :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort) {
+    gap: var(--space-20, 20px);
+}
+
+.app-shell--admin :is(.hero-copy h1, .admin-title-row h1, .sg-section-header h2, .requests-page h2, .section-card h2),
+.app-shell--doctor :is(.doctor-portal h1, .doctor-portal h2, .doctor-simple-page h1, .doctor-simple-page h2, .doctor-report-page h1, .doctor-report-page h2, .doctor-notes-index h1, .doctor-notes-index h2, .doctor-profile-page h1, .doctor-profile-page h2, .doctor-articles h2, .doctor-articles h3, .sg-cohort h2) {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+}
+
+.app-shell--admin :is(.sg-panel, .admin-panel, .section-card, .queue-panel, .queue-stats article, .requests-list, .requests-panel, .security-panel, .security-stats article),
+.app-shell--doctor :is(.doctor-kpi-card, .doctor-table-card, .doctor-simple-card, .doctor-simple-empty, .doctor-risk-card, .doctor-report-card, .doctor-report-table-card, .doctor-report-empty, .doctor-notes-card, .doctor-profile-card, .doctor-article-editor, .doctor-article-preview, .sg-cohort-kpi, .sg-cohort-section, .sg-cohort-alert-card),
+.app-shell--doctor :is(.doctor-detail-card, .verification-card, .sg-editor-card),
+.app-shell--parent :is(.nutrition-panel, .nutrition-stat),
+.app-shell :is(.support-list-panel, .support-thread-panel) {
+    border-radius: 20px;
+}
+
+.app-shell--admin :is(.sg-panel, .admin-panel, .section-card, .queue-panel, .queue-stats article, .requests-list, .requests-panel, .security-panel, .security-stats article),
+.app-shell--doctor :is(.doctor-kpi-card, .doctor-table-card, .doctor-simple-card, .doctor-simple-empty, .doctor-risk-card, .doctor-report-card, .doctor-report-table-card, .doctor-report-empty, .doctor-notes-card, .doctor-profile-card, .doctor-article-editor, .doctor-article-preview, .sg-cohort-kpi, .sg-cohort-section, .sg-cohort-alert-card) {
+    border-color: color-mix(in oklab, var(--color-border) 88%, transparent);
+    box-shadow: 0 10px 28px rgba(22, 33, 62, .055);
+}
+
+.app-shell--doctor :is(.doctor-detail-card, .verification-card, .sg-editor-card),
+.app-shell :is(.support-list-panel, .support-thread-panel) {
+    border-color: color-mix(in oklab, var(--color-border) 88%, transparent);
+    box-shadow: 0 10px 28px rgba(22, 33, 62, .055);
+}
+
+.app-shell--admin :is(button, input, select, textarea),
+.app-shell--doctor :is(button, input, select, textarea),
+.app-shell--parent :is(button, input, select, textarea) {
+    font-family: inherit;
+}
+
+.app-shell :is(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 28%, transparent);
+    outline-offset: 2px;
+}
+
+.app-shell--admin :is(.sg-main-layout, .admin-main-layout, .requests-layout, .admin-dashboard-grid),
+.app-shell--doctor :is(.doctor-report-table-card, .doctor-table-card),
+.app-shell--parent :is(.nutrition-grid, .nutrition-chart) {
+    min-width: 0;
+}
+
+.app-shell--admin :is(.sg-table-wrap, .table-wrap, .admin-table-wrap),
+.app-shell--doctor :is(.doctor-report-table-card, .doctor-table-card),
+.app-shell--parent .sg-measurement-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+    .app-shell--admin :is(.sg-main-layout, .admin-main-layout, .requests-layout, .admin-dashboard-grid),
+    .app-shell--doctor :is(.doctor-notes-workspace, .doctor-profile-grid) {
+        grid-template-columns: 1fr;
+    }
+
+    .app-shell--admin :is(.sg-stats-grid, .admin-kpi-row, .admin-server-summary, .queue-stats, .security-stats),
+    .app-shell--doctor :is(.doctor-kpi-grid, .doctor-report-kpis, .doctor-risk-grid) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .app-shell--admin :is(.admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page),
+    .app-shell--doctor :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort),
+    .app-shell--doctor :is(.doctor-detail, .verification-page, .sg-page),
+    .app-shell--parent :is(.nutrition-page, .parent-access-page, .sg-page) {
+        gap: var(--space-16, 16px);
+    }
+
+    .app-shell--admin :is(.sg-stats-grid, .admin-kpi-row, .admin-server-summary, .queue-stats, .security-stats),
+    .app-shell--doctor :is(.doctor-kpi-grid, .doctor-report-kpis, .doctor-risk-grid) {
+        grid-template-columns: 1fr;
+    }
+
+    .app-shell--admin :is(.sg-panel, .admin-panel, .section-card, .queue-panel, .requests-panel, .security-panel),
+    .app-shell--doctor :is(.doctor-kpi-card, .doctor-table-card, .doctor-simple-card, .doctor-risk-card, .doctor-report-card, .doctor-report-table-card, .doctor-notes-card, .doctor-profile-card, .doctor-article-editor, .doctor-article-preview, .sg-cohort-kpi, .sg-cohort-section, .sg-cohort-alert-card) {
+        border-radius: 16px;
+    }
+
+    .app-shell--doctor :is(.doctor-detail-card, .verification-card, .sg-editor-card),
+    .app-shell :is(.support-list-panel, .support-thread-panel) {
+        border-radius: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-shell--admin *,
+    .app-shell--doctor *,
+    .app-shell--parent * {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}

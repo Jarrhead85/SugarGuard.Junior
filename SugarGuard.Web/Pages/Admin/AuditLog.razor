@@ -14,19 +14,6 @@
 <PageTitle>Audit Log — SugarGuard Admin</PageTitle>
 
 <div class="admin-audit-page">
-    <PageHeader Eyebrow="Admin / Audit Log"
-                Title="Журнал аудита"
-                Subtitle="Просмотр административных и системных событий: логины, смена ролей, создание связей и другие действия, записанные в audit log.">
-        <TrailingContent>
-            <button class="sg-btn sg-btn-soft"
-                    type="button"
-                    @onclick="() => LoadAuditLogsAsync()"
-                    disabled="@_isRefreshing">
-                @(_isRefreshing ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
         <div class="sg-alert @GetStatusClass()">

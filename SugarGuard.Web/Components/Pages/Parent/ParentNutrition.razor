@@ -598,7 +598,10 @@
             await JS.InvokeVoidAsync(
                 "SugarGuard.downloadBase64",
                 $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}",
-                format == "csv" ? "text/csv;charset=utf-16" : "application/pdf",
+                // Не используем text/csv: старые версии interop.js добавляли
+                // UTF-8 BOM к уже готовому UTF-16 CSV. MIME-тип Excel сохраняет
+                // исходные байты и корректно открывается в Microsoft Excel.
+                format == "csv" ? "application/vnd.ms-excel;charset=utf-16" : "application/pdf",
                 Convert.ToBase64String(bytes));
         }
         catch (Exception)

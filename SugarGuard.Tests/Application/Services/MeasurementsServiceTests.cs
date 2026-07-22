@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Application.Services;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
@@ -32,6 +33,7 @@ public class MeasurementsServiceTests : IDisposable
 {
     private readonly string _dbName = $"MeasurementsTest_{Guid.NewGuid()}";
     private readonly Mock<IAuditService> _audit = new();
+    private readonly Mock<IDailyParentSummaryRefreshService> _dailySummaryRefresh = new();
     private readonly DbContextOptions<AppDbContext> _dbOptions;
 
     public MeasurementsServiceTests()
@@ -50,7 +52,11 @@ public class MeasurementsServiceTests : IDisposable
     private TestAppDbContextFactory CreateFactory() => new(_dbOptions);
 
     private MeasurementsService CreateSut() =>
-        new(CreateFactory(), _audit.Object, NullLogger<MeasurementsService>.Instance);
+        new(
+            CreateFactory(),
+            _audit.Object,
+            _dailySummaryRefresh.Object,
+            NullLogger<MeasurementsService>.Instance);
 
     private static Child CreateChild() => new()
     {

@@ -15,20 +15,6 @@
 <PageTitle>Дашборд — SugarGuard Admin</PageTitle>
 
 <div class="admin-dashboard-v2">
-    <div class="admin-hero admin-hero--compact" aria-label="Действия дашборда">
-        <div class="admin-hero-actions">
-            <span class="admin-health-pill admin-health-pill--@HealthTone">
-                <span></span>
-                @HealthLabel
-            </span>
-            <span class="admin-updated">Обновлено: @FormatLocal(_loadedAt)</span>
-            <button class="admin-btn admin-btn--soft" type="button" @onclick="() => LoadAsync()" disabled="@_isLoading">
-                @(_isLoading ? "Обновление..." : "Обновить")
-            </button>
-            <a class="admin-btn admin-btn--primary" href="/admin/export-logs">Экспорт</a>
-        </div>
-    </div>
-
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
         <div class="admin-alert admin-alert--warning">@_statusMessage</div>

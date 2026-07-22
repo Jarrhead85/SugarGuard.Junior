@@ -16,7 +16,6 @@
             <h2 id="doctor-articles-title">Статьи для родителей</h2>
             <p>Подготовьте понятный материал. Поддерживаются заголовки, выделение, списки и безопасные иллюстрации.</p>
         </div>
-        <button class="doctor-articles__secondary" type="button" @onclick="LoadAsync" disabled="@_loading">Обновить</button>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -82,17 +81,7 @@
     private string? _message;
     private bool _isError;
     private bool _saving;
-    private bool _loading;
     private bool _imageUploading;
-
-    private async Task LoadAsync()
-    {
-        _loading = true;
-        _message = null;
-        _isError = false;
-        await Task.Yield();
-        _loading = false;
-    }
 
     private async Task SaveAsync()
     {

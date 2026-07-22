@@ -11,19 +11,6 @@
 <PageTitle>Пользователи — SugarGuard Admin</PageTitle>
 
 <div class="admin-users-page">
-    <PageHeader Eyebrow="Admin / Users"
-                Title="Пользователи и связи"
-                Subtitle="Управление ролями, быстрый поиск по базе и ручное создание связей между родителями, врачами и детьми.">
-        <TrailingContent>
-            <button class="sg-btn sg-btn-soft"
-                    type="button"
-                    @onclick="() => LoadUsersAsync()"
-                    disabled="@_isRefreshing">
-                @(_isRefreshing ? "Обновление..." : "Обновить")
-            </button>
-        </TrailingContent>
-    </PageHeader>
-
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
     {
         <div class="sg-alert @GetStatusClass()">
