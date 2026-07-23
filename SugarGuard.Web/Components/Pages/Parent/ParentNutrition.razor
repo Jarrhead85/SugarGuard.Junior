@@ -607,10 +607,10 @@
                 format);
 
             var contentType = format == "csv"
-                ? "text/csv; charset=utf-16"
+                ? "text/csv; charset=windows-1251"
                 : "application/pdf";
             var fileName = format == "csv"
-                ? $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}-unicode.csv"
+                ? $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}-windows-1251.csv"
                 : $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}.pdf";
             var ticket = ExportDownloads.Create(
                 bytes,

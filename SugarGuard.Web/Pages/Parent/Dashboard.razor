@@ -2732,14 +2732,12 @@
                 .Append("\r\n");
         }
 
-        var encoding = new System.Text.UnicodeEncoding(bigEndian: false, byteOrderMark: true);
-        var bytes = encoding.GetPreamble()
-            .Concat(encoding.GetBytes(rows.ToString()))
-            .ToArray();
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var bytes = System.Text.Encoding.GetEncoding(1251).GetBytes(rows.ToString());
         var ticket = ExportDownloads.Create(
             bytes,
-            "text/csv;charset=utf-16",
-            $"sugarguard-measurements-{DateTime.Now:yyyyMMdd-HHmm}-unicode.csv");
+            "text/csv;charset=windows-1251",
+            $"sugarguard-measurements-{DateTime.Now:yyyyMMdd-HHmm}-windows-1251.csv");
 
         Navigation.NavigateTo($"/downloads/{ticket}", forceLoad: true);
     }

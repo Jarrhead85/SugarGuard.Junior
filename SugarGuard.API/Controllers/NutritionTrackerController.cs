@@ -112,11 +112,11 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        // Unicode UTF-16 LE с BOM автоматически распознаётся Microsoft Excel на Windows.
+        // Windows-1251 соответствует ANSI-кодировке русской версии Excel.
         return File(
             await _tracker.ExportCsvAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken),
-            "text/csv; charset=utf-16",
-            $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}-unicode.csv");
+            "text/csv; charset=windows-1251",
+            $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}-windows-1251.csv");
     }
 
     [HttpGet("export.pdf")]

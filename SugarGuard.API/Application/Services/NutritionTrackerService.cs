@@ -15,9 +15,9 @@ namespace SugarGuard.API.Application.Services;
 
 public sealed class NutritionTrackerService : INutritionTrackerService
 {
-    // Excel для Windows надёжно определяет UTF-16 LE по BOM при двойном клике по CSV.
-    // Это не зависит от системной ANSI-кодировки и настроек импорта пользователя.
-    private static readonly UnicodeEncoding CsvEncoding = new(bigEndian: false, byteOrderMark: true);
+    // Русская версия Excel при прямом открытии CSV использует системную ANSI-кодировку.
+    // Windows-1251 обеспечивает корректное отображение кириллицы без ручного импорта.
+    private static readonly Encoding CsvEncoding = CreateCsvEncoding();
 
     private static readonly AchievementDefinition[] AchievementDefinitions =
     [
@@ -238,9 +238,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 entry.Notes));
         }
 
-        // Unicode UTF-16 LE с BOM корректно определяется Microsoft Excel на Windows
-        // при открытии файла из браузера без ручного выбора кодировки.
-        return CsvEncoding.GetPreamble().Concat(CsvEncoding.GetBytes(builder.ToString())).ToArray();
+        return CsvEncoding.GetBytes(builder.ToString());
     }
 
     public async Task<byte[]> ExportPdfAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
@@ -482,6 +480,12 @@ public sealed class NutritionTrackerService : INutritionTrackerService
     }
 
     private static string ToCsvRow(params string?[] values) => string.Join(';', values.Select(Csv));
+
+    private static Encoding CreateCsvEncoding()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(1251);
+    }
 
     private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
 
