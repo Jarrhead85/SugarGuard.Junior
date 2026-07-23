@@ -112,11 +112,11 @@ public sealed class NutritionTrackerController : ControllerBase
     {
         if (!TryValidatePeriod(from, to, out var error)) return BadRequest(new { error });
         if (!await _childAccess.CanAccessChildAsync(childId, cancellationToken)) return Forbid();
-        // UTF-8 с BOM распознаётся Excel при открытии файла из браузера.
+        // UTF-8 с BOM и Excel-совместимый MIME-тип распознаются при открытии из браузера.
         return File(
             await _tracker.ExportCsvAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken),
-            "text/csv; charset=utf-8",
-            $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.csv");
+            "application/vnd.ms-excel; charset=utf-8",
+            $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}-utf8.csv");
     }
 
     [HttpGet("export.pdf")]

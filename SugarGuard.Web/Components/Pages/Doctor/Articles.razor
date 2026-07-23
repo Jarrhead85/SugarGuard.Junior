@@ -12,7 +12,6 @@
 <section class="doctor-articles" aria-labelledby="doctor-articles-title">
     <header class="doctor-articles__header">
         <div>
-            <span>База знаний</span>
             <h2 id="doctor-articles-title">Статьи для родителей</h2>
             <p>Подготовьте понятный материал. Поддерживаются заголовки, выделение, списки и безопасные иллюстрации.</p>
         </div>
@@ -27,10 +26,10 @@
         <form class="doctor-article-editor" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
             <div class="doctor-article-editor__heading">
                 <div>
-                    <span class="doctor-articles__eyebrow">Новая статья</span>
-                    <h3>Поделитесь полезным материалом</h3>
+                    <span class="doctor-articles__eyebrow">@(_editingArticleId.HasValue ? "Редактирование статьи" : "Новая статья")</span>
+                    <h3>@(_editingArticleId.HasValue ? "Обновите опубликованный материал" : "Поделитесь полезным материалом")</h3>
                 </div>
-                <span class="doctor-articles__status">После публикации увидят родители</span>
+                <span class="doctor-articles__status">После сохранения увидят родители</span>
             </div>
 
             <label>
@@ -55,8 +54,8 @@
             </label>
             <p class="doctor-article-editor__help">Используйте <code>**выделение**</code>, <code>*курсив*</code>, <code>## заголовок</code>. Изображения добавляются автоматически.</p>
             <div class="doctor-article-editor__actions">
-                <button class="doctor-articles__secondary" type="button" @onclick="Clear">Очистить</button>
-                <button class="doctor-articles__primary" type="submit" disabled="@_saving">@(_saving ? "Публикуем…" : "Опубликовать статью")</button>
+                <button class="doctor-articles__secondary" type="button" @onclick="Clear">@(_editingArticleId.HasValue ? "Отменить редактирование" : "Очистить")</button>
+                <button class="doctor-articles__primary" type="submit" disabled="@_saving">@(_saving ? "Сохраняем…" : _editingArticleId.HasValue ? "Сохранить изменения" : "Опубликовать статью")</button>
             </div>
         </form>
 
@@ -73,6 +72,43 @@
             }
         </aside>
     </div>
+
+    <section class="doctor-article-library" aria-labelledby="doctor-article-library-title">
+        <div class="doctor-article-library__heading">
+            <div>
+                <span class="doctor-articles__eyebrow">Опубликованные материалы</span>
+                <h3 id="doctor-article-library-title">Управление статьями</h3>
+            </div>
+            <span>@_articles.Count</span>
+        </div>
+
+        @if (_isLoading)
+        {
+            <p class="doctor-article-library__empty">Загружаем статьи…</p>
+        }
+        else if (_articles.Count == 0)
+        {
+            <p class="doctor-article-library__empty">Пока нет опубликованных статей.</p>
+        }
+        else
+        {
+            <div class="doctor-article-library__list">
+                @foreach (var article in _articles)
+                {
+                    <article class="doctor-article-library__item" @key="article.FaqId">
+                        <div>
+                            <strong>@article.Title</strong>
+                            <small>Обновлено @article.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                        </div>
+                        <div class="doctor-article-library__actions">
+                            <button type="button" @onclick="() => Edit(article)">Редактировать</button>
+                            <button type="button" class="is-danger" @onclick="() => DeleteAsync(article)">Удалить</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
 </section>
 
 @code {
@@ -82,6 +118,14 @@
     private bool _isError;
     private bool _saving;
     private bool _imageUploading;
+    private bool _isLoading = true;
+    private Guid? _editingArticleId;
+    private List<FaqVm> _articles = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArticlesAsync();
+    }
 
     private async Task SaveAsync()
     {
@@ -95,10 +139,20 @@
         try
         {
             _saving = true;
-            await Api.CreateDoctorFaqAsync(new FaqArticleRequestVm { Title = _title.Trim(), Content = _content.Trim(), IsPublished = true });
+            var request = new FaqArticleRequestVm { Title = _title.Trim(), Content = _content.Trim(), IsPublished = true };
+            if (_editingArticleId is { } articleId)
+            {
+                await Api.UpdateFaqAsync(articleId, request);
+            }
+            else
+            {
+                await Api.CreateDoctorFaqAsync(request);
+            }
+
             Clear();
+            await LoadArticlesAsync();
             _isError = false;
-            _message = "Статья опубликована и уже доступна родителям.";
+            _message = "Статья сохранена и уже доступна родителям.";
         }
         catch
         {
@@ -130,12 +184,70 @@
 
     private Task WrapSelectionAsync(string before, string after) => Js.InvokeVoidAsync("SugarGuard.articleEditor.wrapSelection", "doctor-article-content", before, after).AsTask();
     private Task InsertAtCursorAsync(string text) => Js.InvokeVoidAsync("SugarGuard.articleEditor.insertAtCursor", "doctor-article-content", text).AsTask();
-    private void Clear() { _title = string.Empty; _content = string.Empty; _message = null; _isError = false; }
+    private void Edit(FaqVm article)
+    {
+        _editingArticleId = article.FaqId;
+        _title = article.Title;
+        _content = article.Content;
+        _message = null;
+        _isError = false;
+    }
+
+    private async Task DeleteAsync(FaqVm article)
+    {
+        var confirmed = await Js.InvokeAsync<bool>("confirm", $"Удалить статью «{article.Title}»? Это действие нельзя отменить.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await Api.DeleteFaqAsync(article.FaqId);
+            if (_editingArticleId == article.FaqId)
+            {
+                Clear();
+            }
+
+            await LoadArticlesAsync();
+            _isError = false;
+            _message = "Статья удалена.";
+        }
+        catch
+        {
+            _isError = true;
+            _message = "Не удалось удалить статью. Повторите попытку.";
+        }
+    }
+
+    private async Task LoadArticlesAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _articles = (await Api.GetFaqAsync())
+                .OrderByDescending(article => article.UpdatedAt)
+                .ToList();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Clear()
+    {
+        _editingArticleId = null;
+        _title = string.Empty;
+        _content = string.Empty;
+        _message = null;
+        _isError = false;
+    }
 }
 
 <style>
     .doctor-articles { display: grid; gap: 18px; width: min(1320px, 100%); margin: 0 auto; }
-    .doctor-articles__header, .doctor-article-editor, .doctor-article-preview { border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 22px; background: rgba(255,255,255,.9); box-shadow: 0 10px 26px rgba(22,33,62,.05); }
+    .doctor-articles__header, .doctor-article-editor, .doctor-article-preview, .doctor-article-library { border: 1px solid var(--color-border, rgba(22,33,62,.12)); border-radius: 22px; background: rgba(255,255,255,.9); box-shadow: 0 10px 26px rgba(22,33,62,.05); }
     .doctor-articles__header { display: flex; align-items: start; justify-content: space-between; gap: 18px; padding: 24px; background: linear-gradient(135deg, rgba(27,142,139,.12), rgba(45,126,226,.08)); }
     .doctor-articles__header > div > span, .doctor-articles__eyebrow { color: var(--color-primary, #1b8e8b); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     .doctor-articles h2, .doctor-articles h3 { margin: 5px 0 0; color: var(--color-text, #16213e); }
@@ -160,6 +272,20 @@
     .doctor-article-editor__help code { padding: 1px 4px; border-radius: 5px; background: rgba(45,126,226,.08); }
     .doctor-articles__message { padding: 13px 16px; border: 1px solid rgba(27,142,139,.22); border-radius: 16px; background: rgba(27,142,139,.10); color: var(--color-primary, #1b8e8b); font-weight: 700; }
     .doctor-articles__message.is-error { border-color: rgba(219,89,103,.24); background: rgba(219,89,103,.1); color: #b64050; }
+    .doctor-article-library { display: grid; gap: 14px; padding: 22px; }
+    .doctor-article-library__heading, .doctor-article-library__item, .doctor-article-library__actions { display: flex; align-items: center; gap: 12px; }
+    .doctor-article-library__heading { justify-content: space-between; }
+    .doctor-article-library__heading h3 { margin-top: 5px; }
+    .doctor-article-library__heading > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 999px; background: rgba(27,142,139,.11); color: var(--color-primary, #1b8e8b); font-size: 13px; font-weight: 800; }
+    .doctor-article-library__list { display: grid; gap: 10px; }
+    .doctor-article-library__item { justify-content: space-between; min-width: 0; padding: 13px 14px; border: 1px solid rgba(22,33,62,.10); border-radius: 14px; }
+    .doctor-article-library__item > div:first-child { display: grid; min-width: 0; gap: 4px; }
+    .doctor-article-library__item strong { overflow: hidden; color: var(--color-text, #16213e); text-overflow: ellipsis; white-space: nowrap; }
+    .doctor-article-library__item small, .doctor-article-library__empty { color: var(--color-text-muted, #667694); font-size: 12px; }
+    .doctor-article-library__empty { margin: 0; padding: 18px 0; text-align: center; }
+    .doctor-article-library__actions { flex: 0 0 auto; }
+    .doctor-article-library__actions button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(27,142,139,.18); border-radius: 10px; background: #fff; color: var(--color-primary, #1b8e8b); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .doctor-article-library__actions .is-danger { border-color: rgba(219,89,103,.2); color: #b64050; }
     @@media (max-width: 900px) { .doctor-articles__grid { grid-template-columns: 1fr; } }
-    @@media (max-width: 620px) { .doctor-articles__header, .doctor-article-editor__heading { display: grid; } .doctor-articles__header, .doctor-article-editor, .doctor-article-preview { padding: 18px; border-radius: 18px; } .doctor-articles__secondary { width: 100%; } .doctor-article-editor__actions { display: grid; } .doctor-article-editor__actions button { width: 100%; } }
+    @@media (max-width: 620px) { .doctor-articles__header, .doctor-article-editor__heading { display: grid; } .doctor-articles__header, .doctor-article-editor, .doctor-article-preview, .doctor-article-library { padding: 18px; border-radius: 18px; } .doctor-articles__secondary { width: 100%; } .doctor-article-editor__actions { display: grid; } .doctor-article-editor__actions button { width: 100%; } .doctor-article-library__item { align-items: stretch; display: grid; } .doctor-article-library__actions { display: grid; grid-template-columns: 1fr 1fr; } .doctor-article-library__actions button { width: 100%; } }
 </style>

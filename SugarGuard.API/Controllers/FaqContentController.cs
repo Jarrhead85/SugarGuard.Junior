@@ -175,9 +175,11 @@ public class FaqContentController : ControllerBase
     }
 
     /// <summary>
-    /// Обновляет FAQ-статью
+    /// Обновляет опубликованную статью из общей базы знаний.
+    /// Материалы создаются и поддерживаются врачами совместно, поэтому
+    /// изменения доступны подтверждённым врачам и администраторам.
     /// </summary>
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "DoctorOrAdmin")]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(FaqArticleResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -214,9 +216,9 @@ public class FaqContentController : ControllerBase
     }
 
     /// <summary>
-    /// Удаляет FAQ-статью
+    /// Удаляет статью из общей базы знаний.
     /// </summary>
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "DoctorOrAdmin")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

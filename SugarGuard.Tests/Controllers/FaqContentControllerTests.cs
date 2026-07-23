@@ -24,6 +24,18 @@ public sealed class FaqContentControllerTests
         Assert.Equal("DoctorOrAdmin", authorization.Policy);
     }
 
+    [Theory]
+    [InlineData(nameof(FaqContentController.Update))]
+    [InlineData(nameof(FaqContentController.Delete))]
+    public void ArticleManagement_UsesDoctorOrAdminPolicy(string methodName)
+    {
+        var method = typeof(FaqContentController).GetMethod(methodName);
+        var authorization = method?.GetCustomAttribute<AuthorizeAttribute>();
+
+        Assert.NotNull(authorization);
+        Assert.Equal("DoctorOrAdmin", authorization.Policy);
+    }
+
     [Fact]
     public async Task UploadImage_WhenStorageIsUnavailable_Returns503WithoutFileSystemDetails()
     {

@@ -607,12 +607,15 @@
                 format);
 
             var contentType = format == "csv"
-                ? "text/csv;charset=utf-8"
+                ? "application/vnd.ms-excel; charset=utf-8"
                 : "application/pdf";
+            var fileName = format == "csv"
+                ? $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}-utf8.csv"
+                : $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}.pdf";
             var ticket = ExportDownloads.Create(
                 bytes,
                 contentType,
-                $"sugarguard-diary-{DateTime.Today:yyyyMMdd}.{format}");
+                fileName);
 
             Navigation.NavigateTo($"/downloads/{ticket}", forceLoad: true);
         }
