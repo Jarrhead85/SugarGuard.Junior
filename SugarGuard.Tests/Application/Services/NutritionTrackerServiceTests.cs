@@ -78,7 +78,7 @@ public sealed class NutritionTrackerServiceTests
     }
 
     [Fact]
-    public async Task ExportCsvAsync_UsesUtf8BomAndPreservesRussianTextForExcel()
+    public async Task ExportCsvAsync_UsesUtf16LeBomAndPreservesRussianTextForExcel()
     {
         await using var context = CreateContext();
         var child = CreateChild();
@@ -105,7 +105,7 @@ public sealed class NutritionTrackerServiceTests
             DateTime.UtcNow.AddDays(1),
             CancellationToken.None);
 
-        var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+        var encoding = new UnicodeEncoding(bigEndian: false, byteOrderMark: true);
         Assert.True(bytes.AsSpan().StartsWith(encoding.GetPreamble()));
 
         var csv = encoding.GetString(bytes.AsSpan(encoding.GetPreamble().Length));
