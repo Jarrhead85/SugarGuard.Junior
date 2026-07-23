@@ -91,6 +91,7 @@ public sealed class NutritionTrackerServiceTests
             MealName = "Гречка с овощами",
             BreadUnits = 3.5m,
             InsulinUnits = 2m,
+            GlucoseBefore = 5.9m,
             CreatedByUserId = Guid.NewGuid()
         });
         await context.SaveChangesAsync();
@@ -114,6 +115,7 @@ public sealed class NutritionTrackerServiceTests
         Assert.StartsWith("sep=;\r\n", csv, StringComparison.Ordinal);
         Assert.Contains("Приём пищи", csv, StringComparison.Ordinal);
         Assert.Contains("Гречка с овощами", csv, StringComparison.Ordinal);
+        Assert.Contains("\"3,5\";\"2\";\"5,9\"", csv, StringComparison.Ordinal);
     }
 
     [Fact]

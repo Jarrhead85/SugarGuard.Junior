@@ -221,6 +221,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
 
     public async Task<byte[]> ExportCsvAsync(Guid childId, DateTime from, DateTime to, CancellationToken cancellationToken)
     {
+        var csvCulture = CultureInfo.GetCultureInfo("ru-RU");
         var entries = await GetEntriesAsync(childId, from, to, cancellationToken);
         var builder = new StringBuilder("sep=;\r\n");
         builder.AppendLine(ToCsvRow("Дата и время", "Приём пищи", "Описание", "ХЕ", "Инсулин, ед.", "Глюкоза до", "Источник", "Заметка"));
@@ -231,9 +232,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
                 ToDisplayTime(entry.RecordedAt).ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("ru-RU")),
                 MealLabel(entry.MealType),
                 entry.MealName,
-                entry.BreadUnits.ToString("0.##", CultureInfo.InvariantCulture),
-                entry.InsulinUnits.ToString("0.##", CultureInfo.InvariantCulture),
-                entry.GlucoseBefore?.ToString("0.0", CultureInfo.InvariantCulture) ?? string.Empty,
+                entry.BreadUnits.ToString("0.##", csvCulture),
+                entry.InsulinUnits.ToString("0.##", csvCulture),
+                entry.GlucoseBefore?.ToString("0.0", csvCulture) ?? string.Empty,
                 entry.Source.ToString(),
                 entry.Notes));
         }
