@@ -607,7 +607,7 @@
                 format);
 
             var contentType = format == "csv"
-                ? "application/vnd.ms-excel; charset=utf-8"
+                ? "text/csv; charset=utf-8"
                 : "application/pdf";
             var fileName = format == "csv"
                 ? $"sugarguard-diary-{DateTime.Now:yyyyMMdd-HHmm}-utf8.csv"

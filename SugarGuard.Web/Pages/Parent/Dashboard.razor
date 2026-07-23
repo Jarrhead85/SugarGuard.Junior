@@ -2717,15 +2717,17 @@
 
     private void ExportCsvAsync()
     {
-        var rows = new System.Text.StringBuilder();
-        rows.AppendLine("Время,Глюкоза,Тренд,Статус,Заметка");
+        // Excel в русской локали использует точку с запятой как разделитель столбцов.
+        // Строка sep=; устраняет зависимость от пользовательских настроек Windows.
+        var rows = new System.Text.StringBuilder("sep=;\r\n");
+        rows.AppendLine("Время;Глюкоза;Тренд;Статус;Заметка");
         foreach (var m in _measurements)
         {
             rows
-                .Append(Csv(m.Time)).Append(',')
-                .Append(Csv(m.Value)).Append(',')
-                .Append(Csv(m.Trend)).Append(',')
-                .Append(Csv(m.Status)).Append(',')
+                .Append(Csv(m.Time)).Append(';')
+                .Append(Csv(m.Value)).Append(';')
+                .Append(Csv(m.Trend)).Append(';')
+                .Append(Csv(m.Status)).Append(';')
                 .Append(Csv(m.Note))
                 .Append("\r\n");
         }
@@ -2736,7 +2738,7 @@
         var ticket = ExportDownloads.Create(
             bytes,
             "text/csv;charset=utf-8",
-            "sugarguard-export.csv");
+            $"sugarguard-measurements-{DateTime.Now:yyyyMMdd-HHmm}-utf8.csv");
 
         Navigation.NavigateTo($"/downloads/{ticket}", forceLoad: true);
     }
@@ -2744,7 +2746,7 @@
     private static string Csv(string? value)
     {
         var normalized = value ?? string.Empty;
-        return normalized.Contains('"') || normalized.Contains(',') || normalized.Contains('\n') || normalized.Contains('\r')
+        return normalized.Contains('"') || normalized.Contains(';') || normalized.Contains('\n') || normalized.Contains('\r')
             ? "\"" + normalized.Replace("\"", "\"\"") + "\""
             : normalized;
     }
