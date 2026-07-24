@@ -270,6 +270,10 @@
                             <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
                             <div class="alert-body">
                                 <div class="alert-title">@alert.Title</div>
+                                @if (!string.IsNullOrWhiteSpace(alert.ChildName))
+                                {
+                                    <div class="alert-child">Ребёнок: @alert.ChildName</div>
+                                }
                                 <div class="alert-desc">@alert.Description</div>
                             </div>
                             <time class="alert-time">@alert.Time</time>
@@ -637,6 +641,10 @@
                     <div class="alert-icon @alert.Type" aria-hidden="true">@alert.Icon</div>
                     <div class="alert-body">
                         <div class="alert-title">@alert.Title</div>
+                        @if (!string.IsNullOrWhiteSpace(alert.ChildName))
+                        {
+                            <div class="alert-child">Ребёнок: @alert.ChildName</div>
+                        }
                         <div class="alert-desc">
                             @alert.Description
                             @if (!string.IsNullOrWhiteSpace(alert.MapUrl))
@@ -2171,6 +2179,7 @@
             notification.IsUnread)
         {
             NotificationId = notification.NotificationId,
+            ChildName = notification.ChildName,
             MapUrl = BuildMapUrl(notification.Description)
         };
     }
@@ -3497,6 +3506,7 @@
         public string Type { get; init; }
         public string Icon { get; init; }
         public Guid? NotificationId { get; set; }
+        public string? ChildName { get; set; }
         public string? MapUrl { get; set; }
         public bool IsUnread { get; set; }
 

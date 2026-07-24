@@ -2074,6 +2074,7 @@ namespace SugarGuard.Web.Services
                         d.NotificationId,
                         d.CreatedAt,
                         d.ChildId,
+                        d.ChildName,
                         d.SourceType))
                     .ToList();
             }
@@ -2100,6 +2101,7 @@ namespace SugarGuard.Web.Services
             public string Type { get; init; } = "info";
             public bool IsUnread { get; init; }
             public Guid? ChildId { get; init; }
+            public string? ChildName { get; init; }
             public string SourceType { get; init; } = string.Empty;
         }
 

@@ -592,6 +592,14 @@
     line-height: 1.25;
 }
 
+.alert-child {
+    margin-top: 2px;
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
 .alert-desc {
     font-size: 13px;
     color: var(--color-text-muted);

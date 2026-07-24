@@ -10,6 +10,7 @@ public sealed class UserNotificationItem
     public string Type { get; init; }
     public bool IsUnread { get; set; }
     public Guid? ChildId { get; init; }
+    public string? ChildName { get; init; }
     public string SourceType { get; init; }
 
     public UserNotificationItem(
@@ -21,11 +22,12 @@ public sealed class UserNotificationItem
         Guid? notificationId = null,
         DateTime createdAt = default,
         Guid? childId = null,
+        string? childName = null,
         string? sourceType = null)
     {
         Title = title; Description = desc; Time = time;
         CreatedAt = createdAt == default ? DateTime.MinValue : createdAt;
         Type = type; IsUnread = isUnread; NotificationId = notificationId;
-        ChildId = childId; SourceType = sourceType ?? string.Empty;
+        ChildId = childId; ChildName = childName; SourceType = sourceType ?? string.Empty;
     }
 }

@@ -46,6 +46,9 @@ public sealed class UserNotificationService : IUserNotificationService
                     notification.IsRead,
                     notification.CreatedAt,
                     notification.ChildId,
+                    ChildName = notification.Child == null
+                        ? null
+                        : notification.Child.FirstName + " " + notification.Child.LastName,
                     notification.SourceType
                 })
                 .ToListAsync(cancellationToken);
@@ -60,6 +63,7 @@ public sealed class UserNotificationService : IUserNotificationService
                 Type = notification.Type,
                 IsUnread = !notification.IsRead,
                 ChildId = notification.ChildId,
+                ChildName = notification.ChildName,
                 SourceType = notification.SourceType
             }).ToList();
         }
@@ -79,6 +83,9 @@ public sealed class UserNotificationService : IUserNotificationService
             notification.IsRead,
             notification.CreatedAt,
             notification.ChildId,
+            ChildName = notification.Child == null
+                ? null
+                : notification.Child.FirstName + " " + notification.Child.LastName,
             notification.SourceType
             })
             .ToListAsync(cancellationToken);
@@ -93,6 +100,7 @@ public sealed class UserNotificationService : IUserNotificationService
             Type = notification.Type,
             IsUnread = !notification.IsRead,
             ChildId = notification.ChildId,
+            ChildName = notification.ChildName,
             SourceType = notification.SourceType
         }).ToList();
 

@@ -215,7 +215,7 @@
     margin-bottom: 18px;
     border: 1px solid rgba(216, 77, 97, .25);
     background: rgba(216, 77, 97, .1);
-    color: #b4233c;
+    color: var(--color-glucose-danger);
     font-weight: 800;
 }
 
@@ -461,7 +461,7 @@
 .nutrition-entry-metrics span {
     padding: 7px 10px;
     border-radius: 999px;
-    background: #f3f7fb;
+    background: var(--color-surface-offset);
     color: var(--color-text-muted, #6b7a99);
     white-space: nowrap;
 }
@@ -488,7 +488,7 @@
 
 .nutrition-row-actions .danger,
 .nutrition-schedule-card .danger {
-    color: #cf4056;
+    color: var(--color-glucose-danger);
     background: rgba(216, 77, 97, .1);
 }
 
@@ -506,7 +506,7 @@
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    background: #edf6f8;
+    background: var(--color-primary-soft);
     color: var(--color-primary, #1B8E8B);
 }
 

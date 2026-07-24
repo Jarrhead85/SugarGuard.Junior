@@ -257,12 +257,12 @@
     .doctor-article-editor__heading { display: flex; justify-content: space-between; gap: 12px; }
     .doctor-articles__status { align-self: start; padding: 7px 10px; border-radius: 999px; background: rgba(27,142,139,.12); color: var(--color-primary, #1b8e8b); font-size: 12px; font-weight: 750; }
     .doctor-article-editor label { display: grid; gap: 7px; color: var(--color-text-muted, #667694); font-size: 13px; font-weight: 750; }
-    .doctor-article-editor input, .doctor-article-editor textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--color-border, rgba(22,33,62,.16)); border-radius: 14px; background: #fff; color: var(--color-text, #16213e); font: inherit; outline: none; }
+    .doctor-article-editor input, .doctor-article-editor textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--color-border, rgba(22,33,62,.16)); border-radius: 14px; background: var(--color-surface); color: var(--color-text); font: inherit; outline: none; }
     .doctor-article-editor input { min-height: 44px; padding: 0 13px; }
     .doctor-article-editor textarea { min-height: 280px; padding: 13px; resize: vertical; line-height: 1.55; }
     .doctor-article-editor input:focus, .doctor-article-editor textarea:focus { border-color: var(--color-primary, #1b8e8b); box-shadow: 0 0 0 4px rgba(27,142,139,.11); }
     .doctor-article-editor__toolbar, .doctor-article-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .doctor-article-editor__toolbar button, .doctor-article-editor__upload, .doctor-articles__primary, .doctor-articles__secondary { min-height: 38px; padding: 0 12px; border: 1px solid rgba(27,142,139,.18); border-radius: 12px; background: #fff; color: var(--color-primary, #1b8e8b); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .doctor-article-editor__toolbar button, .doctor-article-editor__upload, .doctor-articles__primary, .doctor-articles__secondary { min-height: 38px; padding: 0 12px; border: 1px solid rgba(27,142,139,.18); border-radius: 12px; background: var(--color-surface); color: var(--color-primary); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
     .doctor-article-editor__upload { display: inline-flex !important; align-items: center; position: relative; overflow: hidden; }
     .doctor-article-editor__upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
     .doctor-article-editor__actions { justify-content: flex-end; }
@@ -284,7 +284,7 @@
     .doctor-article-library__item small, .doctor-article-library__empty { color: var(--color-text-muted, #667694); font-size: 12px; }
     .doctor-article-library__empty { margin: 0; padding: 18px 0; text-align: center; }
     .doctor-article-library__actions { flex: 0 0 auto; }
-    .doctor-article-library__actions button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(27,142,139,.18); border-radius: 10px; background: #fff; color: var(--color-primary, #1b8e8b); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .doctor-article-library__actions button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(27,142,139,.18); border-radius: 10px; background: var(--color-surface); color: var(--color-primary); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
     .doctor-article-library__actions .is-danger { border-color: rgba(219,89,103,.2); color: #b64050; }
     @@media (max-width: 900px) { .doctor-articles__grid { grid-template-columns: 1fr; } }
     @@media (max-width: 620px) { .doctor-articles__header, .doctor-article-editor__heading { display: grid; } .doctor-articles__header, .doctor-article-editor, .doctor-article-preview, .doctor-article-library { padding: 18px; border-radius: 18px; } .doctor-articles__secondary { width: 100%; } .doctor-article-editor__actions { display: grid; } .doctor-article-editor__actions button { width: 100%; } .doctor-article-library__item { align-items: stretch; display: grid; } .doctor-article-library__actions { display: grid; grid-template-columns: 1fr 1fr; } .doctor-article-library__actions button { width: 100%; } }

@@ -10,7 +10,7 @@
 @inject IJSRuntime JS
 @inject SugarGuardApiService Api
 
-<div class="app-shell @PortalClass @(sidebarOpen ? "sidebar-open" : "")">
+<div class="app-shell @PortalClass @(sidebarOpen ? "sidebar-open" : "")" @onclick="CloseNotifications">
 
     <aside class="sidebar" aria-label="Основная навигация">
 
@@ -295,6 +295,10 @@
                                             <div class="notif-item-dot" aria-hidden="true"></div>
                                             <div class="notif-item-body">
                                                 <p class="notif-item-title">@n.Title</p>
+                                                @if (!string.IsNullOrWhiteSpace(n.ChildName))
+                                                {
+                                                    <p class="notif-item-child">Ребёнок: @n.ChildName</p>
+                                                }
                                                 <p class="notif-item-desc">@n.Description</p>
                                                 <time class="notif-item-time">@n.Time</time>
                                             </div>
@@ -750,6 +754,14 @@
 
     private void ToggleSidebar() => sidebarOpen = !sidebarOpen;
     private void CloseSidebar()  => sidebarOpen = false;
+
+    private void CloseNotifications()
+    {
+        if (notifOpen)
+        {
+            notifOpen = false;
+        }
+    }
 
     private async Task ToggleNotifications()
     {

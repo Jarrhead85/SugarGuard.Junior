@@ -80,6 +80,35 @@ public sealed class UserNotificationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetForCurrentUserAsync_IncludesLinkedChildName()
+    {
+        var child = CreateChild();
+        var parent = CreateParent();
+        await SeedLinkAsync(parent, child);
+
+        await using (var db = NewDb())
+        {
+            db.UserNotifications.Add(new UserNotification
+            {
+                RecipientUserId = parent.UserId,
+                ChildId = child.ChildId,
+                Type = "info",
+                Title = "Новое измерение",
+                Description = "Глюкоза в пределах диапазона",
+                SourceType = "measurement",
+                SourceId = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var notifications = await CreateSut(parent.UserId).GetForCurrentUserAsync();
+
+        var notification = Assert.Single(notifications);
+        Assert.Equal("Тест Ребёнок", notification.ChildName);
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_KeepsOnlyFiveHundredNewestNotificationsPerRecipient()
     {
         var parent = CreateParent();
