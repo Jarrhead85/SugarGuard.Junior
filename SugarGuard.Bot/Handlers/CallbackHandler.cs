@@ -18,6 +18,8 @@ public class CallbackHandler
     private readonly MainMenuKeyboard _mainMenuKeyboard;
     private readonly ILogger<CallbackHandler> _logger;
     private readonly TelegramRateLimiter _rateLimiter;
+    private readonly CommandHandler _commandHandler;
+    private readonly TelegramOutboxClient _telegramOutbox;
 
     public CallbackHandler(
         ITelegramBotClient botClient,
@@ -26,7 +28,9 @@ public class CallbackHandler
         IBotUserContextService contextService,
         MainMenuKeyboard mainMenuKeyboard,
         ILogger<CallbackHandler> logger,
-        TelegramRateLimiter rateLimiter)
+        TelegramRateLimiter rateLimiter,
+        CommandHandler commandHandler,
+        TelegramOutboxClient telegramOutbox)
     {
         _botClient = botClient;
         _backpackBotService = backpackBotService;
@@ -35,6 +39,8 @@ public class CallbackHandler
         _mainMenuKeyboard = mainMenuKeyboard;
         _logger = logger;
         _rateLimiter = rateLimiter;
+        _commandHandler = commandHandler;
+        _telegramOutbox = telegramOutbox;
     }
 
     /// <summary>
@@ -78,6 +84,10 @@ public class CallbackHandler
             {
                 await HandleStatisticsCallbackAsync(chatId, userId, callbackData, cancellationToken);
             }
+            else if (callbackData.StartsWith("critical_alert_ack:", StringComparison.Ordinal))
+            {
+                await HandleCriticalAlertAcknowledgementAsync(chatId, userId, callbackData, cancellationToken);
+            }
             else
             {
                 switch (callbackData)
@@ -100,6 +110,7 @@ public class CallbackHandler
                         break;
 
                     case "main_menu":
+                        _commandHandler.ClearPendingConnection(userId);
                         await HandleMainMenuCallbackAsync(chatId, userId, cancellationToken);
                         break;
 
@@ -111,8 +122,39 @@ public class CallbackHandler
                         await HandleStatisticsMenuCallbackAsync(chatId, userId, cancellationToken);
                         break;
 
+                    case "last_measurement":
+                        await HandleLastMeasurementCallbackAsync(chatId, userId, cancellationToken);
+                        break;
+
+                    case "support":
+                        await HandleSupportCallbackAsync(chatId, cancellationToken);
+                        break;
+
+                    case "critical_alert_ack":
+                        await _botClient.SendTextMessageAsync(
+                            chatId: chatId,
+                            text: "✅ Получение тревоги подтверждено. Если ребёнок рядом не с вами, свяжитесь с ним или с другим взрослым.",
+                            cancellationToken: cancellationToken);
+                        break;
+
                     case "settings":
                         await HandleSettingsCallbackAsync(chatId, userId, cancellationToken);
+                        break;
+
+                    case "daily_summary_toggle":
+                        await ToggleDailySummaryAsync(chatId, userId, cancellationToken);
+                        break;
+
+                    case "connect":
+                        await _commandHandler.BeginConnectionAsync(chatId, userId, cancellationToken);
+                        break;
+
+                    case "cancel_connect":
+                        await _commandHandler.CancelConnectionAsync(chatId, userId, cancellationToken);
+                        break;
+
+                    case "help":
+                        await _commandHandler.SendHelpAsync(chatId, cancellationToken);
                         break;
 
                     default:
@@ -148,7 +190,8 @@ public class CallbackHandler
             // Нет привязанного ребёнка
             await _botClient.SendTextMessageAsync(
                 chatId: chatId,
-                text: "❌ Нет привязанного ребёнка. Используйте /connect XXXX-YY для привязки.",
+                text: "❌ Нет привязанного ребёнка. Нажмите «🔗 Подключить ребёнка» в меню и введите код из веб-кабинета родителя.",
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
                 cancellationToken: cancellationToken
             );
             _logger.LogWarning("Попытка открыть рюкзак без привязанного ребёнка для пользователя {UserId}", userId);
@@ -172,7 +215,8 @@ public class CallbackHandler
             // Нет привязанного ребёнка
             await _botClient.SendTextMessageAsync(
                 chatId: chatId,
-                text: "❌ Нет привязанного ребёнка. Используйте /connect XXXX-YY для привязки.",
+                text: "❌ Нет привязанного ребёнка. Нажмите «🔗 Подключить ребёнка» в меню и введите код из веб-кабинета родителя.",
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
                 cancellationToken: cancellationToken
             );
             _logger.LogWarning("Попытка добавить перекус без привязанного ребёнка для пользователя {UserId}", userId);
@@ -306,7 +350,8 @@ public class CallbackHandler
                 // Нет привязанного ребёнка
                 await _botClient.SendTextMessageAsync(
                     chatId: chatId,
-                    text: "❌ Нет привязанного ребёнка. Используйте /connect XXXX-YY для привязки.",
+                    text: "❌ Нет привязанного ребёнка. Нажмите «🔗 Подключить ребёнка» в меню и введите код из веб-кабинета родителя.",
+                    replyMarkup: _mainMenuKeyboard.GetKeyboard(),
                     cancellationToken: cancellationToken
                 );
                 _logger.LogWarning("Попытка получить статистику без привязанного ребёнка для пользователя {UserId}", userId);
@@ -366,6 +411,7 @@ public class CallbackHandler
     {
         var children = await _contextService.GetLinkedChildrenAsync(userId, cancellationToken);
         var currentChildId = await _contextService.GetCurrentChildIdAsync(userId, cancellationToken);
+        var dailySummaryEnabled = await _contextService.GetDailySummaryEnabledAsync(userId, cancellationToken);
 
         if (children.Count == 0)
         {
@@ -375,9 +421,8 @@ public class CallbackHandler
                     ⚙️ **Настройки**
 
                     К Telegram пока не привязан ни один ребёнок.
-                    Получите код в веб-кабинете родителя или в мобильном приложении ребёнка и отправьте команду:
-
-                    `/connect ABCD-1234`
+                    Нажмите «🔗 Подключить ребёнка» в меню.
+                    Код выдаётся в веб-кабинете родителя: «Настройки» → «Telegram-бот» → «Получить код».
                     """,
                 parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
                 replyMarkup: _mainMenuKeyboard.GetKeyboard(),
@@ -393,7 +438,9 @@ public class CallbackHandler
             string.Empty,
             "Выберите активного ребёнка для рюкзака, статистики и уведомлений.",
             string.Empty,
-            "Дети:"
+            "Дети:",
+            string.Empty,
+            $"Ежедневная сводка: {(dailySummaryEnabled == true ? "включена" : dailySummaryEnabled == false ? "выключена" : "недоступна")}"
         };
 
         foreach (var child in children)
@@ -414,6 +461,12 @@ public class CallbackHandler
             .ToList();
 
         buttons.Add([InlineKeyboardButton.WithCallbackData("Сбросить выбор", "clear_child_context")]);
+        if (dailySummaryEnabled.HasValue)
+        {
+            buttons.Add([InlineKeyboardButton.WithCallbackData(
+                dailySummaryEnabled.Value ? "🔕 Выключить ежедневную сводку" : "🔔 Включить ежедневную сводку",
+                "daily_summary_toggle")]);
+        }
         buttons.Add([InlineKeyboardButton.WithCallbackData("Главное меню", "main_menu")]);
 
         await _botClient.SendTextMessageAsync(
@@ -425,6 +478,84 @@ public class CallbackHandler
         );
 
         _logger.LogInformation("Отправлено сообщение о настройках пользователю {UserId}", userId);
+    }
+
+    private async Task HandleCriticalAlertAcknowledgementAsync(
+        long chatId,
+        long userId,
+        string callbackData,
+        CancellationToken cancellationToken)
+    {
+        var rawId = callbackData["critical_alert_ack:".Length..];
+        if (!Guid.TryParseExact(rawId, "N", out var messageId)
+            || !await _telegramOutbox.AcknowledgeAsync(messageId, userId, cancellationToken))
+        {
+            await _botClient.SendTextMessageAsync(chatId, "Не удалось подтвердить тревогу. Повторите попытку.", cancellationToken: cancellationToken);
+            return;
+        }
+
+        await _botClient.SendTextMessageAsync(
+            chatId,
+            "✅ Получение тревоги подтверждено. Если ребёнок рядом не с вами, свяжитесь с ним или с другим взрослым.",
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task ToggleDailySummaryAsync(long chatId, long userId, CancellationToken cancellationToken)
+    {
+        var enabled = await _contextService.GetDailySummaryEnabledAsync(userId, cancellationToken);
+        if (!enabled.HasValue)
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "Не удалось загрузить настройку ежедневной сводки. Попробуйте позже.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var targetValue = !enabled.Value;
+        if (!await _contextService.SetDailySummaryEnabledAsync(userId, targetValue, cancellationToken))
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "Не удалось изменить настройку. Попробуйте позже.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: targetValue
+                ? "🔔 Ежедневная сводка включена. Она будет приходить в Telegram, на email и в кабинет родителя."
+                : "🔕 Ежедневная сводка выключена для всех каналов доставки.",
+            cancellationToken: cancellationToken);
+
+        await HandleSettingsCallbackAsync(chatId, userId, cancellationToken);
+    }
+
+    private async Task HandleLastMeasurementCallbackAsync(long chatId, long userId, CancellationToken cancellationToken)
+    {
+        var childId = await _contextService.GetCurrentChildIdAsync(userId, cancellationToken);
+        if (!childId.HasValue)
+        {
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "Сначала подключите ребёнка через кнопку «🔗 Подключить ребёнка».",
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        await _statisticsBotService.ShowLastMeasurementAsync(chatId, userId, childId.Value, cancellationToken);
+    }
+
+    private async Task HandleSupportCallbackAsync(long chatId, CancellationToken cancellationToken)
+    {
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: "🆘 **Поддержка**\n\nНапишите обращение через кабинет SugarGuard: там оно сохранится в истории, а к нему можно приложить скриншот.\n\nВеб-кабинет: https://sugar-guard.ru/parent/dashboard?tab=support",
+            parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
+            replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+            cancellationToken: cancellationToken);
     }
 
     private async Task HandleChildContextCallbackAsync(long chatId, long userId, string callbackData, CancellationToken cancellationToken)

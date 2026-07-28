@@ -39,6 +39,15 @@ public sealed class MealSchedule
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 
+    [Column("is_night_insulin")]
+    public bool IsNightInsulin { get; set; }
+
+    [Column("repeat_interval_minutes")]
+    public int RepeatIntervalMinutes { get; set; } = 5;
+
+    [Column("escalation_window_minutes")]
+    public int EscalationWindowMinutes { get; set; } = 60;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

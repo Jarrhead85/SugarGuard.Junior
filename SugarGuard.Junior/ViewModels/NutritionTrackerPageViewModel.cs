@@ -54,15 +54,32 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     [ObservableProperty] private int reminderMinutesBefore = 10;
     [ObservableProperty] private bool showEntryForm;
     [ObservableProperty] private bool showScheduleForm;
+    [ObservableProperty] private bool scheduleIsNightInsulin;
+    [ObservableProperty] private string nightInsulinDoseText = string.Empty;
+    [ObservableProperty] private bool showNightInsulinConfirmation;
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasEntries => Entries.Count > 0;
     public bool HasSchedules => Schedules.Count > 0;
     public bool HasAchievements => Achievements.Count > 0;
+    public MealScheduleApiModel? NightInsulinSchedule => Schedules.FirstOrDefault(item => item.IsNightInsulin && item.IsActive);
+    public bool HasNightInsulinSchedule => NightInsulinSchedule is not null;
     public string EntryButtonText => _editingEntryId.HasValue ? "Сохранить изменения" : "Добавить в дневник";
     public string ScheduleButtonText => _editingScheduleId.HasValue ? "Сохранить расписание" : "Добавить время";
 
     partial void OnErrorMessageChanged(string value) => OnPropertyChanged(nameof(HasError));
+
+    partial void OnScheduleIsNightInsulinChanged(bool value)
+    {
+        if (!value)
+        {
+            return;
+        }
+
+        ScheduleTitle = "Ночной инсулин";
+        PlannedBreadUnitsText = string.Empty;
+        SelectedMealTypeIndex = (int)MealType.Other;
+    }
 
     public async Task InitializeAsync()
     {
@@ -193,13 +210,64 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleScheduleForm() => ShowScheduleForm = !ShowScheduleForm;
+    private void ToggleScheduleForm()
+    {
+        ShowScheduleForm = !ShowScheduleForm;
+        if (ShowScheduleForm && !_editingScheduleId.HasValue)
+        {
+            ScheduleIsNightInsulin = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleNightInsulinConfirmation() => ShowNightInsulinConfirmation = !ShowNightInsulinConfirmation;
+
+    [RelayCommand]
+    private async Task ConfirmNightInsulinAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_childId) || NightInsulinSchedule is null || IsBusy) return;
+        if (!TryDecimal(NightInsulinDoseText, out var dose) || dose is <= 0 or > 100)
+        {
+            ErrorMessage = "Укажи фактически введённую дозу от 0,1 до 100 ед.";
+            return;
+        }
+
+        var request = new SaveNutritionEntryApiRequest
+        {
+            RecordedAt = DateTime.UtcNow, MealType = MealType.Other, MealName = "Ночной инсулин",
+            BreadUnits = 0, InsulinUnits = dose, Notes = "Подтверждено ребёнком в мобильном приложении."
+        };
+        try
+        {
+            IsBusy = true;
+            var saved = await _apiClient.SaveNutritionEntryAsync(_childId, null, request);
+            if (saved is null) throw new InvalidOperationException();
+            await CancelNightInsulinRemindersAsync(NightInsulinSchedule);
+            NightInsulinDoseText = string.Empty;
+            ShowNightInsulinConfirmation = false;
+            await LoadAsyncAfterBusy();
+        }
+        catch (Exception)
+        {
+            if (!await _syncService.IsConnectedAsync() && await _syncService.QueueItemAsync(
+                    Guid.NewGuid().ToString("D"), "NutritionEntry", SyncOperationType.Insert.ToString(),
+                    JsonConvert.SerializeObject(new PendingNutritionEntrySync { ChildId = _childId, Request = request })))
+            {
+                await CancelNightInsulinRemindersAsync(NightInsulinSchedule);
+                NightInsulinDoseText = string.Empty;
+                ShowNightInsulinConfirmation = false;
+                ErrorMessage = "Нет сети: подтверждение сохранено на телефоне и будет отправлено автоматически.";
+            }
+            else ErrorMessage = "Не удалось подтвердить ночной укол.";
+        }
+        finally { IsBusy = false; }
+    }
 
     [RelayCommand]
     private async Task SaveScheduleAsync()
     {
         if (string.IsNullOrWhiteSpace(_childId) || IsBusy) return;
-        if (string.IsNullOrWhiteSpace(ScheduleTitle)) { ErrorMessage = "Укажи название приёма пищи."; return; }
+        if (string.IsNullOrWhiteSpace(ScheduleTitle) && !ScheduleIsNightInsulin) { ErrorMessage = "Укажи название приёма пищи."; return; }
         decimal? planned = null;
         if (!string.IsNullOrWhiteSpace(PlannedBreadUnitsText))
         {
@@ -209,12 +277,13 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         try
         {
             IsBusy = true; ErrorMessage = string.Empty;
-            var mealType = InferMealType(ScheduleTitle, (MealType)SelectedMealTypeIndex);
+            var mealType = ScheduleIsNightInsulin ? MealType.Other : InferMealType(ScheduleTitle, (MealType)SelectedMealTypeIndex);
             var result = await _apiClient.SaveMealScheduleAsync(_childId, _editingScheduleId, new SaveMealScheduleApiRequest
             {
-                MealType = mealType, Title = ScheduleTitle.Trim(), ScheduledTime = TimeOnly.FromTimeSpan(ScheduleTime),
+                MealType = mealType, Title = ScheduleIsNightInsulin ? "Ночной инсулин" : ScheduleTitle.Trim(), ScheduledTime = TimeOnly.FromTimeSpan(ScheduleTime),
                 PlannedBreadUnits = planned, DaysOfWeekMask = 127, ReminderEnabled = ReminderEnabled,
-                ReminderMinutesBefore = Math.Clamp(ReminderMinutesBefore, 0, 180), IsActive = true
+                ReminderMinutesBefore = Math.Clamp(ReminderMinutesBefore, 0, 180), IsActive = true,
+                IsNightInsulin = ScheduleIsNightInsulin, RepeatIntervalMinutes = 5, EscalationWindowMinutes = 60
             });
             if (result is null) { ErrorMessage = "Не удалось сохранить расписание."; return; }
             ResetScheduleForm(); await LoadAsyncAfterBusy();
@@ -229,7 +298,7 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         if (schedule is null) return;
         _editingScheduleId = schedule.MealScheduleId; SelectedMealTypeIndex = (int)schedule.MealType; ScheduleTitle = schedule.Title;
         ScheduleTime = schedule.ScheduledTime.ToTimeSpan(); PlannedBreadUnitsText = schedule.PlannedBreadUnits?.ToString("0.##", CultureInfo.CurrentCulture) ?? string.Empty;
-        ReminderEnabled = schedule.ReminderEnabled; ReminderMinutesBefore = schedule.ReminderMinutesBefore; ShowScheduleForm = true;
+        ReminderEnabled = schedule.ReminderEnabled; ReminderMinutesBefore = schedule.ReminderMinutesBefore; ScheduleIsNightInsulin = schedule.IsNightInsulin; ShowScheduleForm = true;
         OnPropertyChanged(nameof(ScheduleButtonText));
     }
 
@@ -258,6 +327,12 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     {
         foreach (var schedule in schedules)
         {
+            if (schedule.IsNightInsulin)
+            {
+                await ScheduleNightInsulinRemindersAsync(schedule);
+                continue;
+            }
+
             for (var day = 0; day < 14; day++)
             {
                 var id = $"meal_{schedule.MealScheduleId:N}_{day}";
@@ -271,6 +346,31 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         }
     }
 
+    private async Task ScheduleNightInsulinRemindersAsync(MealScheduleApiModel schedule)
+    {
+        for (var day = 0; day < 7; day++)
+        {
+            var scheduledFor = DateTime.Today.AddDays(day).Add(schedule.ScheduledTime.ToTimeSpan());
+            var reminder = scheduledFor.AddMinutes(-schedule.ReminderMinutesBefore);
+            if (reminder > DateTime.Now) await _notifications.ScheduleNotificationAsync("Ночной инсулин", "Подготовься к ночному уколу и после введения укажи фактическую дозу.", NightReminderId(schedule, day, 0), reminder);
+            var repeats = Math.Max(1, schedule.EscalationWindowMinutes / Math.Max(1, schedule.RepeatIntervalMinutes));
+            for (var repeat = 0; repeat <= repeats; repeat++)
+            {
+                var at = scheduledFor.AddMinutes(repeat * schedule.RepeatIntervalMinutes);
+                if (at > DateTime.Now) await _notifications.ScheduleNotificationAsync("Ночной инсулин — требуется подтверждение", "Укажи фактически введённую дозу. Напоминания повторяются до подтверждения.", NightReminderId(schedule, day, repeat + 1), at);
+            }
+        }
+    }
+
+    private async Task CancelNightInsulinRemindersAsync(MealScheduleApiModel schedule)
+    {
+        for (var day = 0; day < 7; day++)
+        for (var repeat = 0; repeat <= schedule.EscalationWindowMinutes / Math.Max(1, schedule.RepeatIntervalMinutes) + 1; repeat++)
+            await _notifications.CancelNotificationAsync(NightReminderId(schedule, day, repeat));
+    }
+
+    private static string NightReminderId(MealScheduleApiModel schedule, int day, int repeat) => $"night_insulin_{schedule.MealScheduleId:N}_{day}_{repeat}";
+
     private void BuildDays(IEnumerable<NutritionDailySummaryApiModel> source)
     {
         var rows = source.OrderBy(item => item.Date).TakeLast(7).ToList();
@@ -279,8 +379,8 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     }
 
     private void ResetEntryForm() { _editingEntryId = null; MealName = BreadUnitsText = InsulinUnitsText = GlucoseBeforeText = Notes = string.Empty; EntryDate = DateTime.Today; EntryTime = DateTime.Now.TimeOfDay; ShowEntryForm = false; OnPropertyChanged(nameof(EntryButtonText)); }
-    private void ResetScheduleForm() { _editingScheduleId = null; ScheduleTitle = PlannedBreadUnitsText = string.Empty; ScheduleTime = new TimeSpan(8, 0, 0); ShowScheduleForm = false; OnPropertyChanged(nameof(ScheduleButtonText)); }
-    private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); }
+    private void ResetScheduleForm() { _editingScheduleId = null; ScheduleTitle = PlannedBreadUnitsText = string.Empty; ScheduleTime = new TimeSpan(8, 0, 0); ScheduleIsNightInsulin = false; ShowScheduleForm = false; OnPropertyChanged(nameof(ScheduleButtonText)); }
+    private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); OnPropertyChanged(nameof(NightInsulinSchedule)); OnPropertyChanged(nameof(HasNightInsulinSchedule)); }
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> source) { target.Clear(); foreach (var item in source) target.Add(item); }
     private static bool TryDecimal(string text, out decimal value) => decimal.TryParse(text.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out value);
 

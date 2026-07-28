@@ -92,7 +92,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDiabetesSettingsRepository, DiabetesSettingsRepository>();
         
         // Security services
-        services.AddSingleton<IPlatformKeyProvider, MauiSecureStorageKeyProvider>();
+        services.AddSingleton<MauiSecureStorageKeyProvider>();
+        services.AddSingleton<IPlatformKeyProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<MauiSecureStorageKeyProvider>());
         services.AddSingleton<AesGcmEncryptionService>();
         services.AddSingleton<LegacyAesCbcDecryptionService>();
         // Полное имя, чтобы избежать конфликта с SugarGuard.Junior.Services.Interfaces.IEncryptionService.

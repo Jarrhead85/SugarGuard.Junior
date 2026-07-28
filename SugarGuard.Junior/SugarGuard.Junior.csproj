@@ -28,8 +28,12 @@
 		<ApplicationId>com.sugarguard.junior</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>1.6</ApplicationDisplayVersion>
-		<ApplicationVersion>7</ApplicationVersion>
+		<ApplicationDisplayVersion>1.10</ApplicationDisplayVersion>
+		<ApplicationVersion>11</ApplicationVersion>
+		<!-- Приложение использует DI, XAML и сторонние плагины через отражение.
+		     В Release-режиме триммер может удалить необходимые типы ещё до старта. -->
+		<PublishTrimmed>false</PublishTrimmed>
+		<RunAOTCompilation>false</RunAOTCompilation>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>

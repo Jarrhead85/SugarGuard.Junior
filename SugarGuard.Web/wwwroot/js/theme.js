@@ -8,6 +8,18 @@
 
     const STORAGE_KEY = 'sg-theme';
     const ATTR = 'data-theme';
+    const LIGHT_PALETTE_STORAGE_KEY = 'sg-light-palette';
+    const LIGHT_PALETTE_ATTR = 'data-light-palette';
+    const DEFAULT_LIGHT_PALETTE = 'classic';
+    const LIGHT_PALETTES = new Set([
+        'classic',
+        'morning-meadow',
+        'warm-paper',
+        'ice-river',
+        'berry-notes',
+        'sage-clinic',
+        'coral-dawn'
+    ]);
     const VISUAL_STYLE_STORAGE_KEY = 'sg-visual-style';
     const VISUAL_STYLE_ATTR = 'data-visual-style';
     const html = document.documentElement;
@@ -52,6 +64,30 @@
         }
     }
 
+    function normalizeLightPalette(palette) {
+        return LIGHT_PALETTES.has(palette) ? palette : DEFAULT_LIGHT_PALETTE;
+    }
+
+    function resolveInitialLightPalette() {
+        try {
+            return normalizeLightPalette(localStorage.getItem(LIGHT_PALETTE_STORAGE_KEY));
+        } catch (_) {
+            return DEFAULT_LIGHT_PALETTE;
+        }
+    }
+
+    function applyLightPalette(palette) {
+        html.setAttribute(LIGHT_PALETTE_ATTR, normalizeLightPalette(palette));
+    }
+
+    function persistLightPalette(palette) {
+        try {
+            localStorage.setItem(LIGHT_PALETTE_STORAGE_KEY, normalizeLightPalette(palette));
+        } catch (_) {
+            // Без localStorage палитра остаётся активной до закрытия вкладки.
+        }
+    }
+
     function resolveInitialVisualStyle() {
         return 'classic';
     }
@@ -84,6 +120,7 @@
         return {
             theme,
             isDark: theme === 'dark',
+            lightPalette: html.getAttribute(LIGHT_PALETTE_ATTR) || DEFAULT_LIGHT_PALETTE,
             preference,
             systemTheme,
             isFollowingSystem: preference !== 'light' && preference !== 'dark'
@@ -111,6 +148,7 @@
         init: function () {
             const theme = resolveInitialTheme();
             applyTheme(theme);
+            applyLightPalette(resolveInitialLightPalette());
             applyVisualStyle(resolveInitialVisualStyle());
         },
 
@@ -147,6 +185,17 @@
 
         isDark: function () {
             return this.getTheme() === 'dark';
+        },
+
+        getLightPalette: function () {
+            return normalizeLightPalette(html.getAttribute(LIGHT_PALETTE_ATTR));
+        },
+
+        setLightPalette: function (palette) {
+            const normalized = normalizeLightPalette(palette);
+            applyLightPalette(normalized);
+            persistLightPalette(normalized);
+            return normalized;
         },
 
         getState: function () {

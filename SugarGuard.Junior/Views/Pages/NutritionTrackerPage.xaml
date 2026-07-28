@@ -49,6 +49,18 @@
                     </VerticalStackLayout>
                 </Border>
                 <Label Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" TextColor="{DynamicResource Danger}" FontSize="13" />
+                <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding HasNightInsulinSchedule}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Ночной инсулин" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
+                        <Label Text="Напоминание будет повторяться каждые 5 минут в течение часа, пока не указана фактическая доза." FontSize="12" TextColor="{DynamicResource TextSecondary}" />
+                        <Button Text="Подтвердить укол" Command="{Binding ToggleNightInsulinConfirmationCommand}" Style="{StaticResource SecondaryButton}" />
+                        <VerticalStackLayout IsVisible="{Binding ShowNightInsulinConfirmation}" Spacing="8">
+                            <Entry Placeholder="Фактическая доза, ед." Text="{Binding NightInsulinDoseText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" />
+                            <Label Text="Укажи только реально введённую дозу. SugarGuard не назначает инсулин." FontSize="11" TextColor="{DynamicResource TextSecondary}" />
+                            <Button Text="Подтвердить дозу" Command="{Binding ConfirmNightInsulinCommand}" Style="{StaticResource PrimaryButton}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
                 <Border Style="{StaticResource TrackerCard}" IsVisible="{Binding HasEntries}">
                     <VerticalStackLayout Spacing="10">
                         <Label Text="Последние записи" FontFamily="{StaticResource ClashDisplay}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" />
@@ -80,6 +92,8 @@
                     <VerticalStackLayout Spacing="8">
                         <Entry Placeholder="Например, завтрак" Text="{Binding ScheduleTitle}" Style="{StaticResource TrackerField}" /><TimePicker Time="{Binding ScheduleTime}" TextColor="{DynamicResource TextPrimary}" /><Entry Placeholder="План ХЕ (необязательно)" Text="{Binding PlannedBreadUnitsText}" Keyboard="Numeric" Style="{StaticResource TrackerField}" />
                         <Grid ColumnDefinitions="*,Auto"><Label Text="Напоминать" TextColor="{DynamicResource TextPrimary}" VerticalOptions="Center" /><Switch Grid.Column="1" IsToggled="{Binding ReminderEnabled}" /></Grid>
+                        <Grid ColumnDefinitions="*,Auto"><Label Text="Это ночной инсулин" TextColor="{DynamicResource TextPrimary}" VerticalOptions="Center" /><Switch Grid.Column="1" IsToggled="{Binding ScheduleIsNightInsulin}" /></Grid>
+                        <Label Text="Для ночного инсулина ребёнок подтверждает фактическую дозу; напоминание повторяется каждые 5 минут в течение часа." FontSize="11" TextColor="{DynamicResource TextSecondary}" IsVisible="{Binding ScheduleIsNightInsulin}" />
                         <Grid ColumnDefinitions="*,100" IsVisible="{Binding ReminderEnabled}"><Label Text="За сколько минут" TextColor="{DynamicResource TextSecondary}" VerticalOptions="Center" /><Entry Grid.Column="1" Text="{Binding ReminderMinutesBefore}" Keyboard="Numeric" Style="{StaticResource TrackerField}" /></Grid>
                         <Button Text="{Binding ScheduleButtonText}" Command="{Binding SaveScheduleCommand}" Style="{StaticResource PrimaryButton}" />
                     </VerticalStackLayout>

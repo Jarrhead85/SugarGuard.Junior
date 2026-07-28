@@ -50,13 +50,13 @@ public partial class ProfilePageViewModel : ObservableObject
 
     // --- Telegram ---
     [ObservableProperty]
-    private string telegramStatus = "Не подключен";
+    private string telegramStatus = "Настраивает родитель";
 
     [ObservableProperty]
     private string telegramStatusColor = "#A7A9A9";
 
     [ObservableProperty]
-    private string telegramButtonText = "Подключить";
+    private string telegramButtonText = "Инструкция";
 
     [ObservableProperty]
     private string telegramButtonColor = "#42C0F5";
@@ -335,46 +335,14 @@ public partial class ProfilePageViewModel : ObservableObject
     [RelayCommand]
     public async Task ConnectTelegram()
     {
-        try
-        {
-            _logger.LogInformation("Connecting Telegram");
+        _logger.LogInformation("Открыта инструкция по подключению Telegram-бота из приложения ребёнка.");
 
-            if (IsTelegramConnected)
-            {
-                IsTelegramConnected = false;
-                Preferences.Set("telegram_connected", false);
-                ApplyTelegramStatusUi();
-                _logger.LogInformation("Telegram disconnected");
-                return;
-            }
-
-            if (string.IsNullOrEmpty(_currentChildId))
-            {
-                await DisplayAlert("Ошибка", "Сначала выберите ребёнка в профиле.", "ОК");
-                return;
-            }
-
-            var response = await _apiClient.GenerateTelegramCodeAsync(_currentChildId);
-            if (response.Success && !string.IsNullOrEmpty(response.ConnectionCode))
-            {
-                await DisplayAlert(
-                    "Код для бота",
-                    $"Введите код в боте @SugarGuardBot:\n\n{response.ConnectionCode}\n\nСтатус «подключено» появится после подтверждения в боте. Код действителен {response.ExpiresIn / 60} мин.",
-                    "ОК");
-            }
-            else
-            {
-                await DisplayAlert(
-                    "Telegram",
-                    "Не удалось получить код подключения. Проверь интернет и попробуй ещё раз.",
-                    "ОК");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error connecting Telegram for child {ChildId}", _currentChildId);
-            await DisplayAlert("Telegram", "Не удалось получить код подключения. Попробуй ещё раз позже.", "ОК");
-        }
+        await DisplayAlert(
+            "Подключение Telegram-бота",
+            "Бота подключает родитель в веб-кабинете: «Настройки» → «Telegram-бот» → «Получить код».\n\n" +
+            "Затем родитель отправляет боту SugarGuard команду /connect с этим кодом. " +
+            "Так ребёнок не получает возможность привязать к своим данным чужой аккаунт Telegram.",
+            "Понятно");
     }
 
     /// <summary>
@@ -694,20 +662,10 @@ public partial class ProfilePageViewModel : ObservableObject
 
     private void ApplyTelegramStatusUi()
     {
-        if (IsTelegramConnected)
-        {
-            TelegramStatus = "Подключен";
-            TelegramStatusColor = "#42C0F5";
-            TelegramButtonText = "Отключить";
-            TelegramButtonColor = "#A84B2F";
-        }
-        else
-        {
-            TelegramStatus = "Не подключен";
-            TelegramStatusColor = "#A7A9A9";
-            TelegramButtonText = "Подключить";
-            TelegramButtonColor = "#42C0F5";
-        }
+        TelegramStatus = "Настраивает родитель";
+        TelegramStatusColor = "#A7A9A9";
+        TelegramButtonText = "Инструкция";
+        TelegramButtonColor = "#42C0F5";
     }
 
     private void ApplyHealthKitStatusUi()

@@ -80,7 +80,7 @@ public class StatisticsBotService
             _logger.LogInformation("Загрузка статистики для ребёнка {ChildId}, период {Period}", childId, period);
 
             // Получаем статистику с API
-            var statistics = await _apiClient.GetStatisticsAsync(childId, period, date, cancellationToken);
+            var statistics = await _apiClient.GetStatisticsAsync(userId, childId, period, date, cancellationToken);
 
             if (statistics == null)
             {
@@ -102,7 +102,7 @@ public class StatisticsBotService
             // Если есть измерения, отправляем таблицу отдельным сообщением
             if (statistics.Measurements.Any())
             {
-                var tableMessage = FormatMeasurementsTable(statistics.Measurements, statistics.Period);
+                var tableMessage = FormatMeasurementsTable(statistics.Measurements, statistics.Period, statistics.TimeZoneId);
                 
                 await _botClient.SendTextMessageAsync(
                     chatId: chatId,
@@ -121,6 +121,102 @@ public class StatisticsBotService
             await SendErrorMessageAsync(chatId, "Произошла ошибка при загрузке статистики", cancellationToken);
         }
     }
+
+    /// <summary>
+    /// Показывает последнее измерение и простую динамику относительно предыдущего.
+    /// Это информационный экран: он не даёт медицинских рекомендаций.
+    /// </summary>
+    public async Task ShowLastMeasurementAsync(
+        long chatId,
+        long userId,
+        Guid childId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // За сутки обычно достаточно данных. Если утренних измерений ещё не было,
+            // запрашиваем неделю, чтобы не показывать ложное «данных нет».
+            var statistics = await _apiClient.GetStatisticsAsync(userId, childId, "day", null, cancellationToken);
+            if (statistics?.Measurements.Count == 0)
+            {
+                statistics = await _apiClient.GetStatisticsAsync(userId, childId, "week", null, cancellationToken);
+            }
+
+            var measurements = statistics?.Measurements
+                .OrderByDescending(item => item.MeasurementTime)
+                .Take(2)
+                .ToList() ?? [];
+
+            if (measurements.Count == 0)
+            {
+                await _botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "🩸 Последних измерений пока нет. Когда приложение синхронизирует данные, они появятся здесь.",
+                    replyMarkup: CreateLastMeasurementKeyboard(),
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var latest = measurements[0];
+            var timeZoneId = statistics?.TimeZoneId ?? "Europe/Moscow";
+            var trend = measurements.Count == 1
+                ? "— недостаточно данных для динамики"
+                : FormatTrend(latest.GlucoseValue - measurements[1].GlucoseValue);
+
+            var message = new StringBuilder()
+                .AppendLine("🩸 **Последнее измерение**")
+                .AppendLine()
+                .AppendLine($"Значение: **{latest.GlucoseValue:F1} ммоль/л**")
+                .AppendLine($"Статус: {FormatStatus(latest.GlucoseStatus)}")
+                .AppendLine($"Время: {ToLocalTime(latest.MeasurementTime, timeZoneId):dd.MM.yyyy HH:mm}")
+                .AppendLine($"Динамика: {trend}")
+                .AppendLine()
+                .AppendLine("Данные предназначены для контроля. При плохом самочувствии ребёнка следуйте индивидуальному плану врача.")
+                .ToString();
+
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: message,
+                parseMode: ParseMode.Markdown,
+                replyMarkup: CreateLastMeasurementKeyboard(),
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Не удалось показать последнее измерение пользователю {UserId}", userId);
+            await SendErrorMessageAsync(chatId, "Не удалось загрузить последнее измерение", cancellationToken);
+        }
+    }
+
+    private static Telegram.Bot.Types.ReplyMarkups.InlineKeyboardMarkup CreateLastMeasurementKeyboard() =>
+        new(new[]
+        {
+            new[] { Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData("🔄 Обновить", "last_measurement") },
+            new[] { Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData("📊 Статистика", "statistics") },
+            new[] { Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "main_menu") }
+        });
+
+    private static string FormatTrend(decimal difference)
+    {
+        if (Math.Abs(difference) < 0.1m)
+        {
+            return "→ без заметного изменения";
+        }
+
+        return difference > 0
+            ? $"↗ +{difference:F1} ммоль/л относительно предыдущего"
+            : $"↘ {difference:F1} ммоль/л относительно предыдущего";
+    }
+
+    private static string FormatStatus(string status) => status switch
+    {
+        "Normal" => "🟢 в целевом диапазоне",
+        "Low" => "🟡 ниже целевого диапазона",
+        "High" => "🟠 выше целевого диапазона",
+        "CriticallyLow" => "🔴 критически низкий уровень",
+        "CriticallyHigh" => "🔴 критически высокий уровень",
+        _ => "⚪ статус не указан"
+    };
 
     /// <summary>
     /// Форматирует статистические показатели в текстовое сообщение
@@ -167,7 +263,7 @@ public class StatisticsBotService
         }
 
         sb.AppendLine();
-        sb.AppendLine($"🕐 Обновлено: {statistics.GeneratedAt:HH:mm dd.MM.yyyy}");
+        sb.AppendLine($"🕐 Обновлено: {ToLocalTime(statistics.GeneratedAt, statistics.TimeZoneId):HH:mm dd.MM.yyyy}");
 
         return sb.ToString();
     }
@@ -175,7 +271,7 @@ public class StatisticsBotService
     /// <summary>
     /// Форматирует таблицу измерений
     /// </summary>
-    private static string FormatMeasurementsTable(List<MeasurementResponseBot> measurements, string period)
+    private static string FormatMeasurementsTable(List<MeasurementResponseBot> measurements, string period, string timeZoneId)
     {
         var sb = new StringBuilder();
         
@@ -190,7 +286,7 @@ public class StatisticsBotService
 
         foreach (var measurement in displayMeasurements)
         {
-            var timeStr = measurement.MeasurementTime.ToString("dd.MM HH:mm");
+            var timeStr = ToLocalTime(measurement.MeasurementTime, timeZoneId).ToString("dd.MM HH:mm");
             var glucoseStr = $"{measurement.GlucoseValue:F1}".PadLeft(6);
             var statusStr = GetStatusEmoji(measurement.GlucoseStatus);
             
@@ -209,6 +305,20 @@ public class StatisticsBotService
         sb.AppendLine("🚨 Критически низко (<3.1) | ⚠️ Критически высоко (>15.0)");
 
         return sb.ToString();
+    }
+
+    private static DateTime ToLocalTime(DateTime value, string? timeZoneId)
+    {
+        try
+        {
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(string.IsNullOrWhiteSpace(timeZoneId) ? "Europe/Moscow" : timeZoneId);
+            var utc = value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, zone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return value.ToLocalTime();
+        }
     }
 
     /// <summary>
@@ -338,7 +448,7 @@ public class StatisticsBotService
             );
 
             // Получаем PDF от API
-            var pdfBytes = await _apiClient.ExportStatisticsToPdfAsync(childId, period, false, null, cancellationToken);
+            var pdfBytes = await _apiClient.ExportStatisticsToPdfAsync(userId, childId, period, false, null, cancellationToken);
 
             if (pdfBytes == null || pdfBytes.Length == 0)
             {

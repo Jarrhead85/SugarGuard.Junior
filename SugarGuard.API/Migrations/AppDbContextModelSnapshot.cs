@@ -378,6 +378,40 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("backpack_items");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.BotServiceHeartbeat", b =>
+                {
+                    b.Property<string>("BotName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("bot_name");
+
+                    b.Property<bool>("InternetAvailable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("internet_available");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LastExternalApiSuccessAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_external_api_success_at");
+
+                    b.Property<DateTime>("LastHeartbeatAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_heartbeat_at");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("version");
+
+                    b.HasKey("BotName");
+
+                    b.ToTable("bot_service_heartbeats");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.BotUserContext", b =>
                 {
                     b.Property<Guid>("ContextId")
@@ -562,9 +596,15 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_used");
 
+                    b.Property<Guid?>("IssuedByParentUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("issued_by_parent_user_id");
+
                     b.HasKey("CodeId");
 
                     b.HasIndex("ChildId");
+
+                    b.HasIndex("IssuedByParentUserId");
 
                     b.ToTable("connection_codes");
                 });
@@ -988,9 +1028,17 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("days_of_week_mask");
 
+                    b.Property<int>("EscalationWindowMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("escalation_window_minutes");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsNightInsulin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_night_insulin");
 
                     b.Property<string>("MealType")
                         .IsRequired()
@@ -1009,6 +1057,10 @@ namespace SugarGuard.API.Migrations
                     b.Property<int>("ReminderMinutesBefore")
                         .HasColumnType("integer")
                         .HasColumnName("reminder_minutes_before");
+
+                    b.Property<int>("RepeatIntervalMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("repeat_interval_minutes");
 
                     b.Property<TimeOnly>("ScheduledTime")
                         .HasColumnType("time without time zone")
@@ -1612,6 +1664,101 @@ namespace SugarGuard.API.Migrations
                     b.ToTable("sync_logs");
                 });
 
+            modelBuilder.Entity("SugarGuard.Domain.Entities.TelegramOutboxMessage", b =>
+                {
+                    b.Property<Guid>("TelegramOutboxMessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("telegram_outbox_message_id");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<long?>("AcknowledgedByTelegramUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("acknowledged_by_telegram_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
+                    b.Property<int>("DeliveryAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("delivery_attempts");
+
+                    b.Property<DateTime?>("FailedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("failed_at");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<DateTime?>("LocationDeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("location_delivered_at");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("message_type");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<bool>("RequiresAcknowledgement")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_acknowledgement");
+
+                    b.Property<long>("TelegramUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("telegram_user_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("text");
+
+                    b.Property<DateTime?>("TextDeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("text_delivered_at");
+
+                    b.HasKey("TelegramOutboxMessageId");
+
+                    b.HasIndex("TelegramUserId", "CreatedAt")
+                        .HasDatabaseName("ix_telegram_outbox_recipient_created");
+
+                    b.HasIndex("DeliveredAt", "NextAttemptAt", "LockedUntil")
+                        .HasDatabaseName("ix_telegram_outbox_pending");
+
+                    b.ToTable("telegram_outbox_messages");
+                });
+
             modelBuilder.Entity("SugarGuard.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1957,7 +2104,14 @@ namespace SugarGuard.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SugarGuard.Domain.Entities.User", "IssuedByParentUser")
+                        .WithMany()
+                        .HasForeignKey("IssuedByParentUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Child");
+
+                    b.Navigation("IssuedByParentUser");
                 });
 
             modelBuilder.Entity("SugarGuard.Domain.Entities.DiabetesSettings", b =>

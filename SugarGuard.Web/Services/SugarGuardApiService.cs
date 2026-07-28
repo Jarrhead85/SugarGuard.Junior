@@ -1421,10 +1421,64 @@ namespace SugarGuard.Web.Services
             }
         }
 
+        /// <summary>
+        /// GET api/admin/system/bots
+        /// </summary>
+        public async Task<IReadOnlyList<BotRuntimeStatusVm>> GetAdminBotStatusesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync("api/admin/system/bots", cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return [];
+                }
+
+                var dto = await ReadOptionalAsync<List<BotRuntimeStatusDto>>(response.Content, cancellationToken);
+                return dto?.Select(item => new BotRuntimeStatusVm(
+                    item.BotName ?? "unknown",
+                    item.IsConfigured,
+                    item.IsOnline,
+                    item.InternetAvailable,
+                    item.StatusMessage,
+                    item.LastHeartbeatAt,
+                    item.LastExternalApiSuccessAt,
+                    item.LastError,
+                    item.Version,
+                    item.PendingTelegramMessages,
+                    item.FailedTelegramMessages)).ToList() ?? [];
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException
+                    or TaskCanceledException
+                    or JsonException
+                    or InvalidOperationException)
+            {
+                return [];
+            }
+        }
+
         private sealed class MaxBotStatusApiDto
         {
             public bool Configured { get; init; }
             public string? BotUrl { get; init; }
+        }
+
+        private sealed class BotRuntimeStatusDto
+        {
+            public string? BotName { get; init; }
+            public bool IsConfigured { get; init; }
+            public bool IsOnline { get; init; }
+            public bool InternetAvailable { get; init; }
+            public string? StatusMessage { get; init; }
+            public DateTime? LastHeartbeatAt { get; init; }
+            public DateTime? LastExternalApiSuccessAt { get; init; }
+            public string? LastError { get; init; }
+            public string? Version { get; init; }
+            public int PendingTelegramMessages { get; init; }
+            public int FailedTelegramMessages { get; init; }
         }
 
         /// <summary>

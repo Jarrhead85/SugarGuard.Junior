@@ -40,3 +40,19 @@ public class ChildSummaryBotDto
     public DateOnly DateOfBirth { get; set; }
     public string DiabetesType { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Настройка ежедневной сводки, изменяемая из Telegram-бота.
+/// </summary>
+public class BotDailySummaryPreferenceRequest
+{
+    public bool Enabled { get; set; }
+}
+
+/// <summary>
+/// Текущее состояние ежедневной сводки для Telegram-пользователя.
+/// </summary>
+public class BotDailySummaryPreferenceResponse
+{
+    public bool Enabled { get; set; }
+}

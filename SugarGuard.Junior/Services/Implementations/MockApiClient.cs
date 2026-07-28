@@ -637,6 +637,7 @@ public class MockApiClient : IApiClient
         if (item is null) { item = new MealScheduleApiModel { MealScheduleId = Guid.NewGuid(), ChildId = Guid.TryParse(childId, out var id) ? id : Guid.Empty }; list.Add(item); }
         item.MealType = request.MealType; item.Title = request.Title; item.ScheduledTime = request.ScheduledTime; item.PlannedBreadUnits = request.PlannedBreadUnits;
         item.DaysOfWeekMask = request.DaysOfWeekMask; item.ReminderEnabled = request.ReminderEnabled; item.ReminderMinutesBefore = request.ReminderMinutesBefore; item.IsActive = request.IsActive;
+        item.IsNightInsulin = request.IsNightInsulin; item.RepeatIntervalMinutes = request.RepeatIntervalMinutes; item.EscalationWindowMinutes = request.EscalationWindowMinutes;
         return Task.FromResult<MealScheduleApiModel?>(item);
     }
 

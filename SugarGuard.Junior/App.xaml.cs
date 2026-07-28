@@ -69,6 +69,8 @@ public partial class App : Application
     /// </summary>
     private readonly MauiReEncryptJob _reEncryptJob;
 
+    private readonly MauiSecureStorageKeyProvider _keyProvider;
+
     /// <summary>
     /// Примитив синхронизации для защиты от повторного одновременного запуска
     /// стартовой инициализации приложения.
@@ -89,6 +91,7 @@ public partial class App : Application
         IChildSessionBootstrapService childSessionBootstrapService,
         IThemeService themeService,
         MauiReEncryptJob reEncryptJob,
+        MauiSecureStorageKeyProvider keyProvider,
         IServiceProvider serviceProvider)
     {
         InitializeComponent();
@@ -103,6 +106,7 @@ public partial class App : Application
         _childSessionBootstrapService = childSessionBootstrapService;
         _themeService = themeService;
         _reEncryptJob = reEncryptJob;
+        _keyProvider = keyProvider;
         _serviceProvider = serviceProvider;
     }
 
@@ -159,6 +163,7 @@ public partial class App : Application
             await InitializeCryptoAsync();
 
             // 3. Готовим локальную базу данных.
+            await _keyProvider.InitializeAsync();
             await InitializeDatabaseAsync();
 
             // Не блокирует UI. Идемпотентно.

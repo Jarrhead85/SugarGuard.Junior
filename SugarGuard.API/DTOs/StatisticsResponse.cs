@@ -34,4 +34,6 @@ public class StatisticsResponse
     public List<MeasurementResponse> Measurements { get; set; } = new(); // Список измерений за период
 
     public DateTime GeneratedAt { get; set; } = DateTime.UtcNow; // Время генерации статистики
+
+    public string TimeZoneId { get; set; } = "Europe/Moscow"; // Часовой пояс ребёнка для внешних клиентов
 }

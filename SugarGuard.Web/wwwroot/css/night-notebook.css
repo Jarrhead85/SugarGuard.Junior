@@ -1,0 +1,185 @@
+/* =============================================================================
+   SugarGuard UI Kit — «Ночная тетрадь»
+
+   Финальный слой тёмной темы. Он подключается после CSS-изоляции Razor,
+   поэтому устраняет оставшиеся локальные teal/blue-стили в кабинетах
+   родителя, врача и администратора. Базовые токены остаются в variables.css.
+   ============================================================================= */
+
+[data-theme="dark"] {
+    --night-notebook-indigo: #13192A;
+    --night-notebook-panel: #202B43;
+    --night-notebook-panel-raised: #28344B;
+    --night-notebook-line: rgba(203, 216, 245, .14);
+    --night-notebook-amber: #FFCF73;
+    --night-notebook-blue: #79B8FF;
+    --night-notebook-shadow: rgba(5, 9, 20, .32);
+}
+
+/* Общая оболочка: спокойный ночной фон без декоративных пятен и неона. */
+[data-theme="dark"] .app-shell--care,
+[data-theme="dark"] .app-shell--doctor .page-content,
+[data-theme="dark"] .app-shell--admin .page-content {
+    background: linear-gradient(180deg, #1B2640 0, var(--night-notebook-indigo) 42%) !important;
+}
+
+[data-theme="dark"] .app-shell--parent .sidebar,
+[data-theme="dark"] .app-shell--doctor .sidebar,
+[data-theme="dark"] .app-shell--admin .sidebar {
+    background: #192137 !important;
+    border-color: var(--night-notebook-line);
+}
+
+[data-theme="dark"] .app-shell--parent .topbar,
+[data-theme="dark"] .app-shell--doctor .topbar,
+[data-theme="dark"] .app-shell--admin .topbar {
+    background: rgba(25, 33, 55, .98) !important;
+    border-color: var(--night-notebook-line);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="dark"] .app-shell--parent .parent-child-card-button,
+[data-theme="dark"] .app-shell--parent .parent-child-card-empty {
+    border-color: rgba(255, 207, 115, .22);
+    background: var(--night-notebook-panel);
+    box-shadow: 0 12px 28px var(--night-notebook-shadow);
+}
+
+[data-theme="dark"] .app-shell--parent .parent-child-card-button:hover,
+[data-theme="dark"] .app-shell--parent .parent-child-card-empty:hover,
+[data-theme="dark"] .app-shell--parent .parent-child-card-button.active {
+    border-color: rgba(255, 207, 115, .46);
+    background: var(--night-notebook-panel-raised);
+    box-shadow: 0 14px 32px var(--night-notebook-shadow);
+}
+
+[data-theme="dark"] .app-shell--parent .parent-child-avatar {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+[data-theme="dark"] .app-shell--parent .parent-nav-item:hover {
+    color: var(--color-text);
+    background: rgba(255, 207, 115, .08);
+}
+
+[data-theme="dark"] .app-shell--parent .parent-nav-item.active {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+/* Общий контекстный блок кабинетов врача и администратора. */
+[data-theme="dark"] .doctor-context-bar,
+[data-theme="dark"] .admin-context-bar {
+    background: #1B2640 !important;
+    border-color: var(--night-notebook-line);
+}
+
+[data-theme="dark"] .doctor-context-avatar,
+[data-theme="dark"] .admin-context-avatar {
+    color: var(--color-text-inverse);
+    background: var(--color-primary) !important;
+}
+
+[data-theme="dark"] .doctor-context-metrics span {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+/* Врач: локальные токены дашборда следуют общему UI Kit. */
+[data-theme="dark"] .doctor-portal,
+[data-theme="dark"] .doctor-notes-index,
+[data-theme="dark"] .doctor-detail {
+    --doctor-bg: var(--color-bg);
+    --doctor-surface: var(--color-surface);
+    --doctor-surface-strong: var(--color-surface-2);
+    --doctor-offset: var(--color-surface-offset);
+    --doctor-border: var(--color-border);
+    --doctor-divider: var(--color-divider);
+    --doctor-text: var(--color-text);
+    --doctor-muted: var(--color-text-muted);
+    --doctor-faint: var(--color-text-faint);
+    --doctor-primary: var(--color-primary);
+    --doctor-primary-alt: var(--color-primary-alt);
+    --doctor-primary-soft: var(--color-primary-soft);
+    --doctor-success: var(--color-glucose-normal);
+    --doctor-success-soft: rgba(156, 218, 153, .14);
+    --doctor-warning: var(--color-glucose-warning);
+    --doctor-warning-soft: rgba(243, 169, 99, .14);
+    --doctor-danger: var(--color-glucose-danger);
+    --doctor-danger-soft: rgba(242, 126, 150, .14);
+    --doctor-shadow-sm: var(--shadow-sm);
+    --doctor-shadow-md: var(--shadow-md);
+}
+
+[data-theme="dark"] .doctor-btn--primary,
+[data-theme="dark"] .doctor-notes-btn--primary {
+    color: var(--color-text-inverse);
+    background: var(--color-primary);
+    box-shadow: 0 8px 20px rgba(255, 207, 115, .20);
+}
+
+[data-theme="dark"] .doctor-note-avatar {
+    color: var(--color-text-inverse);
+    background: var(--color-primary);
+}
+
+[data-theme="dark"] .doctor-note-card.important {
+    border-color: rgba(243, 169, 99, .36);
+    background: var(--night-notebook-panel);
+}
+
+[data-theme="dark"] .doctor-chart,
+[data-theme="dark"] .doctor-note-field textarea,
+[data-theme="dark"] .doctor-note-item {
+    background: var(--night-notebook-panel-raised);
+}
+
+/* Админка: собственные переменные приводятся к тем же поверхностям. */
+[data-theme="dark"] .app-shell--admin {
+    --admin-primary: var(--color-primary);
+    --admin-blue: var(--color-primary-alt);
+    --admin-success: var(--color-glucose-normal);
+    --admin-warning: var(--color-glucose-warning);
+    --admin-danger: var(--color-glucose-danger);
+    --admin-ink: var(--color-text);
+    --admin-muted: var(--color-text-muted);
+    --admin-faint: var(--color-text-faint);
+    --admin-line: var(--color-divider);
+    --admin-panel: var(--color-surface);
+    --admin-panel-strong: var(--color-surface-2);
+    --admin-panel-muted: var(--color-surface-offset);
+    --admin-track: rgba(203, 216, 245, .12);
+    --admin-bg-start: #1B2640;
+    --admin-bg-mid: var(--color-bg);
+    --admin-bg-end: #101625;
+    --admin-soft: var(--color-primary-soft);
+    --admin-shadow: var(--shadow-lg);
+    --admin-shadow-soft: var(--shadow-md);
+}
+
+/* Hero и фокус: тёплый акцент остаётся читаемым на индиго. */
+[data-theme="dark"] .card-hero {
+    background: var(--card-hero-bg);
+    border-color: var(--card-hero-border);
+}
+
+[data-theme="dark"] button:focus-visible,
+[data-theme="dark"] [role="button"]:focus-visible {
+    box-shadow: 0 0 0 4px rgba(255, 207, 115, .24);
+}
+
+[data-theme="dark"] ::selection,
+[data-theme="dark"] ::-moz-selection {
+    color: var(--color-text);
+    background: rgba(255, 207, 115, .26);
+}
+
+/* Дополнительный визуальный стиль не должен возвращать яркую акварель в dark. */
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent,
+[data-theme="dark"][data-visual-style="watercolor"] .app-shell--parent .page-content {
+    background-image: none;
+}

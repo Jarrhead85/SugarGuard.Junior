@@ -36,6 +36,10 @@ public class ApiClient
         // Настраиваем HttpClient
         _httpClient.BaseAddress = new Uri(_baseUrl);
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "SugarGuard-Bot/1.0");
+        if (!string.IsNullOrWhiteSpace(_botApiKey))
+        {
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-Bot-Auth", _botApiKey);
+        }
     }
 
     private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)
@@ -184,14 +188,15 @@ public class ApiClient
     /// <summary>
     /// Получает содержимое рюкзака ребёнка
     /// </summary>
-    public async Task<BackpackResponse?> GetBackpackAsync(Guid childId, CancellationToken cancellationToken = default)
+    public async Task<BackpackResponse?> GetBackpackAsync(long telegramUserId, Guid childId, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Получение рюкзака для ребёнка {ChildId}", childId);
 
-            await EnsureAuthenticatedAsync(cancellationToken);
-            var response = await _httpClient.GetAsync($"/api/backpack/{childId}", cancellationToken);
+            var response = await _httpClient.GetAsync(
+                $"/api/bot-service/data/{telegramUserId}/children/{childId}/backpack",
+                cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -215,6 +220,7 @@ public class ApiClient
     /// Добавляет новый перекус в рюкзак
     /// </summary>
     public async Task<BackpackItemResponse?> AddSnackAsync(
+        long telegramUserId,
         Guid childId, 
         string snackName, 
         decimal breadUnits, 
@@ -225,19 +231,19 @@ public class ApiClient
             _logger.LogInformation("Добавление перекуса {SnackName} ({BreadUnits} ХЕ) для ребёнка {ChildId}", 
                 snackName, breadUnits, childId);
 
-            var request = new CreateBackpackItemRequest
+            var request = new
             {
-                ChildId = childId,
                 SnackName = snackName,
-                BreadUnits = breadUnits,
-                AddedBy = "parent"
+                BreadUnits = breadUnits
             };
 
             var json = JsonSerializer.Serialize(request, JsonSerializerOptions.Web);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            await EnsureAuthenticatedAsync(cancellationToken);
-            var response = await _httpClient.PostAsync("/api/backpack", content, cancellationToken);
+            var response = await _httpClient.PostAsync(
+                $"/api/bot-service/data/{telegramUserId}/children/{childId}/backpack",
+                content,
+                cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -260,14 +266,19 @@ public class ApiClient
     /// <summary>
     /// Удаляет перекус из рюкзака
     /// </summary>
-    public async Task<bool> RemoveSnackAsync(Guid backpackItemId, CancellationToken cancellationToken = default)
+    public async Task<bool> RemoveSnackAsync(
+        long telegramUserId,
+        Guid childId,
+        Guid backpackItemId,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Удаление перекуса {ItemId}", backpackItemId);
 
-            await EnsureAuthenticatedAsync(cancellationToken);
-            var response = await _httpClient.DeleteAsync($"/api/backpack/{backpackItemId}", cancellationToken);
+            var response = await _httpClient.DeleteAsync(
+                $"/api/bot-service/data/{telegramUserId}/children/{childId}/backpack/{backpackItemId}",
+                cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -290,6 +301,7 @@ public class ApiClient
     /// Получает статистику измерений за период
     /// </summary>
     public async Task<StatisticsResponse?> GetStatisticsAsync(
+        long telegramUserId,
         Guid childId, 
         string period = "day", 
         DateTime? date = null,
@@ -306,9 +318,8 @@ public class ApiClient
             }
 
             var queryString = string.Join("&", queryParams);
-            var url = $"/api/measurements/{childId}/statistics?{queryString}";
+            var url = $"/api/bot-service/data/{telegramUserId}/children/{childId}/statistics?{queryString}";
 
-            await EnsureAuthenticatedAsync(cancellationToken);
             var response = await _httpClient.GetAsync(url, cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -333,6 +344,7 @@ public class ApiClient
     /// Экспортирует статистику в PDF
     /// </summary>
     public async Task<byte[]?> ExportStatisticsToPdfAsync(
+        long telegramUserId,
         Guid childId, 
         string period = "day", 
         bool detailed = false,
@@ -356,9 +368,8 @@ public class ApiClient
             }
 
             var queryString = string.Join("&", queryParams);
-            var url = $"/api/measurements/{childId}/export-pdf?{queryString}";
+            var url = $"/api/bot-service/data/{telegramUserId}/children/{childId}/statistics/pdf?{queryString}";
 
-            await EnsureAuthenticatedAsync(cancellationToken);
             var response = await _httpClient.GetAsync(url, cancellationToken);
 
             if (response.IsSuccessStatusCode)
@@ -477,6 +488,7 @@ public class StatisticsResponse
     public int CriticalEpisodes { get; set; }
     public List<MeasurementResponseBot> Measurements { get; set; } = new();
     public DateTime GeneratedAt { get; set; }
+    public string TimeZoneId { get; set; } = "Europe/Moscow";
 }
 
 /// <summary>

@@ -36,6 +36,9 @@ public sealed class MealScheduleVm
     public bool ReminderEnabled { get; set; } = true;
     public int ReminderMinutesBefore { get; set; } = 10;
     public bool IsActive { get; set; } = true;
+    public bool IsNightInsulin { get; set; }
+    public int RepeatIntervalMinutes { get; set; } = 5;
+    public int EscalationWindowMinutes { get; set; } = 60;
 }
 
 public sealed class NutritionSummaryVm

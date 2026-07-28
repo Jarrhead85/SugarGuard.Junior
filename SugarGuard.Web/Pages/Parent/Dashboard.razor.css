@@ -102,17 +102,13 @@
 /* ВКЛАДКИ */
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
+    row-gap: 4px;
     padding: 12px 20px 0;
     border-bottom: 1px solid var(--color-divider);
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    overflow-x: visible;
 }
-
-    .tabs::-webkit-scrollbar {
-        display: none;
-    }
 
 .tab {
     padding: 9px 16px;
@@ -125,7 +121,7 @@
     border-bottom: none;
     cursor: pointer;
     position: relative;
-    bottom: -1px;
+    bottom: 0;
     transition: color 180ms, background 180ms;
     white-space: nowrap;
     text-decoration: none;
@@ -143,6 +139,7 @@
         color: var(--color-primary);
         background: var(--color-surface);
         border-color: var(--color-border);
+        border-bottom-color: var(--color-surface);
         font-weight: 600;
     }
 
@@ -1137,7 +1134,22 @@
     border-top: 1px solid var(--color-divider);
 }
 
+.push-connect {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-divider);
+}
+
 .telegram-connect__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.push-connect__head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -1155,6 +1167,21 @@
 }
 
 .telegram-connect__status.connected {
+    color: var(--color-glucose-normal);
+    background: var(--color-glucose-normal-soft);
+}
+
+.push-connect__status {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    background: var(--color-surface-2);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.push-connect__status.connected {
     color: var(--color-glucose-normal);
     background: var(--color-glucose-normal-soft);
 }
@@ -1193,6 +1220,13 @@
     flex-wrap: wrap;
 }
 
+.push-connect__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .map-provider-settings {
     display: grid;
     gap: 10px;
@@ -1205,6 +1239,96 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.theme-palette-settings {
+    display: grid;
+    gap: 10px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--color-divider);
+}
+
+.theme-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.theme-palette-option {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 9px;
+    align-items: center;
+    min-height: 58px;
+    padding: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    color: var(--color-text);
+    background: var(--color-surface-2);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.theme-palette-option:hover {
+    border-color: var(--palette-accent);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--palette-accent) 16%, transparent);
+    transform: translateY(-1px);
+}
+
+.theme-palette-option.selected {
+    border-color: var(--palette-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--palette-accent) 20%, transparent);
+}
+
+.theme-palette-option:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--palette-accent) 35%, transparent);
+    outline-offset: 2px;
+}
+
+.theme-palette-option__swatch {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 3px;
+    width: 42px;
+    height: 36px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--palette-paper);
+}
+
+.theme-palette-option__swatch i {
+    display: block;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--palette-accent) 20%, white);
+}
+
+.theme-palette-option__swatch i:first-child {
+    grid-row: 1 / -1;
+    background: var(--palette-accent);
+}
+
+.theme-palette-option__swatch i:last-child {
+    background: color-mix(in srgb, var(--palette-accent) 45%, white);
+}
+
+.theme-palette-option__name {
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.theme-palette-hint {
+    margin: 0;
+    color: var(--color-text-faint);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.card-head--devices {
+    margin-top: 18px;
 }
 
 .empty-state--compact {

@@ -28,7 +28,7 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
     private const int Aes256KeySize = 32;
 
     private readonly ILogger<MauiSecureStorageKeyProvider> _logger;
-    private readonly object _lock = new();
+    private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private byte[]? _cachedKey;
 
     public MauiSecureStorageKeyProvider(ILogger<MauiSecureStorageKeyProvider> logger)
@@ -42,15 +42,30 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
         if (_cachedKey is not null)
             return _cachedKey;
 
-        lock (_lock)
+        throw new InvalidOperationException(
+            "Ключ шифрования ещё не подготовлен. Вызовите InitializeAsync при запуске приложения.");
+    }
+
+    /// <summary>
+    /// Асинхронно получает или создаёт мастер-ключ до обращения к локальным
+    /// зашифрованным данным. Не блокирует UI-поток синхронным ожиданием Task.
+    /// </summary>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_cachedKey is not null)
+        {
+            return;
+        }
+
+        await _initializationLock.WaitAsync(cancellationToken);
+        try
         {
             if (_cachedKey is not null)
-                return _cachedKey;
+            {
+                return;
+            }
 
-            // SecureStorage на MAUI синхронный API не предоставляет, но на практике
-            // на Android/iOS/Windows он не делает I/O на горячем пути после первого
-            // чтения. Для безопасности используем Task.Run.
-            var stored = Task.Run(async () => await SecureStorage.GetAsync(KeyStorageKey)).GetAwaiter().GetResult();
+            var stored = await SecureStorage.GetAsync(KeyStorageKey);
 
             if (!string.IsNullOrEmpty(stored))
             {
@@ -60,7 +75,7 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
                     if (_cachedKey.Length == Aes256KeySize)
                     {
                         _logger.LogDebug("Master key loaded from SecureStorage ({Len} bytes).", _cachedKey.Length);
-                        return _cachedKey;
+                        return;
                     }
                     _logger.LogWarning("Stored key has wrong length {Len}, regenerating.", _cachedKey.Length);
                 }
@@ -74,13 +89,14 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
             var newKey = new byte[Aes256KeySize];
             RandomNumberGenerator.Fill(newKey);
 
-            Task.Run(async () => await SecureStorage.SetAsync(KeyStorageKey, Convert.ToBase64String(newKey)))
-                .GetAwaiter()
-                .GetResult();
+            await SecureStorage.SetAsync(KeyStorageKey, Convert.ToBase64String(newKey));
 
             _cachedKey = newKey;
             _logger.LogInformation("New AES-256 master key generated and stored in SecureStorage.");
-            return _cachedKey;
+        }
+        finally
+        {
+            _initializationLock.Release();
         }
     }
 }

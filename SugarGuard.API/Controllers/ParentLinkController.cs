@@ -11,21 +11,24 @@ namespace SugarGuard.API.Controllers;
 /// Контроллер для привязки Telegram-пользователя к ребёнку через одноразовый код
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/parent-link")]
 [Produces("application/json")]
 public class ParentLinkController : ControllerBase
 {
     private readonly IParentLinkService _parentLink;
     private readonly IChildAccessService _childAccess;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ILogger<ParentLinkController> _logger;
 
     public ParentLinkController(
         IParentLinkService parentLink,
         IChildAccessService childAccess,
+        ICurrentUserContext currentUser,
         ILogger<ParentLinkController> logger)
     {
         _parentLink = parentLink;
         _childAccess = childAccess;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -63,7 +66,13 @@ public class ParentLinkController : ControllerBase
                 return Forbid();
             }
 
-            var result = await _parentLink.SaveConnectionCodeAsync(request, cancellationToken);
+            var currentUserId = _currentUser.GetUserId();
+            if (currentUserId is null)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _parentLink.SaveConnectionCodeAsync(request, currentUserId.Value, cancellationToken);
 
             if (!result.Success)
             {

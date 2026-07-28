@@ -308,6 +308,17 @@ public sealed class SupportConversationService : ISupportConversationService
 
         if (attachment is not null)
         {
+            _logger.LogInformation(
+                "Получено вложение обращения в поддержку. FileName={FileName} ContentType={ContentType} Length={Length}",
+                attachment.FileName,
+                attachment.ContentType,
+                attachment.Length);
+
+            if (attachment.Length == 0)
+            {
+                throw new ArgumentException("Прикреплённый файл пуст. Выберите файл ещё раз и повторите отправку.");
+            }
+
             if (attachment.Length > _supportEmailOptions.MaxAttachmentBytes)
             {
                 throw new ArgumentException(
@@ -321,6 +332,11 @@ public sealed class SupportConversationService : ISupportConversationService
                 Path.GetFileName(attachment.FileName),
                 string.IsNullOrWhiteSpace(attachment.ContentType) ? "application/octet-stream" : attachment.ContentType,
                 memory.ToArray()));
+
+            _logger.LogInformation(
+                "Вложение обращения подготовлено к отправке. FileName={FileName} Length={Length}",
+                attachments[^1].FileName,
+                attachments[^1].Content.Length);
         }
 
         if (!string.IsNullOrWhiteSpace(clientLogs))
@@ -349,6 +365,9 @@ public sealed class SupportConversationService : ISupportConversationService
     {
         var replyTo = conversation.CallbackEmail ?? requesterEmail;
         var requester = string.IsNullOrWhiteSpace(replyTo) ? "email не указан" : replyTo.Trim();
+        var attachmentSummary = attachments.Count == 0
+            ? "Вложения отсутствуют."
+            : $"Вложения: {string.Join(", ", attachments.Select(attachment => attachment.FileName))}.";
         var plainText = $"""
             Новое обращение в поддержку SugarGuard
 
@@ -360,6 +379,8 @@ public sealed class SupportConversationService : ISupportConversationService
             Сообщение:
             {message.Body}
 
+            {attachmentSummary}
+
             Ответьте пользователю по email: {requester}
             """;
         var html = $"""
@@ -370,8 +391,15 @@ public sealed class SupportConversationService : ISupportConversationService
             <p><strong>Дата:</strong> {message.CreatedAt:O}</p>
             <h3>Сообщение</h3>
             <pre style="white-space:pre-wrap;font-family:Arial,sans-serif">{WebUtility.HtmlEncode(message.Body)}</pre>
+            <p><strong>{WebUtility.HtmlEncode(attachmentSummary)}</strong></p>
             <p>Ответьте пользователю по email: <a href="mailto:{WebUtility.HtmlEncode(requester)}">{WebUtility.HtmlEncode(requester)}</a></p>
             """;
+
+        _logger.LogInformation(
+            "Отправка обращения в поддержку по email. ConversationId={ConversationId} AttachmentsCount={AttachmentsCount} AttachmentNames={AttachmentNames}",
+            conversation.ConversationId,
+            attachments.Count,
+            string.Join(", ", attachments.Select(attachment => attachment.FileName)));
 
         await _emailService.SendAsync(
             _supportEmailOptions.InboxEmail,

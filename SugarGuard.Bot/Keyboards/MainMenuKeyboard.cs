@@ -14,22 +14,24 @@ public class MainMenuKeyboard
     {
         var keyboard = new InlineKeyboardButton[][]
         {
-            // Первая строка - Рюкзак
             new InlineKeyboardButton[]
             {
-                InlineKeyboardButton.WithCallbackData("🎒 Рюкзак", "backpack")
-            },
-            
-            // Вторая строка - Статистика
-            new InlineKeyboardButton[]
-            {
+                InlineKeyboardButton.WithCallbackData("🎒 Рюкзак", "backpack"),
                 InlineKeyboardButton.WithCallbackData("📊 Статистика", "statistics")
             },
-            
-            // Третья строка - Настройки
             new InlineKeyboardButton[]
             {
-                InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "settings")
+                InlineKeyboardButton.WithCallbackData("🩸 Последнее измерение", "last_measurement"),
+                InlineKeyboardButton.WithCallbackData("🆘 Поддержка", "support")
+            },
+            new InlineKeyboardButton[]
+            {
+                InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "settings"),
+                InlineKeyboardButton.WithCallbackData("🔗 Подключить ребёнка", "connect")
+            },
+            new InlineKeyboardButton[]
+            {
+                InlineKeyboardButton.WithCallbackData("❓ Помощь", "help")
             }
         };
 
@@ -60,23 +62,6 @@ public class MainMenuKeyboard
     /// </summary>
     public InlineKeyboardMarkup GetKeyboardWithHelp()
     {
-        var keyboard = new InlineKeyboardButton[][]
-        {
-            // Первая строка - Рюкзак и Статистика
-            new InlineKeyboardButton[]
-            {
-                InlineKeyboardButton.WithCallbackData("🎒 Рюкзак", "backpack"),
-                InlineKeyboardButton.WithCallbackData("📊 Статистика", "statistics")
-            },
-            
-            // Вторая строка - Настройки и Помощь
-            new InlineKeyboardButton[]
-            {
-                InlineKeyboardButton.WithCallbackData("⚙️ Настройки", "settings"),
-                InlineKeyboardButton.WithCallbackData("❓ Помощь", "help")
-            }
-        };
-
-        return new InlineKeyboardMarkup(keyboard);
+        return GetKeyboard();
     }
 }

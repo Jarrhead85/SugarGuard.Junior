@@ -5,6 +5,7 @@ using SugarGuard.Shared.Constants;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace SugarGuard.Bot.Handlers;
 
@@ -18,20 +19,26 @@ public class CommandHandler
     private readonly ILogger<CommandHandler> _logger;
     private readonly MainMenuKeyboard _mainMenuKeyboard;
     private readonly Services.ApiClient _apiClient;
+    private readonly IBotUserContextService _botUserContextService;
     private readonly TelegramRateLimiter _rateLimiter;
+    private readonly ConnectionCodeEntrySessionService _connectionCodeEntrySessions;
 
     public CommandHandler(
         ITelegramBotClient botClient,
         ILogger<CommandHandler> logger,
         MainMenuKeyboard mainMenuKeyboard,
         Services.ApiClient apiClient,
-        TelegramRateLimiter rateLimiter)
+        IBotUserContextService botUserContextService,
+        TelegramRateLimiter rateLimiter,
+        ConnectionCodeEntrySessionService connectionCodeEntrySessions)
     {
         _botClient = botClient;
         _logger = logger;
         _mainMenuKeyboard = mainMenuKeyboard;
         _apiClient = apiClient;
+        _botUserContextService = botUserContextService;
         _rateLimiter = rateLimiter;
+        _connectionCodeEntrySessions = connectionCodeEntrySessions;
     }
 
     /// <summary>
@@ -53,14 +60,19 @@ public class CommandHandler
 
         try
         {
-            switch (command.Split(' ')[0].ToLower())
+            var commandName = command
+                .Split(' ', 2, StringSplitOptions.RemoveEmptyEntries)[0]
+                .Split('@', 2)[0]
+                .ToLowerInvariant();
+
+            switch (commandName)
             {
                 case "/start":
                     await HandleStartCommandAsync(chatId, userId, cancellationToken);
                     break;
 
                 case "/help":
-                    await HandleHelpCommandAsync(chatId, cancellationToken);
+                    await SendHelpAsync(chatId, cancellationToken);
                     break;
 
                 case "/connect":
@@ -84,9 +96,7 @@ public class CommandHandler
     /// </summary>
     private async Task HandleStartCommandAsync(long chatId, long userId, CancellationToken cancellationToken)
     {
-        var groupSize = InviteCodeLimits.GroupSize;
-        var exampleCode = new string('A', groupSize) + new string('1', groupSize);
-        var formattedExample = InviteCodeLimits.Format(exampleCode);
+        _connectionCodeEntrySessions.Complete(userId);
 
         var welcomeMessage = $"""
             🍭 Добро пожаловать в SugarGuard Bot!
@@ -98,8 +108,8 @@ public class CommandHandler
             📈 Просматривать статистику и экспортировать отчёты
             ⚠️ Получать экстренные уведомления при критических уровнях
             
-            Для начала работы привяжите бота к приложению ребёнка командой:
-            /connect {formattedExample}
+            Для начала работы нажмите кнопку «🔗 Подключить ребёнка» ниже.
+            Бот попросит только код из веб-кабинета родителя — команду вводить не потребуется.
             
             Выберите действие из меню ниже:
             """;
@@ -118,19 +128,15 @@ public class CommandHandler
     /// <summary>
     /// Обрабатывает команду /help - справка по командам
     /// </summary>
-    private async Task HandleHelpCommandAsync(long chatId, CancellationToken cancellationToken)
+    public async Task SendHelpAsync(long chatId, CancellationToken cancellationToken)
     {
-        var groupSize = InviteCodeLimits.GroupSize;
-        var exampleCode = new string('A', groupSize) + new string('1', groupSize);
-        var formattedExample = InviteCodeLimits.Format(exampleCode);
-
         var helpMessage = $"""
             📖 **Справка по командам SugarGuard Bot**
             
             **Основные команды:**
             /start - Главное меню и приветствие
             /help - Эта справка
-            /connect {formattedExample} - Привязка к ребёнку (код из приложения)
+            Кнопка «🔗 Подключить ребёнка» - безопасная привязка уведомлений
             
             **Функции бота:**
             
@@ -145,8 +151,7 @@ public class CommandHandler
             • Анализ времени в целевом диапазоне
             
             ⚙️ **Настройки**
-            • Управление уведомлениями
-            • Настройка расписания измерений
+            • Выбор активного ребёнка, если их несколько
             
             **Уведомления:**
             • 📈 Новые измерения глюкозы
@@ -155,10 +160,10 @@ public class CommandHandler
             • ⏰ Пропущенные измерения
             
             **Получение кода привязки:**
-            1. Откройте приложение SugarGuard на телефоне ребёнка
-            2. Перейдите в настройки → "Привязать родителя"
-            3. Нажмите "Сгенерировать код"
-            4. Введите код в боте: /connect {formattedExample}
+            1. Откройте веб-кабинет родителя SugarGuard
+            2. Перейдите: «Настройки» → «Telegram-бот» → «Получить код»
+            3. Нажмите в боте «🔗 Подключить ребёнка»
+            4. Введите полученный код без команды
             
             При возникновении проблем обратитесь к разработчикам.
             """;
@@ -180,26 +185,70 @@ public class CommandHandler
     /// </summary>
     private async Task HandleConnectCommandAsync(long chatId, long userId, string command, CancellationToken cancellationToken)
     {
-        // Извлекаем код из команды: ожидаем "/connect <код>" (с любыми пробелами).
         var parts = command.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
         {
-            await SendConnectFormatErrorAsync(chatId, userId, command, cancellationToken);
+            await BeginConnectionAsync(chatId, userId, cancellationToken);
             return;
         }
 
-        var rawCode = parts[1];
+        await SubmitConnectionCodeAsync(chatId, userId, parts[1], cancellationToken);
+    }
 
-        // Единый source of truth — ConnectionCodeFormat.
-        // Нормализация (uppercase, strip дефиса) выполняется внутри IsValid.
+    /// <summary>
+    /// Открывает сценарий подключения из инлайн-кнопки. Пользователь вводит код,
+    /// не набирая техническую команду <c>/connect</c>.
+    /// </summary>
+    public async Task BeginConnectionAsync(long chatId, long userId, CancellationToken cancellationToken)
+    {
+        _connectionCodeEntrySessions.Begin(userId);
+
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: """
+                🔗 **Подключение Telegram-бота**
+
+                1. В веб-кабинете родителя откройте «Настройки» → «Telegram-бот».
+                2. Нажмите «Получить код».
+                3. Отправьте сюда полученный код — без команды и без лишнего текста.
+
+                Код действует 10 минут и используется только для привязки этого чата к уведомлениям ребёнка.
+                """,
+            parseMode: ParseMode.Markdown,
+            replyMarkup: new InlineKeyboardMarkup([
+                [InlineKeyboardButton.WithCallbackData("Отменить", "cancel_connect")],
+                [InlineKeyboardButton.WithCallbackData("🏠 Главное меню", "main_menu")]
+            ]),
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>Отменяет сценарий ввода кода подключения.</summary>
+    public async Task CancelConnectionAsync(long chatId, long userId, CancellationToken cancellationToken)
+    {
+        ClearPendingConnection(userId);
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: "Подключение отменено. Его можно начать снова кнопкой «🔗 Подключить ребёнка».",
+            replyMarkup: _mainMenuKeyboard.GetKeyboard(),
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>Очищает незавершённый сценарий подключения без отправки сообщения.</summary>
+    public void ClearPendingConnection(long userId) => _connectionCodeEntrySessions.Complete(userId);
+
+    /// <summary>Проверяет код, введённый в сценарии привязки.</summary>
+    public async Task SubmitConnectionCodeAsync(long chatId, long userId, string rawCode, CancellationToken cancellationToken)
+    {
+        rawCode = rawCode.Trim();
+
         if (!ConnectionCodeFormat.IsValid(rawCode, normalize: true))
         {
-            await SendConnectFormatErrorAsync(chatId, userId, command, cancellationToken);
+            await SendConnectFormatErrorAsync(chatId, userId, rawCode, cancellationToken);
             return;
         }
 
         var connectionCode = ConnectionCodeFormat.Normalize(rawCode)!;
-        _logger.LogInformation("Попытка привязки пользователя {UserId} с кодом {Code}", userId, connectionCode);
+        _logger.LogInformation("Попытка привязки Telegram-пользователя {UserId}", userId);
 
         // Отправляем сообщение о проверке кода
         var processingMessage = await _botClient.SendTextMessageAsync(
@@ -211,10 +260,27 @@ public class CommandHandler
         try
         {
             // Проверяем код привязки через API
-            var isValidCode = await VerifyConnectionCodeAsync(userId, connectionCode, cancellationToken);
+            var childId = await VerifyConnectionCodeAsync(userId, connectionCode, cancellationToken);
 
-            if (isValidCode)
+            if (childId.HasValue)
             {
+                // Сразу выбираем ребёнка для команд бота. Привязка в API уже создана
+                // проверкой кода, но без активного контекста кнопки не знают, чьи данные показывать.
+                var contextSaved = await _botUserContextService.SetCurrentChildIdAsync(
+                    userId,
+                    childId.Value,
+                    cancellationToken);
+
+                if (!contextSaved)
+                {
+                    // Не отменяем успешную привязку: GetCurrentChildIdAsync самостоятельно
+                    // выберет единственного привязанного ребёнка при следующем действии.
+                    _logger.LogWarning(
+                        "Привязка Telegram-пользователя {UserId} успешна, но активный ChildId не сохранён",
+                        userId);
+                }
+
+                _connectionCodeEntrySessions.Complete(userId);
                 var successMessage = """
                     ✅ **Привязка успешна!**
                     
@@ -236,7 +302,7 @@ public class CommandHandler
                     cancellationToken: cancellationToken
                 );
 
-                _logger.LogInformation("Успешная привязка пользователя {UserId} с кодом {Code}", userId, connectionCode);
+                _logger.LogInformation("Успешная привязка Telegram-пользователя {UserId}", userId);
             }
             else
             {
@@ -248,23 +314,26 @@ public class CommandHandler
                     • Код уже использован
                     • Прошло более 10 минут с момента генерации
                     
-                    Сгенерируйте новый код в приложении и попробуйте снова.
+                    Получите новый код в веб-кабинете родителя и повторите подключение кнопкой ниже.
                     """;
 
                 await _botClient.EditMessageTextAsync(
                     chatId: chatId,
                     messageId: processingMessage.MessageId,
                     text: failureMessage,
+                    replyMarkup: _mainMenuKeyboard.GetKeyboard(),
                     parseMode: ParseMode.Markdown,
                     cancellationToken: cancellationToken
                 );
 
-                _logger.LogWarning("Неудачная привязка пользователя {UserId} с кодом {Code}", userId, connectionCode);
+                _logger.LogWarning("Неудачная привязка Telegram-пользователя {UserId}", userId);
+                _connectionCodeEntrySessions.Complete(userId);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при проверке кода привязки {Code} для пользователя {UserId}", connectionCode, userId);
+            _connectionCodeEntrySessions.Complete(userId);
+            _logger.LogError(ex, "Ошибка при проверке кода привязки для пользователя {UserId}", userId);
 
             var errorMessage = """
                 ❌ **Ошибка при проверке кода**
@@ -276,6 +345,7 @@ public class CommandHandler
                 chatId: chatId,
                 messageId: processingMessage.MessageId,
                 text: errorMessage,
+                replyMarkup: _mainMenuKeyboard.GetKeyboard(),
                 parseMode: ParseMode.Markdown,
                 cancellationToken: cancellationToken
             );
@@ -287,17 +357,13 @@ public class CommandHandler
     /// </summary>
     private async Task HandleUnknownCommandAsync(long chatId, string command, CancellationToken cancellationToken)
     {
-        var groupSize = InviteCodeLimits.GroupSize;
-        var exampleCode = new string('A', groupSize) + new string('1', groupSize);
-        var formattedExample = InviteCodeLimits.Format(exampleCode);
-
         var message = $"""
             ❓ **Неизвестная команда:** `{command}`
             
             Доступные команды:
             /start - Главное меню
             /help - Справка
-            /connect {formattedExample} - Привязка к ребёнку
+            «🔗 Подключить ребёнка» — привязка уведомлений
             
             Используйте /help для подробной справки.
             """;
@@ -332,26 +398,27 @@ public class CommandHandler
     }
 
     /// <summary>
-    /// Отправляет пользователю сообщение о неверном формате кода /connect
+    /// Отправляет пользователю сообщение о неверном формате кода подключения
     /// и логирует предупреждение. Текст описывает формат,
     /// синхронизированный с <see cref="ConnectionCodeFormat"/>.
     /// </summary>
-    private async Task SendConnectFormatErrorAsync(long chatId, long userId, string command, CancellationToken cancellationToken)
+    private async Task SendConnectFormatErrorAsync(long chatId, long userId, string enteredValue, CancellationToken cancellationToken)
     {
         var errorMessage = $"""
             ❌ **Неверный формат кода**
 
-            Используйте: `/connect {ConnectionCodeFormat.Format(ConnectionCodeFormat.Generate())}`
+            Введите только код: `{ConnectionCodeFormat.Format(ConnectionCodeFormat.Generate())}`
 
             Где:
             • {ConnectionCodeFormat.Length} символов из алфавита A–Z (без I, O) + 2–9 (без 0, 1)
             • Допускается дефис-разделитель посередине: ABCD-1234 (4 буквы + дефис + 4 цифры)
             • Регистр не важен (ввод в любом регистре)
 
-            Пример: `/connect ABCD-1234`
+            Пример: `ABCD-1234`
 
-            Код можно получить в приложении ребёнка:
-            Настройки → Привязать родителя → Сгенерировать код
+            Код выдаётся в веб-кабинете родителя:
+            «Настройки» → «Telegram-бот» → «Получить код».
+            Проверьте код и отправьте его ещё раз в этот чат.
             """;
 
         await _botClient.SendTextMessageAsync(
@@ -361,13 +428,13 @@ public class CommandHandler
             cancellationToken: cancellationToken
         );
 
-        _logger.LogWarning("Неверный формат команды connect от пользователя {UserId}: {Command}", userId, command);
+        _logger.LogWarning("Неверный формат кода подключения от пользователя {UserId}: {EnteredValue}", userId, enteredValue);
     }
 
     /// <summary>
     /// Проверяет код привязки через API
     /// </summary>
-    private async Task<bool> VerifyConnectionCodeAsync(long userId, string connectionCode, CancellationToken cancellationToken)
+    private async Task<Guid?> VerifyConnectionCodeAsync(long userId, string connectionCode, CancellationToken cancellationToken)
     {
         try
         {
@@ -376,24 +443,23 @@ public class CommandHandler
                 userId, 
                 cancellationToken: cancellationToken);
 
-            if (response.Success && response.IsValid)
+            if (response.Success && response.IsValid && response.ChildId.HasValue)
             {
-                _logger.LogInformation("✓ Код {Code} успешно проверен для пользователя {UserId}", 
-                    connectionCode, userId);
-                return true;
+                _logger.LogInformation(
+                    "Код подключения успешно проверен для пользователя {UserId}; ChildId={ChildId}",
+                    userId,
+                    response.ChildId);
+                return response.ChildId.Value;
             }
-            else
-            {
-                _logger.LogWarning("Код {Code} недействителен для пользователя {UserId}: {Error}", 
-                    connectionCode, userId, response.ErrorMessage);
-                return false;
-            }
+
+            _logger.LogWarning("Код подключения недействителен для пользователя {UserId}: {Error}",
+                userId, response.ErrorMessage);
+            return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при проверке кода привязки {Code} для пользователя {UserId}", 
-                connectionCode, userId);
-            return false;
+            _logger.LogError(ex, "Ошибка при проверке кода привязки для пользователя {UserId}", userId);
+            return null;
         }
     }
 }

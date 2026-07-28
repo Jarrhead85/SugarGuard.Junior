@@ -20,17 +20,20 @@ public class NotificationsController : ControllerBase
     private readonly ILogger<NotificationsController> _logger;
     private readonly IChildAccessService _childAccess;
     private readonly IUserNotificationService _userNotificationService;
+    private readonly IWebPushService _webPushService;
 
     public NotificationsController(
         ITelegramNotificationService notificationService,
         ILogger<NotificationsController> logger,
         IChildAccessService childAccess,
-        IUserNotificationService userNotificationService)
+        IUserNotificationService userNotificationService,
+        IWebPushService webPushService)
     {
         _notificationService = notificationService;
         _logger = logger;
         _childAccess = childAccess;
         _userNotificationService = userNotificationService;
+        _webPushService = webPushService;
     }
 
     /// <summary>
@@ -96,6 +99,14 @@ public class NotificationsController : ControllerBase
 
             await _userNotificationService.PersistCriticalLocationAsync(request, cancellationToken);
 
+            await SendWebPushAsync(
+                criticalChildId,
+                "Критический уровень глюкозы",
+                $"{request.CriticalGlucose:F1} ммоль/л. Требуется внимание.",
+                $"/parent/dashboard?childId={criticalChildId}&tab=alerts",
+                requireInteraction: true,
+                cancellationToken: cancellationToken);
+
             // Отправляем критическое уведомление
             var result = await _notificationService.SendCriticalAlertAsync(request);
 
@@ -155,6 +166,12 @@ public class NotificationsController : ControllerBase
             }
 
             // Отправляем уведомление об измерении
+            await SendWebPushAsync(
+                measurementChildId,
+                "Новое измерение глюкозы",
+                $"{request.GlucoseValue:F1} ммоль/л · {request.Status}",
+                $"/parent/dashboard?childId={measurementChildId}&tab=measurements");
+
             var result = await _notificationService.SendMeasurementNotificationAsync(request);
 
             if (result.Success)
@@ -175,6 +192,30 @@ public class NotificationsController : ControllerBase
                 ParentsNotified = 0,
                 ErrorMessage = ex.Message
             });
+        }
+    }
+
+    private async Task SendWebPushAsync(
+        Guid childId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _webPushService.SendForChildAsync(
+                childId,
+                title,
+                body,
+                url,
+                requireInteraction,
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogWarning(exception, "Не удалось отправить Web Push. ChildId={ChildId}", childId);
         }
     }
 

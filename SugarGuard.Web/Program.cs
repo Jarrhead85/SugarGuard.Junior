@@ -169,7 +169,7 @@ app.Use(async (context, next) =>
         "style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com; " +
         "img-src 'self' data: https:; " +
         "font-src 'self' data: https://api.fontshare.com https://cdn.fontshare.com https://fonts.gstatic.com; " +
-        "connect-src 'self' https://gigachat.devices.sberbank.ru; " +
+        "connect-src 'self' https://api.sugar-guard.ru https://gigachat.devices.sberbank.ru; " +
         "frame-ancestors 'none'; " +
         "form-action 'self'; " +
         "base-uri 'self'; " +

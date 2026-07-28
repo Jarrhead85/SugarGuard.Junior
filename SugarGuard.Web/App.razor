@@ -26,10 +26,12 @@
         3. app.css        — base reset, компоненты, layout
         4. SugarGuard.Web.styles.css — scoped Razor (.razor.css)
     *@
-    <link rel="stylesheet" href="css/variables.css" />
-    <link rel="stylesheet" href="css/sg-tokens.css" />
-    <link rel="stylesheet" href="css/app.css?v=20260722-4" />
-    <link rel="stylesheet" href="SugarGuard.Web.styles.css?v=20260723-1" />
+    <link rel="stylesheet" href="css/variables.css?v=20260724-1" />
+    <link rel="stylesheet" href="css/sg-tokens.css?v=20260724-1" />
+    <link rel="stylesheet" href="css/app.css?v=20260728-1" />
+    <link rel="stylesheet" href="SugarGuard.Web.styles.css?v=20260728-1" />
+    <link rel="stylesheet" href="css/night-notebook.css?v=20260724-1" />
+    <link rel="stylesheet" href="css/light-palettes.css?v=20260728-1" />
 
     <HeadOutlet />
 </head>
@@ -58,10 +60,13 @@
     <script src="js/glucose-chart.js?v=20260720-3"></script>
 
     <!-- Тема — ПОСЛЕ glucose-chart.js, чтобы applyTheme() уже существовал -->
-    <script src="js/theme.js"></script>
+    <script src="js/theme.js?v=20260724-2"></script>
 
     <!-- JWT-хранилище -->
     <script src="js/tokenStore.js"></script>
+
+    <!-- Web Push: подписка браузера и управление разрешением -->
+    <script src="js/push-notifications.js?v=20260726-2"></script>
 
     <!-- Универсальные Blazor JS Interop хелперы (TODO-3) -->
     <script src="js/interop.js?v=20260723-2"></script>

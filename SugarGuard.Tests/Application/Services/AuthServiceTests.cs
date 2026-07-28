@@ -682,6 +682,23 @@ public class AuthServiceTests : IDisposable
     }
 
     [Fact]
+    public void ValidateBotApiKey_BotSettingsFallback_ValidKey_ReturnsTrue()
+    {
+        Environment.SetEnvironmentVariable("BOT_SERVICE_AUTH_KEY", null);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BotSettings:ApiKey"] = "bot-settings-secret"
+            })
+            .Build();
+        var sut = CreateSut(configuration);
+
+        var result = sut.ValidateBotApiKey("bot-settings-secret");
+
+        Assert.True(result);
+    }
+
+    [Fact]
     public void ValidateBotApiKey_EnvVarSet_WrongKey_ReturnsFalse()
     {
         Environment.SetEnvironmentVariable("BOT_SERVICE_AUTH_KEY", "expected");

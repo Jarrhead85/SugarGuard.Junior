@@ -169,6 +169,18 @@
                 <small>@(_health?.Database == true ? "База доступна" : "Проверьте health")</small>
             </article>
 
+            <article class="admin-mini-card @BotCardTone">
+                <span>Telegram-бот</span>
+                <strong>@BotCardLabel</strong>
+                <small>@BotCardDetails</small>
+            </article>
+
+            <article class="admin-mini-card @MaxBotCardTone">
+                <span>MAX-бот</span>
+                <strong>@MaxBotCardLabel</strong>
+                <small>@MaxBotCardDetails</small>
+            </article>
+
             <article class="admin-panel admin-panel--audit">
                 <div class="admin-panel-head">
                     <div>
@@ -255,6 +267,7 @@
     private AdminSystemStatsVm? _stats;
     private AdminHealthVm? _health;
     private ServerMetricsVm? _serverMetrics;
+    private IReadOnlyList<BotRuntimeStatusVm> _botStatuses = [];
     private List<AdminUserVm> _users = [];
     private List<AuditLogVm> _auditLogs = [];
     private int _auditPage = 1;
@@ -272,6 +285,24 @@
     private int ActiveLinks => _parentLinks.Count + _doctorLinks.Count;
     private int SecurityIncidentCount => (_stats?.UnresolvedConflicts ?? 0)
         + _syncLogs.Count(x => x.IsConflict || !string.IsNullOrWhiteSpace(x.Error));
+    private BotRuntimeStatusVm? TelegramBot => _botStatuses.FirstOrDefault(item =>
+        string.Equals(item.BotName, "telegram", StringComparison.OrdinalIgnoreCase));
+    private BotRuntimeStatusVm? MaxBot => _botStatuses.FirstOrDefault(item =>
+        string.Equals(item.BotName, "max", StringComparison.OrdinalIgnoreCase));
+    private string BotCardTone => TelegramBot?.IsOnline == true && TelegramBot.InternetAvailable
+        ? "admin-mini-card--safe"
+        : "admin-mini-card--warning";
+    private string BotCardLabel => TelegramBot is null
+        ? "Нет сигнала"
+        : TelegramBot.IsOnline && TelegramBot.InternetAvailable ? "На связи" : "Проверить";
+    private string BotCardDetails => TelegramBot is null
+        ? "Heartbeat ещё не поступал"
+        : $"Интернет: {(TelegramBot.InternetAvailable ? "есть" : "нет")}; " +
+          $"очередь: {TelegramBot.PendingTelegramMessages}; ошибок: {TelegramBot.FailedTelegramMessages}; " +
+          $"проверка: {FormatMoscow(TelegramBot.LastHeartbeatAt)}";
+    private string MaxBotCardTone => MaxBot?.IsConfigured == true ? "admin-mini-card--warning" : string.Empty;
+    private string MaxBotCardLabel => MaxBot?.IsConfigured == true ? "Настроен" : "Не настроен";
+    private string MaxBotCardDetails => MaxBot?.StatusMessage ?? "Данные о MAX-боте пока не поступали.";
 
     private int AuditPageCount => Math.Max(1, (int)Math.Ceiling(_auditLogs.Count / (double)AuditPageSize));
     private IReadOnlyList<AuditLogVm> PagedAuditLogs => _auditLogs
@@ -355,17 +386,19 @@
             var statsTask = Api.GetAdminSystemStatsAsync(cts.Token);
             var healthTask = Api.GetAdminHealthAsync(cts.Token);
             var serverMetricsTask = Api.GetAdminServerMetricsAsync(cts.Token);
+            var botsTask = Api.GetAdminBotStatusesAsync(cts.Token);
             var usersTask = Api.GetAdminUsersAsync(limit: 500, cancellationToken: cts.Token);
             var auditTask = Api.GetAdminAuditLogsAsync(limit: 20, cancellationToken: cts.Token);
             var parentLinksTask = Api.GetAdminParentChildLinksAsync(cts.Token);
             var doctorLinksTask = Api.GetAdminDoctorChildLinksAsync(cts.Token);
             var syncTask = Api.GetSyncLogsAsync(limit: 100, cancellationToken: cts.Token);
 
-            await Task.WhenAll(statsTask, healthTask, serverMetricsTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask);
+            await Task.WhenAll(statsTask, healthTask, serverMetricsTask, botsTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask);
 
             _stats = await statsTask;
             _health = await healthTask;
             _serverMetrics = await serverMetricsTask;
+            _botStatuses = await botsTask;
             _users = (await usersTask).OrderByDescending(x => x.CreatedAt).ToList();
             _auditLogs = (await auditTask).OrderByDescending(x => x.CreatedAt).ToList();
             _auditPage = Math.Clamp(_auditPage, 1, AuditPageCount);
@@ -583,6 +616,7 @@
     }
 
     private static string FormatLocal(DateTime value) => $"{ToMoscowTime(value).ToString("dd.MM.yyyy HH:mm", RuCulture)} МСК";
+    private static string FormatMoscow(DateTime? value) => value.HasValue ? FormatLocal(value.Value) : "нет данных";
     private static string FormatDate(DateTime value) => ToMoscowTime(value).ToString("dd.MM.yyyy", RuCulture);
     private static string FormatShortTime(DateTime value) => ToMoscowTime(value).ToString("HH:mm", RuCulture);
 
@@ -751,8 +785,8 @@
     }
 
     .admin-btn--primary {
-        color: #fff;
-        background: linear-gradient(135deg, var(--admin-primary), var(--admin-blue));
+        color: var(--color-text-inverse);
+        background: var(--admin-primary);
         box-shadow: var(--admin-shadow-soft);
     }
 

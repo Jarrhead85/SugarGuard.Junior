@@ -25,6 +25,7 @@ public class MeasurementsController : ControllerBase
     private readonly ITelegramNotificationService _notificationService;
     private readonly IMaxBotService _maxBotService;
     private readonly IUserNotificationService _userNotificationService;
+    private readonly IWebPushService _webPushService;
     private readonly IPdfExportService _pdfExportService;
     private readonly ILogger<MeasurementsController> _logger;
 
@@ -40,6 +41,7 @@ public class MeasurementsController : ControllerBase
         ITelegramNotificationService notificationService,
         IMaxBotService maxBotService,
         IUserNotificationService userNotificationService,
+        IWebPushService webPushService,
         IPdfExportService pdfExportService,
         ILogger<MeasurementsController> logger)
     {
@@ -51,6 +53,7 @@ public class MeasurementsController : ControllerBase
         _notificationService = notificationService;
         _maxBotService = maxBotService;
         _userNotificationService = userNotificationService;
+        _webPushService = webPushService;
         _pdfExportService = pdfExportService;
         _logger = logger;
     }
@@ -205,6 +208,8 @@ public class MeasurementsController : ControllerBase
 
             if (isCritical)
             {
+                await SendCriticalWebPushAsync(measurement, cancellationToken);
+
                 var criticalResult = await _notificationService.SendCriticalAlertAsync(
                     criticalAlert ?? new CriticalAlertRequest
                     {
@@ -237,12 +242,50 @@ public class MeasurementsController : ControllerBase
                         criticalResult.ErrorMessage);
                 }
             }
+            else
+            {
+                await SendWebPushAsync(
+                    measurement.ChildId,
+                    "Новое измерение глюкозы",
+                    $"{measurement.GlucoseValue:F1} ммоль/л · {glucoseStatus}",
+                    $"/parent/dashboard?childId={measurement.ChildId}&tab=measurements",
+                    ct: cancellationToken);
+            }
         }
         catch (Exception notificationEx)
         {
             _logger.LogError(notificationEx,
                 "CreateMeasurement: ошибка отправки уведомления. MeasurementId={MeasurementId}.",
                 measurement.MeasurementId);
+        }
+    }
+
+    private Task SendCriticalWebPushAsync(
+        Domain.Entities.Measurement measurement,
+        CancellationToken cancellationToken) =>
+        SendWebPushAsync(
+            measurement.ChildId,
+            "Критический уровень глюкозы",
+            $"{measurement.GlucoseValue:F1} ммоль/л. Требуется внимание.",
+            $"/parent/dashboard?childId={measurement.ChildId}&tab=alerts",
+            requireInteraction: true,
+            ct: cancellationToken);
+
+    private async Task SendWebPushAsync(
+        Guid childId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            await _webPushService.SendForChildAsync(childId, title, body, url, requireInteraction, ct);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogWarning(exception, "Не удалось отправить Web Push. ChildId={ChildId}", childId);
         }
     }
 
@@ -398,6 +441,7 @@ public class MeasurementsController : ControllerBase
 
         try
         {
+            var child = await _measurements.GetChildAsync(childId, cancellationToken);
             var targetDate = date ?? DateTime.UtcNow;
             var (fromDate, toDate, periodName) = _statisticsCalculation.GetPeriodRange(period, targetDate);
 
@@ -421,6 +465,7 @@ public class MeasurementsController : ControllerBase
                 HypoEpisodes = statistics.HypoEpisodes,
                 HyperEpisodes = statistics.HyperEpisodes,
                 CriticalEpisodes = statistics.CriticalEpisodes,
+                TimeZoneId = string.IsNullOrWhiteSpace(child?.TimeZoneId) ? "Europe/Moscow" : child.TimeZoneId,
                 Measurements = measurements
                     .Select(m => m.ToResponse(_glucoseStatusService, _glucoseUiStateService))
                     .ToList()

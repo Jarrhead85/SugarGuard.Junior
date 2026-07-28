@@ -34,5 +34,21 @@ public interface IWebPushService
     /// Отправляет Push-уведомление всем подпискам пользователя
     /// </summary>
     Task SendNotificationAsync(
-        Guid userId, string title, string body, string? url = null, CancellationToken ct = default);
+        Guid userId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Отправляет уведомление всем родителям, связанным с ребёнком.
+    /// </summary>
+    Task SendForChildAsync(
+        Guid childId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken ct = default);
 }

@@ -26,7 +26,8 @@ public class BotUserContextService : IBotUserContextService
         _baseUrl = configuration["BotSettings:ApiUrl"] ?? "https://localhost:7001";
 
         _botApiKey = Environment.GetEnvironmentVariable("BOT_SERVICE_AUTH_KEY")
-                     ?? configuration["BotAuth:ApiKey"];
+                     ?? configuration["BotAuth:ApiKey"]
+                     ?? configuration["BotSettings:ApiKey"];
 
         if (string.IsNullOrEmpty(_botApiKey))
         {
@@ -59,11 +60,31 @@ public class BotUserContextService : IBotUserContextService
             {
                 var result = JsonSerializer.Deserialize<BotUserContextResponse>(responseJson, JsonSerializerOptions.Web);
 
-                if (result != null)
+                if (result?.CurrentChildId is Guid currentChildId)
                 {
                     _logger.LogInformation("Контекст получен: ChildId={ChildId}, HasContext={HasContext}",
-                        result.CurrentChildId, result.HasContext);
-                    return result.CurrentChildId;
+                        currentChildId, result.HasContext);
+                    return currentChildId;
+                }
+
+                // После привязки кода старые версии бота не сохраняли активного ребёнка.
+                // Если у пользователя ровно один ребёнок, выбор однозначен и безопасен.
+                var linkedChildren = await GetLinkedChildrenAsync(telegramUserId, cancellationToken);
+                if (linkedChildren.Count == 1)
+                {
+                    var childId = linkedChildren[0].ChildId;
+                    _ = await SetCurrentChildIdAsync(telegramUserId, childId, cancellationToken);
+                    _logger.LogInformation(
+                        "Автоматически выбран единственный ребёнок {ChildId} для Telegram {TelegramUserId}",
+                        childId,
+                        telegramUserId);
+                    return childId;
+                }
+
+                if (result != null)
+                {
+                    _logger.LogInformation("Контекст Telegram {TelegramUserId} не содержит активного ребёнка", telegramUserId);
+                    return null;
                 }
             }
 
@@ -147,6 +168,52 @@ public class BotUserContextService : IBotUserContextService
     }
 
     /// <inheritdoc />
+    public async Task<bool?> GetDailySummaryEnabledAsync(long telegramUserId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(
+                $"/api/bot-service/context/{telegramUserId}/daily-summary",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<BotDailySummaryPreferenceResponse>(json, JsonSerializerOptions.Web)?.Enabled;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось получить настройку ежедневной сводки для Telegram {TelegramUserId}", telegramUserId);
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SetDailySummaryEnabledAsync(long telegramUserId, bool enabled, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var content = new StringContent(
+                JsonSerializer.Serialize(new BotDailySummaryPreferenceRequest { Enabled = enabled }, JsonSerializerOptions.Web),
+                Encoding.UTF8,
+                "application/json");
+            var response = await _httpClient.PutAsync(
+                $"/api/bot-service/context/{telegramUserId}/daily-summary",
+                content,
+                cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось сохранить настройку ежедневной сводки для Telegram {TelegramUserId}", telegramUserId);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<bool> ClearContextAsync(long telegramUserId, CancellationToken cancellationToken = default)
     {
         try
@@ -191,4 +258,14 @@ internal class LinkedChildrenResponse
     public long TelegramUserId { get; set; }
     public List<ChildSummaryBot> Children { get; set; } = new();
     public int TotalChildren { get; set; }
+}
+
+internal class BotDailySummaryPreferenceRequest
+{
+    public bool Enabled { get; set; }
+}
+
+internal class BotDailySummaryPreferenceResponse
+{
+    public bool Enabled { get; set; }
 }

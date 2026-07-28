@@ -306,6 +306,7 @@ public class RefreshTokenServiceTests : IDisposable
             It.IsAny<string>(),
             It.IsAny<string>(),
             It.IsAny<string?>(),
+            It.IsAny<bool>(),
             It.IsAny<CancellationToken>()), Times.Once);
 
         _email.Verify(e => e.SendAsync(
@@ -357,7 +358,7 @@ public class RefreshTokenServiceTests : IDisposable
         // Push и email всё равно были вызваны
         _webPush.Verify(p => p.SendNotificationAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         _email.Verify(e => e.SendAsync(
             "user@example.com", It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -381,7 +382,7 @@ public class RefreshTokenServiceTests : IDisposable
 
         _webPush.Setup(p => p.SendNotificationAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("push gateway down"));
 
         // Act
@@ -420,7 +421,7 @@ public class RefreshTokenServiceTests : IDisposable
             It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
         _webPush.Verify(p => p.SendNotificationAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         _email.Verify(e => e.SendAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);

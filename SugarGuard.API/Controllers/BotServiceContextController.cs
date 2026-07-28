@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Filters;
 using SugarGuard.Application.Audit;
@@ -18,17 +20,68 @@ namespace SugarGuard.API.Controllers;
 public class BotServiceContextController : ControllerBase
 {
     private readonly IBotUserContextService _botContext;
+    private readonly AppDbContext _db;
     private readonly IAuditService _audit;
     private readonly ILogger<BotServiceContextController> _logger;
 
     public BotServiceContextController(
         IBotUserContextService botContext,
+        AppDbContext db,
         IAuditService audit,
         ILogger<BotServiceContextController> logger)
     {
         _botContext = botContext;
+        _db = db;
         _audit = audit;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Возвращает состояние ежедневной сводки для привязанного Telegram-пользователя.
+    /// </summary>
+    [HttpGet("{telegramUserId:long}/daily-summary")]
+    public async Task<ActionResult<BotDailySummaryPreferenceResponse>> GetDailySummaryPreference(
+        long telegramUserId,
+        CancellationToken cancellationToken)
+    {
+        var enabled = await _db.Users
+            .AsNoTracking()
+            .Where(user => user.TelegramId == telegramUserId)
+            .Select(user => (bool?)user.DailySummaryEnabled)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return enabled.HasValue
+            ? Ok(new BotDailySummaryPreferenceResponse { Enabled = enabled.Value })
+            : NotFound();
+    }
+
+    /// <summary>
+    /// Включает или отключает ежедневную сводку из Telegram-бота.
+    /// </summary>
+    [HttpPut("{telegramUserId:long}/daily-summary")]
+    public async Task<IActionResult> SaveDailySummaryPreference(
+        long telegramUserId,
+        [FromBody] BotDailySummaryPreferenceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await _db.Users
+            .SingleOrDefaultAsync(candidate => candidate.TelegramId == telegramUserId, cancellationToken);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        user.DailySummaryEnabled = request.Enabled;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _audit.WriteAsync(
+            action: "telegram.daily_summary_changed",
+            targetType: "User",
+            targetId: user.UserId.ToString(),
+            details: $"Enabled={request.Enabled}",
+            cancellationToken: CancellationToken.None);
+
+        return NoContent();
     }
 
     /// <summary>

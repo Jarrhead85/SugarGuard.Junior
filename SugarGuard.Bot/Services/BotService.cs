@@ -14,6 +14,8 @@ namespace SugarGuard.Bot.Services;
 /// </summary>
 public class BotService : BackgroundService
 {
+    private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaximumRetryDelay = TimeSpan.FromMinutes(2);
     private readonly ITelegramBotClient _botClient;
     private readonly ILogger<BotService> _logger;
     private readonly CommandHandler _commandHandler;
@@ -51,33 +53,52 @@ public class BotService : BackgroundService
             }
         };
 
-        try
+        var retryDelay = InitialRetryDelay;
+        while (!stoppingToken.IsCancellationRequested)
         {
-            // Получаем информацию о боте
-            var me = await _botClient.GetMeAsync(stoppingToken);
-            _logger.LogInformation("Бот запущен: @{BotUsername} ({BotName})", me.Username, me.FirstName);
+            try
+            {
+                // Telegram может быть временно недоступен из-за VPN или сети.
+                // Это не должно останавливать процесс и запускать бесконечный цикл systemd.
+                var me = await _botClient.GetMeAsync(stoppingToken);
+                _logger.LogInformation("Бот запущен: @{BotUsername} ({BotName})", me.Username, me.FirstName);
 
-            // Запускаем polling
-            _botClient.StartReceiving(
-                HandleUpdateAsync,
-                HandlePollingErrorAsync,
-                receiverOptions,
-                stoppingToken
-            );
+                _botClient.StartReceiving(
+                    HandleUpdateAsync,
+                    HandlePollingErrorAsync,
+                    receiverOptions,
+                    stoppingToken);
 
-            _logger.LogInformation("Бот готов к работе. Нажмите Ctrl+C для остановки.");
+                _logger.LogInformation("Бот готов к работе.");
+                await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
+                return;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Остановка бота...");
+                return;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Telegram временно недоступен. Повторная проверка через {RetryDelay}.",
+                    retryDelay);
 
-            // Ждём сигнала остановки
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Остановка бота...");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Критическая ошибка в работе бота");
-            throw;
+                try
+                {
+                    await Task.Delay(retryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Остановка бота...");
+                    return;
+                }
+
+                retryDelay = TimeSpan.FromSeconds(Math.Min(
+                    MaximumRetryDelay.TotalSeconds,
+                    retryDelay.TotalSeconds * 2));
+            }
         }
     }
 
@@ -114,6 +135,16 @@ public class BotService : BackgroundService
     /// </summary>
     private async Task HandleMessageAsync(Message message, CancellationToken cancellationToken)
     {
+        if (message.Chat.Type != ChatType.Private)
+        {
+            _logger.LogWarning("Отклонено сообщение из не-личного чата {ChatId}", message.Chat.Id);
+            await _botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Для защиты данных ребёнка SugarGuard Bot работает только в личном чате с ботом.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
         if (message.Text is null)
         {
             _logger.LogDebug("Получено сообщение без текста от пользователя {UserId}", message.From?.Id);
@@ -142,6 +173,17 @@ public class BotService : BackgroundService
     /// </summary>
     private async Task HandleCallbackQueryAsync(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
+        if (callbackQuery.Message?.Chat.Type is not ChatType.Private)
+        {
+            _logger.LogWarning("Отклонено нажатие кнопки из не-личного чата пользователя {UserId}", callbackQuery.From.Id);
+            await _botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "Для защиты данных откройте личный чат с ботом.",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
         var userId = callbackQuery.From.Id;
         var chatId = callbackQuery.Message?.Chat.Id ?? 0;
         var callbackData = callbackQuery.Data ?? string.Empty;

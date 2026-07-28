@@ -110,8 +110,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         var title = request.Title.Trim();
         var existing = await _context.MealSchedules.FirstOrDefaultAsync(
             schedule => schedule.ChildId == childId
-                        && schedule.ScheduledTime == request.ScheduledTime
-                        && schedule.Title == title,
+                        && (request.IsNightInsulin
+                            ? schedule.IsNightInsulin
+                            : schedule.ScheduledTime == request.ScheduledTime && schedule.Title == title),
             cancellationToken);
 
         if (existing is not null)
@@ -408,14 +409,17 @@ public sealed class NutritionTrackerService : INutritionTrackerService
 
     private static void Apply(MealSchedule entity, SaveMealScheduleRequest request)
     {
-        entity.MealType = request.MealType;
-        entity.Title = request.Title.Trim();
+        entity.MealType = request.IsNightInsulin ? MealType.Other : request.MealType;
+        entity.Title = request.IsNightInsulin ? "Ночной инсулин" : request.Title.Trim();
         entity.ScheduledTime = request.ScheduledTime;
         entity.PlannedBreadUnits = request.PlannedBreadUnits;
         entity.DaysOfWeekMask = request.DaysOfWeekMask;
         entity.ReminderEnabled = request.ReminderEnabled;
         entity.ReminderMinutesBefore = request.ReminderMinutesBefore;
         entity.IsActive = request.IsActive;
+        entity.IsNightInsulin = request.IsNightInsulin;
+        entity.RepeatIntervalMinutes = request.IsNightInsulin ? request.RepeatIntervalMinutes : 5;
+        entity.EscalationWindowMinutes = request.IsNightInsulin ? request.EscalationWindowMinutes : 60;
         entity.UpdatedAt = DateTime.UtcNow;
     }
 
@@ -443,6 +447,9 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         schedule.ReminderEnabled,
         schedule.ReminderMinutesBefore,
         schedule.IsActive,
+        schedule.IsNightInsulin,
+        schedule.RepeatIntervalMinutes,
+        schedule.EscalationWindowMinutes,
         schedule.UpdatedAt);
 
     private static DateTime NormalizeToUtc(DateTime value) => value.Kind switch

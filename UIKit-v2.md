@@ -1,4 +1,4 @@
-# SugarGuard UI Kit v2.1
+# SugarGuard UI Kit v2.3 — «Ночная тетрадь» и светлые палитры
 
 > Актуально на 09.07.2026. UI Kit описывает текущий визуальный стандарт SugarGuard: детское MAUI-приложение, web-кабинеты родителя/врача/администратора, адаптивные sidebar/topbar, дневник питания, ачивки и скины интерфейса.
 ## §1. Принципы дизайна
@@ -13,7 +13,7 @@ SugarGuard — медицинское приложение. Дизайн обя�
 ### Анти-паттерны (запрещено)
 
 - Blur-glassmorphism (тяжёлый `BackdropFilter`) — убивает FPS на Android mid-range.
-  Разрешён только полупрозрачный фон (`#D6FFFFFF` / `#CC111825`) без blur.
+  Разрешён только полупрозрачный фон (`#D6FFFFFF` / `#EB202B43`) без blur.
 - Цветные левые бордюры у карточек (`BorderLeft: 3px solid accent`).
 - Emoji как иконки в производственном UI.
 - Одинаковый `CornerRadius` у вложенных элементов (без учёта padding).
@@ -58,6 +58,22 @@ SugarGuard — медицинское приложение. Дизайн обя�
 
 ---
 
+## §1.2. Светлые палитры Web
+
+Светлая палитра выбирается пользователем в настройках родительского кабинета и сохраняется локально в браузере. Выбор применяется ко всем web-кабинетам через общие CSS-токены, поэтому не меняет семантику статусов, структуру экранов и размеры компонентов. По умолчанию используется `classic` — прежняя светлая тема SugarGuard.
+
+| Ключ | Название | Основной акцент | Фон страницы |
+|---|---|---:|---:|
+| `classic` | Классическая | `#1B8E8B` | `#F4F7FB` |
+| `morning-meadow` | Утренний луг | `#2C8E7E` | `#F3F8F5` |
+| `warm-paper` | Тёплая бумага | `#A96234` | `#FBF5EA` |
+| `ice-river` | Ледяная река | `#2878B9` | `#F3F8FC` |
+| `berry-notes` | Ягодные заметки | `#8A4F8C` | `#F9F5FA` |
+| `sage-clinic` | Шалфейная клиника | `#4D7B68` | `#F4F7F2` |
+| `coral-dawn` | Коралловый рассвет | `#C9615E` | `#FFF7F3` |
+
+Тёмная тема не зависит от выбранной светлой палитры: во всех кабинетах она всегда использует «Ночную тетрадь» с матовым индиго и янтарным акцентом.
+
 ## §2. Цветовая палитра
 
 Все цвета определены в `Colors.xaml` (MAUI) и `variables.css` (Web). **Не изменять гексы без ревью.**
@@ -66,17 +82,17 @@ SugarGuard — медицинское приложение. Дизайн обя�
 
 | Токен | Light | Dark | Назначение |
 |-------|-------|------|-----------|
-| `Primary` | `#1B8E8B` | `#56D0BF` | Акцент, CTA, активные состояния |
-| `PrimaryStrong` | `#56D0BF` | `#56D0BF` | Hover/pressed Primary |
-| `PrimaryAlt` | `#2678D9` | `#6DAEFF` | Вторичный акцент (синий) |
+| `Primary` | `#1B8E8B` | `#FFCF73` | Акцент, CTA, активные состояния |
+| `PrimaryStrong` | `#56D0BF` | `#FFE0A1` | Hover/pressed Primary |
+| `PrimaryAlt` | `#2678D9` | `#79B8FF` | Вторичный акцент для графиков и ссылок |
 
 ### Семантика глюкозы
 
 | Токен | Light | Dark | Порог |
 |-------|-------|------|-------|
-| `GlucoseNormal` | `#37A563` | `#62D889` | 4.0–10.0 ммоль/л |
-| `GlucoseWarning` | `#E3A32B` | `#F4BC56` | 3.0–3.9 или 10.1–13.9 |
-| `GlucoseDanger` | `#DB5967` | `#FF7A8B` | < 3.0 или ≥ 14.0 |
+| `GlucoseNormal` | `#37A563` | `#9CDA99` | 4.0–10.0 ммоль/л |
+| `GlucoseWarning` | `#E3A32B` | `#F3A963` | 3.0–3.9 или 10.1–13.9 |
+| `GlucoseDanger` | `#DB5967` | `#F27E96` | < 3.0 или ≥ 14.0 |
 
 Бизнес-константы пороговых значений хранятся исключительно в `SugarGuard.Shared.GlucoseLevels`.
 UI никогда не хардкодит числа — только ссылается на `GlucoseLevels.*`.
@@ -85,13 +101,13 @@ UI никогда не хардкодит числа — только ссыла
 
 | Токен | Light | Dark |
 |-------|-------|------|
-| `BackgroundPage` | `#F4F7FB` | `#0B1018` |
-| `SurfaceCard` | `#D6FFFFFF` (85%) | `#CC111825` (80%) |
-| `SurfaceElevated` | `#F2FFFFFF` (95%) | `#E6111825` (90%) |
-| `SurfaceOffset` | `#E9EFF9` | `#10192A` |
-| `TextPrimary` | `#16213E` | `#EDF4FF` |
-| `TextSecondary` | `#667694` | `#9EAED0` |
-| `TextFaint` | `#96A2B8` | `#6F7D99` |
+| `BackgroundPage` | `#F4F7FB` | `#13192A` |
+| `SurfaceCard` | `#D6FFFFFF` (85%) | `#EB202B43` (92%) |
+| `SurfaceElevated` | `#F2FFFFFF` (95%) | `#FA26324C` (98%) |
+| `SurfaceOffset` | `#E9EFF9` | `#28344B` |
+| `TextPrimary` | `#16213E` | `#F3F5FF` |
+| `TextSecondary` | `#667694` | `#AFBBD3` |
+| `TextFaint` | `#96A2B8` | `#7F8CA8` |
 
 ### UiState → цвет (GlucoseUiStateService)
 
@@ -168,7 +184,7 @@ Padding hero-экранов: `PaddingPageHero = 32,64,32,32`.
 
 Все карточки наследуют `BaseCard`:
 - Фон: `SurfaceCard` (стекломорфизм без blur)
-- Обводка: `1px`, `#1A16213E` (light) / `#17EDF4FF` (dark)
+- Обводка: `1px`, `#1A16213E` (light) / `#24CBD8F5` (dark)
 - `CornerRadius`: 24
 - `Shadow`: `CardShadowBase`
 
@@ -346,7 +362,7 @@ conflict-вариант:
 ### FilterChip
 
 Неактивный: фон `#F7FFFFFF` / `#B81A1A1A`, граница `#1C16213E`.
-Активный: фон `#1F1B8E8B` (light) / `#2B56D0BF` (dark), граница `#331B8E8B`.
+Активный: фон `#1F1B8E8B` (light) / `#24FFCF73` (dark), граница `#331B8E8B`.
 
 Размер: высота 32dp, padding `12,6`, radius 999 (pill).
 
@@ -365,7 +381,7 @@ conflict-вариант:
 ```
 
 Состояния:
-- Default: `InputBorderColor` (`#2616213E` / `#22EDF4FF`)
+- Default: `InputBorderColor` (`#2616213E` / `#38CBD8F5`)
 - Focus: `InputBorderFocused` = `Primary`
 - Error: `InputBorderError` = `GlucoseDanger`
 - Disabled: opacity 0.5
@@ -398,9 +414,9 @@ Padding внутри поля: `12,0` (горизонтально) + миним�
 
 ### Bottom Sheet
 
-- Фон: `BottomSheetBackground` (`#F2FFFFFF` / `#E6111825`)
+- Фон: `BottomSheetBackground` (`#F2FFFFFF` / `#FA26324C`)
 - Радиус верхних углов: 32
-- Handle: `#2616213E` / `#33EDF4FF`, 32×4dp, centered, `Margin = 0,12,0,8`
+- Handle: `#2616213E` / `#40CBD8F5`, 32×4dp, centered, `Margin = 0,12,0,8`
 - Backdrop scrim: `#4016213E` / `#66000000`
 - Анимация: slide-up из-за нижнего края, duration 280ms, easing `CubicOut`
 
@@ -432,8 +448,8 @@ Padding внутри поля: `12,0` (горизонтально) + миним�
 
 ### Tab Bar (мобильное приложение)
 
-- Фон: `TabBarBackground` (`#D6FFFFFF` / `#CC111825`)
-- Граница: `TabBarBorder` (`#1A16213E` / `#17EDF4FF`)
+- Фон: `TabBarBackground` (`#D6FFFFFF` / `#F5192136`)
+- Граница: `TabBarBorder` (`#1A16213E` / `#24CBD8F5`)
 - Активная вкладка: иконка + label цветом `TabBarActive` = `Primary`
 - Активная таблетка: `TabBarActivePillBackground` `32,8,32,8` padding, radius 999
 - Неактивная: `TabBarInactive` = `TextFaint`
@@ -862,24 +878,24 @@ Web-интерфейс (SugarGuard.Web) использует те же токе�
 
 /* Dark mode */
 [data-theme="dark"] {
-  --color-bg:             #0B1018;
-  --color-surface:        rgba(17,24,37,0.80);
-  --color-surface-2:      rgba(17,24,37,0.90);
-  --color-surface-offset: #10192A;
-  --color-border:         rgba(237,244,255,0.09);
-  --color-divider:        rgba(237,244,255,0.08);
-  --color-text:           #EDF4FF;
-  --color-text-muted:     #9EAED0;
-  --color-text-faint:     #6F7D99;
-  --color-primary:        #56D0BF;
-  --color-primary-hover:  #1B8E8B;
-  --color-primary-alt:    #6DAEFF;
-  --color-glucose-normal:  #62D889;
-  --color-glucose-warning: #F4BC56;
-  --color-glucose-danger:  #FF7A8B;
-  --shadow-card: 0 12px 28px rgba(0,0,0,0.28);
-  --shadow-hero: 0 24px 58px rgba(0,0,0,0.34);
-  --shadow-overlay: 0 36px 100px rgba(0,0,0,0.48);
+  --color-bg:             #13192A;
+  --color-surface:        rgba(32,43,67,0.92);
+  --color-surface-2:      rgba(38,50,76,0.98);
+  --color-surface-offset: #28344B;
+  --color-border:         rgba(203,216,245,0.14);
+  --color-divider:        rgba(203,216,245,0.10);
+  --color-text:           #F3F5FF;
+  --color-text-muted:     #AFBBD3;
+  --color-text-faint:     #7F8CA8;
+  --color-primary:        #FFCF73;
+  --color-primary-hover:  #E8AE45;
+  --color-primary-alt:    #79B8FF;
+  --color-glucose-normal:  #9CDA99;
+  --color-glucose-warning: #F3A963;
+  --color-glucose-danger:  #F27E96;
+  --shadow-card: 0 12px 28px rgba(5,9,20,0.28);
+  --shadow-hero: 0 24px 58px rgba(5,9,20,0.34);
+  --shadow-overlay: 0 36px 100px rgba(5,9,20,0.56);
 }
 ```
 

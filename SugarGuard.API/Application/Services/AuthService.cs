@@ -389,7 +389,8 @@ public class AuthService : IAuthService
     public bool? ValidateBotApiKey(string? providedKey)
     {
         var expectedApiKey = Environment.GetEnvironmentVariable("BOT_SERVICE_AUTH_KEY")
-            ?? _configuration["BotAuth:ApiKey"];
+            ?? _configuration["BotAuth:ApiKey"]
+            ?? _configuration["BotSettings:ApiKey"];
 
         if (string.IsNullOrWhiteSpace(expectedApiKey))
             return null; // не настроен

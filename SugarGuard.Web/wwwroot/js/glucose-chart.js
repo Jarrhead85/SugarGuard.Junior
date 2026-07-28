@@ -1191,55 +1191,9 @@
  * @param {string} bearerToken — JWT-токен текущего пользователя.
  */
 window.registerPushSubscription = async function (vapidPublicKey, apiBaseUrl, bearerToken) {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.warn('Web Push не поддерживается браузером.');
-        return;
+    if (!window.SugarGuardPush) {
+        throw new Error('Модуль Web Push ещё не загружен.');
     }
 
-    try {
-        const registration = await navigator.serviceWorker.register('/js/service-worker.js');
-        await navigator.serviceWorker.ready;
-
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            console.info('Пользователь отклонил Push-уведомления.');
-            return;
-        }
-
-        // Конвертация VAPID public key из Base64url в Uint8Array
-        const applicationServerKey = _urlBase64ToUint8Array(vapidPublicKey);
-
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey
-        });
-
-        const subJson = subscription.toJSON();
-
-        await fetch(`${apiBaseUrl}/api/push/subscribe`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${bearerToken}`
-            },
-            body: JSON.stringify({
-                endpoint: subJson.endpoint,
-                p256dh: subJson.keys.p256dh,
-                auth: subJson.keys.auth,
-                userAgent: navigator.userAgent
-            })
-        });
-
-        console.info('Push-подписка зарегистрирована.');
-    } catch (err) {
-        console.error('Ошибка регистрации Push-подписки:', err);
-    }
+    return window.SugarGuardPush.subscribe(vapidPublicKey, apiBaseUrl, bearerToken);
 };
-
-/** Base64url → Uint8Array (нужно для applicationServerKey) */
-function _urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}

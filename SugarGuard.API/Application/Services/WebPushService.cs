@@ -1,4 +1,6 @@
-﻿using SugarGuard.API.Application.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using SugarGuard.API.Application.Interfaces;
+using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Models;
 using SugarGuard.Application.Repositories;
@@ -9,29 +11,31 @@ namespace SugarGuard.API.Application.Services;
 
 public sealed class WebPushService : IWebPushService
 {
-    /// <summary>
-    /// Отправка Web Push-уведомлений
-    /// </summary>
     private const int MaxPushParallelism = 4;
 
     private readonly IPushSubscriptionRepository _repository;
+    private readonly AppDbContext _db;
     private readonly IConfiguration _configuration;
     private readonly WebPushClient _client;
     private readonly ILogger<WebPushService> _logger;
 
     public WebPushService(
         IPushSubscriptionRepository repository,
+        AppDbContext db,
         IConfiguration configuration,
         ILogger<WebPushService> logger)
     {
         _repository = repository;
+        _db = db;
         _configuration = configuration;
         _client = new WebPushClient();
         _logger = logger;
     }
 
     public async Task<NotificationResponse> SubscribeAsync(
-        PushSubscriptionRequest request, Guid userId, CancellationToken ct = default)
+        PushSubscriptionRequest request,
+        Guid userId,
+        CancellationToken ct = default)
     {
         var sub = new DomainPushSub
         {
@@ -49,93 +53,113 @@ public sealed class WebPushService : IWebPushService
     }
 
     public async Task<UnsubscribeResult> UnsubscribeAsync(
-        string endpoint, Guid userId, CancellationToken ct = default)
+        string endpoint,
+        Guid userId,
+        CancellationToken ct = default)
     {
         var sub = await _repository.GetByEndpointAsync(endpoint, ct);
         if (sub is null)
         {
-            _logger.LogWarning(
-                "UnsubscribeAsync: endpoint не найден. Endpoint: {Endpoint}",
-                endpoint);
             return UnsubscribeResult.NotFound;
         }
 
         if (sub.UserId != userId)
         {
             _logger.LogWarning(
-                "UnsubscribeAsync: попытка отписать чужой endpoint. " +
-                "UserId={UserId}, Sub.UserId={SubUserId}, Endpoint={Endpoint}",
-                userId, sub.UserId, endpoint);
+                "Попытка отписать чужой Web Push endpoint. UserId={UserId}, Endpoint={Endpoint}",
+                userId,
+                endpoint);
             return UnsubscribeResult.Forbidden;
         }
 
-        var removed = await _repository.RemoveByEndpointAsync(endpoint, ct);
-        if (!removed)
-        {
-            _logger.LogInformation(
-                "UnsubscribeAsync: endpoint удалён между Get и Remove. " +
-                "UserId={UserId}, Endpoint={Endpoint}",
-                userId, endpoint);
-            return UnsubscribeResult.NotFound;
-        }
-
-        _logger.LogInformation(
-            "UnsubscribeAsync: подписка удалена. UserId={UserId}, Endpoint={Endpoint}",
-            userId, endpoint);
-        return UnsubscribeResult.Removed;
+        return await _repository.RemoveByEndpointAsync(endpoint, ct)
+            ? UnsubscribeResult.Removed
+            : UnsubscribeResult.NotFound;
     }
 
     public async Task SendNotificationAsync(
-        Guid userId, string title, string body, string? url = null, CancellationToken ct = default)
+        Guid userId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken ct = default)
     {
-        var subs = await _repository.GetByUserIdAsync(userId, ct);
-
-        if (subs.Count == 0)
+        var subscriptions = await _repository.GetByUserIdAsync(userId, ct);
+        if (subscriptions.Count == 0)
         {
-            _logger.LogWarning("Нет Push-подписок для пользователя. UserId: {UserId}", userId);
             return;
         }
 
-        var vapidSubject = _configuration["Vapid:Subject"]
-            ?? "mailto:sugarguard@example.com";
-        var vapidPublicKey = _configuration["Vapid:PublicKey"]
-            ?? throw new InvalidOperationException("Vapid:PublicKey не настроен.");
-        var vapidPrivateKey = _configuration["Vapid:PrivateKey"]
-            ?? throw new InvalidOperationException("Vapid:PrivateKey не настроен.");
-
-        var vapidDetails = new VapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-        var payload = System.Text.Json.JsonSerializer.Serialize(new { title, body, url, icon = "/favicon.png" });
-
-        _logger.LogDebug(
-            "Отправка Push: UserId={UserId}, подписок={Count}, параллелизм={Max}",
-            userId, subs.Count, MaxPushParallelism);
+        var vapidDetails = CreateVapidDetails();
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            title,
+            body,
+            url,
+            icon = "/images/sugarguard-icon.png",
+            badge = "/images/sugarguard-icon.png",
+            requireInteraction
+        });
 
         await Parallel.ForEachAsync(
-            subs,
+            subscriptions,
             new ParallelOptions
             {
                 MaxDegreeOfParallelism = MaxPushParallelism,
                 CancellationToken = ct
             },
-            async (sub, innerCt) =>
+            async (subscription, innerCt) =>
             {
-                var webPushSub = new PushSubscription(sub.Endpoint, sub.P256Dh, sub.Auth);
                 try
                 {
-                    await _client.SendNotificationAsync(webPushSub, payload, vapidDetails);
-                    _logger.LogDebug("Push отправлен. Endpoint: {Endpoint}", sub.Endpoint);
+                    var webPushSubscription = new PushSubscription(
+                        subscription.Endpoint,
+                        subscription.P256Dh,
+                        subscription.Auth);
+                    await _client.SendNotificationAsync(webPushSubscription, payload, vapidDetails);
                 }
                 catch (WebPushException ex) when (ex.StatusCode is
                     System.Net.HttpStatusCode.Gone or
                     System.Net.HttpStatusCode.NotFound)
                 {
-                    _logger.LogInformation("Устаревшая подписка удалена. Endpoint: {Endpoint}", sub.Endpoint);
-                    await _repository.RemoveByEndpointAsync(sub.Endpoint, innerCt);
+                    _logger.LogInformation("Удалена устаревшая Web Push подписка. Endpoint={Endpoint}", subscription.Endpoint);
+                    await _repository.RemoveByEndpointAsync(subscription.Endpoint, innerCt);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Ошибка отправки Push. Endpoint: {Endpoint}", sub.Endpoint);
+                    _logger.LogError(ex, "Ошибка отправки Web Push. Endpoint={Endpoint}", subscription.Endpoint);
                 }
             });
+    }
+
+    public async Task SendForChildAsync(
+        Guid childId,
+        string title,
+        string body,
+        string? url = null,
+        bool requireInteraction = false,
+        CancellationToken ct = default)
+    {
+        var parentUserIds = await _db.ParentChildLinks
+            .AsNoTracking()
+            .Where(link => link.ChildId == childId)
+            .Select(link => link.ParentUserId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        await Task.WhenAll(parentUserIds.Select(parentUserId =>
+            SendNotificationAsync(parentUserId, title, body, url, requireInteraction, ct)));
+    }
+
+    private VapidDetails CreateVapidDetails()
+    {
+        var subject = _configuration["Vapid:Subject"] ?? "mailto:support@sugar-guard.ru";
+        var publicKey = _configuration["Vapid:PublicKey"]
+            ?? throw new InvalidOperationException("Vapid:PublicKey не настроен.");
+        var privateKey = _configuration["Vapid:PrivateKey"]
+            ?? throw new InvalidOperationException("Vapid:PrivateKey не настроен.");
+
+        return new VapidDetails(subject, publicKey, privateKey);
     }
 }

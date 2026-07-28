@@ -14,17 +14,23 @@ public class MessageHandler
     private readonly BackpackBotService _backpackBotService;
     private readonly ILogger<MessageHandler> _logger;
     private readonly TelegramRateLimiter _rateLimiter;
+    private readonly ConnectionCodeEntrySessionService _connectionCodeEntrySessions;
+    private readonly CommandHandler _commandHandler;
 
     public MessageHandler(
         ITelegramBotClient botClient,
         BackpackBotService backpackBotService,
         ILogger<MessageHandler> logger,
-        TelegramRateLimiter rateLimiter)
+        TelegramRateLimiter rateLimiter,
+        ConnectionCodeEntrySessionService connectionCodeEntrySessions,
+        CommandHandler commandHandler)
     {
         _botClient = botClient;
         _backpackBotService = backpackBotService;
         _logger = logger;
         _rateLimiter = rateLimiter;
+        _connectionCodeEntrySessions = connectionCodeEntrySessions;
+        _commandHandler = commandHandler;
     }
 
     /// <summary>
@@ -45,6 +51,12 @@ public class MessageHandler
 
         try
         {
+            if (_connectionCodeEntrySessions.IsAwaitingCode(userId))
+            {
+                await _commandHandler.SubmitConnectionCodeAsync(chatId, userId, messageText, cancellationToken);
+                return;
+            }
+
             // Проверяем, находится ли пользователь в диалоге добавления перекуса
             if (_backpackBotService.IsUserInAddSnackDialog(userId))
             {
@@ -59,12 +71,10 @@ public class MessageHandler
             var responseMessage = """
                 💬 **Сообщение получено**
                 
-                Я понимаю только команды. Используйте:
-                • /start - Главное меню
-                • /help - Справка по командам
-                • /connect XXXX-YY - Привязка к ребёнку
+                Выберите действие в инлайн-меню.
+                Для подключения нажмите «🔗 Подключить ребёнка» — команду вводить не нужно.
                 
-                Или выберите действие из меню кнопок.
+                Команды /start и /help тоже доступны.
                 """;
 
             await _botClient.SendTextMessageAsync(

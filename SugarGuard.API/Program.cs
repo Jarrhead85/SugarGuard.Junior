@@ -278,7 +278,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentOrDoctorOrAdmin", policy =>
-        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice"));
+        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice", "ServiceAccount"));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));
@@ -438,6 +438,7 @@ builder.Services.AddScoped<ISyncLogService, SyncLogService>();
 builder.Services.AddScoped<IExportJobApiService, ExportJobApiService>();
 builder.Services.AddScoped<ICsvExportService, CsvExportService>();
 builder.Services.AddScoped<IBotUserContextService, BotUserContextService>();
+builder.Services.AddScoped<ITelegramOutboxService, TelegramOutboxService>();
 builder.Services.AddScoped<IParentLinkService, ParentLinkService>();
 builder.Services.AddScoped<IMeasurementsService, MeasurementsService>();
 builder.Services.AddScoped<IDailyParentSummaryRefreshService, DailyParentSummaryRefreshService>();
@@ -456,13 +457,6 @@ if (builder.Environment.IsDevelopment()
     builder.Services.AddHostedService<DemoSeedHostedService>();
 }
 
-const string TelegramHttpClientName = TelegramNotificationService.HttpClientName;
-builder.Services.AddHttpClient(TelegramHttpClientName, client =>
-{
-    client.BaseAddress = new Uri("https://api.telegram.org/");
-    client.Timeout = TimeSpan.FromSeconds(10);
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-});
 builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
 
 const string MaxHttpClientName = MaxBotClient.HttpClientName;

@@ -195,6 +195,24 @@ public class BackpackService : IBackpackService
         Guid currentUserId,
         CancellationToken cancellationToken = default)
     {
+        return await RemoveCoreAsync(itemId, currentUserId, requireCurrentUserAccess: true, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<BackpackRemoveResult> RemoveForVerifiedIntegrationAsync(
+        Guid itemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await RemoveCoreAsync(itemId, actorUserId, requireCurrentUserAccess: false, cancellationToken);
+    }
+
+    private async Task<BackpackRemoveResult> RemoveCoreAsync(
+        Guid itemId,
+        Guid currentUserId,
+        bool requireCurrentUserAccess,
+        CancellationToken cancellationToken)
+    {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
         var item = await db.BackpackItems
@@ -206,7 +224,7 @@ public class BackpackService : IBackpackService
             return BackpackRemoveResult.NotFound;
         }
 
-        if (!await _childAccess.CanAccessChildAsync(item.ChildId, cancellationToken))
+        if (requireCurrentUserAccess && !await _childAccess.CanAccessChildAsync(item.ChildId, cancellationToken))
         {
             _logger.LogWarning(
                 "RemoveAsync: доступ запрещён. ItemId={ItemId} ChildId={ChildId} " +

@@ -15,6 +15,7 @@ public class BackpackBotService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly ApiClient _apiClient;
+    private readonly IBotUserContextService _contextService;
     private readonly BackpackKeyboard _backpackKeyboard;
     private readonly ILogger<BackpackBotService> _logger;
 
@@ -36,11 +37,13 @@ public class BackpackBotService
     public BackpackBotService(
         ITelegramBotClient botClient,
         ApiClient apiClient,
+        IBotUserContextService contextService,
         BackpackKeyboard backpackKeyboard,
         ILogger<BackpackBotService> logger)
     {
         _botClient = botClient;
         _apiClient = apiClient;
+        _contextService = contextService;
         _backpackKeyboard = backpackKeyboard;
         _logger = logger;
     }
@@ -93,7 +96,7 @@ public class BackpackBotService
             _logger.LogInformation("Отображение рюкзака для пользователя {UserId}, ребёнок {ChildId}", userId, childId);
 
             // Получаем содержимое рюкзака через API
-            var backpack = await _apiClient.GetBackpackAsync(childId, cancellationToken);
+            var backpack = await _apiClient.GetBackpackAsync(userId, childId, cancellationToken);
             
             if (backpack == null)
             {
@@ -292,7 +295,14 @@ public class BackpackBotService
         {
             _logger.LogInformation("Удаление перекуса {ItemId} пользователем {UserId}", backpackItemId, userId);
 
-            var success = await _apiClient.RemoveSnackAsync(backpackItemId, cancellationToken);
+            var childId = await _contextService.GetCurrentChildIdAsync(userId, cancellationToken);
+            if (!childId.HasValue)
+            {
+                await _botClient.SendTextMessageAsync(chatId, "Сначала выберите ребёнка в меню бота.", cancellationToken: cancellationToken);
+                return;
+            }
+
+            var success = await _apiClient.RemoveSnackAsync(userId, childId.Value, backpackItemId, cancellationToken);
 
             if (success)
             {
@@ -393,7 +403,7 @@ public class BackpackBotService
         }
 
         // Добавляем перекус через API
-        var result = await _apiClient.AddSnackAsync(state.ChildId, state.SnackName!, breadUnits, cancellationToken);
+        var result = await _apiClient.AddSnackAsync(userId, state.ChildId, state.SnackName!, breadUnits, cancellationToken);
         
         // Очищаем состояние диалога
         _userStates.TryRemove(userId, out _);

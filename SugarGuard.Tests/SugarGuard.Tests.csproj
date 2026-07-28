@@ -37,10 +37,10 @@
              Link="Unit\Bot\TelegramRateLimiter.cs" />
     <Compile Include="..\SugarGuard.Bot\Services\MarkdownSafe.cs"
              Link="Unit\Bot\MarkdownSafe.cs" />
+    <Compile Include="..\SugarGuard.Bot\Services\ConnectionCodeEntrySessionService.cs"
+             Link="Unit\Bot\ConnectionCodeEntrySessionService.cs" />
     <Compile Include="..\SugarGuard.Junior\Utilities\CipherFormat.cs"
              Link="Security\CipherFormat.cs" />
-    <Compile Include="..\SugarGuard.Web\Utilities\SafeRedirect.cs"
-             Link="Security\SafeRedirect.cs" />
   </ItemGroup>
 
   <ItemGroup>

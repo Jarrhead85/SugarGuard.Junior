@@ -11,30 +11,18 @@ namespace SugarGuard.API.Application.Services;
 /// </summary>
 public class TelegramNotificationService : ITelegramNotificationService
 {
-    /// <summary>
-    /// Имя типизированного клиента
-    /// </summary>
-    public const string HttpClientName = "TelegramBotApi";
-
     private readonly AppDbContext _dbContext;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ITelegramOutboxService _outbox;
     private readonly ILogger<TelegramNotificationService> _logger;
-    private readonly IConfiguration _configuration;
-
-    private string? _botToken;
-    private string BotToken => _botToken ??= _configuration["Telegram:BotToken"]
-        ?? throw new InvalidOperationException("Telegram Bot Token не настроен в конфигурации");
 
     public TelegramNotificationService(
         AppDbContext dbContext,
-        IHttpClientFactory httpClientFactory,
-        ILogger<TelegramNotificationService> logger,
-        IConfiguration configuration)
+        ITelegramOutboxService outbox,
+        ILogger<TelegramNotificationService> logger)
     {
         _dbContext = dbContext;
-        _httpClientFactory = httpClientFactory;
+        _outbox = outbox;
         _logger = logger;
-        _configuration = configuration;
     }
 
     /// <summary>
@@ -60,18 +48,13 @@ public class TelegramNotificationService : ITelegramNotificationService
                 };
             }
 
-            // Получаем имя ребёнка для уведомления
-            var childName = await GetChildNameAsync(request.ChildId);
+            var child = await GetChildContextAsync(request.ChildId);
 
             // Формируем сообщение
-            var message = FormatMeasurementMessage(childName, request);
+            var message = FormatMeasurementMessage(child, request);
 
             // Отправляем уведомления всем родителям через единый метод
-            return await SendNotificationBatchAsync(parentTelegramIds, async (telegramId) =>
-            {
-                await SendTelegramMessageAsync(telegramId, message);
-                _logger.LogDebug("Уведомление отправлено родителю {TelegramId}", telegramId);
-            });
+            return await QueueNotificationBatchAsync(parentTelegramIds, "measurement", message);
         }
         catch (Exception ex)
         {
@@ -108,18 +91,13 @@ public class TelegramNotificationService : ITelegramNotificationService
                 };
             }
 
-            // Получаем имя ребёнка для уведомления
-            var childName = await GetChildNameAsync(request.ChildId);
+            var child = await GetChildContextAsync(request.ChildId);
 
             // Формируем сообщение
-            var message = FormatSnackConsumedMessage(childName, request);
+            var message = FormatSnackConsumedMessage(child, request);
 
             // Отправляем уведомления всем родителям через единый метод
-            return await SendNotificationBatchAsync(parentTelegramIds, async (telegramId) =>
-            {
-                await SendTelegramMessageAsync(telegramId, message);
-                _logger.LogDebug("Уведомление о перекусе отправлено родителю {TelegramId}", telegramId);
-            });
+            return await QueueNotificationBatchAsync(parentTelegramIds, "snack", message);
         }
         catch (Exception ex)
         {
@@ -157,26 +135,19 @@ public class TelegramNotificationService : ITelegramNotificationService
                 };
             }
 
-            // Получаем имя ребёнка для уведомления
-            var childName = await GetChildNameAsync(request.ChildId);
+            var child = await GetChildContextAsync(request.ChildId);
 
             // Формируем критическое сообщение
-            var message = FormatCriticalAlertMessage(childName, request);
+            var message = FormatCriticalAlertMessage(child, request);
 
             // Отправляем критические уведомления всем родителям через единый метод
-            return await SendNotificationBatchAsync(parentTelegramIds, async (telegramId) =>
-            {
-                // Отправляем текстовое сообщение
-                await SendTelegramMessageAsync(telegramId, message);
-
-                // Если есть координаты, отправляем геолокацию
-                if (request.Latitude.HasValue && request.Longitude.HasValue)
-                {
-                    await SendTelegramLocationAsync(telegramId, request.Latitude.Value, request.Longitude.Value);
-                }
-
-                _logger.LogInformation("Критическое уведомление отправлено родителю {TelegramId}", telegramId);
-            });
+            return await QueueNotificationBatchAsync(
+                parentTelegramIds,
+                "critical",
+                message,
+                request.Latitude,
+                request.Longitude,
+                requiresAcknowledgement: true);
         }
         catch (Exception ex)
         {
@@ -195,29 +166,33 @@ public class TelegramNotificationService : ITelegramNotificationService
         string message,
         CancellationToken cancellationToken = default)
     {
-        await SendTelegramMessageAsync(telegramId, message, cancellationToken);
+        await _outbox.QueueAsync(telegramId, "daily-summary", message, cancellationToken: cancellationToken);
     }
 
     /// <summary>
-    /// Единый метод пакетной отправки уведомлений всем родителям
+    /// Единый метод постановки уведомлений в очередь всем родителям.
     /// </summary>
-    private async Task<NotificationResponse> SendNotificationBatchAsync(
+    private async Task<NotificationResponse> QueueNotificationBatchAsync(
         IEnumerable<long> parentTelegramIds,
-        Func<long, Task> sendAction)
+        string messageType,
+        string message,
+        double? latitude = null,
+        double? longitude = null,
+        bool requiresAcknowledgement = false)
     {
-        int successCount = 0;
+        var queuedCount = 0;
         var errors = new List<string>();
 
-        foreach (var telegramId in parentTelegramIds)
+        foreach (var telegramId in parentTelegramIds.Distinct())
         {
             try
             {
-                await sendAction(telegramId);
-                successCount++;
+                await _outbox.QueueAsync(telegramId, messageType, message, latitude, longitude, requiresAcknowledgement);
+                queuedCount++;
             }
             catch (Exception ex)
             {
-                var error = $"Ошибка отправки родителю {telegramId}: {ex.Message}";
+                var error = $"Ошибка постановки уведомления для родителя {telegramId}: {ex.Message}";
                 errors.Add(error);
                 _logger.LogError(ex, "✗ {Error}", error);
             }
@@ -225,8 +200,8 @@ public class TelegramNotificationService : ITelegramNotificationService
 
         return new NotificationResponse
         {
-            Success = successCount > 0,
-            ParentsNotified = successCount,
+            Success = queuedCount > 0,
+            ParentsNotified = queuedCount,
             ErrorMessage = errors.Any() ? string.Join("; ", errors) : null
         };
     }
@@ -247,34 +222,90 @@ public class TelegramNotificationService : ITelegramNotificationService
     }
 
     /// <summary>
-    /// Получает имя ребёнка для отображения в уведомлениях
+    /// Получает контекст ребёнка для отображения времени в уведомлениях.
+    /// В ранних записях часовой пояс мог остаться значением UTC по умолчанию,
+    /// поэтому для российских пользователей используем Москву как безопасный fallback.
     /// </summary>
-    private async Task<string> GetChildNameAsync(string childId)
+    private async Task<ChildNotificationContext> GetChildContextAsync(string childId)
     {
         if (!Guid.TryParse(childId, out var childGuid))
-            return "Ребёнок";
+        {
+            return ChildNotificationContext.Default;
+        }
+
         var child = await _dbContext.Children
             .Where(c => c.ChildId == childGuid)
-            .Select(c => new { c.FirstName, c.LastName })
+            .Select(c => new { c.FirstName, c.LastName, c.TimeZoneId })
             .FirstOrDefaultAsync();
 
-        if (child == null)
-            return "Ребёнок";
+        if (child is null)
+        {
+            return ChildNotificationContext.Default;
+        }
 
-        return $"{child.FirstName} {child.LastName}".Trim();
+        var name = $"{child.FirstName} {child.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(name)
+            ? ChildNotificationContext.Default
+            : new ChildNotificationContext(name, child.TimeZoneId);
+    }
+
+    private static string FormatLocalTime(DateTime value, string? timeZoneId)
+    {
+        var utc = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, ResolveTimeZone(timeZoneId)).ToString("HH:mm");
+    }
+
+    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
+    {
+        if (!string.IsNullOrWhiteSpace(timeZoneId) &&
+            !string.Equals(timeZoneId, "UTC", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        foreach (var timeZoneIdCandidate in new[] { "Europe/Moscow", "Russian Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(timeZoneIdCandidate);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
     }
 
     /// <summary>
     /// Формирует сообщение об измерении глюкозы
     /// </summary>
-    private static string FormatMeasurementMessage(string childName, MeasurementNotificationRequest request)
+    private static string FormatMeasurementMessage(ChildNotificationContext child, MeasurementNotificationRequest request)
     {
         var statusEmoji = GetStatusEmoji(request.Status);
-        var timeStr = request.MeasurementTime.ToString("HH:mm");
+        var timeStr = FormatLocalTime(request.MeasurementTime, child.TimeZoneId);
 
         var message = new StringBuilder();
         message.AppendLine($"{statusEmoji} Измерение глюкозы");
-        message.AppendLine($"👤 Ребёнок: {childName}");
+        message.AppendLine($"👤 Ребёнок: {child.Name}");
         message.AppendLine($"📊 Уровень: {request.GlucoseValue:F1} ммоль/л");
         message.AppendLine($"📈 Статус: {request.Status}");
         message.AppendLine($"🕐 Время: {timeStr}");
@@ -290,13 +321,13 @@ public class TelegramNotificationService : ITelegramNotificationService
     /// <summary>
     /// Формирует сообщение о съеденном перекусе
     /// </summary>
-    private static string FormatSnackConsumedMessage(string childName, SnackConsumedNotificationRequest request)
+    private static string FormatSnackConsumedMessage(ChildNotificationContext child, SnackConsumedNotificationRequest request)
     {
-        var timeStr = request.ConsumedAt.ToString("HH:mm");
+        var timeStr = FormatLocalTime(request.ConsumedAt, child.TimeZoneId);
 
         var message = new StringBuilder();
         message.AppendLine("🍴 Перекус съеден");
-        message.AppendLine($"👤 Ребёнок: {childName}");
+        message.AppendLine($"👤 Ребёнок: {child.Name}");
         message.AppendLine($"🥪 Перекус: {request.SnackName}");
         message.AppendLine($"🍞 Хлебные единицы: {request.BreadUnits:F1} ХЕ");
         message.AppendLine($"📊 Текущая глюкоза: {request.CurrentGlucose:F1} ммоль/л");
@@ -308,14 +339,14 @@ public class TelegramNotificationService : ITelegramNotificationService
     /// <summary>
     /// Формирует критическое сообщение с геолокацией
     /// </summary>
-    private static string FormatCriticalAlertMessage(string childName, CriticalAlertRequest request)
+    private static string FormatCriticalAlertMessage(ChildNotificationContext child, CriticalAlertRequest request)
     {
-        var timeStr = request.MeasurementTime.ToString("HH:mm");
+        var timeStr = FormatLocalTime(request.MeasurementTime, child.TimeZoneId);
         var criticalType = request.CriticalGlucose < 3.3 ? "КРИТИЧЕСКИ НИЗКИЙ" : "КРИТИЧЕСКИ ВЫСОКИЙ";
 
         var message = new StringBuilder();
         message.AppendLine("🚨 КРИТИЧЕСКОЕ СОСТОЯНИЕ!");
-        message.AppendLine($"👤 Ребёнок: {childName}");
+        message.AppendLine($"👤 Ребёнок: {child.Name}");
         message.AppendLine($"📊 Уровень: {request.CriticalGlucose:F1} ммоль/л");
         message.AppendLine($"⚠️ Статус: {criticalType}");
         message.AppendLine($"🕐 Время: {timeStr}");
@@ -344,81 +375,9 @@ public class TelegramNotificationService : ITelegramNotificationService
         };
     }
 
-    /// <summary>
-    /// Отправляет текстовое сообщение через Telegram Bot API
-    /// </summary>
-    private async Task SendTelegramMessageAsync(
-        long chatId,
-        string message,
-        CancellationToken cancellationToken = default)
+    private sealed record ChildNotificationContext(string Name, string? TimeZoneId)
     {
-        // Валидация chatId
-        if (chatId <= 0)
-        {
-            _logger.LogWarning("Невалидный Telegram chat ID: {ChatId}", chatId);
-            throw new ArgumentException($"Невалидный chat ID: {chatId}. Chat ID должен быть положительным числом.", nameof(chatId));
-        }
-
-        // Валидация message
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            _logger.LogWarning("Попытка отправить пустое сообщение в chat {ChatId}", chatId);
-            throw new ArgumentException("Сообщение не может быть пустым", nameof(message));
-        }
-
-        var url = $"https://api.telegram.org/bot{BotToken}/sendMessage";
-
-        var payload = new
-        {
-            chat_id = chatId,
-            text = message,
-            parse_mode = "HTML"
-        };
-
-        var json = System.Text.Json.JsonSerializer.Serialize(payload);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        using var client = _httpClientFactory.CreateClient(HttpClientName);
-        var response = await client.PostAsync(url, content, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException($"Telegram API error: {response.StatusCode}, {errorContent}");
-        }
+        public static ChildNotificationContext Default { get; } = new("Ребёнок", "Europe/Moscow");
     }
 
-    /// <summary>
-    /// Отправляет геолокацию через Telegram Bot API
-    /// </summary>
-    private async Task SendTelegramLocationAsync(long chatId, double latitude, double longitude)
-    {
-        // Валидация chatId
-        if (chatId <= 0)
-        {
-            _logger.LogWarning("Невалидный Telegram chat ID для геолокации: {ChatId}", chatId);
-            throw new ArgumentException($"Невалидный chat ID: {chatId}. Chat ID должен быть положительным числом.", nameof(chatId));
-        }
-
-        var url = $"https://api.telegram.org/bot{BotToken}/sendLocation";
-
-        var payload = new
-        {
-            chat_id = chatId,
-            latitude = latitude,
-            longitude = longitude
-        };
-
-        var json = System.Text.Json.JsonSerializer.Serialize(payload);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        using var client = _httpClientFactory.CreateClient(HttpClientName);
-        var response = await client.PostAsync(url, content);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException($"Telegram API error for location: {response.StatusCode}, {errorContent}");
-        }
-    }
 }

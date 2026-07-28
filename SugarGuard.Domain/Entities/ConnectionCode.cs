@@ -17,6 +17,13 @@ public class ConnectionCode
     [Required]
     public Guid ChildId { get; set; }
 
+    /// <summary>
+    /// Учётная запись родителя, из кабинета которого был выдан код.
+    /// Для старых кодов поле может быть пустым.
+    /// </summary>
+    [Column("issued_by_parent_user_id")]
+    public Guid? IssuedByParentUserId { get; set; }
+
     [Column("code_hash")]
     [MaxLength(64)]
     [Required]
@@ -35,4 +42,7 @@ public class ConnectionCode
     // Навигационные свойства
     [ForeignKey(nameof(ChildId))]
     public virtual Child Child { get; set; } = null!;
+
+    [ForeignKey(nameof(IssuedByParentUserId))]
+    public virtual User? IssuedByParentUser { get; set; }
 }

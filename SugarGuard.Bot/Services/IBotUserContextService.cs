@@ -30,6 +30,12 @@ public interface IBotUserContextService
     /// <returns>Список привязанных детей</returns>
     Task<List<ChildSummaryBot>> GetLinkedChildrenAsync(long telegramUserId, CancellationToken cancellationToken = default);
 
+    /// <summary>Возвращает состояние ежедневной сводки пользователя.</summary>
+    Task<bool?> GetDailySummaryEnabledAsync(long telegramUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>Сохраняет состояние ежедневной сводки пользователя.</summary>
+    Task<bool> SetDailySummaryEnabledAsync(long telegramUserId, bool enabled, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Очистить контекст пользователя (сбросить текущий ChildId)
     /// </summary>

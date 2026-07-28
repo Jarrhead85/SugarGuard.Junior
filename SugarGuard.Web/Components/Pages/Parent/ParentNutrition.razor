@@ -257,6 +257,14 @@
                             <input type="checkbox" @bind="_schedule.ReminderEnabled" />
                             <span>Напоминать</span>
                         </label>
+                        <label class="nutrition-checkbox">
+                            <input type="checkbox" @bind="_schedule.IsNightInsulin" />
+                            <span>Ночной инсулин: ребёнок подтверждает фактическую дозу</span>
+                        </label>
+                        @if (_schedule.IsNightInsulin)
+                        {
+                            <p class="nutrition-form-hint">После времени укола напоминание повторяется каждые 5 минут в течение часа, пока ребёнок не укажет фактическую дозу.</p>
+                        }
                         @if (_schedule.ReminderEnabled)
                         {
                             <label>
@@ -535,7 +543,10 @@
             DaysOfWeekMask = item.DaysOfWeekMask,
             ReminderEnabled = item.ReminderEnabled,
             ReminderMinutesBefore = item.ReminderMinutesBefore,
-            IsActive = item.IsActive
+            IsActive = item.IsActive,
+            IsNightInsulin = item.IsNightInsulin,
+            RepeatIntervalMinutes = item.RepeatIntervalMinutes,
+            EscalationWindowMinutes = item.EscalationWindowMinutes
         };
         _showScheduleForm = true;
     }

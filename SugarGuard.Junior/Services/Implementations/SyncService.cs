@@ -154,10 +154,16 @@ public class SyncService : ISyncService
 
             // Получаем очередь синхронизации
             await using var ctx = await _factory.CreateDbContextAsync();
-            var syncQueue = await ctx.Set<SyncQueueItem>()
+            var candidates = await ctx.Set<SyncQueueItem>()
                 .Where(q => !q.IsSynced && q.RetryCount < MaxRetries)
                 .OrderBy(q => q.CreatedAt)
                 .ToListAsync();
+
+            // Не повторяем запросы сразу после сбоя: при нестабильной сети это
+            // сохраняет батарею и не создаёт лишнюю нагрузку на API.
+            var syncQueue = candidates
+                .Where(IsReadyForRetry)
+                .ToList();
 
             int successCount = 0;
             int errorCount = 0;
@@ -613,6 +619,21 @@ public class SyncService : ISyncService
                 _logger.LogWarning(ex, "Не удалось выполнить немедленную синхронизацию очереди.");
             }
         });
+    }
+
+    /// <summary>
+    /// Возвращает true, когда элемент очереди можно повторно отправить.
+    /// Задержка: 10 с, 20 с, 40 с, 80 с и далее максимум 10 минут.
+    /// </summary>
+    private static bool IsReadyForRetry(SyncQueueItem item)
+    {
+        if (item.LastRetryAt is null || item.RetryCount == 0)
+        {
+            return true;
+        }
+
+        var delaySeconds = Math.Min(600, InitialDelaySeconds * Math.Pow(2, Math.Min(item.RetryCount - 1, 6)));
+        return item.LastRetryAt.Value.AddSeconds(delaySeconds) <= DateTime.UtcNow;
     }
 
     /// <summary>

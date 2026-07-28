@@ -59,6 +59,16 @@ public interface IBackpackService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Удаляет перекус после проверки доступа вызывающим защищённым интеграционным endpoint.
+    /// Метод не выполняет проверку прав самостоятельно: её обязан выполнить вызывающий код
+    /// по Telegram-пользователю и конкретному ребёнку до вызова этого метода.
+    /// </summary>
+    Task<BackpackRemoveResult> RemoveForVerifiedIntegrationAsync(
+        Guid itemId,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Загружает перекус по ID
     /// </summary>
     Task<BackpackItem?> GetByIdAsync(

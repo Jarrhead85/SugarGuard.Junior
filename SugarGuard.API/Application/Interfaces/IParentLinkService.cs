@@ -22,6 +22,7 @@ public interface IParentLinkService
     /// </summary>
     Task<SaveConnectionCodeResult> SaveConnectionCodeAsync(
         SaveConnectionCodeRequest request,
+        Guid issuedByParentUserId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

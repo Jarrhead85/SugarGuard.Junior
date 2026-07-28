@@ -38,7 +38,19 @@ public sealed class SupportController : ControllerBase
         [FromForm] CreateSupportEmailRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _service.CreateEmailRequestAsync(request, cancellationToken);
+        // Старые версии клиента передавали файл с другим именем поля. Берём единственное
+        // вложение из multipart-запроса как запасной вариант, чтобы оно не терялось.
+        var attachment = request.Attachment ?? Request.Form.Files.FirstOrDefault();
+        var normalizedRequest = new CreateSupportEmailRequest
+        {
+            Subject = request.Subject,
+            Message = request.Message,
+            CallbackEmail = request.CallbackEmail,
+            ClientLogs = request.ClientLogs,
+            Attachment = attachment
+        };
+
+        var result = await _service.CreateEmailRequestAsync(normalizedRequest, cancellationToken);
         return CreatedAtAction(nameof(GetConversation), new { conversationId = result.ConversationId }, result);
     }
 

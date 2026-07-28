@@ -44,6 +44,9 @@ namespace SugarGuard.API.Data
         public DbSet<ConnectionCode> ConnectionCodes { get; set; } = null!;
         public DbSet<SnackConsumptionLog> SnackConsumptionLogs { get; set; } = null!;
         public DbSet<BotUserContext> BotUserContexts { get; set; } = null!;
+        public DbSet<TelegramOutboxMessage> TelegramOutboxMessages => Set<TelegramOutboxMessage>();
+
+        public DbSet<BotServiceHeartbeat> BotServiceHeartbeats => Set<BotServiceHeartbeat>();
 
         // Инфраструктура
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
@@ -231,6 +234,12 @@ namespace SugarGuard.API.Data
                 .HasForeignKey(pcl => pcl.ChildId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<ConnectionCode>()
+                .HasOne(code => code.IssuedByParentUser)
+                .WithMany()
+                .HasForeignKey(code => code.IssuedByParentUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // DoctorChildLinks 
             modelBuilder.Entity<DoctorChildLink>()
                 .HasKey(dcl => dcl.LinkId);
@@ -319,6 +328,23 @@ namespace SugarGuard.API.Data
                     .IsUnique().HasDatabaseName("ux_meal_schedules_child_time_title");
                 entity.HasOne(schedule => schedule.Child).WithMany(child => child.MealSchedules)
                     .HasForeignKey(schedule => schedule.ChildId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TelegramOutboxMessage>(entity =>
+            {
+                entity.HasIndex(message => new { message.DeliveredAt, message.NextAttemptAt, message.LockedUntil })
+                    .HasDatabaseName("ix_telegram_outbox_pending");
+                entity.HasIndex(message => new { message.TelegramUserId, message.CreatedAt })
+                    .HasDatabaseName("ix_telegram_outbox_recipient_created");
+                entity.Property(message => message.CreatedAt).HasDefaultValueSql("NOW()");
+                entity.Property(message => message.NextAttemptAt).HasDefaultValueSql("NOW()");
+            });
+
+            modelBuilder.Entity<BotServiceHeartbeat>(entity =>
+            {
+                entity.Property(item => item.BotName).HasMaxLength(64).IsRequired();
+                entity.Property(item => item.LastError).HasMaxLength(1000);
+                entity.Property(item => item.Version).HasMaxLength(80);
             });
 
             modelBuilder.Entity<ChildAchievement>(entity =>

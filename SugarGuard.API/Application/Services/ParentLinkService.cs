@@ -46,6 +46,7 @@ public class ParentLinkService : IParentLinkService
     /// <inheritdoc/>
     public async Task<SaveConnectionCodeResult> SaveConnectionCodeAsync(
         SaveConnectionCodeRequest request,
+        Guid issuedByParentUserId,
         CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -71,6 +72,7 @@ public class ParentLinkService : IParentLinkService
         var connectionCode = new ConnectionCode
         {
             ChildId = request.ChildId,
+            IssuedByParentUserId = issuedByParentUserId,
             CodeHash = codeHash,
             ExpiresAt = DateTime.UtcNow.AddMinutes(10),
             IsUsed = false
@@ -149,45 +151,59 @@ public class ParentLinkService : IParentLinkService
                 Message: null, ErrorMessage: "Invalid or expired code");
         }
 
-        // Поиск существующей привязки
+        var messengerUser = await db.Users.FirstOrDefaultAsync(
+            user => (isMax ? user.MaxUserId : user.TelegramId) == messengerUserId,
+            cancellationToken);
+
+        User user;
+        if (connectionCode.IssuedByParentUserId is Guid issuedByParentUserId)
+        {
+            user = await db.Users.SingleOrDefaultAsync(candidate => candidate.UserId == issuedByParentUserId, cancellationToken)
+                ?? throw new InvalidOperationException("Родитель, выдавший код подключения, не найден.");
+
+            if (messengerUser is not null && messengerUser.UserId != user.UserId)
+            {
+                throw new InvalidOperationException(
+                    "Этот аккаунт мессенджера уже подключён к другой учётной записи SugarGuard.");
+            }
+
+            if (isMax)
+            {
+                user.MaxUserId = messengerUserId;
+            }
+            else
+            {
+                user.TelegramId = messengerUserId;
+            }
+        }
+        else
+        {
+            // Совместимость с ранее выданными кодами, у которых не было владельца.
+            user = messengerUser ?? (isMax
+                ? new User { MaxUserId = messengerUserId }
+                : new User { TelegramId = messengerUserId });
+
+            if (messengerUser is null)
+            {
+                db.Users.Add(user);
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         var existingLink = await db.ParentChildLinks
-            .Include(l => l.ParentUser)
-            .FirstOrDefaultAsync(l =>
-                (isMax ? l.ParentUser.MaxUserId : l.ParentUser.TelegramId) == messengerUserId &&
-                l.ChildId == connectionCode.ChildId,
+            .FirstOrDefaultAsync(link => link.ParentUserId == user.UserId && link.ChildId == connectionCode.ChildId,
                 cancellationToken);
 
         if (existingLink is not null)
         {
-            // Код использован, но связь уже есть
             connectionCode.IsUsed = true;
             await db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
-
-            await _audit.WriteAsync(
-                "parent_link.already_linked",
-                "ParentChildLink",
-                existingLink.LinkId.ToString(),
-                $"Parent={existingLink.ParentUserId};Child={existingLink.ChildId}",
-                CancellationToken.None);
 
             return new VerifyConnectionCodeResult(
                 Success: true, IsValid: true, ChildId: connectionCode.ChildId,
                 LinkId: existingLink.LinkId,
                 Message: "Link already exists", ErrorMessage: null);
-        }
-
-        // Создаём User, если его ещё нет
-        var user = await db.Users.FirstOrDefaultAsync(
-            u => (isMax ? u.MaxUserId : u.TelegramId) == messengerUserId, cancellationToken);
-
-        if (user is null)
-        {
-            user = isMax
-                ? new User { MaxUserId = messengerUserId }
-                : new User { TelegramId = messengerUserId };
-            db.Users.Add(user);
-            await db.SaveChangesAsync(cancellationToken);
         }
 
         var parentChildLink = new ParentChildLink

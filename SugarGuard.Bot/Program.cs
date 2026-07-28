@@ -60,6 +60,18 @@ public class Program
                         "Переменная окружения TELEGRAM_BOT_TOKEN обязательна. " +
                         "Пожалуйста, установите переменную окружения или настройте её в appsettings.json для разработки.");
                 }
+
+                // Все запросы бота к API идут через отдельный service-to-service ключ.
+                // Без него запускать бота нельзя: иначе он выглядит рабочим, но не может
+                // безопасно получить контекст семьи или доставить уведомления.
+                var botApiKey = Environment.GetEnvironmentVariable("BOT_SERVICE_AUTH_KEY")
+                    ?? configuration["BotAuth:ApiKey"]
+                    ?? configuration["BotSettings:ApiKey"];
+                if (string.IsNullOrWhiteSpace(botApiKey))
+                {
+                    throw new InvalidOperationException(
+                        "Переменная окружения BOT_SERVICE_AUTH_KEY обязательна для Telegram-бота.");
+                }
                 
                 // Регистрируем Telegram Bot Client
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
@@ -80,9 +92,11 @@ public class Program
                     return new Services.ApiClient(httpClient, logger, config);
                 });
                 services.AddHttpClient<IBotUserContextService, BotUserContextService>();
+                services.AddHttpClient<TelegramOutboxClient>();
 
                 // Регистрируем сервисы
                 services.AddSingleton<TelegramRateLimiter>();
+                services.AddSingleton<ConnectionCodeEntrySessionService>();
                 services.AddSingleton<CommandHandler>();
                 services.AddSingleton<CallbackHandler>();
                 services.AddSingleton<MessageHandler>();
@@ -96,6 +110,8 @@ public class Program
                 
                 // Регистрируем основной сервис бота
                 services.AddHostedService<BotService>();
+                services.AddHostedService<TelegramOutboxDispatchService>();
+                services.AddHostedService<TelegramBotHeartbeatService>();
             })
             .ConfigureLogging(logging =>
             {

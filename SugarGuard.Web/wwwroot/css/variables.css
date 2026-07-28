@@ -105,37 +105,39 @@
     color-scheme: dark;
     /* ——— Фоны и поверхности ——— */
 
-    --color-bg: #0B1018;
-    --color-surface: rgba(17, 24, 37, 0.80);
-    --color-surface-2: rgba(17, 24, 37, 0.90);
-    --color-surface-offset: #10192A;
-    --color-border: rgba(237, 244, 255, 0.09);
-    --color-divider: rgba(237, 244, 255, 0.08);
+    /* «Ночная тетрадь»: тёмный индиго, бумажный янтарный акцент.
+       Цвета намеренно матовые — без неоновых градиентов и «кибер»-эффекта. */
+    --color-bg: #13192A;
+    --color-surface: rgba(32, 43, 67, 0.92);
+    --color-surface-2: rgba(38, 50, 76, 0.98);
+    --color-surface-offset: #28344B;
+    --color-border: rgba(203, 216, 245, 0.14);
+    --color-divider: rgba(203, 216, 245, 0.10);
     /* ——— Текст ——— */
 
-    --color-text: #EDF4FF;
-    --color-text-muted: #9EAED0;
-    --color-text-faint: #6F7D99;
-    --color-text-inverse: #0B1018;
+    --color-text: #F3F5FF;
+    --color-text-muted: #AFBBD3;
+    --color-text-faint: #7F8CA8;
+    --color-text-inverse: #13192A;
     /* ——— Основной акцент ——— */
 
-    --color-primary: #56D0BF;
-    --color-primary-hover: #3db8a8;
-    --color-primary-active: #2a9e90;
-    --color-primary-strong: #56D0BF;
-    --color-primary-alt: #6DAEFF;
-    --color-primary-soft: rgba(86, 208, 191, 0.12);
+    --color-primary: #FFCF73;
+    --color-primary-hover: #E8AE45;
+    --color-primary-active: #C9852C;
+    --color-primary-strong: #FFE0A1;
+    --color-primary-alt: #79B8FF;
+    --color-primary-soft: rgba(255, 207, 115, 0.14);
     /* ——— Глюкоза ——— */
 
-    --color-glucose-normal: #62D889;
-    --color-glucose-warning: #F4BC56;
-    --color-glucose-danger: #FF7A8B;
+    --color-glucose-normal: #9CDA99;
+    --color-glucose-warning: #F3A963;
+    --color-glucose-danger: #F27E96;
     /* ——— Тени (в dark mode более тёмные) ——— */
 
-    --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.28);
-    --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.34);
-    --shadow-lg: 0 24px 58px rgba(0, 0, 0, 0.34);
-    --shadow-overlay: 0 36px 100px rgba(0, 0, 0, 0.48);
+    --shadow-sm: 0 8px 24px rgba(5, 9, 20, 0.24);
+    --shadow-md: 0 14px 34px rgba(5, 9, 20, 0.30);
+    --shadow-lg: 0 24px 58px rgba(5, 9, 20, 0.34);
+    --shadow-overlay: 0 36px 100px rgba(5, 9, 20, 0.56);
     --shadow-card: var(--shadow-sm);
     --shadow-hero: var(--shadow-lg);
 }
@@ -149,29 +151,29 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
         color-scheme: dark;
-        --color-bg: #0B1018;
-        --color-surface: rgba(17, 24, 37, 0.80);
-        --color-surface-2: rgba(17, 24, 37, 0.90);
-        --color-surface-offset: #10192A;
-        --color-border: rgba(237, 244, 255, 0.09);
-        --color-divider: rgba(237, 244, 255, 0.08);
-        --color-text: #EDF4FF;
-        --color-text-muted: #9EAED0;
-        --color-text-faint: #6F7D99;
-        --color-text-inverse: #0B1018;
-        --color-primary: #56D0BF;
-        --color-primary-hover: #3db8a8;
-        --color-primary-active: #2a9e90;
-        --color-primary-strong: #56D0BF;
-        --color-primary-alt: #6DAEFF;
-        --color-primary-soft: rgba(86, 208, 191, 0.12);
-        --color-glucose-normal: #62D889;
-        --color-glucose-warning: #F4BC56;
-        --color-glucose-danger: #FF7A8B;
-        --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.28);
-        --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.34);
-        --shadow-lg: 0 24px 58px rgba(0, 0, 0, 0.34);
-        --shadow-overlay: 0 36px 100px rgba(0, 0, 0, 0.48);
+        --color-bg: #13192A;
+        --color-surface: rgba(32, 43, 67, 0.92);
+        --color-surface-2: rgba(38, 50, 76, 0.98);
+        --color-surface-offset: #28344B;
+        --color-border: rgba(203, 216, 245, 0.14);
+        --color-divider: rgba(203, 216, 245, 0.10);
+        --color-text: #F3F5FF;
+        --color-text-muted: #AFBBD3;
+        --color-text-faint: #7F8CA8;
+        --color-text-inverse: #13192A;
+        --color-primary: #FFCF73;
+        --color-primary-hover: #E8AE45;
+        --color-primary-active: #C9852C;
+        --color-primary-strong: #FFE0A1;
+        --color-primary-alt: #79B8FF;
+        --color-primary-soft: rgba(255, 207, 115, 0.14);
+        --color-glucose-normal: #9CDA99;
+        --color-glucose-warning: #F3A963;
+        --color-glucose-danger: #F27E96;
+        --shadow-sm: 0 8px 24px rgba(5, 9, 20, 0.24);
+        --shadow-md: 0 14px 34px rgba(5, 9, 20, 0.30);
+        --shadow-lg: 0 24px 58px rgba(5, 9, 20, 0.34);
+        --shadow-overlay: 0 36px 100px rgba(5, 9, 20, 0.56);
         --shadow-card: var(--shadow-sm);
         --shadow-hero: var(--shadow-lg);
     }
@@ -318,8 +320,8 @@
     --card-shadow: var(--shadow-sm);
     --card-radius: var(--radius-lg);
     /* Hero-карточка в dark */
-    --card-hero-bg: linear-gradient( 135deg, rgba(17, 24, 37, 0.95) 0%, rgba(86, 208, 191, 0.08) 55%, rgba(109, 174, 255, 0.07) 100% );
-    --card-hero-border: rgba(86, 208, 191, 0.12);
+    --card-hero-bg: linear-gradient(145deg, rgba(40, 52, 75, 0.98), rgba(32, 43, 67, 0.98));
+    --card-hero-border: rgba(255, 207, 115, 0.20);
     --card-hero-shadow: var(--shadow-lg);
     /* Карточка данных */
     --card-data-bg: var(--color-surface);
@@ -330,28 +332,28 @@
     --card-list-bg: var(--color-surface);
     --card-list-padding: var(--spacing-16);
     /* Граница инпутов */
-    --input-border-color: rgba(237, 244, 255, 0.18);
+    --input-border-color: rgba(203, 216, 245, 0.22);
     --input-border-focused: var(--color-primary);
     --input-border-error: var(--color-glucose-danger);
     /* Bottom Sheet фон */
-    --bottom-sheet-bg: rgba(17, 24, 37, 0.90);
+    --bottom-sheet-bg: rgba(38, 50, 76, 0.98);
     /* Tab Bar */
-    --tab-bar-bg: rgba(17, 24, 37, 0.80);
-    --tab-bar-border: rgba(237, 244, 255, 0.09);
-    --tab-active-pill: rgba(86, 208, 191, 0.14);
+    --tab-bar-bg: rgba(25, 33, 54, 0.96);
+    --tab-bar-border: rgba(203, 216, 245, 0.14);
+    --tab-active-pill: rgba(255, 207, 115, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
-        --card-hero-bg: linear-gradient( 135deg, rgba(17, 24, 37, 0.95) 0%, rgba(86, 208, 191, 0.08) 55%, rgba(109, 174, 255, 0.07) 100% );
-        --card-hero-border: rgba(86, 208, 191, 0.12);
+        --card-hero-bg: linear-gradient(145deg, rgba(40, 52, 75, 0.98), rgba(32, 43, 67, 0.98));
+        --card-hero-border: rgba(255, 207, 115, 0.20);
         --card-hero-shadow: var(--shadow-lg);
         --card-data-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-        --input-border-color: rgba(237, 244, 255, 0.18);
-        --bottom-sheet-bg: rgba(17, 24, 37, 0.90);
-        --tab-bar-bg: rgba(17, 24, 37, 0.80);
-        --tab-bar-border: rgba(237, 244, 255, 0.09);
-        --tab-active-pill: rgba(86, 208, 191, 0.14);
+        --input-border-color: rgba(203, 216, 245, 0.22);
+        --bottom-sheet-bg: rgba(38, 50, 76, 0.98);
+        --tab-bar-bg: rgba(25, 33, 54, 0.96);
+        --tab-bar-border: rgba(203, 216, 245, 0.14);
+        --tab-active-pill: rgba(255, 207, 115, 0.14);
     }
 }
 
@@ -377,27 +379,27 @@
 }
 
 [data-theme="dark"] {
-    --chip-normal-bg: rgba(98, 216, 137, 0.12);
-    --chip-normal-border: rgba(98, 216, 137, 0.22);
-    --chip-normal-text: #DFFFFE;
-    --chip-warning-bg: rgba(244, 188, 86, 0.12);
-    --chip-warning-border: rgba(244, 188, 86, 0.22);
-    --chip-warning-text: #FFF2D1;
-    --chip-danger-bg: rgba(255, 122, 139, 0.12);
-    --chip-danger-border: rgba(255, 122, 139, 0.22);
-    --chip-danger-text: #FFE5E8;
+    --chip-normal-bg: rgba(156, 218, 153, 0.14);
+    --chip-normal-border: rgba(156, 218, 153, 0.24);
+    --chip-normal-text: #C8F2C6;
+    --chip-warning-bg: rgba(243, 169, 99, 0.14);
+    --chip-warning-border: rgba(243, 169, 99, 0.24);
+    --chip-warning-text: #FFE1BB;
+    --chip-danger-bg: rgba(242, 126, 150, 0.14);
+    --chip-danger-border: rgba(242, 126, 150, 0.24);
+    --chip-danger-text: #FFD9E1;
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
-        --chip-normal-bg: rgba(98, 216, 137, 0.12);
-        --chip-normal-border: rgba(98, 216, 137, 0.22);
-        --chip-normal-text: #DFFFFE;
-        --chip-warning-bg: rgba(244, 188, 86, 0.12);
-        --chip-warning-border: rgba(244, 188, 86, 0.22);
-        --chip-warning-text: #FFF2D1;
-        --chip-danger-bg: rgba(255, 122, 139, 0.12);
-        --chip-danger-border: rgba(255, 122, 139, 0.22);
-        --chip-danger-text: #FFE5E8;
+        --chip-normal-bg: rgba(156, 218, 153, 0.14);
+        --chip-normal-border: rgba(156, 218, 153, 0.24);
+        --chip-normal-text: #C8F2C6;
+        --chip-warning-bg: rgba(243, 169, 99, 0.14);
+        --chip-warning-border: rgba(243, 169, 99, 0.24);
+        --chip-warning-text: #FFE1BB;
+        --chip-danger-bg: rgba(242, 126, 150, 0.14);
+        --chip-danger-border: rgba(242, 126, 150, 0.24);
+        --chip-danger-text: #FFD9E1;
     }
 }

@@ -31,4 +31,18 @@ public class HealthController : ControllerBase
             timestampUtc = DateTime.UtcNow
         });
     }
+
+    /// <summary>Проверяет, что процесс API запущен и отвечает.</summary>
+    [HttpGet("live")]
+    public IActionResult Live() => Ok(new { status = "ok", timestampUtc = DateTime.UtcNow });
+
+    /// <summary>Проверяет готовность API принимать запросы, включая подключение к БД.</summary>
+    [HttpGet("ready")]
+    public async Task<IActionResult> Ready(CancellationToken cancellationToken)
+    {
+        var canConnect = await _health.CanConnectAsync(cancellationToken);
+        return canConnect
+            ? Ok(new { status = "ready", timestampUtc = DateTime.UtcNow })
+            : StatusCode(StatusCodes.Status503ServiceUnavailable, new { status = "not_ready", timestampUtc = DateTime.UtcNow });
+    }
 }

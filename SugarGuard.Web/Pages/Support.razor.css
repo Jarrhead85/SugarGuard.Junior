@@ -5,3 +5,39 @@
 .support-list-item.closed{background:rgba(43,53,80,.045);border-left:4px solid #94a3b8;color:var(--color-text-muted,#71809d)}
 .support-list-item.closed.active{background:rgba(148,163,184,.16)}
 .support-list-item.closed .support-list-meta>span{display:inline-flex;align-items:center;width:max-content;padding:3px 8px;border-radius:999px;color:#475569;background:rgba(148,163,184,.18);font-weight:850}
+
+/* Общий UI Kit: поддержка используется родителем, врачом и администратором. */
+.support-list-heading span,
+.support-unread {
+    color: var(--color-text-inverse, #fff);
+    background: var(--color-glucose-danger);
+}
+
+.support-messages {
+    background: var(--color-surface-offset, #f7f9fc);
+}
+
+.support-primary {
+    color: var(--color-text-inverse, #fff);
+    background: var(--color-primary, #168f9b);
+    box-shadow: 0 8px 20px color-mix(in oklab, var(--color-primary, #168f9b) 22%, transparent);
+}
+
+.support-secondary {
+    color: var(--color-primary, #087f7d);
+    background: var(--color-surface, #fff);
+}
+
+.support-list-item.closed {
+    border-left-color: var(--color-text-faint, #94a3b8);
+    background: var(--color-surface-offset, #f7f9fc);
+}
+
+.support-list-item.closed.active {
+    background: color-mix(in oklab, var(--color-text-faint, #94a3b8) 16%, var(--color-surface, #fff));
+}
+
+.support-list-item.closed .support-list-meta>span {
+    color: var(--color-text-muted, #475569);
+    background: color-mix(in oklab, var(--color-text-faint, #94a3b8) 18%, transparent);
+}

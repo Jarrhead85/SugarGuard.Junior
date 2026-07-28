@@ -51,6 +51,9 @@ public sealed record MealScheduleResponse(
     bool ReminderEnabled,
     int ReminderMinutesBefore,
     bool IsActive,
+    bool IsNightInsulin,
+    int RepeatIntervalMinutes,
+    int EscalationWindowMinutes,
     DateTime UpdatedAt);
 
 public sealed class SaveMealScheduleRequest
@@ -75,6 +78,14 @@ public sealed class SaveMealScheduleRequest
     public int ReminderMinutesBefore { get; init; } = 10;
 
     public bool IsActive { get; init; } = true;
+
+    public bool IsNightInsulin { get; init; }
+
+    [Range(1, 30)]
+    public int RepeatIntervalMinutes { get; init; } = 5;
+
+    [Range(5, 120)]
+    public int EscalationWindowMinutes { get; init; } = 60;
 }
 
 public sealed record NutritionDailySummary(

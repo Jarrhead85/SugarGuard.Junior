@@ -36,7 +36,7 @@
     min-height: 42px;
     padding: 9px 12px;
     border-radius: 12px;
-    color: #4f6387;
+    color: var(--color-text-muted);
     font-size: 14px;
     font-weight: 600;
     line-height: 1.2;
@@ -46,15 +46,15 @@
 
 .app-shell--doctor .nav-item:hover,
 .app-shell--admin .nav-item:hover {
-    color: #16213e;
-    background: rgba(22, 33, 62, .05);
+    color: var(--color-text);
+    background: var(--color-surface-offset);
 }
 
 .app-shell--doctor .nav-item.active,
 .app-shell--admin .nav-item.active {
-    color: #087f7d;
-    background: rgba(27, 142, 139, .12);
-    box-shadow: inset 3px 0 0 #159a96;
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+    box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 .app-shell--doctor .nav-item-icon,
@@ -80,8 +80,8 @@
     min-width: 22px;
     padding: 3px 7px;
     border-radius: 999px;
-    color: #087f7d;
-    background: rgba(27, 142, 139, .12);
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
     font-size: 11px;
     font-weight: 800;
     text-align: center;
@@ -89,32 +89,21 @@
 
 .app-shell--doctor .nav-item-badge.danger,
 .app-shell--admin .nav-item-badge.danger {
-    color: #c94152;
-    background: rgba(219, 89, 103, .14);
+    color: var(--color-glucose-danger);
+    background: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
 }
 
 .app-shell--doctor .nav-item-badge.warning,
 .app-shell--admin .nav-item-badge.warning {
-    color: #b57400;
-    background: rgba(227, 163, 43, .15);
-}
-
-[data-theme="dark"] .app-shell--doctor .nav-item,
-[data-theme="dark"] .app-shell--admin .nav-item {
-    color: #9eaed0;
-}
-
-[data-theme="dark"] .app-shell--doctor .nav-item:hover,
-[data-theme="dark"] .app-shell--admin .nav-item:hover {
-    color: #edf4ff;
-    background: rgba(237, 244, 255, .07);
+    color: var(--color-glucose-warning);
+    background: color-mix(in oklab, var(--color-glucose-warning) 15%, transparent);
 }
 
 .doctor-live-state {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #667694;
+    color: var(--color-text-muted);
     font-size: 13px;
     font-weight: 700;
 }
@@ -124,8 +113,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #55c58a;
-    box-shadow: 0 0 0 5px rgba(85, 197, 138, .13);
+    background: var(--color-glucose-normal);
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-glucose-normal) 13%, transparent);
 }
 
 html {
@@ -400,6 +389,143 @@ select {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* Общие токены для старых страниц врача. Подмена находится в конце файла,
+   чтобы перекрывать локальные значения страниц и одинаково работать во всех
+   светлых палитрах и в «Ночной тетради». */
+.app-shell--doctor :is(.doctor-portal, .doctor-detail, .doctor-notes-index) {
+    --doctor-bg: var(--color-page);
+    --doctor-surface: var(--color-surface);
+    --doctor-surface-strong: var(--color-surface);
+    --doctor-offset: var(--color-surface-offset);
+    --doctor-border: var(--color-border);
+    --doctor-divider: var(--color-divider);
+    --doctor-text: var(--color-text);
+    --doctor-muted: var(--color-text-muted);
+    --doctor-faint: var(--color-text-faint);
+    --doctor-primary: var(--color-primary);
+    --doctor-primary-alt: var(--color-primary-alt);
+    --doctor-primary-soft: var(--color-primary-soft);
+    --doctor-success: var(--color-glucose-normal);
+    --doctor-success-soft: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+    --doctor-warning: var(--color-glucose-warning);
+    --doctor-warning-soft: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+    --doctor-danger: var(--color-glucose-danger);
+    --doctor-danger-soft: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+    --doctor-shadow-sm: var(--shadow-sm);
+    --doctor-shadow-md: var(--shadow-card);
+}
+
+/* Карточки когорты ранее использовали самостоятельную палитру. */
+.app-shell--doctor .sg-cohort-kpi,
+.app-shell--doctor .sg-cohort-section,
+.app-shell--doctor .sg-cohort-alert-card {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--primary {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-good {
+    color: var(--color-glucose-normal);
+    background: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-warning,
+.app-shell--doctor .sg-cohort-kpi__icon--warning {
+    color: var(--color-glucose-warning);
+    background: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-danger,
+.app-shell--doctor .sg-cohort-kpi__icon--danger {
+    color: var(--color-glucose-danger);
+    background: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--muted {
+    color: var(--color-text-muted);
+    background: var(--color-surface-offset);
+}
+
+.app-shell--doctor .sg-cohort-kpi__value,
+.app-shell--doctor .sg-cohort-section__title,
+.app-shell--doctor .sg-cohort-alert-card__title,
+.app-shell--doctor .sg-cohort-section__value,
+.app-shell--doctor .sg-cohort-alert-card__count {
+    color: var(--color-text);
+}
+
+.app-shell--doctor .sg-cohort-kpi__label,
+.app-shell--doctor .sg-cohort-alert-card__of,
+.app-shell--doctor .sg-cohort-alert-card__hint,
+.app-shell--doctor .sg-cohort-footer {
+    color: var(--color-text-muted);
+}
+
+.app-shell--doctor .sg-cohort-footer {
+    border-top-color: var(--color-divider);
+}
+
+/* Токенизированный слой для разделов врача. Он устраняет оставшиеся жёсткие
+   цвета старого дашборда и сохраняет единый вид во всех палитрах. */
+.app-shell--doctor .sg-cohort-kpi,
+.app-shell--doctor .sg-cohort-section,
+.app-shell--doctor .sg-cohort-alert-card {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--primary {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-good {
+    color: var(--color-glucose-normal);
+    background: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-warning,
+.app-shell--doctor .sg-cohort-kpi__icon--warning {
+    color: var(--color-glucose-warning);
+    background: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-danger,
+.app-shell--doctor .sg-cohort-kpi__icon--danger {
+    color: var(--color-glucose-danger);
+    background: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--muted {
+    color: var(--color-text-muted);
+    background: var(--color-surface-offset);
+}
+
+.app-shell--doctor .sg-cohort-kpi__value,
+.app-shell--doctor .sg-cohort-section__title,
+.app-shell--doctor .sg-cohort-alert-card__title,
+.app-shell--doctor .sg-cohort-section__value,
+.app-shell--doctor .sg-cohort-alert-card__count {
+    color: var(--color-text);
+}
+
+.app-shell--doctor .sg-cohort-kpi__label,
+.app-shell--doctor .sg-cohort-alert-card__of,
+.app-shell--doctor .sg-cohort-alert-card__hint,
+.app-shell--doctor .sg-cohort-footer {
+    color: var(--color-text-muted);
+}
+
+.app-shell--doctor .sg-cohort-footer {
+    border-top-color: var(--color-divider);
 }
 
 /* --------------------------------------------------------------------------
@@ -1588,8 +1714,8 @@ select {
 .app-shell--doctor .sg-cohort-skeleton,
 .app-shell--doctor .sg-cohort-empty,
 .app-shell--doctor .sg-cohort-error {
-    width: min(100%, 1360px);
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
 }
 
 .app-shell--doctor .sg-cohort {
@@ -1695,12 +1821,21 @@ select {
     min-width: 0;
 }
 
-.app-shell--parent :is(.nutrition-page, .parent-access-page, .sg-page),
-.app-shell--doctor :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort),
-.app-shell--admin :is(.admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page) {
+.app-shell--parent :is(.nutrition-page, .parent-access-page, .sg-page) {
     width: min(100%, 1560px);
     min-width: 0;
     margin-inline: auto;
+    font-family: var(--font-body);
+}
+
+/* Рабочие экраны врача и администратора содержат таблицы, списки и KPI.
+   На широких мониторах они должны использовать доступное пространство, а не
+   выглядеть как узкая колонка в центре. */
+.app-shell--doctor :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort),
+.app-shell--admin :is(.admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page) {
+    width: 100%;
+    min-width: 0;
+    margin-inline: 0;
     font-family: var(--font-body);
 }
 
@@ -1741,13 +1876,13 @@ select {
 .app-shell--admin :is(.sg-panel, .admin-panel, .section-card, .queue-panel, .queue-stats article, .requests-list, .requests-panel, .security-panel, .security-stats article),
 .app-shell--doctor :is(.doctor-kpi-card, .doctor-table-card, .doctor-simple-card, .doctor-simple-empty, .doctor-risk-card, .doctor-report-card, .doctor-report-table-card, .doctor-report-empty, .doctor-notes-card, .doctor-profile-card, .doctor-article-editor, .doctor-article-preview, .sg-cohort-kpi, .sg-cohort-section, .sg-cohort-alert-card) {
     border-color: color-mix(in oklab, var(--color-border) 88%, transparent);
-    box-shadow: 0 10px 28px rgba(22, 33, 62, .055);
+    box-shadow: var(--shadow-sm);
 }
 
 .app-shell--doctor :is(.doctor-detail-card, .verification-card, .sg-editor-card),
 .app-shell :is(.support-list-panel, .support-thread-panel) {
     border-color: color-mix(in oklab, var(--color-border) 88%, transparent);
-    box-shadow: 0 10px 28px rgba(22, 33, 62, .055);
+    box-shadow: var(--shadow-sm);
 }
 
 .app-shell--admin :is(button, input, select, textarea),
@@ -1821,4 +1956,83 @@ select {
         animation-iteration-count: 1 !important;
         transition-duration: .01ms !important;
     }
+}
+
+/* Финальный слой темы врача: расположен после legacy-стилей компонентов,
+   поэтому палитры кабинета родителя применяются без исключений. */
+.app-shell--doctor :is(.doctor-portal, .doctor-detail, .doctor-notes-index) {
+    --doctor-bg: var(--color-page);
+    --doctor-surface: var(--color-surface);
+    --doctor-surface-strong: var(--color-surface);
+    --doctor-offset: var(--color-surface-offset);
+    --doctor-border: var(--color-border);
+    --doctor-divider: var(--color-divider);
+    --doctor-text: var(--color-text);
+    --doctor-muted: var(--color-text-muted);
+    --doctor-faint: var(--color-text-faint);
+    --doctor-primary: var(--color-primary);
+    --doctor-primary-alt: var(--color-primary-alt);
+    --doctor-primary-soft: var(--color-primary-soft);
+    --doctor-success: var(--color-glucose-normal);
+    --doctor-success-soft: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+    --doctor-warning: var(--color-glucose-warning);
+    --doctor-warning-soft: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+    --doctor-danger: var(--color-glucose-danger);
+    --doctor-danger-soft: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+    --doctor-shadow-sm: var(--shadow-sm);
+    --doctor-shadow-md: var(--shadow-card);
+}
+
+.app-shell--doctor .sg-cohort-kpi,
+.app-shell--doctor .sg-cohort-section,
+.app-shell--doctor .sg-cohort-alert-card {
+    border-color: var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--primary {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-good {
+    color: var(--color-glucose-normal);
+    background: color-mix(in oklab, var(--color-glucose-normal) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-warning,
+.app-shell--doctor .sg-cohort-kpi__icon--warning {
+    color: var(--color-glucose-warning);
+    background: color-mix(in oklab, var(--color-glucose-warning) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--tir-danger,
+.app-shell--doctor .sg-cohort-kpi__icon--danger {
+    color: var(--color-glucose-danger);
+    background: color-mix(in oklab, var(--color-glucose-danger) 14%, transparent);
+}
+
+.app-shell--doctor .sg-cohort-kpi__icon--muted {
+    color: var(--color-text-muted);
+    background: var(--color-surface-offset);
+}
+
+.app-shell--doctor .sg-cohort-kpi__value,
+.app-shell--doctor .sg-cohort-section__title,
+.app-shell--doctor .sg-cohort-alert-card__title,
+.app-shell--doctor .sg-cohort-section__value,
+.app-shell--doctor .sg-cohort-alert-card__count {
+    color: var(--color-text);
+}
+
+.app-shell--doctor .sg-cohort-kpi__label,
+.app-shell--doctor .sg-cohort-alert-card__of,
+.app-shell--doctor .sg-cohort-alert-card__hint,
+.app-shell--doctor .sg-cohort-footer {
+    color: var(--color-text-muted);
+}
+
+.app-shell--doctor .sg-cohort-footer {
+    border-top-color: var(--color-divider);
 }

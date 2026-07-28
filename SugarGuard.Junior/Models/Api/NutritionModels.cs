@@ -42,6 +42,9 @@ public sealed class MealScheduleApiModel
     public bool ReminderEnabled { get; set; }
     public int ReminderMinutesBefore { get; set; }
     public bool IsActive { get; set; }
+    public bool IsNightInsulin { get; set; }
+    public int RepeatIntervalMinutes { get; set; } = 5;
+    public int EscalationWindowMinutes { get; set; } = 60;
     public DateTime UpdatedAt { get; set; }
     public string TimeLabel => ScheduledTime.ToString("HH:mm");
     public string ReminderLabel => ReminderEnabled ? $"Напомнить за {ReminderMinutesBefore} мин." : "Без напоминания";
@@ -57,6 +60,9 @@ public sealed class SaveMealScheduleApiRequest
     public bool ReminderEnabled { get; set; } = true;
     public int ReminderMinutesBefore { get; set; } = 10;
     public bool IsActive { get; set; } = true;
+    public bool IsNightInsulin { get; set; }
+    public int RepeatIntervalMinutes { get; set; } = 5;
+    public int EscalationWindowMinutes { get; set; } = 60;
 }
 
 public sealed class NutritionSummaryApiModel

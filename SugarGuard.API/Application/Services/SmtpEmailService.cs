@@ -63,8 +63,13 @@ namespace SugarGuard.API.Services
             try
             {
                 _logger.LogInformation(
-                    "Отправка письма. To={To} Subject={Subject} SmtpHost={Host}:{Port}",
-                    toEmail, subject, _settings.Host, _settings.Port);
+                    "Отправка письма. To={To} Subject={Subject} SmtpHost={Host}:{Port} AttachmentsCount={AttachmentsCount} AttachmentNames={AttachmentNames}",
+                    toEmail,
+                    subject,
+                    _settings.Host,
+                    _settings.Port,
+                    attachments.Count,
+                    string.Join(", ", attachments.Select(attachment => attachment.FileName)));
 
                 await client.ConnectAsync(
                     _settings.Host,

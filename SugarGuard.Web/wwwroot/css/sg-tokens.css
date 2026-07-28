@@ -248,17 +248,17 @@
 
 [data-theme="dark"] {
     /* Normal */
-    --chip-normal-bg: rgba(98, 216, 137, 0.12);
-    --chip-normal-border: rgba(98, 216, 137, 0.20);
-    --chip-normal-text: #DFFFEA;
+    --chip-normal-bg: rgba(156, 218, 153, 0.14);
+    --chip-normal-border: rgba(156, 218, 153, 0.24);
+    --chip-normal-text: #C8F2C6;
     /* Warning */
-    --chip-warning-bg: rgba(244, 188, 86, 0.12);
-    --chip-warning-border: rgba(244, 188, 86, 0.20);
-    --chip-warning-text: #FFF2D1;
+    --chip-warning-bg: rgba(243, 169, 99, 0.14);
+    --chip-warning-border: rgba(243, 169, 99, 0.24);
+    --chip-warning-text: #FFE1BB;
     /* Danger */
-    --chip-danger-bg: rgba(255, 122, 139, 0.12);
-    --chip-danger-border: rgba(255, 122, 139, 0.20);
-    --chip-danger-text: #FFE5E8;
+    --chip-danger-bg: rgba(242, 126, 150, 0.14);
+    --chip-danger-border: rgba(242, 126, 150, 0.24);
+    --chip-danger-text: #FFD9E1;
 }
 
 /* ============================================================
@@ -280,9 +280,9 @@
 }
 
 [data-theme="dark"] {
-    --color-glucose-normal-highlight: rgba(98, 216, 137, 0.13);
-    --color-glucose-warning-highlight: rgba(244, 188, 86, 0.13);
-    --color-glucose-danger-highlight: rgba(255, 122, 139, 0.13);
+    --color-glucose-normal-highlight: rgba(156, 218, 153, 0.14);
+    --color-glucose-warning-highlight: rgba(243, 169, 99, 0.14);
+    --color-glucose-danger-highlight: rgba(242, 126, 150, 0.14);
 }
 
 /* ============================================================

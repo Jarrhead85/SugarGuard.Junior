@@ -17,4 +17,6 @@
 	<!-- Пробуждение по таймеру (напоминания в точное время) -->
 	<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 	<uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+	<!-- Восстановление запланированных локальных напоминаний после перезагрузки устройства. -->
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>

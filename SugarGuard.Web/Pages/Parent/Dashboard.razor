@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Parent")]
 @implements IDisposable
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.WebUtilities
 @using Microsoft.JSInterop
@@ -1273,6 +1274,41 @@
                 }
             </div>
 
+            <section class="push-connect" aria-labelledby="pushConnectTitle">
+                <div class="push-connect__head">
+                    <div>
+                        <div class="setting-label" id="pushConnectTitle">Уведомления в браузере</div>
+                        <div class="setting-desc">Новые измерения и критические события будут приходить в реальном времени, даже если кабинет закрыт.</div>
+                    </div>
+                    <span class="push-connect__status @(_pushSubscription.Subscribed ? "connected" : "")">
+                        @PushStatusText
+                    </span>
+                </div>
+                <div class="push-connect__actions">
+                    <button class="btn @(_pushSubscription.Subscribed ? "btn-ghost" : "btn-primary")"
+                            disabled="@(_isPushBusy || !_pushSubscription.Supported || !_isPushConfigured)"
+                            @onclick="ToggleWebPushAsync">
+                        @(_isPushBusy
+                            ? "Подождите…"
+                            : _pushSubscription.Subscribed
+                                ? "Отключить уведомления"
+                                : "Включить уведомления")
+                    </button>
+                    @if (!_pushSubscription.Supported)
+                    {
+                        <span class="setting-desc">Браузер не поддерживает Web Push.</span>
+                    }
+                    else if (!_isPushConfigured)
+                    {
+                        <span class="setting-desc">Сервис уведомлений настраивается.</span>
+                    }
+                    else if (_pushSubscription.Permission == "denied")
+                    {
+                        <span class="setting-desc">Разрешите уведомления для сайта в настройках браузера.</span>
+                    }
+                </div>
+            </section>
+
             <section class="telegram-connect" aria-labelledby="telegramConnectTitle">
                 <div class="telegram-connect__head">
                     <div>
@@ -1392,6 +1428,30 @@
         @* Устройства *@
         <div class="card">
             <div class="card-head">
+                <div class="card-title">Оформление</div>
+            </div>
+            <section class="theme-palette-settings" aria-labelledby="lightPaletteTitle">
+                <div class="setting-label" id="lightPaletteTitle">Светлая тема</div>
+                <div class="setting-desc">Выберите палитру для всех кабинетов. Ночной режим остаётся «Ночной тетрадью».</div>
+                <div class="theme-palette-grid" role="radiogroup" aria-label="Палитра светлой темы">
+                    @foreach (var palette in LightPalettes)
+                    {
+                        <button class="theme-palette-option @(_selectedLightPalette == palette.Key ? "selected" : "")"
+                                style="--palette-accent:@palette.Accent;--palette-paper:@palette.Paper;"
+                                role="radio"
+                                aria-checked="@(_selectedLightPalette == palette.Key).ToString().ToLowerInvariant()"
+                                @onclick="() => SetLightPaletteAsync(palette.Key)">
+                            <span class="theme-palette-option__swatch" aria-hidden="true">
+                                <i></i><i></i><i></i>
+                            </span>
+                            <span class="theme-palette-option__name">@palette.Name</span>
+                        </button>
+                    }
+                </div>
+                <p class="theme-palette-hint">Выбор сохраняется в этом браузере и применяется сразу.</p>
+            </section>
+
+            <div class="card-head card-head--devices">
                 <div class="card-title">Устройства</div>
             </div>
             <div class="settings-group" role="list">
@@ -1473,8 +1533,16 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? RequestedTab { get; set; }
+
     // Состояние навигации
     private string _activeTab = "overview";
+    private static readonly HashSet<string> DashboardTabs = new(StringComparer.Ordinal)
+    {
+        "overview", "measurements", "alerts", "backpack", "nutrition", "ai",
+        "doctor", "profile", "articles", "support", "settings"
+    };
     private int _chartRange = 24;
     private string _measurementChartRange = "day";
     private DateTime _measurementChartFrom = MoscowNow.Date.AddDays(-6);
@@ -1484,6 +1552,7 @@
     private string? _noticeMessage;
     private UserPreferencesVm _userPreferences = new();
     private List<ChildProfileVm> _availableChildren = new();
+    private string _selectedLightPalette = "classic";
 
     // Состояние фильтров
     private string _alertFilter = "";
@@ -1505,6 +1574,16 @@
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly IReadOnlyList<(string Key, string Name)> MapProviders =
         [("yandex", "Яндекс Карты"), ("google", "Google Карты"), ("openstreetmap", "OpenStreetMap")];
+    private static readonly IReadOnlyList<LightPaletteOption> LightPalettes =
+    [
+        new("classic", "Классическая", "#1B8E8B", "#F4F7FB"),
+        new("morning-meadow", "Утренний луг", "#2C8E7E", "#F3F8F5"),
+        new("warm-paper", "Тёплая бумага", "#A96234", "#FBF5EA"),
+        new("ice-river", "Ледяная река", "#2878B9", "#F3F8FC"),
+        new("berry-notes", "Ягодные заметки", "#8A4F8C", "#F9F5FA"),
+        new("sage-clinic", "Шалфейная клиника", "#4D7B68", "#F4F7F2"),
+        new("coral-dawn", "Коралловый рассвет", "#C9615E", "#FFF7F3")
+    ];
     private readonly HashSet<Guid> _readAlertIds = [];
     private readonly HashSet<Guid> _dismissedAlertIds = [];
     private CancellationTokenSource? _refreshCts;
@@ -1614,10 +1693,17 @@
 
     private void SyncTabFromUri()
     {
-        var uri = new Uri(Navigation.Uri);
-        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        var tab = query["tab"]?.ToLowerInvariant();
-        _activeTab = string.IsNullOrEmpty(tab) ? "overview" : tab;
+        var tab = RequestedTab?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(tab))
+        {
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            tab = QueryHelpers.ParseQuery(uri.Query)
+                .TryGetValue("tab", out var values)
+                ? values.FirstOrDefault()?.Trim().ToLowerInvariant()
+                : null;
+        }
+
+        _activeTab = tab is not null && DashboardTabs.Contains(tab) ? tab : "overview";
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
@@ -2437,26 +2523,7 @@
         if (!firstRender) return;
 
         await LoadBrowserStateAsync();
-
-        try
-        {
-            var vapidPublicKey = Configuration["Vapid:PublicKey"] ?? string.Empty;
-            var apiBaseUrl = Configuration["ApiBaseUrl"] ?? string.Empty;
-            var token = await TokenStore.GetTokenAsync();
-
-            if (!string.IsNullOrEmpty(vapidPublicKey) && !string.IsNullOrEmpty(token))
-            {
-                await JS.InvokeVoidAsync(
-                    "registerPushSubscription",
-                    vapidPublicKey,
-                    apiBaseUrl,
-                    token);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Не удалось зарегистрировать Push-подписку.");
-        }
+        await LoadPushStatusAsync();
 
         _refreshCts = new CancellationTokenSource();
         _refreshTask = RunLiveRefreshAsync(_refreshCts.Token);
@@ -2517,11 +2584,96 @@
                 _parentProfile = profile;
             }
 
+            _selectedLightPalette = await JS.InvokeAsync<string>("SugarGuardTheme.getLightPalette");
+
             StateHasChanged();
         }
         catch (Exception ex) when (ex is JSException or JsonException or InvalidOperationException)
         {
             Logger.LogWarning(ex, "Не удалось загрузить локальное состояние кабинета родителя.");
+        }
+    }
+
+    private async Task SetLightPaletteAsync(string palette)
+    {
+        if (!LightPalettes.Any(option => option.Key == palette))
+        {
+            return;
+        }
+
+        try
+        {
+            _selectedLightPalette = await JS.InvokeAsync<string>("SugarGuardTheme.setLightPalette", palette);
+        }
+        catch (JSException ex)
+        {
+            Logger.LogWarning(ex, "Не удалось применить палитру светлой темы.");
+        }
+    }
+
+    private string PushStatusText => !_pushSubscription.Supported
+        ? "Не поддерживается"
+        : _pushSubscription.Subscribed
+            ? "Включены"
+            : _pushSubscription.Permission == "denied"
+                ? "Заблокированы"
+                : "Не подключены";
+
+    private async Task LoadPushStatusAsync()
+    {
+        _isPushConfigured = !string.IsNullOrWhiteSpace(Configuration["Vapid:PublicKey"])
+            && !string.IsNullOrWhiteSpace(Configuration["ApiBaseUrl"]);
+
+        try
+        {
+            _pushSubscription = await JS.InvokeAsync<PushSubscriptionStatus>("SugarGuardPush.status");
+            StateHasChanged();
+        }
+        catch (JSException exception)
+        {
+            Logger.LogWarning(exception, "Не удалось получить статус Web Push-подписки.");
+            _pushSubscription = new PushSubscriptionStatus { Supported = false, Permission = "unsupported" };
+        }
+    }
+
+    private async Task ToggleWebPushAsync()
+    {
+        if (_isPushBusy || !_pushSubscription.Supported || !_isPushConfigured)
+        {
+            return;
+        }
+
+        _isPushBusy = true;
+        try
+        {
+            var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? Navigation.BaseUri).TrimEnd('/');
+            var accessToken = await TokenStore.GetTokenAsync();
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                ShowNotice("Сессия истекла. Войдите в кабинет снова.");
+                return;
+            }
+
+            _pushSubscription = _pushSubscription.Subscribed
+                ? await JS.InvokeAsync<PushSubscriptionStatus>("SugarGuardPush.unsubscribe", apiBaseUrl, accessToken)
+                : await JS.InvokeAsync<PushSubscriptionStatus>(
+                    "SugarGuardPush.subscribe",
+                    Configuration["Vapid:PublicKey"],
+                    apiBaseUrl,
+                    accessToken);
+
+            ShowNotice(_pushSubscription.Subscribed
+                ? "Уведомления в браузере включены."
+                : "Уведомления в браузере отключены.");
+        }
+        catch (JSException exception)
+        {
+            Logger.LogWarning(exception, "Не удалось изменить Web Push-подписку.");
+            ShowNotice("Не удалось изменить настройку. Проверьте разрешения браузера.");
+        }
+        finally
+        {
+            _isPushBusy = false;
         }
     }
 
@@ -3472,6 +3624,9 @@
         new("daily-summary", "Ежедневная сводка", "В 21:00: Telegram, email и профиль ребёнка", true),
         new("email-critical", "Email-уведомления", "Дублировать критические в email", false),
     };
+    private PushSubscriptionStatus _pushSubscription = new();
+    private bool _isPushBusy;
+    private bool _isPushConfigured;
 
     private readonly List<DeviceItem> _devices = new()
     {
@@ -3772,6 +3927,19 @@
         public decimal Max { get; set; } = 10.0m;
         public decimal InsulinSensitivity { get; set; } = 2.5m;
         public decimal CarbRatio { get; set; } = 10.0m;
+    }
+
+    private sealed record LightPaletteOption(
+        string Key,
+        string Name,
+        string Accent,
+        string Paper);
+
+    private sealed class PushSubscriptionStatus
+    {
+        public bool Supported { get; init; }
+        public string Permission { get; init; } = "default";
+        public bool Subscribed { get; init; }
     }
 
     private sealed record AiDialogPair(
