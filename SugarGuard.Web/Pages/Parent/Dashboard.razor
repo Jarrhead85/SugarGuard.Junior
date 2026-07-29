@@ -190,8 +190,8 @@
     </div>
 
     @* График + Последние события *@
-    <div class="grid-2">
-        <div class="card">
+    <div class="grid-2 dashboard-overview-grid">
+        <div class="card dashboard-chart-card">
             <div class="card-head">
                 <div>
                     <div class="card-title">График глюкозы</div>
@@ -209,6 +209,7 @@
             <div class="chart-wrap" id="glucoseChartWrap">
                 <GlucoseChart Points="@_chartPoints"
                               HeightPx="200"
+                              FillAvailableHeight="true"
                               TargetMin="@((double)_targetMin)"
                               TargetMax="@((double)_targetMax)"
                               ShowHeader="false"
@@ -234,7 +235,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card dashboard-events-card">
             <div class="card-head">
                 <div>
                     <div class="card-title">Недавние события</div>
@@ -828,7 +829,7 @@
                 <div class="card-title">Контроль диалога ребёнка с ИИ</div>
                 <div class="card-sub">Запросы ребёнка, ответы GigaChat и локальные безопасные советы приложения.</div>
             </div>
-            <button class="btn btn--ghost btn--sm" type="button" @onclick="ReloadAiConversationAsync">
+            <button class="btn btn--ghost btn--sm ai-control-refresh" type="button" @onclick="ReloadAiConversationAsync">
                 Обновить
             </button>
         </div>
@@ -842,7 +843,7 @@
         }
         else
         {
-            <div class="ai-control-summary">
+            <div class="ai-control-summary" aria-label="Сводка диалогов">
                 <span>@AiDialogPairs.Count пар запрос-ответ</span>
                 <span>Страница @_aiConversationPage из @AiDialogTotalPages</span>
                 @if (!string.IsNullOrWhiteSpace(_aiConversation.Summary))
@@ -852,7 +853,7 @@
                     </span>
                 }
             </div>
-            <div class="ai-control-list" role="list">
+            <div class="ai-control-list" role="list" aria-label="Диалоги ребёнка с ИИ">
                 @foreach (var pair in PagedAiDialogPairs)
                 {
                     <article class="ai-dialog-pair" role="listitem">
@@ -883,7 +884,7 @@
                     </article>
                 }
             </div>
-            <div class="ai-control-pagination" aria-label="Страницы диалогов ИИ">
+            <nav class="ai-control-pagination" aria-label="Страницы диалогов ИИ">
                 <button class="btn btn--ghost btn--sm" type="button" @onclick="PreviousAiConversationPage" disabled="@(_aiConversationPage <= 1)">
                     ← Новее
                 </button>
@@ -891,7 +892,7 @@
                 <button class="btn btn--ghost btn--sm" type="button" @onclick="NextAiConversationPage" disabled="@(_aiConversationPage >= AiDialogTotalPages)">
                     Старее →
                 </button>
-            </div>
+            </nav>
         }
     </div>
 </div>

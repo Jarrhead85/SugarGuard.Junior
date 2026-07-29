@@ -1,0 +1,12 @@
+[Unit]
+Description=SugarGuard: периодическая проверка Telegram через Happ
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=60s
+AccuracySec=10s
+Persistent=true
+Unit=sugarguard-happ-watchdog.service
+
+[Install]
+WantedBy=timers.target

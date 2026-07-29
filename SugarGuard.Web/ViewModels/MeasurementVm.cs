@@ -9,6 +9,8 @@ public sealed class MeasurementVm
     /// <summary>Значение глюкозы (ммоль/л).</summary>
     public decimal   GlucoseValue    { get; init; }
     public DateTime  MeasurementTime { get; init; }
+    /// <summary>Момент поступления измерения на сервер.</summary>
+    public DateTime  CreatedAt       { get; init; }
     public DateTime  MeasuredAt      => MeasurementTime;
     /// <summary>UI-состояние: Normal, Warning, Danger, Critical.</summary>
     public string?   GlucoseUiState  { get; init; }

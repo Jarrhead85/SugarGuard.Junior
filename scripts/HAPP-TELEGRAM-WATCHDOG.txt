@@ -1,0 +1,95 @@
+Watchdog Happ / Telegram для домашнего Ubuntu-сервера
+=====================================================
+
+Назначение
+----------
+Watchdog раз в минуту проверяет фактический доступ к Telegram Bot API через
+локальный HTTP/SOCKS proxy Happ. Для проверки он обращается к
+https://api.telegram.org/bot без токена и ожидает штатный HTTP 404 от Telegram.
+Так проверяется именно Telegram, а токен бота, ссылка подписки и данные аккаунта
+в watchdog не попадают.
+
+При двух последовательных неудачных проверках сценарий:
+
+1. перезапускает уже существующий systemd-сервис Happ;
+2. ждёт указанную в конфигурации паузу;
+3. перезапускает sugarguard-bot.service;
+4. повторно проверяет Telegram через тот же local proxy.
+
+Между попытками восстановления действует cooldown (по умолчанию пять минут),
+чтобы не создавать бесконечный цикл перезапусков.
+
+Ограничение Happ
+----------------
+Скрипт намеренно НЕ читает подписку Happ, НЕ получает список узлов и НЕ пытается
+выбрать «следующий» сервер. Для таких действий нужен документированный
+официальный CLI/API Happ. В текущей поставке его нет, поэтому автоматический
+перебор узлов был бы ненадёжным и небезопасным. Watchdog умеет только проверить
+уже выбранный local proxy и перезапустить заранее настроенный systemd unit Happ.
+
+Подготовка Happ
+---------------
+1. Настройте Happ вручную через его штатный интерфейс и подключите подписку там.
+2. Включите local HTTP или SOCKS proxy в настройках Happ.
+3. Создайте устойчивый systemd unit, который фактически запускает Happ на сервере.
+   Название unit не зашивается в код: его нужно указать в HAPP_SERVICE.
+4. Убедитесь, что proxy работает до установки watchdog:
+
+   curl --proxy 'socks5h://127.0.0.1:РЕАЛЬНЫЙ_ПОРТ' --noproxy '' \
+     --connect-timeout 8 --max-time 15 -sS -o /dev/null -w '%{http_code}\n' \
+     https://api.telegram.org/bot
+
+   Успешная проверка должна вернуть 404. Не публикуйте в командной истории
+   подписочные ссылки, токены или пароли.
+
+Установка
+----------
+Скопируйте исходный репозиторий на домашний сервер и из его корня выполните:
+
+  sudo scripts/install-happ-telegram-watchdog.sh
+
+Первый запуск создаёт /etc/sugarguard/happ-telegram-watchdog.env и остановится,
+чтобы конфигурацию заполнили осознанно. Откройте файл с правами root и задайте:
+
+  HAPP_PROXY_URL=socks5h://127.0.0.1:РЕАЛЬНЫЙ_ПОРТ
+  HAPP_SERVICE=ИМЯ_НАСТРОЕННОГО_HAPP.service
+  BOT_SERVICE=sugarguard-bot.service
+
+HAPP_PROXY_URL принимает только loopback-адрес (127.0.0.1, localhost или ::1),
+чтобы случайно не использовать внешний proxy. Поддерживаются http, https, socks5
+и socks5h. Укажите фактический порт из Happ: сценарий не предполагает его.
+
+После редактирования:
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now sugarguard-happ-watchdog.timer
+  sudo systemctl start sugarguard-happ-watchdog.service
+
+Проверки
+--------
+
+  sudo systemctl status sugarguard-happ-watchdog.timer
+  sudo systemctl list-timers sugarguard-happ-watchdog.timer
+  sudo journalctl -u sugarguard-happ-watchdog.service -n 100 --no-pager
+  sudo cat /var/lib/sugarguard-happ-watchdog/state
+
+Проверка не должна требовать рестарта. Если Telegram доступен, в state будет:
+
+  consecutive_failures=0
+  last_check_result=healthy
+
+Если Happ использует не local proxy, а только системный туннель, не подставляйте
+выдуманный порт. Сначала включите/настройте локальный proxy в Happ либо используйте
+другой официальный и документированный способ health-check от поставщика.
+
+Удаление
+--------
+
+  sudo systemctl disable --now sugarguard-happ-watchdog.timer
+  sudo rm -f /etc/systemd/system/sugarguard-happ-watchdog.service
+  sudo rm -f /etc/systemd/system/sugarguard-happ-watchdog.timer
+  sudo systemctl daemon-reload
+
+Конфигурация /etc/sugarguard/happ-telegram-watchdog.env и состояние в
+/var/lib/sugarguard-happ-watchdog удаляются только вручную, если они больше не
+нужны.

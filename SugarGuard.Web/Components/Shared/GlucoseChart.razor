@@ -9,7 +9,7 @@
 
 @inject IJSRuntime JS
 
-<div class="gc-wrapper">
+<div class="gc-wrapper @(FillAvailableHeight ? "gc-wrapper--fill" : string.Empty)">
 
     @* Шапка: заголовок + TIR-бейдж + переключатель периода  *@
     @if (ShowHeader)
@@ -46,7 +46,7 @@
     }
 
     @* Canvas-контейнер *@
-    <div class="gc-canvas-wrap" style="height: @(HeightPx)px;">
+    <div class="gc-canvas-wrap" style="@CanvasHeightStyle">
 
         @if (IsLoading)
         {
@@ -76,7 +76,7 @@
                     id="@_chartId"
                     aria-label="График уровня глюкозы"
                     role="img"
-                    style="width: 100%; height: @(HeightPx)px;">
+                    style="@CanvasStyle">
             </canvas>
         }
 
@@ -110,6 +110,9 @@
    
     [Parameter]
     public int HeightPx { get; set; } = 200; // Высота canvas в пикселях
+
+    [Parameter]
+    public bool FillAvailableHeight { get; set; }
    
     [Parameter]
     public double TargetMin { get; set; } = 4.0; // Нижняя граница целевого диапазона нормы
@@ -153,6 +156,14 @@
     private readonly string[] _periods = ["24ч", "7д", "30д"]; // Доступные периоды для переключателя
    
     private string _selectedPeriod = "24ч"; // Текущий выбранный период
+
+    private string CanvasHeightStyle => FillAvailableHeight
+        ? "height: 100%;"
+        : $"height: {HeightPx}px;";
+
+    private string CanvasStyle => FillAvailableHeight
+        ? "width: 100%; height: 100%;"
+        : $"width: 100%; height: {HeightPx}px;";
 
     // Жизненный цикл
     /// <inheritdoc/>

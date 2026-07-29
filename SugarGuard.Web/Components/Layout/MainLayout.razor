@@ -4,11 +4,13 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
+@using System.Text.Json
 @inject NavigationManager Navigation
 @inject JwtAuthStateProvider AuthProvider
 @inject ICurrentUserService CurrentUser
 @inject IJSRuntime JS
 @inject SugarGuardApiService Api
+@inject ILogger<MainLayout> Logger
 
 <div class="app-shell @PortalClass @(sidebarOpen ? "sidebar-open" : "")" @onclick="CloseNotifications">
 
@@ -435,6 +437,9 @@
     private readonly SemaphoreSlim sidebarDataGate = new(1, 1);
     private CancellationTokenSource? sidebarRefreshCts;
     private Task? sidebarRefreshTask;
+    private readonly Dictionary<string, DateTime> measurementSeenAtByChild = new(StringComparer.OrdinalIgnoreCase);
+    private bool measurementSeenStateLoaded;
+    private string? measurementSeenStorageKey;
     private int unreadCount => notifications.Count(n => n.IsUnread);
     private bool HasUnread => unreadCount > 0;
     private string PortalClass => GetPortalClass(Navigation.Uri);
@@ -640,7 +645,16 @@
                         child.ChildId,
                         DateTime.UtcNow.AddHours(-1),
                         DateTime.UtcNow);
-                    measurementsCount = IsParentMeasurementsTab(child.ChildId) ? 0 : recentMeasurements.Count;
+                    if (IsParentMeasurementsTab(child.ChildId))
+                    {
+                        await MarkMeasurementsViewedAsync(child.ChildId);
+                    }
+
+                    var seenAt = await GetMeasurementsSeenAtAsync(child.ChildId);
+                    measurementsCount = MeasurementUnreadCounter.Count(
+                        recentMeasurements,
+                        seenAt,
+                        DateTime.UtcNow);
                     glucoseClass = summary.LatestGlucoseUiState switch
                     {
                         "Critical" or "Danger" => "danger",
@@ -929,6 +943,82 @@
 
         var selectedChildId = GetParentChildIdFromUri();
         return !selectedChildId.HasValue || selectedChildId.Value == childId;
+    }
+
+    private async Task<DateTime?> GetMeasurementsSeenAtAsync(Guid childId)
+    {
+        await EnsureMeasurementSeenStateLoadedAsync();
+        return measurementSeenAtByChild.TryGetValue(childId.ToString("D"), out var seenAt)
+            ? seenAt
+            : null;
+    }
+
+    private async Task MarkMeasurementsViewedAsync(Guid childId)
+    {
+        await EnsureMeasurementSeenStateLoadedAsync();
+
+        measurementSeenAtByChild[childId.ToString("D")] = DateTime.UtcNow;
+        try
+        {
+            var storageKey = await GetMeasurementSeenStorageKeyAsync();
+            await JS.InvokeVoidAsync(
+                "localStorage.setItem",
+                storageKey,
+                JsonSerializer.Serialize(measurementSeenAtByChild));
+        }
+        catch (JSException exception)
+        {
+            Logger.LogDebug(exception, "Не удалось сохранить отметку просмотра измерений в браузере.");
+        }
+    }
+
+    private async Task EnsureMeasurementSeenStateLoadedAsync()
+    {
+        if (measurementSeenStateLoaded)
+        {
+            return;
+        }
+
+        measurementSeenStateLoaded = true;
+        try
+        {
+            var storageKey = await GetMeasurementSeenStorageKeyAsync();
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", storageKey);
+            var state = string.IsNullOrWhiteSpace(stored)
+                ? null
+                : JsonSerializer.Deserialize<Dictionary<string, DateTime>>(stored);
+
+            if (state is null)
+            {
+                return;
+            }
+
+            foreach (var (childId, seenAt) in state)
+            {
+                if (Guid.TryParse(childId, out _) && seenAt > DateTime.MinValue)
+                {
+                    measurementSeenAtByChild[childId] = seenAt;
+                }
+            }
+        }
+        catch (Exception exception) when (exception is JSException or JsonException or InvalidOperationException)
+        {
+            Logger.LogDebug(exception, "Не удалось загрузить отметки просмотра измерений из браузера.");
+        }
+    }
+
+    private async Task<string> GetMeasurementSeenStorageKeyAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(measurementSeenStorageKey))
+        {
+            return measurementSeenStorageKey;
+        }
+
+        var userId = await CurrentUser.GetUserIdAsync();
+        measurementSeenStorageKey = userId.HasValue
+            ? $"sugarguard.parent.measurements.seen.v1.{userId.Value:D}"
+            : "sugarguard.parent.measurements.seen.v1";
+        return measurementSeenStorageKey;
     }
 
     private void NavigateToParentChild(Guid childId)
