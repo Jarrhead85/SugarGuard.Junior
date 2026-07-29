@@ -58,12 +58,16 @@ target="/opt/sugarguard/bot"
 backup_dir="/opt/sugarguard/backups"
 package="$remotePackage"
 timestamp="$timestamp"
+config_backup="/tmp/sugarguard-bot-appsettings-`$timestamp.json"
 
 sudo mkdir -p "`$backup_dir"
 sudo systemctl stop sugarguard-bot.service
 
 if [ -d "`$target" ]; then
     sudo tar -C "`$(dirname "`$target")" -czf "`$backup_dir/bot-`$timestamp.tar.gz" "`$(basename "`$target")"
+    if [ -f "`$target/appsettings.json" ]; then
+        sudo cp "`$target/appsettings.json" "`$config_backup"
+    fi
 fi
 
 sudo rm -rf "`${target}.new" "`${target}.old"
@@ -78,6 +82,12 @@ fi
 
 sudo mv "`${target}.new" "`$target"
 
+if [ -f "`$config_backup" ]; then
+    sudo mv "`$config_backup" "`$target/appsettings.json"
+    sudo chown sugarguard:sugarguard "`$target/appsettings.json"
+    sudo chmod 600 "`$target/appsettings.json"
+fi
+
 if ! sudo systemctl start sugarguard-bot.service || ! sudo systemctl is-active --quiet sugarguard-bot.service; then
     sudo systemctl stop sugarguard-bot.service || true
     sudo rm -rf "`$target"
@@ -90,6 +100,7 @@ fi
 
 sudo rm -rf "`${target}.old"
 sudo rm -f "`$package"
+sudo rm -f "`$config_backup"
 sudo systemctl --no-pager --full status sugarguard-bot.service | sed -n '1,45p'
 "@
 
