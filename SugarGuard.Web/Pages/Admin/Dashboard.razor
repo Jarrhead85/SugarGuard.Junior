@@ -111,21 +111,23 @@
                     }
                     else
                     {
-                        <svg class="admin-growth-chart" viewBox="0 0 120 90" role="img" aria-label="@ChartAriaLabel">
-                            <defs>
-                                <linearGradient id="adminGrowthFill" x1="0" x2="0" y1="0" y2="1">
-                                    <stop offset="0%" stop-color="var(--admin-primary)" stop-opacity=".24" />
-                                    <stop offset="100%" stop-color="var(--admin-primary)" stop-opacity=".02" />
-                                </linearGradient>
-                            </defs>
-                            <path d="@GrowthAreaPath" fill="url(#adminGrowthFill)" />
-                            <polyline points="@GrowthPolyline" fill="none" stroke="var(--admin-blue)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-                            <circle cx="@LastPoint.X.ToString(CultureInfo.InvariantCulture)" cy="@LastPoint.Y.ToString(CultureInfo.InvariantCulture)" r="2.6" fill="var(--admin-blue)" />
-                            @foreach (var line in GridLines)
-                            {
-                                <line x1="10" x2="112" y1="@line.ToString(CultureInfo.InvariantCulture)" y2="@line.ToString(CultureInfo.InvariantCulture)" stroke="var(--admin-line)" />
-                            }
-                        </svg>
+                        <div class="admin-growth-plot">
+                            <svg class="admin-growth-chart" viewBox="0 0 120 90" preserveAspectRatio="none" role="img" aria-label="@ChartAriaLabel">
+                                <defs>
+                                    <linearGradient id="adminGrowthFill" x1="0" x2="0" y1="0" y2="1">
+                                        <stop offset="0%" stop-color="var(--admin-primary)" stop-opacity=".24" />
+                                        <stop offset="100%" stop-color="var(--admin-primary)" stop-opacity=".02" />
+                                    </linearGradient>
+                                </defs>
+                                @foreach (var line in GridLines)
+                                {
+                                    <line x1="10" x2="112" y1="@line.ToString(CultureInfo.InvariantCulture)" y2="@line.ToString(CultureInfo.InvariantCulture)" stroke="var(--admin-line)" vector-effect="non-scaling-stroke" />
+                                }
+                                <path d="@GrowthAreaPath" fill="url(#adminGrowthFill)" />
+                                <polyline points="@GrowthPolyline" fill="none" stroke="var(--admin-blue)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+                            </svg>
+                            <span class="admin-growth-marker" style="@LastPointMarkerStyle" aria-hidden="true"></span>
+                        </div>
                         <div class="admin-chart-labels">
                             @foreach (var point in GrowthPoints)
                             {
@@ -352,6 +354,8 @@
         ? string.Empty
         : $"M {GrowthPolyline} L {GrowthPoints[^1].X.ToString(CultureInfo.InvariantCulture)},86 L {GrowthPoints[0].X.ToString(CultureInfo.InvariantCulture)},86 Z";
     private GrowthPoint LastPoint => GrowthPoints.Count == 0 ? new GrowthPoint("—", 112, 82, 0) : GrowthPoints[^1];
+
+    private string LastPointMarkerStyle => $"left:{(LastPoint.X / 120d * 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;top:{(LastPoint.Y / 90d * 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;";
 
     private void SetChartMode(string mode)
     {
@@ -970,10 +974,27 @@
         background: color-mix(in srgb, var(--admin-panel-strong) 68%, transparent);
     }
 
+    .admin-growth-plot {
+        position: relative;
+        height: 160px;
+    }
+
     .admin-growth-chart {
         width: 100%;
-        height: 160px;
+        height: 100%;
         display: block;
+    }
+
+    .admin-growth-marker {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border: 2px solid var(--admin-panel-strong);
+        border-radius: 50%;
+        background: var(--admin-blue);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-blue) 24%, transparent);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
     }
 
     .admin-chart-labels {
@@ -982,7 +1003,7 @@
         color: var(--admin-faint);
         font-size: 12px;
         font-weight: 800;
-        padding: 0 8px;
+        padding: 0 10%;
     }
 
     .admin-role-bars {
