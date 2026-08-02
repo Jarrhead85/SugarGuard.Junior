@@ -3,7 +3,7 @@ param(
     [string]$User = "ubuntuuser",
     [string]$KeyPath = "$env:USERPROFILE\.ssh\sugarguard_vds_ed25519",
     [ValidatePattern("^\d+\.\d+(\.\d+)?$")]
-    [string]$Version = "1.10",
+    [string]$Version = "1.11",
     [string]$ReleaseNotes = "Ночной инсулин, надёжная доставка уведомлений Telegram и локальное время ребёнка в сообщениях."
 )
 

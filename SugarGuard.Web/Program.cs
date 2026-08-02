@@ -114,10 +114,42 @@ builder.Services.AddLocalization(options => options.ResourcesPath = "Resources")
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ExportDownloadStore>();
 
+// Публичная ссылка на APK всегда получает актуальный адрес из API,
+// поэтому лендинг не нужно изменять при каждом выпуске мобильного приложения.
+builder.Services.AddHttpClient("SugarGuardMobileRelease", client =>
+{
+    var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // -----------------------------------------------------------------------
 // Сборка приложения
 // -----------------------------------------------------------------------
 var app = builder.Build();
+
+app.MapGet("/downloads/android", async (IHttpClientFactory httpClientFactory, ILogger<Program> logger, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var client = httpClientFactory.CreateClient("SugarGuardMobileRelease");
+        var release = await client.GetFromJsonAsync<MobileAppRelease>("api/mobile-app/version", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(release?.DownloadUrl)
+            && Uri.TryCreate(release.DownloadUrl, UriKind.Absolute, out var downloadUri)
+            && string.Equals(downloadUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Redirect(downloadUri.ToString(), permanent: false);
+        }
+    }
+    catch (Exception exception)
+    {
+        logger.LogWarning(exception, "Не удалось получить актуальную ссылку на Android-приложение");
+    }
+
+    return Results.Problem(
+        title: "Не удалось получить актуальную версию приложения",
+        statusCode: StatusCodes.Status503ServiceUnavailable);
+});
 
 // -----------------------------------------------------------------------
 // Локализация middleware
@@ -247,3 +279,5 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+internal sealed record MobileAppRelease(string DownloadUrl);
