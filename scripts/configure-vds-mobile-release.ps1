@@ -3,7 +3,7 @@ param(
     [string]$User = "ubuntuuser",
     [string]$KeyPath = "$env:USERPROFILE\.ssh\sugarguard_vds_ed25519",
     [ValidatePattern("^\d+\.\d+(\.\d+)?$")]
-    [string]$Version = "1.12",
+    [string]$Version = "1.13",
     [string]$ReleaseNotes
 )
 

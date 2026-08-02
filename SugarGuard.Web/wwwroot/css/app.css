@@ -472,6 +472,106 @@ select {
     border-top-color: var(--color-divider);
 }
 
+/* --------------------------------------------------------------------------
+   UI Kit 3.0 — завершающий слой единообразия рабочих кабинетов
+   --------------------------------------------------------------------------
+   Исторические страницы использовали собственные градиенты, размеры кнопок и
+   фиксированные контейнеры. Этот слой сохраняет структуру страниц, но делает
+   интерактивные элементы, панели и таблицы частью единого интерфейса. */
+
+.app-shell {
+    --control-height: 44px;
+    --control-height-compact: 36px;
+}
+
+.app-shell :is(.btn, .doctor-btn, .admin-btn, .queue-button, .security-button, .doctor-context-link) {
+    min-height: var(--control-height);
+    font-family: var(--font-body);
+    font-weight: 700;
+    line-height: 1.2;
+    transition: transform var(--transition-fast), background-color var(--transition-interactive), color var(--transition-interactive), border-color var(--transition-interactive), box-shadow var(--transition-interactive);
+}
+
+.app-shell :is(.btn--sm, .doctor-btn--sm, .admin-btn--sm, .btn-sm) {
+    min-height: var(--control-height-compact);
+}
+
+.app-shell :is(.btn--primary, .doctor-btn--primary, .admin-btn--primary) {
+    background: var(--color-primary) !important;
+    color: var(--color-text-inverse) !important;
+    box-shadow: 0 8px 18px color-mix(in oklab, var(--color-primary) 22%, transparent);
+}
+
+.app-shell :is(.btn--primary, .doctor-btn--primary, .admin-btn--primary):hover:not(:disabled) {
+    background: var(--color-primary-hover) !important;
+    transform: translateY(-1px);
+}
+
+.app-shell :is(.btn--soft, .doctor-btn--soft, .admin-btn--soft) {
+    border-color: color-mix(in oklab, var(--color-primary) 22%, var(--color-border));
+    background: var(--color-primary-soft) !important;
+    color: var(--color-primary) !important;
+}
+
+.app-shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: var(--control-height);
+    border-color: var(--input-border-color, var(--color-border));
+    border-radius: var(--radius-md);
+    background: var(--color-surface-2);
+    color: var(--color-text);
+}
+
+.app-shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+    color: var(--color-text-faint);
+    opacity: 1;
+}
+
+.app-shell :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 16%, transparent);
+    outline: none;
+}
+
+.app-shell :is(.doctor-dashboard, .doctor-portal, .doctor-simple-page, .doctor-report-page, .doctor-notes-index, .doctor-profile-page, .doctor-articles, .sg-cohort, .admin-dashboard-v2, .admin-work-queue, .admin-audit-page, .admin-users-page, .requests-page, .admin-security-overview, .admin-ops-page, .admin-faq-page, .admin-security-page, .system-stats-page, .link-manager-page) {
+    width: 100%;
+    max-width: none;
+}
+
+.app-shell :is(.doctor-kpi-grid, .doctor-report-kpis, .doctor-risk-grid, .admin-kpi-row, .admin-server-summary, .queue-stats, .security-stats) {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.app-shell :is(.doctor-table-card, .doctor-report-table-card, .admin-table-wrap, .sg-table-wrap, .table-wrap) {
+    min-width: 0;
+    max-width: 100%;
+    overscroll-behavior-inline: contain;
+}
+
+.app-shell :is(.doctor-table-card, .doctor-report-table-card, .admin-table-wrap, .sg-table-wrap, .table-wrap)::-webkit-scrollbar {
+    height: 10px;
+}
+
+.app-shell :is(.doctor-table-card, .doctor-report-table-card, .admin-table-wrap, .sg-table-wrap, .table-wrap)::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: var(--radius-full);
+    background: var(--color-text-faint);
+    background-clip: padding-box;
+}
+
+@media (max-width: 700px) {
+    .app-shell :is(.btn, .doctor-btn, .admin-btn, .queue-button, .security-button, .doctor-context-link) {
+        min-height: 44px;
+    }
+
+    .app-shell :is(.doctor-hero, .admin-hero, .doctor-hero-actions, .admin-title-row) {
+        min-width: 0;
+    }
+
+    .app-shell :is(.doctor-hero-actions, .admin-hero) {
+        align-items: stretch;
+    }
+}
+
 /* Токенизированный слой для разделов врача. Он устраняет оставшиеся жёсткие
    цвета старого дашборда и сохраняет единый вид во всех палитрах. */
 .app-shell--doctor .sg-cohort-kpi,

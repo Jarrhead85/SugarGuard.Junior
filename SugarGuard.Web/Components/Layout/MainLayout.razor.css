@@ -528,17 +528,13 @@
 /* Единая горизонтальная навигация, повторяющая вкладки кабинета родителя. */
 .portal-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
+    row-gap: 4px;
     padding: 12px 20px 0;
     border-bottom: 1px solid var(--color-divider);
     background: var(--color-surface);
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.portal-tabs::-webkit-scrollbar {
-    display: none;
+    overflow: visible;
 }
 
 .portal-tab {
@@ -546,7 +542,7 @@
     bottom: -1px;
     display: inline-flex;
     align-items: center;
-    min-height: 40px;
+    min-height: 44px;
     padding: 9px 16px;
     border: 1px solid transparent;
     border-bottom: 0;
@@ -554,8 +550,8 @@
     color: var(--color-text-muted);
     background: transparent;
     font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
     line-height: 1.2;
     text-decoration: none;
     white-space: nowrap;
@@ -576,13 +572,28 @@
 
 @media (max-width: 700px) {
     .portal-tabs {
-        padding: 8px 12px 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px;
+        border-bottom: 0;
     }
 
     .portal-tab {
-        min-height: 38px;
-        padding: 8px 12px;
-        font-size: 13px;
+        min-height: 44px;
+        justify-content: center;
+        padding: 9px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-full);
+        background: var(--color-surface);
+        font-size: var(--font-size-sm);
+        text-align: center;
+        white-space: normal;
+    }
+
+    .portal-tab.active {
+        border-color: color-mix(in oklab, var(--color-primary) 34%, var(--color-border));
+        background: var(--color-primary-soft);
     }
 }
 
@@ -1184,7 +1195,7 @@
     }
 
     .topbar {
-        gap: var(--space-10);
+        gap: var(--space-8);
         padding: 0 var(--space-16);
     }
 
@@ -1197,7 +1208,27 @@
     }
 
     .topbar-page-sub {
-        font-size: 12px;
+        display: none;
+    }
+
+    .icon-btn,
+    .topbar-burger {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+    }
+
+    .notif-dropdown {
+        position: fixed;
+        top: calc(var(--nav-height) + var(--space-8));
+        right: var(--space-12);
+        left: var(--space-12);
+        width: auto;
+        max-height: min(560px, calc(100dvh - var(--nav-height) - var(--space-24)));
+    }
+
+    .notif-dropdown-list {
+        max-height: calc(100dvh - var(--nav-height) - 130px);
     }
 
     .app-shell--admin .page-content {

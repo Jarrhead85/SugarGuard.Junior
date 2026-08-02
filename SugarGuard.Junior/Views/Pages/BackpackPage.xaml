@@ -45,13 +45,13 @@
                         <Image Grid.Row="1" Grid.Column="1" Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" Margin="4" />
                         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*,*,*" ColumnSpacing="7">
                             <Border Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
-                                <Label Text="{Binding TotalBreadUnitsText}" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
+                                <Label Text="{Binding TotalBreadUnitsText}" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" HorizontalTextAlignment="Center" />
                             </Border>
                             <Border Grid.Column="1" Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
-                                <Label Text="{Binding SnackCount, StringFormat='{}{0} шт.'}" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
+                                <Label Text="{Binding SnackCount, StringFormat='{}{0} шт.'}" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" HorizontalTextAlignment="Center" />
                             </Border>
                             <Border Grid.Column="2" Padding="8" StrokeThickness="0" BackgroundColor="#DBFFFFFF" StrokeShape="RoundRectangle 15">
-                                <Label Text="{Binding ConsumedToday, StringFormat='Съедено {0:F1}'}" FontSize="12" FontAttributes="Bold" TextColor="#16213E" HorizontalTextAlignment="Center" />
+                                <Label Text="{Binding ConsumedToday, StringFormat='Съедено {0:F1}'}" FontSize="13" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}" HorizontalTextAlignment="Center" />
                             </Border>
                         </Grid>
                     </Grid>
@@ -112,9 +112,9 @@
                                     BackgroundColor="{DynamicResource Primary}" TextColor="White" FontAttributes="Bold"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.ConsumeSnackCommand}"
                                     CommandParameter="{Binding .}" />
-                            <Button Text="Удалить" HeightRequest="30" Padding="8,2" CornerRadius="12"
-                                    Style="{StaticResource GhostButton}" TextColor="{DynamicResource Danger}"
-                                    FontSize="11" BorderColor="{DynamicResource DangerSoft}" BorderWidth="1"
+                            <Button Text="Удалить" HeightRequest="44" Padding="12,4" CornerRadius="12"
+                                    SemanticProperties.Description="Удалить позицию из рюкзака" Style="{StaticResource GhostButton}" TextColor="{DynamicResource Danger}"
+                                    FontSize="13" BorderColor="{DynamicResource DangerSoft}" BorderWidth="1"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"
                                     CommandParameter="{Binding BackpackItemId}" />
                         </VerticalStackLayout>

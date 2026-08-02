@@ -49,18 +49,18 @@
     /** Основной текст */
     --color-text: #16213E;
     /** Вспомогательный текст, подписи */
-    --color-text-muted: #667694;
+    --color-text-muted: #566784;
     /** Едва заметный текст (placeholder, timestamp) */
-    --color-text-faint: #96A2B8;
+    --color-text-faint: #7889A1;
     /** Текст на тёмных фонах (кнопки, badge) */
     --color-text-inverse: #FFFFFF;
     /* ——— Основной акцент ——— */
     /** Primary — CTA, активные элементы, иконки */
-    --color-primary: #1B8E8B;
+    --color-primary: #087A78;
     /** Primary hover / pressed */
-    --color-primary-hover: #156e6c;
+    --color-primary-hover: #066563;
     /** Primary active (pressed) */
-    --color-primary-active: #0f5150;
+    --color-primary-active: #054d4b;
     /** PrimaryStrong — hover highlight светлый */
     --color-primary-strong: #56D0BF;
     /** PrimaryAlt — вторичный акцент (графики, теги) */
@@ -70,11 +70,11 @@
     /* ——— Глюкоза — семантические цвета ——— */
     /* Источник истины: SugarGuard.Shared.GlucoseLevels */
     /** Норма (4.0–10.0 ммоль/л) */
-    --color-glucose-normal: #37A563;
+    --color-glucose-normal: #216E43;
     /** Внимание (3.0–3.9 и 10.1–13.9 ммоль/л) */
-    --color-glucose-warning: #E3A32B;
+    --color-glucose-warning: #8B5C00;
     /** Опасность (< 3.0 и ≥ 14.0 ммоль/л) */
-    --color-glucose-danger: #DB5967;
+    --color-glucose-danger: #A43846;
     /* ——— Статус (State Banner) ——— */
     /** Полоса синхронизации / ожидание */
     --color-state-sync: var(--color-primary-alt);
@@ -220,16 +220,13 @@
     --spacing-40: 40px;
     --spacing-48: 48px;
     --spacing-64: 64px;
-    /* Алиасы для удобства в компонентах */
-    --spacing-1: 4px; /* spacing-4  */
-    --spacing-2: 8px; /* spacing-8  */
-    --spacing-3: 12px; /* spacing-12 */
-    --spacing-4: 16px; /* spacing-16 — ВНИМАНИЕ: конфликт с --spacing-4 выше!
-                           Используй явные имена --spacing-16 в новом коде.
-                           Этот алиас — только для совместимости с app.css §6 */
-    --spacing-5: 20px; /* spacing-20 */
-    --spacing-6: 24px; /* spacing-24 */
-    --spacing-8: 32px; /* spacing-32 */
+    /* Алиасы для исторических компонентов. Имена --spacing-N означают
+       шаг шкалы, тогда как --spacing-XX выше означают пиксели. */
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-5: 20px;
+    --spacing-6: 24px;
     /* ——— Border Radius ——— */
     /* Источник: UIKit §4 */
     /** Мелкие элементы: инпуты, кнопки маленькие */
