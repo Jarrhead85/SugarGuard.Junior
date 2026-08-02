@@ -33,6 +33,11 @@ public sealed class GigaChatUsageVm
     public IReadOnlyList<GigaChatChildUsageVm> Children { get; init; } = [];
 
     /// <summary>
+    /// Расход токенов по версиям системной инструкции.
+    /// </summary>
+    public IReadOnlyList<GigaChatPromptVersionUsageVm> PromptVersions { get; init; } = [];
+
+    /// <summary>
     /// Месячный лимит токенов, если задан в конфигурации.
     /// </summary>
     public int? MonthlyTokenBudget { get; init; }
@@ -57,6 +62,7 @@ public sealed class GigaChatUsageVm
         Month = GigaChatUsagePeriodVm.FromDto(dto.Month),
         AllTime = GigaChatUsagePeriodVm.FromDto(dto.AllTime),
         Children = dto.Children.Select(GigaChatChildUsageVm.FromDto).ToArray(),
+        PromptVersions = dto.PromptVersions.Select(GigaChatPromptVersionUsageVm.FromDto).ToArray(),
         MonthlyTokenBudget = dto.MonthlyTokenBudget,
         MonthlyTokensRemaining = dto.MonthlyTokensRemaining
     };
@@ -97,6 +103,34 @@ public sealed class GigaChatChildUsageVm
 }
 
 /// <summary>
+/// Расход токенов одной версии системной инструкции.
+/// </summary>
+public sealed class GigaChatPromptVersionUsageVm
+{
+    /// <summary>
+    /// Версия инструкции.
+    /// </summary>
+    public string PromptVersion { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Расход за текущий месяц.
+    /// </summary>
+    public GigaChatUsagePeriodVm Month { get; init; } = new();
+
+    /// <summary>
+    /// Расход за всё время.
+    /// </summary>
+    public GigaChatUsagePeriodVm AllTime { get; init; } = new();
+
+    internal static GigaChatPromptVersionUsageVm FromDto(GigaChatPromptVersionUsageDto dto) => new()
+    {
+        PromptVersion = dto.PromptVersion,
+        Month = GigaChatUsagePeriodVm.FromDto(dto.Month),
+        AllTime = GigaChatUsagePeriodVm.FromDto(dto.AllTime)
+    };
+}
+
+/// <summary>
 /// Расход токенов GigaChat за один период.
 /// </summary>
 public sealed class GigaChatUsagePeriodVm
@@ -117,6 +151,16 @@ public sealed class GigaChatUsagePeriodVm
     public int OutputTokens { get; init; }
 
     /// <summary>
+    /// Токены, обслуженные GigaChat из кэша контекста.
+    /// </summary>
+    public int PrecachedPromptTokens { get; init; }
+
+    /// <summary>
+    /// Число ответов, заменённых локальной политикой безопасности.
+    /// </summary>
+    public int SafetyPolicyReplacements { get; init; }
+
+    /// <summary>
     /// Общий расход токенов.
     /// </summary>
     public int TotalTokens { get; init; }
@@ -126,6 +170,8 @@ public sealed class GigaChatUsagePeriodVm
         ResponsesWithUsage = dto.ResponsesWithUsage,
         InputTokens = dto.InputTokens,
         OutputTokens = dto.OutputTokens,
+        PrecachedPromptTokens = dto.PrecachedPromptTokens,
+        SafetyPolicyReplacements = dto.SafetyPolicyReplacements,
         TotalTokens = dto.TotalTokens
     };
 }

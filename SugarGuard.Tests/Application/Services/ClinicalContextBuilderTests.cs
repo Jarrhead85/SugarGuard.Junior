@@ -114,6 +114,54 @@ public sealed class ClinicalContextBuilderTests
         Assert.Contains("не могу", result.SafeText);
     }
 
+    [Fact]
+    public async Task BuildAsync_BuildsDayPartPatternsInChildLocalTimeZone()
+    {
+        var factory = new TestAppDbContextFactory(Guid.NewGuid().ToString("N"));
+        var child = CreateChild("timezone@example.test");
+        var localMorningMeasurements = Enumerable.Range(1, 12)
+            .Select(dayOffset => new Measurement
+            {
+                ChildId = child.ChildId,
+                GlucoseValue = 12m,
+                // 05:00 UTC is 08:00 in Europe/Moscow and must be classified as morning.
+                MeasurementTime = DateTime.UtcNow.Date.AddDays(-dayOffset).AddHours(5),
+                DataSource = "test"
+            })
+            .ToArray();
+
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Children.Add(child);
+            db.DiabetesSettings.Add(new DiabetesSettings
+            {
+                ChildId = child.ChildId,
+                TargetRangeMin = 4m,
+                TargetRangeMax = 10m
+            });
+            db.Measurements.AddRange(localMorningMeasurements);
+            await db.SaveChangesAsync();
+        }
+
+        var builder = new ClinicalContextBuilder(
+            factory,
+            Options.Create(new AiClinicalContextOptions
+            {
+                PatternPeriodDays = 14
+            }));
+
+        var context = await builder.BuildAsync(
+            child.ChildId,
+            null,
+            null,
+            "Проверь динамику",
+            CancellationToken.None);
+
+        Assert.Contains(
+            context.LongTermPatterns.Observations,
+            observation => observation.Contains("утром", StringComparison.Ordinal));
+    }
+
     private static Child CreateChild(string marker) => new()
     {
         ChildId = Guid.NewGuid(),

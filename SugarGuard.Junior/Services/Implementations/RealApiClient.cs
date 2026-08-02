@@ -240,7 +240,17 @@ public class RealApiClient : IApiClient
         // JWT-заголовок добавляется автоматически через JwtAuthorizationHandler
         var res = await _httpClient.PostAsJsonAsync("api/auth/refresh", new { refreshToken }, JsonOptions);
         if (!res.IsSuccessStatusCode)
-            return new LoginResponse { Success = false };
+        {
+            // Только 400/401 означают, что сервер смог обработать запрос и
+            // отклонил сам refresh-токен. Ошибка 5xx/429 или сетевая ошибка
+            // не должны выбрасывать ребёнка из офлайн-приложения.
+            return new LoginResponse
+            {
+                Success = false,
+                IsRefreshTokenRejected = res.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized,
+                ErrorMessage = $"Ошибка обновления сессии: {(int)res.StatusCode}."
+            };
+        }
 
         var data = await res.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions);
         return data ?? new LoginResponse { Success = false };

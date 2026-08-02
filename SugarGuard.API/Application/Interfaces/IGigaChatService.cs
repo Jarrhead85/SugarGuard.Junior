@@ -93,6 +93,12 @@ public class GigaChatRequest
     /// Структурированный обезличенный контекст для AI.
     /// </summary>
     public string? StructuredContextJson { get; set; }
+
+    /// <summary>
+    /// Идентификатор диалога SugarGuard. Используется только как непрозрачный
+    /// идентификатор сессии провайдера и не содержит персональных данных.
+    /// </summary>
+    public Guid? ConversationId { get; set; }
 }
 
 /// <summary>
@@ -128,4 +134,14 @@ public class GigaChatResponse
     /// Общее число токенов, если провайдер вернул usage.
     /// </summary>
     public int? TotalTokens { get; set; }
+
+    /// <summary>
+    /// Число входных токенов, использованных из кэша контекста GigaChat.
+    /// </summary>
+    public int? PrecachedPromptTokens { get; set; }
+
+    /// <summary>
+    /// Версия системной инструкции, использованная для ответа провайдера.
+    /// </summary>
+    public string? PromptVersion { get; set; }
 }

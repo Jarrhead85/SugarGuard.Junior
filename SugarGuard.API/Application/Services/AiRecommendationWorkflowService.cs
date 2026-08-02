@@ -7,7 +7,6 @@ using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
 using SugarGuard.Domain.Entities;
 using SugarGuard.Domain.Enums;
-using SugarGuard.Shared.Constants;
 
 namespace SugarGuard.API.Application.Services;
 
@@ -66,22 +65,6 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
             throw new UnauthorizedAccessException("Нет доступа к ребёнку.");
         }
 
-        var canUseCache = request.GlucoseValue >= (decimal)GlucoseLevels.TargetRangeMin
-            && request.GlucoseValue <= (decimal)GlucoseLevels.TargetRangeMax;
-
-        if (!request.ForceNew && canUseCache && string.IsNullOrWhiteSpace(request.Question))
-        {
-            var cached = await _recommendationService.FindCachedRecommendationAsync(
-                request.ChildId,
-                request.GlucoseValue,
-                cancellationToken);
-
-            if (cached is not null)
-            {
-                return MapToResponse(cached, isFromCache: true);
-            }
-        }
-
         var conversation = await FindOrCreateConversationAsync(
             request.ChildId,
             request.ConversationId,
@@ -133,6 +116,7 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
 
             gigaChatRequest.Question = question;
             gigaChatRequest.StructuredContextJson = contextJson;
+            gigaChatRequest.ConversationId = conversation.ConversationId;
 
             gigaChatResponse = await _gigaChatService.GetRecommendationAsync(gigaChatRequest, cancellationToken);
             var postCheck = _safetyPolicy.EvaluateAfterModel(context, gigaChatResponse.RecommendationText);
@@ -179,6 +163,8 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
         response.InputTokens = gigaChatResponse.InputTokens;
         response.OutputTokens = gigaChatResponse.OutputTokens;
         response.TotalTokens = gigaChatResponse.TotalTokens;
+        response.PrecachedPromptTokens = gigaChatResponse.PrecachedPromptTokens;
+        response.PromptVersion = gigaChatResponse.PromptVersion;
         return response;
     }
 
@@ -327,6 +313,8 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
             Model = response.ModelUsed,
             InputTokens = response.InputTokens,
             OutputTokens = response.OutputTokens,
+            PrecachedPromptTokens = response.PrecachedPromptTokens,
+            PromptVersion = response.PromptVersion,
             SafetyResult = safetyResult
         });
 

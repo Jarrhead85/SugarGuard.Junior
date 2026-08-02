@@ -177,7 +177,7 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
                     .ToList()
             },
             DailySummary = BuildDailySummary(dayMeasurements, dayNutrition, settings),
-            LongTermPatterns = BuildPatterns(patternMeasurements, settings),
+            LongTermPatterns = BuildPatterns(patternMeasurements, settings, child.TimeZoneId),
             Conversation = new ConversationMemoryContext
             {
                 ConversationId = conversation?.ConversationId,
@@ -236,7 +236,10 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
         };
     }
 
-    private LongTermPatternsContext BuildPatterns(IReadOnlyCollection<Measurement> measurements, DiabetesSettings settings)
+    private LongTermPatternsContext BuildPatterns(
+        IReadOnlyCollection<Measurement> measurements,
+        DiabetesSettings settings,
+        string? timeZoneId)
     {
         if (measurements.Count < 12)
         {
@@ -249,9 +252,10 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
         }
 
         var observations = new List<string>();
-        AddDayPartObservation(observations, measurements, settings, 6, 11, "утром");
-        AddDayPartObservation(observations, measurements, settings, 12, 16, "днём");
-        AddDayPartObservation(observations, measurements, settings, 17, 22, "вечером");
+        var timeZone = ResolveTimeZone(timeZoneId);
+        AddDayPartObservation(observations, measurements, settings, timeZone, 6, 11, "утром");
+        AddDayPartObservation(observations, measurements, settings, timeZone, 12, 16, "днём");
+        AddDayPartObservation(observations, measurements, settings, timeZone, 17, 22, "вечером");
 
         return new LongTermPatternsContext
         {
@@ -265,12 +269,14 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
         ICollection<string> observations,
         IEnumerable<Measurement> measurements,
         DiabetesSettings settings,
+        TimeZoneInfo timeZone,
         int fromHour,
         int toHour,
         string label)
     {
         var group = measurements
-            .Where(measurement => measurement.MeasurementTime.Hour >= fromHour && measurement.MeasurementTime.Hour <= toHour)
+            .Where(measurement => GetLocalHour(measurement.MeasurementTime, timeZone) >= fromHour
+                && GetLocalHour(measurement.MeasurementTime, timeZone) <= toHour)
             .Select(measurement => measurement.GlucoseValue)
             .ToList();
 
@@ -288,6 +294,35 @@ public sealed class ClinicalContextBuilder : IClinicalContextBuilder
         {
             observations.Add($"Средняя глюкоза {label} чаще ниже цели: {average:F1} ммоль/л.");
         }
+    }
+
+    private static TimeZoneInfo ResolveTimeZone(string? timeZoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timeZoneId))
+        {
+            return TimeZoneInfo.Utc;
+        }
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+    }
+
+    private static int GetLocalHour(DateTime measuredAt, TimeZoneInfo timeZone)
+    {
+        var utcValue = measuredAt.Kind == DateTimeKind.Utc
+            ? measuredAt
+            : DateTime.SpecifyKind(measuredAt, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, timeZone).Hour;
     }
 
     private static GlucoseContext MapMeasurement(Measurement measurement) => new()

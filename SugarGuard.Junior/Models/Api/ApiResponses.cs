@@ -68,6 +68,12 @@ public class LoginResponse
     /// Сообщение об ошибке (альтернативное имя)
     /// </summary>
     public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Сервер явно отклонил refresh-токен. В отличие от временной ошибки сети,
+    /// такое состояние требует повторного входа пользователя.
+    /// </summary>
+    public bool IsRefreshTokenRejected { get; set; }
 }
 
 /// <summary>
@@ -145,6 +151,7 @@ public class RegistrationResponse
     /// Сообщение об ошибке
     /// </summary>
     public string? ErrorMessage { get; set; }
+
 }
 
 /// <summary>

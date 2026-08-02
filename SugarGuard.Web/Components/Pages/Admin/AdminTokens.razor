@@ -16,9 +16,9 @@
         <div class="admin-alert admin-alert--danger">@_message</div>
     }
 
-    <section class="admin-kpi-grid">
-        @if (ShowSecurityDetails)
-        {
+    @if (ShowSecurityDetails)
+    {
+        <section class="admin-kpi-grid">
         <StatCard Label="Auth-событий"
                   Value="@_authEvents.Count.ToString(CultureInfo.InvariantCulture)"
                   Subtitle="Последние записи audit"
@@ -36,13 +36,14 @@
                   Value="@FormatInt(_gigaChatUsage?.Month.TotalTokens)"
                   Subtitle="@FormatGigaChatBudgetSubtitle()"
                   Status="@GetGigaChatStatus()" />
-    </section>
+        </section>
+    }
 
-    <section class="admin-main-layout">
+    <section class="admin-main-layout @(ShowSecurityDetails ? string.Empty : "admin-main-layout--single")">
         <div class="admin-main-column">
             <section class="admin-panel">
                 <SectionHeader Title="Расход GigaChat"
-                               Description="Учитываются только ответы провайдера, где API вернул usage. Тексты запросов и ответов здесь не отображаются.">
+                               Description="Учитываются только ответы провайдера, где API вернул usage. Входные токены уже не включают кэш контекста; тексты запросов и ответов не отображаются.">
                     <TrailingContent>
                         <span class="admin-pill">@FormatUpdatedAt(_gigaChatUsage?.GeneratedAtUtc)</span>
                     </TrailingContent>
@@ -73,6 +74,11 @@
                             <strong>@FormatInt(_gigaChatUsage.AllTime.TotalTokens)</strong>
                             <small>@_gigaChatUsage.AllTime.ResponsesWithUsage ответов с usage</small>
                         </div>
+                        <div class="usage-card">
+                            <span>Кэш контекста</span>
+                            <strong>@FormatInt(_gigaChatUsage.Month.PrecachedPromptTokens)</strong>
+                            <small>@FormatContextQualitySubtitle(_gigaChatUsage.Month)</small>
+                        </div>
                     </div>
 
                     @if (_gigaChatUsage.MonthlyTokenBudget is > 0)
@@ -90,6 +96,48 @@
                             <small>Осталось: @FormatInt(_gigaChatUsage.MonthlyTokensRemaining)</small>
                         </div>
                     }
+
+                    <div class="usage-child-section">
+                        <div class="usage-child-section__title">
+                            <strong>Качество по версиям инструкции</strong>
+                            <span>Сравнивайте расход и замены политикой после изменения системного промпта.</span>
+                        </div>
+                        @if (_gigaChatUsage.PromptVersions.Count == 0)
+                        {
+                            <div class="admin-empty admin-empty--compact">
+                                <strong>Версии пока не зафиксированы</strong>
+                                <span>Телеметрия появится после первого нового ответа GigaChat.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="admin-table-wrap">
+                                <table class="admin-table usage-child-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Версия</th>
+                                            <th>Месяц</th>
+                                            <th>Всего</th>
+                                            <th>Кэш</th>
+                                            <th>Замены политикой</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var version in _gigaChatUsage.PromptVersions)
+                                        {
+                                            <tr @key="version.PromptVersion">
+                                                <td><strong>@FormatPromptVersion(version.PromptVersion)</strong></td>
+                                                <td>@FormatInt(version.Month.TotalTokens)</td>
+                                                <td>@FormatInt(version.AllTime.TotalTokens)</td>
+                                                <td>@FormatInt(version.Month.PrecachedPromptTokens)</td>
+                                                <td>@FormatInt(version.Month.SafetyPolicyReplacements)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
 
                     <div class="usage-child-section">
                         <div class="usage-child-section__title">
@@ -348,8 +396,23 @@
     private static string FormatInt(int? value) =>
         value?.ToString("N0", CultureInfo.GetCultureInfo("ru-RU")) ?? "-";
 
-    private static string FormatTokenSplit(GigaChatUsagePeriodVm period) =>
-        $"Вход: {FormatInt(period.InputTokens)} · выход: {FormatInt(period.OutputTokens)}";
+    private static string FormatTokenSplit(GigaChatUsagePeriodVm period)
+    {
+        var cached = period.PrecachedPromptTokens > 0
+            ? $" · кэш: {FormatInt(period.PrecachedPromptTokens)}"
+            : string.Empty;
+        return $"Вход: {FormatInt(period.InputTokens)} · выход: {FormatInt(period.OutputTokens)}{cached}";
+    }
+
+    private static string FormatContextQualitySubtitle(GigaChatUsagePeriodVm period) =>
+        period.SafetyPolicyReplacements > 0
+            ? $"Кэш не входит в стоимость · заменено политикой: {FormatInt(period.SafetyPolicyReplacements)}"
+            : "Кэш не входит в стоимость · замены политикой нет";
+
+    private static string FormatPromptVersion(string? value) =>
+        string.Equals(value, "historical-unversioned", StringComparison.Ordinal)
+            ? "Без версии (исторические записи)"
+            : string.IsNullOrWhiteSpace(value) ? "Без версии" : value;
 
     private static string ShortId(string? value)
     {
@@ -389,6 +452,10 @@
         grid-template-columns: minmax(0, 1.45fr) minmax(320px, .85fr);
         gap: 20px;
         align-items: start;
+    }
+
+    .admin-main-layout--single {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .admin-main-column,
@@ -442,7 +509,7 @@
 
     .gigachat-usage {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
         gap: 14px;
     }
 

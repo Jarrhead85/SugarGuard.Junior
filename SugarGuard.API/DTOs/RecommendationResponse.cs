@@ -54,6 +54,16 @@ public class RecommendationResponse
     /// Общее число токенов, если провайдер вернул usage.
     /// </summary>
     public int? TotalTokens { get; set; }
+
+    /// <summary>
+    /// Число входных токенов, обслуженных из кэша контекста GigaChat.
+    /// </summary>
+    public int? PrecachedPromptTokens { get; set; }
+
+    /// <summary>
+    /// Версия системной инструкции, использованной поставщиком AI.
+    /// </summary>
+    public string? PromptVersion { get; set; }
 }
 
 /// <summary>

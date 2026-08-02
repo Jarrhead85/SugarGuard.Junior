@@ -1,6 +1,8 @@
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using SugarGuard.API.Application.Ai;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Application.Services;
 
@@ -24,8 +26,9 @@ public sealed class GigaChatServiceSafetyTests
             httpClient,
             configuration,
             NullLogger<GigaChatService>.Instance,
-            context: null!,
-            new GigaChatTokenCache());
+            new GigaChatTokenCache(),
+            Options.Create(new GigaChatOptions()),
+            Options.Create(new AiClinicalContextOptions()));
 
         var result = await service.GetRecommendationAsync(new GigaChatRequest
         {

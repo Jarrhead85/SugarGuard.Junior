@@ -26,7 +26,7 @@ SugarGuard — сервис для ведения дневника диабет�
 
 ## Мобильное приложение
 
-Актуальная версия Android-приложения: [SugarGuard Junior 1.10](https://sugar-guard.ru/downloads/SugarGuard.Junior-1.10.apk).
+Актуальная версия Android-приложения: [SugarGuard Junior 1.11](https://sugar-guard.ru/downloads/SugarGuard.Junior-1.11.apk).
 
 При запуске приложение проверяет наличие новой версии и предлагает перейти к скачиванию.
 

@@ -95,9 +95,11 @@ redisdata/
 
 # Build artifacts
 publish/
+/.publish*
 *sources.txt
 *sources*.txt
 *.md
+!docs/GigaChatSystemPrompt.md
 exports/
 **/.generated/
 

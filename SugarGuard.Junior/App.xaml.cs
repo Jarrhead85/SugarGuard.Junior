@@ -392,6 +392,33 @@ public partial class App : Application
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// При возврате в приложение обновляет серверную сессию, если ей больше недели.
+    /// Ошибки сети не влияют на офлайн-работу ребёнка.
+    /// </summary>
+    protected override async void OnResume()
+    {
+        base.OnResume();
+
+        if (!_startupCompleted || Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            return;
+        }
+
+        try
+        {
+            var isAuthenticated = await _authenticationService.IsAuthenticatedAsync();
+            if (!isAuthenticated)
+            {
+                await NavigateToLoginAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось проверить сессию при возврате в приложение.");
+        }
+    }
+
     private static async Task<bool> HasRequiredLocalTablesAsync(AppDbContext ctx)
     {
         return (await GetMissingRequiredLocalTablesAsync(ctx)).Count == 0;

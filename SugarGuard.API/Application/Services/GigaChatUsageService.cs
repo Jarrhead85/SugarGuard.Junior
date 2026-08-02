@@ -39,6 +39,7 @@ public sealed class GigaChatUsageService : IGigaChatUsageService
             Month = monthUsage,
             AllTime = await BuildUsagePeriodAsync(db, null, cancellationToken),
             Children = await BuildChildUsageAsync(db, monthStart, cancellationToken),
+            PromptVersions = await BuildPromptVersionUsageAsync(db, monthStart, cancellationToken),
             MonthlyTokenBudget = budget,
             MonthlyTokensRemaining = budget.HasValue
                 ? Math.Max(0, budget.Value - monthUsage.TotalTokens)
@@ -64,7 +65,9 @@ public sealed class GigaChatUsageService : IGigaChatUsageService
         var rows = await query
             .Select(message => new TokenUsageRow(
                 message.InputTokens ?? 0,
-                message.OutputTokens ?? 0))
+                message.OutputTokens ?? 0,
+                message.PrecachedPromptTokens ?? 0,
+                message.SafetyResult == AiSafetyResult.BlockedUnsafeOutput))
             .ToListAsync(cancellationToken);
 
         return BuildUsagePeriod(rows);
@@ -84,7 +87,9 @@ public sealed class GigaChatUsageService : IGigaChatUsageService
                 (message.Conversation.Child.FirstName + " " + message.Conversation.Child.LastName).Trim(),
                 message.CreatedAt,
                 message.InputTokens ?? 0,
-                message.OutputTokens ?? 0))
+                message.OutputTokens ?? 0,
+                message.PrecachedPromptTokens ?? 0,
+                message.SafetyResult == AiSafetyResult.BlockedUnsafeOutput))
             .ToListAsync(cancellationToken);
 
         return rows
@@ -103,26 +108,89 @@ public sealed class GigaChatUsageService : IGigaChatUsageService
             .ToArray();
     }
 
+    private static async Task<IReadOnlyList<GigaChatPromptVersionUsage>> BuildPromptVersionUsageAsync(
+        AppDbContext db,
+        DateTime monthStartUtc,
+        CancellationToken cancellationToken)
+    {
+        var rows = await db.Set<AiConversationMessage>()
+            .AsNoTracking()
+            .Where(message => message.Role == AiMessageRole.Assistant)
+            .Where(message => message.InputTokens.HasValue || message.OutputTokens.HasValue)
+            .Select(message => new PromptVersionUsageRow(
+                message.PromptVersion,
+                message.CreatedAt,
+                message.InputTokens ?? 0,
+                message.OutputTokens ?? 0,
+                message.PrecachedPromptTokens ?? 0,
+                message.SafetyResult == AiSafetyResult.BlockedUnsafeOutput))
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(row => string.IsNullOrWhiteSpace(row.PromptVersion)
+                ? "historical-unversioned"
+                : row.PromptVersion)
+            .Select(group => new GigaChatPromptVersionUsage
+            {
+                PromptVersion = group.Key,
+                Month = BuildUsagePeriod(group.Where(row => row.CreatedAt >= monthStartUtc)),
+                AllTime = BuildUsagePeriod(group)
+            })
+            .OrderByDescending(version => version.Month.TotalTokens)
+            .ThenBy(version => version.PromptVersion)
+            .ToArray();
+    }
+
     private static GigaChatUsagePeriod BuildUsagePeriod(IEnumerable<TokenUsageRow> rows)
     {
         var items = rows.ToArray();
+        var inputTokens = items.Sum(row => row.InputTokens);
+        var outputTokens = items.Sum(row => row.OutputTokens);
+        var precachedPromptTokens = items.Sum(row => row.PrecachedPromptTokens);
+
         return new GigaChatUsagePeriod
         {
             ResponsesWithUsage = items.Length,
-            InputTokens = items.Sum(row => row.InputTokens),
-            OutputTokens = items.Sum(row => row.OutputTokens),
-            TotalTokens = items.Sum(row => row.InputTokens + row.OutputTokens)
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens,
+            PrecachedPromptTokens = precachedPromptTokens,
+            SafetyPolicyReplacements = items.Count(row => row.WasSafetyPolicyReplacement),
+            TotalTokens = inputTokens + outputTokens
         };
     }
 
     private static GigaChatUsagePeriod BuildUsagePeriod(IEnumerable<ChildUsageRow> rows)
-        => BuildUsagePeriod(rows.Select(row => new TokenUsageRow(row.InputTokens, row.OutputTokens)));
+        => BuildUsagePeriod(rows.Select(row => new TokenUsageRow(
+            row.InputTokens,
+            row.OutputTokens,
+            row.PrecachedPromptTokens,
+            row.WasSafetyPolicyReplacement)));
 
-    private sealed record TokenUsageRow(int InputTokens, int OutputTokens);
+    private static GigaChatUsagePeriod BuildUsagePeriod(IEnumerable<PromptVersionUsageRow> rows)
+        => BuildUsagePeriod(rows.Select(row => new TokenUsageRow(
+            row.InputTokens,
+            row.OutputTokens,
+            row.PrecachedPromptTokens,
+            row.WasSafetyPolicyReplacement)));
+
+    private sealed record TokenUsageRow(
+        int InputTokens,
+        int OutputTokens,
+        int PrecachedPromptTokens,
+        bool WasSafetyPolicyReplacement);
     private sealed record ChildUsageRow(
         Guid ChildId,
         string ChildDisplayName,
         DateTime CreatedAt,
         int InputTokens,
-        int OutputTokens);
+        int OutputTokens,
+        int PrecachedPromptTokens,
+        bool WasSafetyPolicyReplacement);
+    private sealed record PromptVersionUsageRow(
+        string? PromptVersion,
+        DateTime CreatedAt,
+        int InputTokens,
+        int OutputTokens,
+        int PrecachedPromptTokens,
+        bool WasSafetyPolicyReplacement);
 }

@@ -23,6 +23,8 @@ public class AuthenticationService(
     private const string CurrentUserKey = "current_user";
     private const string CurrentEmailKey = "current_email";
     private const string EmailVerifiedKey = "email_verified";
+    private const string OfflineSessionVerifiedAtKey = "offline_session_verified_at_utc";
+    private static readonly TimeSpan OfflineSessionLifetime = TimeSpan.FromDays(7);
 
     // ─────────────────────────────────────────────────────────────
     // Проверка состояния сессии
@@ -52,6 +54,14 @@ public class AuthenticationService(
             var exp = ParseJwtExpClaim(token);
             if (exp.HasValue && exp.Value > DateTime.UtcNow)
             {
+                var weeklyRefreshResult = await TryRenewSessionWeeklyAsync();
+                if (weeklyRefreshResult == SessionRefreshResult.Rejected)
+                {
+                    logger.LogWarning("Сервер отклонил refresh-токен при плановом обновлении сессии.");
+                    await ClearLocalSessionAsync();
+                    return false;
+                }
+
                 logger.LogInformation("Проверка аутентификации:  Авторизован (токен истекает {Exp})", exp.Value);
                 return true;
             }
@@ -65,27 +75,27 @@ public class AuthenticationService(
                 return true;
             }
 
-            var refreshToken = await secureStorage.GetRefreshTokenAsync();
-            if (!string.IsNullOrEmpty(refreshToken))
+            var refreshResult = await TryRefreshSessionAsync();
+            if (refreshResult == SessionRefreshResult.Success)
             {
-                var refreshResult = await apiClient.RefreshTokenAsync(refreshToken);
-                if (refreshResult.Success && !string.IsNullOrEmpty(refreshResult.AccessToken))
-                {
-                    await secureStorage.SaveAuthTokenAsync(refreshResult.AccessToken, refreshResult.RefreshToken);
-                    logger.LogInformation("Refresh успешен:  Авторизован");
-                    return true;
-                }
+                logger.LogInformation("Refresh успешен:  Авторизован");
+                return true;
             }
 
-            // Refresh не удался — logout
-            logger.LogWarning("Refresh не удался, выполняем logout");
-            await LogoutAsync();
+            if (refreshResult == SessionRefreshResult.TemporarilyUnavailable && await HasOfflineSessionAsync())
+            {
+                logger.LogWarning("Сервер временно недоступен, используем подтверждённую офлайн-сессию");
+                return true;
+            }
+
+            // Сервер явно отклонил refresh-токен либо срок офлайн-сессии истёк.
+            logger.LogWarning("Сессия больше недействительна, выполняем logout");
+            await ClearLocalSessionAsync();
             return false;
         }
         catch (Exception ex)
         {
-            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet &&
-                await HasOfflineSessionAsync())
+            if (await HasOfflineSessionAsync())
             {
                 logger.LogWarning(ex, "Ошибка проверки токена, используем сохранённую офлайн-сессию");
                 return true;
@@ -134,7 +144,118 @@ public class AuthenticationService(
             return false;
         }
 
-        return await userRepository.GetByIdAsync(userId) is not null;
+        if (await userRepository.GetByIdAsync(userId) is null)
+        {
+            return false;
+        }
+
+        var verifiedAtText = await storageService.GetAsync(OfflineSessionVerifiedAtKey);
+        if (DateTime.TryParse(
+                verifiedAtText,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var verifiedAt))
+        {
+            return verifiedAt.ToUniversalTime() >= DateTime.UtcNow - OfflineSessionLifetime;
+        }
+
+        // Миграция существующих установок: наличие пары защищённых токенов и
+        // локального профиля доказывает ранее успешный вход. Создаём первый
+        // семидневный офлайн-допуск, не заставляя ребёнка входить в сеть после обновления.
+        if (!string.IsNullOrWhiteSpace(await secureStorage.GetRefreshTokenAsync()))
+        {
+            await MarkSessionVerifiedAsync();
+            logger.LogInformation("Создан офлайн-допуск для существующей локальной сессии.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<SessionRefreshResult> TryRenewSessionWeeklyAsync()
+    {
+        var verifiedAtText = await storageService.GetAsync(OfflineSessionVerifiedAtKey);
+        var isDue = !DateTime.TryParse(
+                        verifiedAtText,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.RoundtripKind,
+                        out var verifiedAt)
+                    || verifiedAt.ToUniversalTime() <= DateTime.UtcNow - OfflineSessionLifetime;
+
+        if (!isDue)
+        {
+            return SessionRefreshResult.Success;
+        }
+
+        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            logger.LogInformation("Еженедельное обновление сессии отложено: нет интернета.");
+            return SessionRefreshResult.TemporarilyUnavailable;
+        }
+
+        var refreshResult = await TryRefreshSessionAsync();
+        if (refreshResult == SessionRefreshResult.Success)
+        {
+            logger.LogInformation("Выполнено еженедельное обновление ключа подключения к серверу.");
+        }
+        else
+        {
+            logger.LogWarning("Еженедельное обновление сессии не выполнено ({Result}); локальная сессия сохранена.", refreshResult);
+        }
+
+        return refreshResult;
+    }
+
+    private async Task<SessionRefreshResult> TryRefreshSessionAsync()
+    {
+        var refreshToken = await secureStorage.GetRefreshTokenAsync();
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return SessionRefreshResult.Rejected;
+        }
+
+        try
+        {
+            var response = await apiClient.RefreshTokenAsync(refreshToken);
+            if (response.Success && !string.IsNullOrWhiteSpace(response.AccessToken))
+            {
+                await secureStorage.SaveAuthTokenAsync(response.AccessToken, response.RefreshToken);
+                await MarkSessionVerifiedAsync();
+                return SessionRefreshResult.Success;
+            }
+
+            return response.IsRefreshTokenRejected
+                ? SessionRefreshResult.Rejected
+                : SessionRefreshResult.TemporarilyUnavailable;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Сервер недоступен при обновлении сессии.");
+            return SessionRefreshResult.TemporarilyUnavailable;
+        }
+        catch (TaskCanceledException exception)
+        {
+            logger.LogWarning(exception, "Истёк таймаут при обновлении сессии.");
+            return SessionRefreshResult.TemporarilyUnavailable;
+        }
+    }
+
+    private Task MarkSessionVerifiedAsync() => storageService.SaveAsync(
+        OfflineSessionVerifiedAtKey,
+        DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+
+    private async Task ClearLocalSessionAsync()
+    {
+        secureStorage.ClearAuthTokens();
+        await storageService.DeleteAsync(CurrentUserIdKey);
+        await storageService.DeleteAsync(OfflineSessionVerifiedAtKey);
+    }
+
+    private enum SessionRefreshResult
+    {
+        Success,
+        Rejected,
+        TemporarilyUnavailable
     }
 
     /// <summary>
@@ -225,6 +346,7 @@ public class AuthenticationService(
             // Сохраняем в локальную БД
             await storageService.SaveAsync(CurrentUserIdKey, userId);
             await storageService.SaveAsync(CurrentEmailKey, email);
+            await MarkSessionVerifiedAsync();
 
             try
             {
@@ -306,6 +428,7 @@ public class AuthenticationService(
 
             await storageService.SaveAsync(CurrentUserIdKey, userId);
             await storageService.SaveAsync(CurrentEmailKey, email);
+            await MarkSessionVerifiedAsync();
 
             logger.LogInformation("Вход успешен: {Email} UserId={UserId}", email, userId);
             return true;
@@ -366,7 +489,7 @@ public class AuthenticationService(
     /// <summary>
     /// Пробует обновить access-токен с помощью refresh-токена.
     /// При успехе сохраняет новую пару токенов в SecureStorage.
-    /// При неудаче очищает хранилище — пользователь должен войти заново.
+    /// При временной сетевой ошибке не очищает локальную сессию.
     /// </summary>
     /// <returns>true — токены обновлены; false — сессия истекла, нужен логин</returns>
     public async Task<bool> RefreshTokenAsync()
@@ -382,24 +505,22 @@ public class AuthenticationService(
                 return false;
             }
 
-            var response = await apiClient.RefreshTokenAsync(refreshToken);
+            var refreshResult = await TryRefreshSessionAsync();
+            if (refreshResult == SessionRefreshResult.Success)
+            {
+                logger.LogInformation("Токены успешно обновлены");
+                return true;
+            }
 
-            if (!response.Success || string.IsNullOrEmpty(response.AccessToken))
+            if (refreshResult == SessionRefreshResult.Rejected)
             {
                 logger.LogWarning("Refresh-токен отклонён сервером — очищаем сессию");
-
-                // Сервер отклонил токен (истёк, отозван, повторное использование).
-                // Полностью очищаем локальное состояние.
-                secureStorage.ClearAuthTokens();
-                await storageService.DeleteAsync(CurrentUserIdKey);
+                await ClearLocalSessionAsync();
                 return false;
             }
 
-            // Сохраняем новую пару токенов (старый refresh-токен уже отозван на сервере)
-            await secureStorage.SaveAuthTokenAsync(response.AccessToken, response.RefreshToken);
-
-            logger.LogInformation("Токены успешно обновлены");
-            return true;
+            logger.LogWarning("Refresh временно недоступен; локальная сессия не очищается.");
+            return false;
         }
         catch (Exception ex)
         {
@@ -441,6 +562,7 @@ public class AuthenticationService(
             // Очищаем всё локальное состояние
             secureStorage.ClearAuthTokens();
             await storageService.DeleteAsync(CurrentUserIdKey);
+            await storageService.DeleteAsync(OfflineSessionVerifiedAtKey);
 
             logger.LogInformation("Выход успешен");
             return true;

@@ -335,6 +335,7 @@ internal sealed class GigaChatUsageDto
     public GigaChatUsagePeriodDto Month { get; init; } = new();
     public GigaChatUsagePeriodDto AllTime { get; init; } = new();
     public List<GigaChatChildUsageDto> Children { get; init; } = [];
+    public List<GigaChatPromptVersionUsageDto> PromptVersions { get; init; } = [];
     public int? MonthlyTokenBudget { get; init; }
     public int? MonthlyTokensRemaining { get; init; }
 }
@@ -347,11 +348,20 @@ internal sealed class GigaChatChildUsageDto
     public GigaChatUsagePeriodDto AllTime { get; init; } = new();
 }
 
+internal sealed class GigaChatPromptVersionUsageDto
+{
+    public string PromptVersion { get; init; } = string.Empty;
+    public GigaChatUsagePeriodDto Month { get; init; } = new();
+    public GigaChatUsagePeriodDto AllTime { get; init; } = new();
+}
+
 internal sealed class GigaChatUsagePeriodDto
 {
     public int ResponsesWithUsage { get; init; }
     public int InputTokens { get; init; }
     public int OutputTokens { get; init; }
+    public int PrecachedPromptTokens { get; init; }
+    public int SafetyPolicyReplacements { get; init; }
     public int TotalTokens { get; init; }
 }
 

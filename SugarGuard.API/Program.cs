@@ -33,6 +33,7 @@ using SugarGuard.Infrastructure.Sync;
 using SugarGuard.MaxBot.Abstractions;
 using SugarGuard.MaxBot.Services;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -156,6 +157,14 @@ builder.Services.AddSingleton(demoEmailBypassSettings);
 builder.Services.AddOptions<AiClinicalContextOptions>()
     .Bind(builder.Configuration.GetSection(AiClinicalContextOptions.SectionName))
     .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<GigaChatOptions>()
+    .Bind(builder.Configuration.GetSection(GigaChatOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(
+        options => string.IsNullOrWhiteSpace(options.ProxyUrl)
+            || (Uri.TryCreate(options.ProxyUrl, UriKind.Absolute, out var proxyUri) && proxyUri.IsLoopback),
+        "GigaChat:ProxyUrl должен быть пустым или указывать на loopback-адрес.")
     .ValidateOnStart();
 
 builder.Services.AddRateLimiter(options =>
@@ -499,6 +508,27 @@ builder.Services.AddHttpClient<IGigaChatService, GigaChatService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 })
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+    {
+        var options = serviceProvider.GetRequiredService<IOptions<GigaChatOptions>>().Value;
+        if (!Uri.TryCreate(options.ProxyUrl, UriKind.Absolute, out var proxyUri))
+        {
+            return new HttpClientHandler { UseProxy = false };
+        }
+
+        // Proxy разрешён только через loopback VDS: relay не становится публичным
+        // прокси и не влияет на остальные интеграции API.
+        if (!proxyUri.IsLoopback)
+        {
+            throw new InvalidOperationException("GigaChat:ProxyUrl должен указывать на loopback-адрес.");
+        }
+
+        return new HttpClientHandler
+        {
+            UseProxy = true,
+            Proxy = new System.Net.WebProxy(proxyUri)
+        };
+    })
     .AddPolicyHandler((serviceProvider, _) =>
     {
         var logger = serviceProvider.GetRequiredService<ILogger<GigaChatService>>();

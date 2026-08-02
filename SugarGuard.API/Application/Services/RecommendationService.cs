@@ -26,27 +26,6 @@ public class RecommendationService : IRecommendationService
     }
 
     /// <inheritdoc/>
-    public async Task<AIRecommendation?> FindCachedRecommendationAsync(
-        Guid childId,
-        decimal glucoseValue,
-        CancellationToken cancellationToken = default)
-    {
-        const decimal tolerance = 0.5m;
-        var lowerBound = glucoseValue - tolerance;
-        var upperBound = glucoseValue + tolerance;
-
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-
-        return await db.AIRecommendations
-            .AsNoTracking()
-            .Where(r => r.ChildId == childId)
-            .Where(r => r.GlucoseValueAtRequest >= lowerBound && r.GlucoseValueAtRequest <= upperBound)
-            .Where(r => r.CreatedAt >= DateTime.UtcNow.AddHours(-24))
-            .OrderByDescending(r => r.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    /// <inheritdoc/>
     public async Task<List<Measurement>> GetRecentMeasurementsAsync(
         Guid childId,
         CancellationToken cancellationToken = default)

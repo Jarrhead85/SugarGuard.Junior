@@ -413,6 +413,7 @@ namespace SugarGuard.API.Data
                     .HasMaxLength(32);
                 entity.Property(message => message.Text).HasMaxLength(4000);
                 entity.Property(message => message.Model).HasMaxLength(80);
+                entity.Property(message => message.PromptVersion).HasMaxLength(64);
                 entity.Property(message => message.CreatedAt).HasDefaultValueSql("NOW()");
                 entity.HasIndex(message => new { message.ConversationId, message.CreatedAt })
                     .HasDatabaseName("ix_ai_messages_conversation_created");

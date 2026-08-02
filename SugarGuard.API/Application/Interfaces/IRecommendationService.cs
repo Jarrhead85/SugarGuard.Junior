@@ -9,14 +9,6 @@ namespace SugarGuard.API.Application.Interfaces;
 public interface IRecommendationService
 {
     /// <summary>
-    /// Ищет недавнюю кэш-рекомендацию для ребёнка
-    /// </summary>
-    Task<AIRecommendation?> FindCachedRecommendationAsync(
-        Guid childId,
-        decimal glucoseValue,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Загружает до 10 последних замеров за последние 3 часа
     /// </summary>
     Task<List<Measurement>> GetRecentMeasurementsAsync(

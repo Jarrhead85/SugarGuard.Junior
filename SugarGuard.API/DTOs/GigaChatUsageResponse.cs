@@ -31,6 +31,11 @@ public sealed class GigaChatUsageResponse
     public IReadOnlyList<GigaChatChildUsage> Children { get; init; } = [];
 
     /// <summary>
+    /// Расход токенов по версиям системной инструкции.
+    /// </summary>
+    public IReadOnlyList<GigaChatPromptVersionUsage> PromptVersions { get; init; } = [];
+
+    /// <summary>
     /// Месячный лимит токенов из конфигурации, если задан.
     /// </summary>
     public int? MonthlyTokenBudget { get; init; }
@@ -62,7 +67,20 @@ public sealed class GigaChatUsagePeriod
     public int OutputTokens { get; init; }
 
     /// <summary>
-    /// Сумма всех токенов.
+    /// Число входных токенов, обслуженных GigaChat из кэша контекста.
+    /// Поле <see cref="InputTokens"/> уже не включает эти токены в соответствии
+    /// с семантикой usage GigaChat.
+    /// </summary>
+    public int PrecachedPromptTokens { get; init; }
+
+    /// <summary>
+    /// Число ответов провайдера, которые заменены локальной политикой безопасности.
+    /// Метрика помогает отслеживать качество системной инструкции без показа текста диалогов.
+    /// </summary>
+    public int SafetyPolicyReplacements { get; init; }
+
+    /// <summary>
+    /// Сумма токенов, подлежащих тарификации по данным usage провайдера.
     /// </summary>
     public int TotalTokens { get; init; }
 }
@@ -81,6 +99,28 @@ public sealed class GigaChatChildUsage
     /// Безопасное отображаемое имя ребёнка для админки.
     /// </summary>
     public string ChildDisplayName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Расход за текущий месяц.
+    /// </summary>
+    public GigaChatUsagePeriod Month { get; init; } = new();
+
+    /// <summary>
+    /// Расход за всё время.
+    /// </summary>
+    public GigaChatUsagePeriod AllTime { get; init; } = new();
+}
+
+/// <summary>
+/// Расход токенов для одной версии системной инструкции.
+/// </summary>
+public sealed class GigaChatPromptVersionUsage
+{
+    /// <summary>
+    /// Версия инструкции. Пустое значение используется для исторических записей
+    /// до появления телеметрии версий.
+    /// </summary>
+    public string PromptVersion { get; init; } = string.Empty;
 
     /// <summary>
     /// Расход за текущий месяц.

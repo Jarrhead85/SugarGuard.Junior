@@ -70,6 +70,20 @@ public class AiConversationMessage
     public int? OutputTokens { get; set; }
 
     /// <summary>
+    /// Число входных токенов, которые GigaChat обслужил из кэша контекста.
+    /// Значение заполняется только при наличии поля usage у провайдера.
+    /// </summary>
+    [Column("precached_prompt_tokens")]
+    public int? PrecachedPromptTokens { get; set; }
+
+    /// <summary>
+    /// Версия системной инструкции, применённой к ответу провайдера.
+    /// </summary>
+    [Column("prompt_version")]
+    [MaxLength(64)]
+    public string? PromptVersion { get; set; }
+
+    /// <summary>
     /// Результат проверки безопасности.
     /// </summary>
     [Column("safety_result")]
