@@ -30,6 +30,16 @@ public sealed class ChildSummaryApiModel
 }
 
 /// <summary>
+/// Безопасный для детского приложения статус канала уведомлений Telegram.
+/// </summary>
+public sealed class TelegramBotAvailabilityApiModel
+{
+    public bool IsAvailable { get; init; }
+    public DateTime? LastCheckedAt { get; init; }
+    public string Message { get; init; } = string.Empty;
+}
+
+/// <summary>
 /// Ответ после входа
 /// </summary>
 public class LoginResponse

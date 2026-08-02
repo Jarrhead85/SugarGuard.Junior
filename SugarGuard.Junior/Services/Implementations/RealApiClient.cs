@@ -883,6 +883,25 @@ public class RealApiClient : IApiClient
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<TelegramBotAvailabilityApiModel?> GetTelegramBotAvailabilityAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await SendWithRetryAsync(
+                () => new HttpRequestMessage(HttpMethod.Get, "api/bot-service/telegram-availability"),
+                cancellationToken);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<TelegramBotAvailabilityApiModel>(JsonOptions, cancellationToken)
+                : null;
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogDebug(exception, "Не удалось получить статус Telegram-бота.");
+            return null;
+        }
+    }
+
     public async Task<bool> HealthCheckAsync()
     {
         try

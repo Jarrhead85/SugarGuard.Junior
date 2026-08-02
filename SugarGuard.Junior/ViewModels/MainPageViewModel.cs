@@ -30,6 +30,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     // ========== ЗАВИСИМОСТИ ==========
     private readonly IMeasurementService _measurementService;
     private readonly ISyncService _syncService;
+    private readonly IApiClient _apiClient;
     private readonly IRecommendationModalViewModelFactory _recommendationModalViewModelFactory;
     private readonly IRecommendationModalFactory _recommendationModalFactory;
     private readonly ILogger<MainPageViewModel> _logger;
@@ -245,6 +246,12 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool showOfflineIndicator = false;
 
+    [ObservableProperty]
+    private bool showTelegramBotStatus = false;
+
+    [ObservableProperty]
+    private string telegramBotStatusMessage = string.Empty;
+
     // ========== ПРИВЯЗАННЫЕ СВОЙСТВА: КРИТИЧНОСТЬ И UI-СОСТОЯНИЕ ==========
 
     [ObservableProperty]
@@ -289,6 +296,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     public MainPageViewModel(
         IMeasurementService measurementService,
         ISyncService syncService,
+        IApiClient apiClient,
         IRecommendationModalViewModelFactory recommendationModalViewModelFactory,
         IRecommendationModalFactory recommendationModalFactory,
         ILogger<MainPageViewModel> logger,
@@ -301,6 +309,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     {
         _measurementService = measurementService;
         _syncService = syncService;
+        _apiClient = apiClient;
         _recommendationModalViewModelFactory = recommendationModalViewModelFactory;
         _recommendationModalFactory = recommendationModalFactory;
         _logger = logger;
@@ -658,6 +667,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             DailyStats = todayCount > 0
                 ? $"Сегодня: {todayCount} изм."
                 : "Сегодня: нет измерений";
+
+            await UpdateTelegramBotStatusAsync();
         }
         catch (Exception ex)
         {
@@ -667,6 +678,33 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Показывает понятный статус только при подтверждённой недоступности Telegram.
+    /// При офлайне приложения отдельный баннер не нужен: уже виден статус
+    /// локальной синхронизации, а данные продолжают работать из локальной БД.
+    /// </summary>
+    private async Task UpdateTelegramBotStatusAsync()
+    {
+        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+        {
+            ShowTelegramBotStatus = false;
+            return;
+        }
+
+        try
+        {
+            var status = await _apiClient.GetTelegramBotAvailabilityAsync();
+            ShowTelegramBotStatus = status is { IsAvailable: false };
+            TelegramBotStatusMessage = status?.Message
+                ?? "Telegram-бот временно недоступен. Мы уже восстанавливаем подключение.";
+        }
+        catch (Exception exception)
+        {
+            _logger.LogDebug(exception, "Не удалось обновить статус Telegram-бота.");
+            ShowTelegramBotStatus = false;
         }
     }
 

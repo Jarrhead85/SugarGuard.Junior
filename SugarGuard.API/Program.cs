@@ -149,7 +149,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
             }
         }
     }
-    options.ForwardLimit = 2;
+    // На VDS единственный доверенный reverse proxy — локальный nginx. Один hop
+    // не даёт клиенту подменить IP, добавив собственный X-Forwarded-For.
+    options.ForwardLimit = 1;
 });
 
 builder.Services.AddSingleton(jwtSettings);

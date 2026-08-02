@@ -80,18 +80,57 @@ public sealed class TelegramOutboxClient
         return response.IsSuccessStatusCode;
     }
 
-    /// <summary>Передаёт API актуальное состояние связи Telegram-бота.</summary>
-    public async Task ReportHeartbeatAsync(BotHeartbeatRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Проверяет доступность управляющего API без обращения к Telegram.
+    /// Этот маршрут у бота идёт напрямую, поэтому диагностирует доступность
+    /// SugarGuard даже при недоступном VPN-подключении Happ.
+    /// </summary>
+    public async Task<bool> IsControlPlaneAvailableAsync(CancellationToken cancellationToken)
     {
-        using var response = await _httpClient.PostAsJsonAsync(
-            "/api/bot-service/status/heartbeat",
-            request,
-            JsonSerializerOptions.Web,
-            cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
+            using var response = await _httpClient.GetAsync("/api/health/live", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Проверка доступности управляющего API Telegram-бота превысила время ожидания.");
+            return false;
+        }
+        catch (HttpRequestException)
+        {
+            _logger.LogWarning("Не удалось проверить доступность управляющего API Telegram-бота.");
+            return false;
+        }
+    }
+
+    /// <summary>Передаёт API актуальное состояние связи Telegram-бота.</summary>
+    public async Task<bool> ReportHeartbeatAsync(BotHeartbeatRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                "/api/bot-service/status/heartbeat",
+                request,
+                JsonSerializerOptions.Web,
+                cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
             _logger.LogWarning("Не удалось передать heartbeat Telegram-бота: {StatusCode}", response.StatusCode);
+            return false;
+        }
+        catch (HttpRequestException)
+        {
+            _logger.LogWarning("Не удалось передать heartbeat Telegram-бота.");
+            return false;
         }
     }
 }

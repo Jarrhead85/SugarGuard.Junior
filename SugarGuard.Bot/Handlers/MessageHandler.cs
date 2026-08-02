@@ -38,7 +38,7 @@ public class MessageHandler
     /// </summary>
     public async Task HandleTextMessageAsync(long chatId, long userId, string messageText, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Обработка текстового сообщения от пользователя {UserId}: {MessageText}", userId, messageText);
+        _logger.LogInformation("Обработка текстового сообщения от пользователя {UserId}.", userId);
 
         if (!_rateLimiter.TryAcquire(userId))
         {

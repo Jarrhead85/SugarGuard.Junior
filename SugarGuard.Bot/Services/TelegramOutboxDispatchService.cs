@@ -76,8 +76,15 @@ public sealed class TelegramOutboxDispatchService : BackgroundService
         }
         catch (Exception exception)
         {
-            _logger.LogWarning(exception, "Не удалось отправить Telegram-сообщение {MessageId}.", message.MessageId);
-            await _outbox.CompleteAsync(message.MessageId, false, exception.Message, cancellationToken);
+            _logger.LogWarning(
+                "Не удалось отправить Telegram-сообщение {MessageId} ({ErrorType}).",
+                message.MessageId,
+                exception.GetType().Name);
+            await _outbox.CompleteAsync(
+                message.MessageId,
+                false,
+                "Telegram временно недоступен. Выполняется повторная доставка.",
+                cancellationToken);
         }
     }
 }

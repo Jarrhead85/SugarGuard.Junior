@@ -76,8 +76,7 @@ public class ApiClient
             using var loginResponse = await _httpClient.PostAsync("/api/auth/bot-login", loginContent, cancellationToken);
             if (!loginResponse.IsSuccessStatusCode)
             {
-                var failedBody = await loginResponse.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("Bot login failed: {StatusCode} {Body}", loginResponse.StatusCode, failedBody);
+                _logger.LogWarning("Bot login failed: {StatusCode}", loginResponse.StatusCode);
                 return;
             }
 
@@ -165,7 +164,7 @@ public class ApiClient
                 }
             }
 
-            _logger.LogWarning("Ошибка API: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка API при проверке кода: {StatusCode}", response.StatusCode);
             return new VerifyConnectionCodeResponse
             {
                 Success = false,
@@ -206,7 +205,7 @@ public class ApiClient
                 return result;
             }
 
-            _logger.LogWarning("Ошибка получения рюкзака: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка получения рюкзака: {StatusCode}", response.StatusCode);
             return null;
         }
         catch (Exception ex)
@@ -228,8 +227,8 @@ public class ApiClient
     {
         try
         {
-            _logger.LogInformation("Добавление перекуса {SnackName} ({BreadUnits} ХЕ) для ребёнка {ChildId}", 
-                snackName, breadUnits, childId);
+            _logger.LogInformation("Добавление позиции рюкзака ({BreadUnits} ХЕ) для ребёнка {ChildId}",
+                breadUnits, childId);
 
             var request = new
             {
@@ -249,11 +248,11 @@ public class ApiClient
             if (response.IsSuccessStatusCode)
             {
                 var result = JsonSerializer.Deserialize<BackpackItemResponse>(responseJson, JsonSerializerOptions.Web);
-                _logger.LogInformation("Перекус добавлен: {SnackName}", result?.SnackName);
+                _logger.LogInformation("Позиция рюкзака добавлена.");
                 return result;
             }
 
-            _logger.LogWarning("Ошибка добавления перекуса: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка добавления позиции рюкзака: {StatusCode}", response.StatusCode);
             return null;
         }
         catch (Exception ex)
@@ -287,7 +286,7 @@ public class ApiClient
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning("Ошибка удаления перекуса: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка удаления позиции рюкзака: {StatusCode}", response.StatusCode);
             return false;
         }
         catch (Exception ex)
@@ -330,7 +329,7 @@ public class ApiClient
                 return result;
             }
 
-            _logger.LogWarning("Ошибка получения статистики: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка получения статистики: {StatusCode}", response.StatusCode);
             return null;
         }
         catch (Exception ex)
@@ -380,7 +379,7 @@ public class ApiClient
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning("Ошибка генерации PDF: {StatusCode} - {Response}", response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка генерации PDF: {StatusCode}", response.StatusCode);
             return null;
         }
         catch (Exception ex)

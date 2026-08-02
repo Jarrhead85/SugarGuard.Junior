@@ -88,8 +88,7 @@ public class BotUserContextService : IBotUserContextService
                 }
             }
 
-            _logger.LogWarning("Ошибка API при получении контекста: {StatusCode} - {Response}",
-                response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка API при получении контекста: {StatusCode}", response.StatusCode);
             return null;
         }
         catch (Exception ex)
@@ -124,8 +123,7 @@ public class BotUserContextService : IBotUserContextService
                 return true;
             }
 
-            _logger.LogWarning("Ошибка API при установке контекста: {StatusCode} - {Response}",
-                response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка API при установке контекста: {StatusCode}", response.StatusCode);
             return false;
         }
         catch (Exception ex)
@@ -156,8 +154,7 @@ public class BotUserContextService : IBotUserContextService
                 }
             }
 
-            _logger.LogWarning("Ошибка API при получении списка детей: {StatusCode} - {Response}",
-                response.StatusCode, responseJson);
+            _logger.LogWarning("Ошибка API при получении списка детей: {StatusCode}", response.StatusCode);
             return new List<ChildSummaryBot>();
         }
         catch (Exception ex)

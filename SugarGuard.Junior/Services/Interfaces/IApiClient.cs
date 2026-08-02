@@ -184,6 +184,11 @@ public interface IApiClient
     Task<SupportMessageApiModel?> AddSupportMessageAsync(Guid conversationId, string message, CancellationToken cancellationToken = default);
     Task<bool> MarkSupportConversationReadAsync(Guid conversationId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Получает обезличенный статус доступности Telegram-бота.
+    /// </summary>
+    Task<TelegramBotAvailabilityApiModel?> GetTelegramBotAvailabilityAsync(CancellationToken cancellationToken = default);
+
     // ========== ПРОВЕРКА СОЕДИНЕНИЯ ==========
     /// <summary>
     /// Проверяет доступность сервера

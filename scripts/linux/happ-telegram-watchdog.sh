@@ -14,6 +14,7 @@ readonly DEFAULT_STATE_DIR="/var/lib/sugarguard-happ-watchdog"
 readonly DEFAULT_STATE_FILE="${DEFAULT_STATE_DIR}/state"
 readonly DEFAULT_LOCK_FILE="/run/sugarguard-happ-watchdog.lock"
 readonly TELEGRAM_PROBE_URL="https://api.telegram.org/bot"
+readonly SUGAR_GUARD_HEARTBEAT_URL="https://api.sugar-guard.ru/api/bot-service/status/heartbeat"
 
 CONFIG_FILE="${HAPP_WATCHDOG_CONFIG_FILE:-$DEFAULT_CONFIG_FILE}"
 STATE_DIR="${HAPP_WATCHDOG_STATE_DIR:-$DEFAULT_STATE_DIR}"
@@ -29,6 +30,10 @@ RECOVERY_COOLDOWN_SECONDS="${RECOVERY_COOLDOWN_SECONDS:-300}"
 RESTART_SETTLE_SECONDS="${RESTART_SETTLE_SECONDS:-8}"
 CONNECT_TIMEOUT_SECONDS="${CONNECT_TIMEOUT_SECONDS:-8}"
 MAX_TIME_SECONDS="${MAX_TIME_SECONDS:-15}"
+# BOT_SERVICE_AUTH_KEY передаётся systemd из закрытого EnvironmentFile
+# основного Telegram-бота. Watchdog не дублирует и не хранит секрет.
+BOT_SERVICE_AUTH_KEY="${BOT_SERVICE_AUTH_KEY:-}"
+TELEGRAM_PROBE_LATENCY_MS=""
 
 log() {
     local level="$1"
@@ -112,6 +117,7 @@ write_state() {
     local failures="$1"
     local result="$2"
     local recovery_epoch="$3"
+    local latency_ms="${4:-}"
     local now_epoch
     local temporary_file
 
@@ -124,6 +130,7 @@ write_state() {
         printf 'last_check_epoch=%s\n' "$now_epoch"
         printf 'last_check_result=%s\n' "$result"
         printf 'last_recovery_epoch=%s\n' "$recovery_epoch"
+        printf 'last_probe_latency_ms=%s\n' "$latency_ms"
     } > "$temporary_file"
 
     chown root:root "$temporary_file"
@@ -132,22 +139,87 @@ write_state() {
 }
 
 probe_telegram_through_happ() {
-    local response_code
+    local response_code elapsed_seconds
 
     # /bot без токена отвечает HTTP 404 именно от Telegram Bot API. Это позволяет
     # подтвердить доступ к нужному сервису без хранения токена бота в watchdog.
-    response_code="$(curl \
+    read -r response_code elapsed_seconds <<< "$(curl \
         --silent \
         --show-error \
         --output /dev/null \
-        --write-out '%{http_code}' \
+        --write-out '%{http_code} %{time_total}' \
         --proxy "$HAPP_PROXY_URL" \
         --noproxy '' \
         --connect-timeout "$CONNECT_TIMEOUT_SECONDS" \
         --max-time "$MAX_TIME_SECONDS" \
         "$TELEGRAM_PROBE_URL" 2>/dev/null || true)"
 
-    [[ "$response_code" == "404" ]]
+    if [[ "$response_code" != "404" ]]; then
+        TELEGRAM_PROBE_LATENCY_MS=""
+        return 1
+    fi
+
+    TELEGRAM_PROBE_LATENCY_MS="$(LC_NUMERIC=C awk -v seconds="${elapsed_seconds:-0}" 'BEGIN { printf "%.0f", seconds * 1000 }')"
+    return 0
+}
+
+# Отчёт отправляется напрямую в API, без proxy Happ. Благодаря этому
+# кабинет и мобильное приложение узнают о деградации именно тогда,
+# когда VPN перестал работать, а не только после его восстановления.
+report_bot_status() {
+    local telegram_available="$1"
+    local error_message="${2:-}"
+    local payload response_code header_file
+
+    if [[ -z "$BOT_SERVICE_AUTH_KEY" ]]; then
+        log "ERROR" "BOT_SERVICE_AUTH_KEY не передан watchdog: статус VPN не отправлен в SugarGuard API."
+        return 1
+    fi
+
+    payload="$(python3 - "$telegram_available" "$error_message" <<'PY'
+import json
+import sys
+
+print(json.dumps({
+    "botName": "telegram",
+    # Сам факт успешного POST ниже подтверждает доступность SugarGuard API.
+    "internetAvailable": True,
+    "externalApiAvailable": sys.argv[1].lower() == "true",
+    "error": sys.argv[2] or None,
+    "version": "happ-watchdog"
+}, ensure_ascii=False, separators=(",", ":")))
+PY
+)"
+
+    # Передача секретного заголовка в argv curl позволила бы увидеть его через
+    # ps/proc. Временный config-файл доступен только root и удаляется сразу
+    # после запроса.
+    header_file="$(mktemp /run/sugarguard-happ-watchdog.headers.XXXXXX)"
+    chmod 0600 "$header_file"
+    {
+        printf '%s\n' 'header = "Content-Type: application/json"'
+        printf 'header = "X-Bot-Auth: %s"\n' "$BOT_SERVICE_AUTH_KEY"
+    } > "$header_file"
+
+    response_code="$(curl \
+        --silent \
+        --show-error \
+        --output /dev/null \
+        --write-out '%{http_code}' \
+        --noproxy '*' \
+        --connect-timeout "$CONNECT_TIMEOUT_SECONDS" \
+        --max-time "$MAX_TIME_SECONDS" \
+        --config "$header_file" \
+        --data "$payload" \
+        "$SUGAR_GUARD_HEARTBEAT_URL" 2>/dev/null || true)"
+    rm -f "$header_file"
+
+    if [[ "$response_code" =~ ^2[0-9]{2}$ ]]; then
+        return 0
+    fi
+
+    log "ERROR" "Не удалось передать статус VPN в SugarGuard API (HTTP ${response_code:-000})."
+    return 1
 }
 
 restart_service_if_present() {
@@ -171,15 +243,19 @@ restart_service_if_present() {
 perform_recovery() {
     local last_recovery_epoch="$1"
     local now_epoch
+    local failure_message
 
     now_epoch="$(date +%s)"
     if (( now_epoch - last_recovery_epoch < RECOVERY_COOLDOWN_SECONDS )); then
         log "WARNING" "Восстановление пропущено: действует cooldown ${RECOVERY_COOLDOWN_SECONDS} с."
+        report_bot_status false "Happ VPN недоступен: Telegram не отвечает через локальный proxy. Ведётся автоматическое восстановление." || true
         return 1
     fi
 
     if [[ -z "$HAPP_SERVICE" ]]; then
         log "ERROR" "HAPP_SERVICE не настроен: проверка зафиксировала сбой, но безопасный перезапуск Happ невозможен."
+        write_state "$FAILURE_THRESHOLD" "unhealthy_without_recovery_service" "$last_recovery_epoch"
+        report_bot_status false "Happ VPN недоступен: сервис автоматического восстановления не настроен. Ведутся работы по восстановлению Telegram-бота." || true
         return 1
     fi
 
@@ -189,23 +265,28 @@ perform_recovery() {
         sleep "$RESTART_SETTLE_SECONDS"
     fi
 
-    # Перезапуск бота выполняется после Happ: long-polling получает новое соединение
-    # даже если его HTTP-клиент уже успел зафиксировать timeout.
-    restart_service_if_present "$BOT_SERVICE" "Telegram-бот" || true
-
     if probe_telegram_through_happ; then
         log "INFO" "Доступ к Telegram через Happ восстановлен."
-        write_state 0 "healthy_after_recovery" "$now_epoch"
+        # Long-polling получает новое соединение только после успешного
+        # восстановления proxy. Не перезапускаем бот при каждом неудачном
+        # пробном восстановлении и не теряем его direct heartbeat.
+        restart_service_if_present "$BOT_SERVICE" "Telegram-бот" || true
+        write_state 0 "healthy_after_recovery" "$now_epoch" "$TELEGRAM_PROBE_LATENCY_MS"
+        # Успешный probe подтверждает только VPN-маршрут. Полную доступность
+        # бота подтверждает его собственный heartbeat после перезапуска.
         return 0
     fi
 
-    log "ERROR" "После перезапуска Happ и Telegram-бота Telegram всё ещё недоступен через local proxy."
+    failure_message="Happ VPN недоступен: Telegram не отвечает через локальный proxy после автоматического восстановления. Уведомления Telegram временно не доставляются; ведутся работы по восстановлению."
+    log "ERROR" "$failure_message"
     write_state "$FAILURE_THRESHOLD" "unhealthy_after_recovery" "$now_epoch"
+    report_bot_status false "$failure_message" || true
     return 1
 }
 
 main() {
     command -v curl >/dev/null 2>&1 || fail "curl не установлен."
+    command -v python3 >/dev/null 2>&1 || fail "python3 не установлен."
     command -v systemctl >/dev/null 2>&1 || fail "systemctl не установлен."
     command -v flock >/dev/null 2>&1 || fail "flock не установлен."
 
@@ -219,7 +300,7 @@ main() {
         return 0
     fi
 
-    local consecutive_failures last_recovery_epoch
+    local consecutive_failures last_recovery_epoch failure_message
     consecutive_failures="$(read_state_value consecutive_failures)"
     last_recovery_epoch="$(read_state_value last_recovery_epoch)"
     is_non_negative_integer "$consecutive_failures" || consecutive_failures=0
@@ -229,13 +310,17 @@ main() {
         if (( consecutive_failures > 0 )); then
             log "INFO" "Доступ к Telegram через Happ восстановлен без перезапуска."
         fi
-        write_state 0 "healthy" "$last_recovery_epoch"
+        write_state 0 "healthy" "$last_recovery_epoch" "$TELEGRAM_PROBE_LATENCY_MS"
+        # Не перезаписываем self-heartbeat бота: watchdog проверяет лишь маршрут,
+        # а не состояние polling, авторизации и очереди доставки Telegram.
         return 0
     fi
 
     consecutive_failures=$((consecutive_failures + 1))
     write_state "$consecutive_failures" "unhealthy" "$last_recovery_epoch"
-    log "WARNING" "Telegram недоступен через local proxy Happ (сбой ${consecutive_failures}/${FAILURE_THRESHOLD})."
+    failure_message="Happ VPN недоступен: Telegram не отвечает через локальный proxy (проверка ${consecutive_failures}/${FAILURE_THRESHOLD}). Выполняется автоматическое восстановление."
+    log "WARNING" "$failure_message"
+    report_bot_status false "$failure_message" || true
 
     if (( consecutive_failures < FAILURE_THRESHOLD )); then
         return 1

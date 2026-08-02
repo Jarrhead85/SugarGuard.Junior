@@ -10,6 +10,7 @@ public partial class SyncBanner : ContentView
     public const string SuccessState = "Success";
     public const string ConflictState = "Conflict";
     public const string FailedState = "Failed";
+    public const string ServiceDegradedState = "ServiceDegraded";
 
     // Текущее состояние синхронизации
     public static readonly BindableProperty SyncStateProperty =
@@ -183,6 +184,7 @@ public partial class SyncBanner : ContentView
         SuccessState => "Синхронизация завершена",
         ConflictState => "Нужна проверка синхронизации",
         FailedState => "Синхронизация не удалась",
+        ServiceDegradedState => "Уведомления временно недоступны",
         _ => "Есть локальные изменения"
     };
 
@@ -199,6 +201,7 @@ public partial class SyncBanner : ContentView
             SuccessState => "Все локальные изменения успешно отправлены на сервер.",
             ConflictState => "Обнаружен конфликт данных. Проверь запись и выбери актуальную версию.",
             FailedState => "Нет соединения или сервер временно недоступен. Данные сохранены локально.",
+            ServiceDegradedState => "Telegram-бот временно недоступен. Мы уже восстанавливаем подключение.",
             _ => PendingCount > 0
                 ? $"В очереди синхронизации: {PendingCount}."
                 : "Изменения сохранены локально и будут отправлены позже."
@@ -211,33 +214,48 @@ public partial class SyncBanner : ContentView
         SuccessState => "",
         ConflictState => "",
         FailedState => "⛔",
+        ServiceDegradedState => "⚠",
         _ => "↻"
     };
 
     // Акцентный цвет состояния
     private static Color GetAccentColor(string state) => state switch
     {
-        SuccessState => Color.FromArgb("#37A563"),
-        ConflictState => Color.FromArgb("#E3A32B"),
-        FailedState => Color.FromArgb("#DB5967"),
-        _ => Color.FromArgb("#1B8E8B")
+        SuccessState => GetThemeColor("SyncStatusSynced", "#37A563"),
+        ConflictState or ServiceDegradedState => GetThemeColor("Warning", "#E3A32B"),
+        FailedState => GetThemeColor("SyncStatusError", "#DB5967"),
+        _ => GetThemeColor("SyncStatusPending", "#1B8E8B")
     };
 
     // Фон баннера
     private static Color GetBackgroundColor(string state) => state switch
     {
-        SuccessState => Color.FromArgb("#1A37A563"),
-        ConflictState => Color.FromArgb("#1AE3A32B"),
-        FailedState => Color.FromArgb("#1ADB5967"),
-        _ => Color.FromArgb("#1A1B8E8B")
+        SuccessState => GetThemeColor("SyncStatusSyncedBg", "#1A37A563"),
+        ConflictState or ServiceDegradedState => GetThemeColor("WarningSoft", "#1AE3A32B"),
+        FailedState => GetThemeColor("DangerSoft", "#1ADB5967"),
+        _ => GetThemeColor("SyncStatusPendingBg", "#1A1B8E8B")
     };
 
     // Рамка баннера
     private static Color GetStrokeColor(string state) => state switch
     {
-        SuccessState => Color.FromArgb("#4D37A563"),
-        ConflictState => Color.FromArgb("#4DE3A32B"),
-        FailedState => Color.FromArgb("#4DDB5967"),
-        _ => Color.FromArgb("#4D1B8E8B")
+        SuccessState => WithAlpha(GetThemeColor("SyncStatusSynced", "#37A563"), 0.30f),
+        ConflictState or ServiceDegradedState => WithAlpha(GetThemeColor("Warning", "#E3A32B"), 0.30f),
+        FailedState => WithAlpha(GetThemeColor("SyncStatusError", "#DB5967"), 0.30f),
+        _ => WithAlpha(GetThemeColor("SyncStatusPending", "#1B8E8B"), 0.30f)
     };
+
+    private static Color GetThemeColor(string key, string fallback)
+    {
+        if (Application.Current?.Resources.TryGetValue(key, out var resource) == true &&
+            resource is Color color)
+        {
+            return color;
+        }
+
+        return Color.FromArgb(fallback);
+    }
+
+    private static Color WithAlpha(Color color, float alpha) =>
+        new(color.Red, color.Green, color.Blue, alpha);
 }

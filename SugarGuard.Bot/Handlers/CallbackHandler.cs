@@ -48,7 +48,7 @@ public class CallbackHandler
     /// </summary>
     public async Task HandleCallbackAsync(long chatId, long userId, string callbackData, string callbackQueryId, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Обработка callback {CallbackData} от пользователя {UserId}", callbackData, userId);
+        _logger.LogInformation("Обработка callback от пользователя {UserId}", userId);
 
         if (!_rateLimiter.TryAcquire(userId))
         {
@@ -158,14 +158,14 @@ public class CallbackHandler
                         break;
 
                     default:
-                        _logger.LogWarning("Неизвестный callback: {CallbackData}", callbackData);
+                        _logger.LogWarning("Получен неизвестный callback от пользователя {UserId}.", userId);
                         break;
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке callback {CallbackData}", callbackData);
+            _logger.LogError(ex, "Ошибка при обработке callback пользователя {UserId}", userId);
             
             // Уведомляем пользователя об ошибке через callback
             await _botClient.AnswerCallbackQueryAsync(
@@ -288,7 +288,7 @@ public class CallbackHandler
                 }
                 else
                 {
-                    _logger.LogWarning("Некорректный ID перекуса в callback: {CallbackData}", callbackData);
+                    _logger.LogWarning("Некорректный идентификатор перекуса в callback пользователя {UserId}.", userId);
                 }
             }
             else if (callbackData.StartsWith("confirm_delete_"))
@@ -301,7 +301,7 @@ public class CallbackHandler
                 }
                 else
                 {
-                    _logger.LogWarning("Некорректный ID перекуса в callback подтверждения: {CallbackData}", callbackData);
+                    _logger.LogWarning("Некорректный идентификатор подтверждения перекуса пользователя {UserId}.", userId);
                 }
             }
             else if (callbackData.StartsWith("snack_info_"))
@@ -316,7 +316,7 @@ public class CallbackHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке callback перекуса: {CallbackData}", callbackData);
+            _logger.LogError(ex, "Ошибка при обработке callback перекуса пользователя {UserId}", userId);
             
             await _botClient.SendTextMessageAsync(
                 chatId: chatId,
@@ -394,7 +394,7 @@ public class CallbackHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке callback статистики: {CallbackData}", callbackData);
+            _logger.LogError(ex, "Ошибка при обработке callback статистики пользователя {UserId}", userId);
             
             await _botClient.SendTextMessageAsync(
                 chatId: chatId,

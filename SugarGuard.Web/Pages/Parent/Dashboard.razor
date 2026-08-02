@@ -81,6 +81,13 @@
     </div>
 }
 
+@if (_telegramConnected && _telegramBotAvailability is { IsAvailable: false })
+{
+    <div class="state-banner state-banner--warning" role="status">
+        <span>@_telegramBotAvailability.Message</span>
+    </div>
+}
+
 @* Вкладки *@
 <nav class="tabs" role="tablist" aria-label="Разделы дашборда">
     <button class="tab @TabClass("overview")" role="tab"
@@ -1316,12 +1323,16 @@
                         <div class="setting-label" id="telegramConnectTitle">Telegram-бот</div>
                         <div class="setting-desc">
                             @(_telegramConnected
-                                ? "Подключён: уведомления будут приходить в Telegram"
+                                ? _telegramBotAvailability is { IsAvailable: false }
+                                    ? _telegramBotAvailability.Message
+                                    : "Подключён: уведомления будут приходить в Telegram"
                                 : "Подключите бота, чтобы получать критические уведомления и сводки")
                         </div>
                     </div>
-                    <span class="telegram-connect__status @(_telegramConnected ? "connected" : "")">
-                        @(_telegramConnected ? "Подключён" : "Не подключён")
+                    <span class="telegram-connect__status @(_telegramConnected && _telegramBotAvailability is not { IsAvailable: false } ? "connected" : "")">
+                        @(_telegramConnected
+                            ? _telegramBotAvailability is { IsAvailable: false } ? "Восстанавливаем" : "Подключён"
+                            : "Не подключён")
                     </span>
                 </div>
 
@@ -1631,6 +1642,7 @@
     private string? _telegramConnectionError;
     private bool _isCreatingTelegramCode;
     private bool _telegramConnected => _linkedParents.Any(link => link.TelegramId.HasValue);
+    private TelegramBotAvailabilityVm? _telegramBotAvailability;
     private TelegramConnectionCodeVm? _maxConnectionCode;
     private MaxBotStatusVm? _maxBotStatus;
     private string? _maxConnectionError;
@@ -1862,6 +1874,7 @@
             }
             await LoadBackpackFromApiAsync(childId);
             await LoadAccessLinksAsync(childId, cancellationToken);
+            _telegramBotAvailability = await Api.GetTelegramBotAvailabilityAsync(cancellationToken);
             _maxBotStatus = await Api.GetMaxBotStatusAsync(cancellationToken);
             await LoadDoctorNotesAsync(childId, cancellationToken);
             await LoadInsulinLogAsync(childId, cancellationToken);

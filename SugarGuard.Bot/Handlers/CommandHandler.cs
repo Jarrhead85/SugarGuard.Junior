@@ -428,7 +428,7 @@ public class CommandHandler
             cancellationToken: cancellationToken
         );
 
-        _logger.LogWarning("Неверный формат кода подключения от пользователя {UserId}: {EnteredValue}", userId, enteredValue);
+        _logger.LogWarning("Неверный формат кода подключения от пользователя {UserId}.", userId);
     }
 
     /// <summary>

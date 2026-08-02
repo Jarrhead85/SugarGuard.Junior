@@ -738,6 +738,15 @@ public class MockApiClient : IApiClient
     public Task<bool> MarkSupportConversationReadAsync(Guid conversationId, CancellationToken cancellationToken = default) =>
         Task.FromResult(MockSupportConversations.Any(item => item.ConversationId == conversationId));
 
+    public Task<TelegramBotAvailabilityApiModel?> GetTelegramBotAvailabilityAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<TelegramBotAvailabilityApiModel?>(new TelegramBotAvailabilityApiModel
+        {
+            IsAvailable = true,
+            LastCheckedAt = DateTime.UtcNow,
+            Message = "Telegram-бот работает."
+        });
+
     /// <summary>
     /// Имитирует проверку доступности сервера
     /// </summary>

@@ -15,6 +15,7 @@ foreach ($requiredFile in @(
     $installer,
     (Join-Path $watchdogRoot "happ-telegram-watchdog.sh"),
     (Join-Path $watchdogRoot "happ-telegram-watchdog.env.example"),
+    (Join-Path $watchdogRoot "sugarguard-bot-happ-routing.conf"),
     (Join-Path $watchdogRoot "sugarguard-happ-watchdog.service"),
     (Join-Path $watchdogRoot "sugarguard-happ-watchdog.timer"))) {
     if (-not (Test-Path -LiteralPath $requiredFile)) {
@@ -63,6 +64,7 @@ try {
     foreach ($payloadFile in @(
         (Join-Path $watchdogRoot "happ-telegram-watchdog.sh"),
         (Join-Path $watchdogRoot "happ-telegram-watchdog.env.example"),
+        (Join-Path $watchdogRoot "sugarguard-bot-happ-routing.conf"),
         (Join-Path $watchdogRoot "sugarguard-happ-watchdog.service"),
         (Join-Path $watchdogRoot "sugarguard-happ-watchdog.timer"))) {
         & scp @sshArgs $payloadFile "${remoteHost}:$remoteRoot/linux/"

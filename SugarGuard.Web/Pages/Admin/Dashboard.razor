@@ -291,15 +291,20 @@
         string.Equals(item.BotName, "telegram", StringComparison.OrdinalIgnoreCase));
     private BotRuntimeStatusVm? MaxBot => _botStatuses.FirstOrDefault(item =>
         string.Equals(item.BotName, "max", StringComparison.OrdinalIgnoreCase));
-    private string BotCardTone => TelegramBot?.IsOnline == true && TelegramBot.InternetAvailable
+    private bool IsTelegramDeliveryAvailable => TelegramBot?.IsOnline == true
+        && TelegramBot.InternetAvailable
+        && TelegramBot.LastExternalApiSuccessAt >= DateTime.UtcNow.AddMinutes(-2)
+        && string.IsNullOrWhiteSpace(TelegramBot.LastError);
+    private string BotCardTone => IsTelegramDeliveryAvailable
         ? "admin-mini-card--safe"
         : "admin-mini-card--warning";
     private string BotCardLabel => TelegramBot is null
         ? "Нет сигнала"
-        : TelegramBot.IsOnline && TelegramBot.InternetAvailable ? "На связи" : "Проверить";
+        : IsTelegramDeliveryAvailable ? "На связи" : "Восстановление";
     private string BotCardDetails => TelegramBot is null
         ? "Heartbeat ещё не поступал"
-        : $"Интернет: {(TelegramBot.InternetAvailable ? "есть" : "нет")}; " +
+        : $"API: {(TelegramBot.InternetAvailable ? "доступен" : "недоступен")}; " +
+          $"Telegram: {(TelegramBot.LastExternalApiSuccessAt >= DateTime.UtcNow.AddMinutes(-2) ? "доступен" : "недоступен")}; " +
           $"очередь: {TelegramBot.PendingTelegramMessages}; ошибок: {TelegramBot.FailedTelegramMessages}; " +
           $"проверка: {FormatMoscow(TelegramBot.LastHeartbeatAt)}";
     private string MaxBotCardTone => MaxBot?.IsConfigured == true ? "admin-mini-card--warning" : string.Empty;

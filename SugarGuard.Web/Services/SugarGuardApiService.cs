@@ -920,6 +920,51 @@ namespace SugarGuard.Web.Services
             }
         }
 
+        /// <summary>
+        /// GET api/bot-service/telegram-availability — безопасный для родителя
+        /// статус отправки новых уведомлений Telegram.
+        /// </summary>
+        public async Task<TelegramBotAvailabilityVm?> GetTelegramBotAvailabilityAsync(
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var client = await CreateAuthorizedClientAsync(cancellationToken);
+                using var response = await client.GetAsync(
+                    "api/bot-service/telegram-availability",
+                    cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                var dto = await ReadOptionalAsync<TelegramBotAvailabilityApiDto>(
+                    response.Content,
+                    cancellationToken);
+                return dto is null
+                    ? null
+                    : new TelegramBotAvailabilityVm(
+                        dto.IsAvailable,
+                        dto.LastCheckedAt,
+                        dto.Message ?? string.Empty);
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException
+                    or TaskCanceledException
+                    or JsonException
+                    or InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
+        private sealed class TelegramBotAvailabilityApiDto
+        {
+            public bool IsAvailable { get; init; }
+            public DateTime? LastCheckedAt { get; init; }
+            public string? Message { get; init; }
+        }
+
         private sealed class SaveConnectionCodeApiDto
         {
             public bool Success { get; init; }

@@ -76,13 +76,17 @@ public class Program
                 // Регистрируем Telegram Bot Client
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
                 
-                // Регистрируем HTTP клиент для API.
+                // API SugarGuard доступен без VPN. Отдельный клиент намеренно
+                // не наследует системный proxy: при сбое Happ бот всё равно
+                // передаст heartbeat, заберёт очередь после восстановления и
+                // сможет честно показать пользователям состояние сервиса.
                 const string ApiHttpClientName = "SugarGuardBotApi";
                 services.AddHttpClient(ApiHttpClientName, client =>
                 {
                     // Конкретные значения (BaseAddress, User-Agent) ApiClient проставит сам
                     // в конструкторе, чтобы не дублировать конфигурацию.
-                });
+                })
+                    .ConfigurePrimaryHttpMessageHandler(CreateDirectSugarGuardApiHandler);
                 services.AddSingleton<Services.ApiClient>(sp =>
                 {
                     var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
@@ -91,8 +95,10 @@ public class Program
                     var config = sp.GetRequiredService<IConfiguration>();
                     return new Services.ApiClient(httpClient, logger, config);
                 });
-                services.AddHttpClient<IBotUserContextService, BotUserContextService>();
-                services.AddHttpClient<TelegramOutboxClient>();
+                services.AddHttpClient<IBotUserContextService, BotUserContextService>()
+                    .ConfigurePrimaryHttpMessageHandler(CreateDirectSugarGuardApiHandler);
+                services.AddHttpClient<TelegramOutboxClient>()
+                    .ConfigurePrimaryHttpMessageHandler(CreateDirectSugarGuardApiHandler);
 
                 // Регистрируем сервисы
                 services.AddSingleton<TelegramRateLimiter>();
@@ -119,4 +125,12 @@ public class Program
                 logging.AddConsole();
                 logging.SetMinimumLevel(LogLevel.Information);
             });
+
+    private static HttpMessageHandler CreateDirectSugarGuardApiHandler() => new SocketsHttpHandler
+    {
+        // Telegram-клиент продолжает использовать proxy Happ из окружения.
+        // Запросы к собственному API не должны зависеть от доступности VPN.
+        UseProxy = false,
+        ConnectTimeout = TimeSpan.FromSeconds(10)
+    };
 }

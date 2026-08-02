@@ -8,6 +8,9 @@ ConditionPathExists=/etc/sugarguard/happ-telegram-watchdog.env
 Type=oneshot
 User=root
 Group=root
+# Ключ service-to-service берётся из существующего закрытого файла бота.
+# Watchdog не хранит и не дублирует секрет в собственном конфиге.
+EnvironmentFile=-/etc/sugarguard-bot.env
 EnvironmentFile=-/etc/sugarguard/happ-telegram-watchdog.env
 ExecStart=/usr/local/libexec/sugarguard/happ-telegram-watchdog.sh
 # Код 1 означает недоступный в данный момент маршрут, а не сбой самого watchdog.

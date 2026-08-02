@@ -7,6 +7,7 @@ using SugarGuard.Web.Components;
 using SugarGuard.Web.Endpoints;
 using SugarGuard.Web.Services;
 using System.Globalization;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,8 +29,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         ForwardedHeaders.XForwardedProto |
         ForwardedHeaders.XForwardedHost;
 
+    // В production приложение принимает forwarded-заголовки только от локального nginx.
+    // Иначе внешний клиент мог бы подменить схему или исходный IP-адрес.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
+    options.KnownProxies.Add(IPAddress.Loopback);
+    options.KnownProxies.Add(IPAddress.IPv6Loopback);
+    options.ForwardLimit = 1;
 });
 
 // -----------------------------------------------------------------------
@@ -47,6 +53,16 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddAuthorization();
 // Каскадный AuthenticationState для всего дерева компонентов
 builder.Services.AddCascadingAuthenticationState();
+
+// Antiforgery-cookie никогда не должен передаваться по незашифрованному соединению.
+// HTTPS завершается на nginx, который перенаправляет HTTP на HTTPS.
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+});
 
 // Access-токен живёт только в памяти вкладки. Refresh-токен передаётся в защищённую httpOnly cookie.
 builder.Services.AddScoped<ITokenStore, LocalStorageTokenStore>();
@@ -172,7 +188,9 @@ if (!app.Environment.IsDevelopment())
 {
     // Страница ошибок в Production
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
+
+    // HSTS централизованно добавляет nginx для веб-приложения и API.
+    // Это исключает расхождение политик и дублирование заголовка за reverse proxy.
 }
 
 app.Use(async (context, next) =>

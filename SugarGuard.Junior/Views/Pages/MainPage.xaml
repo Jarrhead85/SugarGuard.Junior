@@ -46,6 +46,11 @@
                                        PendingCount="{Binding PendingSyncCount}"
                                        IsDismissible="True" />
 
+                <components:SyncBanner IsBannerVisible="{Binding ShowTelegramBotStatus}"
+                                       SyncState="ServiceDegraded"
+                                       Message="{Binding TelegramBotStatusMessage}"
+                                       IsDismissible="True" />
+
                 <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="156">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">

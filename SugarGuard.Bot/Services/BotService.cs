@@ -81,8 +81,8 @@ public class BotService : BackgroundService
             catch (Exception exception)
             {
                 _logger.LogWarning(
-                    exception,
-                    "Telegram временно недоступен. Повторная проверка через {RetryDelay}.",
+                    "Telegram временно недоступен ({ErrorType}). Повторная проверка через {RetryDelay}.",
+                    exception.GetType().Name,
                     retryDelay);
 
                 try
@@ -126,7 +126,10 @@ public class BotService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке обновления {UpdateId}", update.Id);
+            _logger.LogError(
+                "Ошибка при обработке обновления {UpdateId} ({ErrorType})",
+                update.Id,
+                ex.GetType().Name);
         }
     }
 
@@ -155,7 +158,10 @@ public class BotService : BackgroundService
         var chatId = message.Chat.Id;
         var messageText = message.Text;
 
-        _logger.LogInformation("Получено сообщение от {UserId}: {MessageText}", userId, messageText);
+        _logger.LogInformation(
+            "Получено {MessageKind} от пользователя {UserId}.",
+            messageText.StartsWith('/') ? "командное сообщение" : "текстовое сообщение",
+            userId);
 
         // Проверяем, является ли сообщение командой
         if (messageText.StartsWith('/'))
@@ -188,7 +194,7 @@ public class BotService : BackgroundService
         var chatId = callbackQuery.Message?.Chat.Id ?? 0;
         var callbackData = callbackQuery.Data ?? string.Empty;
 
-        _logger.LogInformation("Получен callback от {UserId}: {CallbackData}", userId, callbackData);
+        _logger.LogInformation("Получен callback от пользователя {UserId}.", userId);
 
         await _callbackHandler.HandleCallbackAsync(chatId, userId, callbackData, callbackQuery.Id, cancellationToken);
     }
@@ -198,14 +204,14 @@ public class BotService : BackgroundService
     /// </summary>
     private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
     {
-        var errorMessage = exception switch
-        {
-            ApiRequestException apiRequestException =>
-                $"Ошибка Telegram Bot API:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
-            _ => exception.ToString()
-        };
+        var errorCode = exception is ApiRequestException apiRequestException
+            ? apiRequestException.ErrorCode
+            : (int?)null;
 
-        _logger.LogError(exception, "Ошибка polling: {ErrorMessage}", errorMessage);
+        _logger.LogError(
+            "Ошибка polling Telegram ({ErrorType}, код {ErrorCode}).",
+            exception.GetType().Name,
+            errorCode);
         return Task.CompletedTask;
     }
 }
