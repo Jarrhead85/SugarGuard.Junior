@@ -11,6 +11,10 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Стандартные диагностические сообщения HttpClient создаются для каждого обращения к API.
+// В production они засоряют журнал, поэтому сохраняем только предупреждения и ошибки.
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+
 // -----------------------------------------------------------------------
 // Razor-компоненты + Blazor Server
 // -----------------------------------------------------------------------

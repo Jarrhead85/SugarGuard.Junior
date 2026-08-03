@@ -147,6 +147,32 @@ backup_dir="/opt/sugarguard/backups"
 sudo mkdir -p "`$backup_dir"
 sudo install -d -o sugarguard -g sugarguard -m 0750 /var/lib/sugarguard/uploads/profiles
 
+api_package="/tmp/sugarguard-api-`$timestamp.tar.gz"
+web_package="/tmp/sugarguard-web-`$timestamp.tar.gz"
+
+# Пакеты удаляются даже при неуспешном развёртывании, чтобы /tmp не рос от старых архивов.
+cleanup_deploy_files() {
+    sudo rm -f "`$api_package" "`$web_package"
+}
+trap cleanup_deploy_files EXIT
+
+# Для отката сохраняются три последние резервные копии каждого приложения.
+prune_backups() {
+    local name="`$1"
+    local -a stale_backups=()
+
+    mapfile -t stale_backups < <(
+        sudo find "`$backup_dir" -maxdepth 1 -type f -name "`$name-*.tar.gz" -printf '%T@ %p\n' |
+            sort -nr |
+            tail -n +4 |
+            cut -d' ' -f2-
+    )
+
+    for stale_backup in "`${stale_backups[@]}"; do
+        [ -n "`$stale_backup" ] && sudo rm -f "`$stale_backup"
+    done
+}
+
 deploy_one() {
     local service="`$1"
     local target="`$2"
@@ -157,9 +183,17 @@ deploy_one() {
     echo "Stopping `$service"
     sudo systemctl stop "`$service"
 
-    if [ -d "`$target" ]; then
+    if sudo test -d "`$target"; then
         echo "Backing up `$target"
-        sudo tar -C "`$(dirname "`$target")" -czf "`$backup_dir/`$name-`$timestamp.tar.gz" "`$(basename "`$target")"
+        local target_name
+        target_name="`$(basename "`$target")"
+
+        # Пользовательские вложения и APK сохраняются отдельно при развёртывании.
+        # Не добавляем их в каждый архив: они не относятся к коду и сильно замедляют бэкап.
+        sudo tar -C "`$(dirname "`$target")" \
+            --exclude="`$target_name/wwwroot/uploads" \
+            --exclude="`$target_name/wwwroot/downloads" \
+            -czf "`$backup_dir/`$name-`$timestamp.tar.gz" "`$target_name"
     fi
 
     echo "Extracting `$package"
@@ -168,7 +202,7 @@ deploy_one() {
     sudo tar -xzf "`$package" -C "`$target.new"
 
     # Runtime/user-facing static data must survive binary deployments.
-    if [ -d "`$target/wwwroot/uploads" ]; then
+    if sudo test -d "`$target/wwwroot/uploads"; then
         sudo mkdir -p "`$target.new/wwwroot"
         sudo rm -rf "`$target.new/wwwroot/uploads"
         sudo cp -a "`$target/wwwroot/uploads" "`$target.new/wwwroot/uploads"
@@ -176,7 +210,7 @@ deploy_one() {
 
     # Published APK files are uploaded outside the application package and must
     # remain available after Web redeploys.
-    if [ -d "`$target/wwwroot/downloads" ]; then
+    if sudo test -d "`$target/wwwroot/downloads"; then
         sudo mkdir -p "`$target.new/wwwroot"
         sudo rm -rf "`$target.new/wwwroot/downloads"
         sudo cp -a "`$target/wwwroot/downloads" "`$target.new/wwwroot/downloads"
@@ -185,7 +219,7 @@ deploy_one() {
     sudo chown -R sugarguard:sugarguard "`$target.new"
     sudo chmod +x "`$target.new/`$executable" || true
 
-    if [ -d "`$target" ]; then
+    if sudo test -d "`$target"; then
         sudo mv "`$target" "`$target.old"
     fi
 
@@ -196,7 +230,7 @@ deploy_one() {
     if ! sudo systemctl start "`$service"; then
         echo "`$service failed to start. Rolling back."
         sudo rm -rf "`$target"
-        if [ -d "`$target.old" ]; then
+        if sudo test -d "`$target.old"; then
             sudo mv "`$target.old" "`$target"
             sudo systemctl start "`$service" || true
         fi
@@ -207,22 +241,23 @@ deploy_one() {
         echo "`$service is not active after deployment. Rolling back."
         sudo systemctl stop "`$service" || true
         sudo rm -rf "`$target"
-        if [ -d "`$target.old" ]; then
+        if sudo test -d "`$target.old"; then
             sudo mv "`$target.old" "`$target"
             sudo systemctl start "`$service" || true
         fi
         exit 1
     fi
 
-    sudo rm -rf "`$target.old" "`$package"
+    sudo rm -rf "`$target.old"
+    prune_backups "`$name"
 }
 
 if [ "`$deploy_api" = "true" ]; then
-    deploy_one "sugarguard-api.service" "/opt/sugarguard/api" "/tmp/sugarguard-api-`$timestamp.tar.gz" "SugarGuard.API" "api"
+    deploy_one "sugarguard-api.service" "/opt/sugarguard/api" "`$api_package" "SugarGuard.API" "api"
 fi
 
 if [ "`$deploy_web" = "true" ]; then
-    deploy_one "sugarguard-web.service" "/opt/sugarguard/web" "/tmp/sugarguard-web-`$timestamp.tar.gz" "SugarGuard.Web" "web"
+    deploy_one "sugarguard-web.service" "/opt/sugarguard/web" "`$web_package" "SugarGuard.Web" "web"
 fi
 
 sudo systemctl --no-pager --full status sugarguard-api.service sugarguard-web.service | sed -n '1,80p'

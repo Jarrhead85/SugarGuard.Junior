@@ -40,6 +40,10 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 var isDevelopment = builder.Environment.IsDevelopment();
 
+// Запросы к внешним сервисам не должны дублировать в журнале каждую техническую фазу HttpClient.
+// Ошибки и предупреждения по-прежнему сохраняются.
+builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+
 // Секреты и строка подключения
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
     ?? builder.Configuration["Jwt:Secret"];
