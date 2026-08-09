@@ -214,6 +214,53 @@ public class MeasurementsServiceTests : IDisposable
             Times.Never);
     }
 
+    [Fact]
+    public async Task CreateAsync_WhenNutritionMirrorExists_ReplacesMirrorWithManualMeasurement()
+    {
+        var child = CreateChild();
+        var measuredAt = new DateTime(2026, 8, 9, 10, 0, 0, DateTimeKind.Utc);
+        using (var db = new AppDbContext(_dbOptions))
+        {
+            db.Children.Add(child);
+            db.NutritionEntries.Add(new NutritionEntry
+            {
+                ChildId = child.ChildId,
+                RecordedAt = measuredAt,
+                MealType = SugarGuard.Domain.Enums.MealType.Lunch,
+                MealName = "Обед",
+                CreatedByUserId = Guid.NewGuid()
+            });
+            await db.SaveChangesAsync();
+
+            var nutritionEntry = await db.NutritionEntries.SingleAsync();
+            db.Measurements.Add(new Measurement
+            {
+                ChildId = child.ChildId,
+                GlucoseValue = 7.3m,
+                MeasurementTime = measuredAt,
+                DataSource = "nutrition",
+                NutritionEntryId = nutritionEntry.NutritionEntryId
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var sut = CreateSut();
+        var created = await sut.CreateAsync(new CreateMeasurementRequest
+        {
+            ChildId = child.ChildId,
+            GlucoseValue = 7.3m,
+            MeasurementTime = measuredAt,
+            DataSource = "manual"
+        });
+
+        using var verifyDb = new AppDbContext(_dbOptions);
+        var measurements = await verifyDb.Measurements.ToListAsync();
+        var measurement = Assert.Single(measurements);
+        Assert.Equal(created.MeasurementId, measurement.MeasurementId);
+        Assert.Null(measurement.NutritionEntryId);
+        Assert.Equal("manual", measurement.DataSource);
+    }
+
     // ───────────────────────────────────────────────────────────────────
     // GetByChildAsync
     // ───────────────────────────────────────────────────────────────────

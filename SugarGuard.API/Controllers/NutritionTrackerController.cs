@@ -127,7 +127,7 @@ public sealed class NutritionTrackerController : ControllerBase
         return File(await _tracker.ExportPdfAsync(childId, NormalizeQueryTime(from), NormalizeQueryTime(to), cancellationToken), "application/pdf", $"nutrition-{from:yyyyMMdd}-{to:yyyyMMdd}.pdf");
     }
 
-    private bool CanEdit() => _currentUser.GetRole() is UserRole.Parent or UserRole.ChildDevice or UserRole.Admin or UserRole.SupportAdmin;
+    private bool CanEdit() => _currentUser.GetRole() is UserRole.Parent or UserRole.ChildDevice or UserRole.Patient or UserRole.Admin or UserRole.SupportAdmin;
 
     private static bool TryValidatePeriod(DateTime from, DateTime to, out string? error)
     {

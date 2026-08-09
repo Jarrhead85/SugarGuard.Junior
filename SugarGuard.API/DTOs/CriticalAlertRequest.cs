@@ -16,4 +16,7 @@ public class CriticalAlertRequest
     public double? Longitude { get; set; } // Долгота
 
     public string? Address { get; set; } // Адрес местоположения
+
+    /// <summary>Признак ручного SOS-вызова ребёнка, а не автоматического алерта.</summary>
+    public bool IsEmergencyHelp { get; set; }
 }

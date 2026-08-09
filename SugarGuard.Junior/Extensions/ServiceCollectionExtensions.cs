@@ -45,6 +45,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScheduleService, ScheduleService>();
         services.AddSingleton<IChildSessionBootstrapService, ChildSessionBootstrapService>();
         services.AddSingleton<ISensorGlucoseIngestionService, SensorGlucoseIngestionService>();
+        services.AddSingleton<ICgmConnectionService, CgmConnectionService>();
+        services.AddSingleton<ICgmBridgeLauncher, CgmBridgeLauncher>();
+        services.AddSingleton<IWidgetEmergencyService, WidgetEmergencyService>();
         // Фабрика для разрыва цикла INotificationService <-> IScheduleService (ScheduleService получает уведомления лениво)
         services.AddScoped<Func<INotificationService>>(sp => () => sp.GetRequiredService<INotificationService>());
         
@@ -148,6 +151,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<RecommendationModalViewModel>();
         services.AddTransient<EditProfilePageViewModel>();
         services.AddTransient<DiabetesSettingsPageViewModel>();
+        services.AddTransient<CgmSetupPageViewModel>();
         services.AddTransient<LoginPageViewModel>();
         services.AddTransient<RegisterPageViewModel>();
         services.AddTransient<VerifyPageViewModel>();
@@ -168,6 +172,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<RecommendationModal>();
         services.AddTransient<EditProfilePage>();
         services.AddTransient<DiabetesSettingsPage>();
+        services.AddTransient<CgmSetupPage>();
         services.AddTransient<LoginPage>();
         services.AddTransient<RegisterPage>();
         services.AddTransient<VerifyPage>();
@@ -183,6 +188,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEditProfilePageFactory, EditProfilePageFactory>();
         services.AddSingleton<IDiabetesSettingsPageFactory, DiabetesSettingsPageFactory>();
         services.AddSingleton<IAccessManagementPageFactory, AccessManagementPageFactory>();
+        services.AddSingleton<IHelpAlertPageFactory, HelpAlertPageFactory>();
+        services.AddSingleton<ICgmSetupPageFactory, CgmSetupPageFactory>();
 
         // Shell
         services.AddSingleton<AppShell>();

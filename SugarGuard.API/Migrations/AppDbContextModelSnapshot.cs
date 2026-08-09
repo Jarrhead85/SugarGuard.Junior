@@ -466,6 +466,14 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("child_id");
 
+                    b.Property<string>("CareMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("ChildWithGuardian")
+                        .HasColumnName("care_mode");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -1138,11 +1146,20 @@ namespace SugarGuard.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("notes");
 
+                    b.Property<Guid?>("NutritionEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("nutrition_entry_id");
+
                     b.Property<Guid?>("RecommendationId")
                         .HasColumnType("uuid")
                         .HasColumnName("recommendation_id");
 
                     b.HasKey("MeasurementId");
+
+                    b.HasIndex("NutritionEntryId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_measurements_nutrition_entry")
+                        .HasFilter("nutrition_entry_id IS NOT NULL");
 
                     b.HasIndex("RecommendationId")
                         .IsUnique();
@@ -2237,6 +2254,11 @@ namespace SugarGuard.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SugarGuard.Domain.Entities.NutritionEntry", "NutritionEntry")
+                        .WithOne()
+                        .HasForeignKey("SugarGuard.Domain.Entities.Measurement", "NutritionEntryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("SugarGuard.Domain.Entities.AIRecommendation", "AIRecommendation")
                         .WithOne()
                         .HasForeignKey("SugarGuard.Domain.Entities.Measurement", "RecommendationId");
@@ -2244,6 +2266,8 @@ namespace SugarGuard.API.Migrations
                     b.Navigation("AIRecommendation");
 
                     b.Navigation("Child");
+
+                    b.Navigation("NutritionEntry");
                 });
 
             modelBuilder.Entity("SugarGuard.Domain.Entities.MeasurementSchedule", b =>

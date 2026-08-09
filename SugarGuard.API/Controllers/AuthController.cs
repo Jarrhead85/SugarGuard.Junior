@@ -237,6 +237,8 @@ public sealed class AuthController : ControllerBase
         {
             "parent" => UserRole.Parent,
             "doctor" => UserRole.DoctorPending,
+            "childdevice" => UserRole.ChildDevice,
+            "patient" => UserRole.Patient,
             _ => null
         };
     }

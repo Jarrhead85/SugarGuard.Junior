@@ -49,7 +49,8 @@ public sealed class AdminService : IAdminService
         UserRole.Doctor,
         UserRole.Admin,
         UserRole.SupportAdmin,
-        UserRole.ChildDevice
+        UserRole.ChildDevice,
+        UserRole.Patient
     };
 
     public AdminService(

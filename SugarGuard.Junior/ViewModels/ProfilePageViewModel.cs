@@ -31,6 +31,9 @@ public partial class ProfilePageViewModel : ObservableObject
     private readonly IAuthenticationService _authenticationService;
     private readonly IThemeService _themeService;
     private readonly INotificationService _notificationService;
+    private readonly ICgmConnectionService _cgmConnectionService;
+    private readonly ICgmSetupPageFactory _cgmSetupPageFactory;
+    private readonly ILocationService _locationService;
     private bool _isLoadingPreferences;
 
     public ObservableCollection<AchievementApiModel> Achievements { get; } = [];
@@ -101,6 +104,15 @@ public partial class ProfilePageViewModel : ObservableObject
     private bool isEmailVerified = true;
 
     [ObservableProperty]
+    private string cgmStatus = "Не подключён";
+
+    [ObservableProperty]
+    private string cgmButtonText = "Подключить";
+
+    [ObservableProperty]
+    private string parentPhonesStatus = "Добавьте основной и резервный номер";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSmallScaleSelected))]
     [NotifyPropertyChangedFor(nameof(IsDefaultScaleSelected))]
     [NotifyPropertyChangedFor(nameof(IsLargeScaleSelected))]
@@ -145,7 +157,10 @@ public partial class ProfilePageViewModel : ObservableObject
         IApiClient apiClient,
         IAuthenticationService authenticationService,
         IThemeService themeService,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ICgmConnectionService cgmConnectionService,
+        ICgmSetupPageFactory cgmSetupPageFactory,
+        ILocationService locationService)
     {
         _logger = logger;
         _childRepository = childRepository;
@@ -159,6 +174,9 @@ public partial class ProfilePageViewModel : ObservableObject
         _authenticationService = authenticationService;
         _themeService = themeService;
         _notificationService = notificationService;
+        _cgmConnectionService = cgmConnectionService;
+        _cgmSetupPageFactory = cgmSetupPageFactory;
+        _locationService = locationService;
     }
 
     /// <summary>
@@ -222,6 +240,8 @@ public partial class ProfilePageViewModel : ObservableObject
             // Загружаем данные профиля
             await LoadProfileDataAsync();
             await LoadAchievementsAsync();
+            await LoadCgmStatusAsync();
+            await LoadParentPhonesStatusAsync();
 
             _logger.LogInformation("ProfilePage initialization completed");
         }
@@ -415,6 +435,112 @@ public partial class ProfilePageViewModel : ObservableObject
         Preferences.Set("interface_scale", (int)preset);
         Preferences.Set("ui_compact_mode", preset == ScalePreset.Small);
         _logger.LogInformation("Scale set to {Preset}", preset);
+    }
+
+    /// <summary>
+    /// Подключает локальный Android-bridge к выбранному профилю. SugarGuard не
+    /// получает данные для входа в приложения производителей и не подключается к датчику по Bluetooth.
+    /// </summary>
+    [RelayCommand]
+    public async Task ConfigureCgmAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentChildId))
+        {
+            await DisplayAlert("Датчик глюкозы", "Сначала выберите профиль ребёнка.", "ОК");
+            return;
+        }
+
+        await Shell.Current!.Navigation.PushModalAsync(_cgmSetupPageFactory.Create());
+    }
+
+    [RelayCommand]
+    public async Task ConfigureSosWidgetAsync()
+    {
+        var granted = await _locationService.IsLocationPermissionGrantedAsync()
+                      || await _locationService.RequestLocationPermissionAsync();
+        if (!granted)
+        {
+            await DisplayAlert("SOS-виджет", "Для отправки координат родителю разрешите доступ к геолокации в настройках телефона.", "Понятно");
+            return;
+        }
+
+        await DisplayAlert(
+            "SOS-виджет готов",
+            "На главном экране телефона удерживайте свободное место → Виджеты → SugarGuard SOS → добавьте виджет. Кнопка SOS отправит родителю текущую геопозицию и последнее показание сахара.",
+            "Понятно");
+    }
+
+    /// <summary>
+    /// Сохраняет номера, по которым ребёнок сможет позвонить из SOS-сценария.
+    /// Номера остаются в защищённом хранилище именно этого телефона.
+    /// </summary>
+    [RelayCommand]
+    public async Task EditParentPhonesAsync()
+    {
+        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null)
+        {
+            return;
+        }
+
+        var existingPrimary = await _storageService.GetAsync(AppConstants.StorageKeyParentPhone) ?? string.Empty;
+        var primary = await page.DisplayPromptAsync(
+            "Основной номер родителя",
+            "По нему приложение позвонит первым при нажатии SOS.",
+            accept: "Далее",
+            cancel: "Отмена",
+            placeholder: "+7 900 000-00-00",
+            initialValue: existingPrimary,
+            maxLength: 32,
+            keyboard: Keyboard.Telephone);
+
+        if (primary is null)
+        {
+            return;
+        }
+
+        primary = primary.Trim();
+        if (!IsValidPhoneNumber(primary))
+        {
+            await page.DisplayAlert("Проверьте номер", "Укажите номер минимум из 6 цифр — например, +7 900 000-00-00.", "Понятно");
+            return;
+        }
+
+        var existingBackup = await _storageService.GetAsync(AppConstants.StorageKeyBackupParentPhone) ?? string.Empty;
+        var backup = await page.DisplayPromptAsync(
+            "Резервный номер",
+            "Необязательно. Его можно использовать, если основной родитель недоступен.",
+            accept: "Сохранить",
+            cancel: "Отмена",
+            placeholder: "+7 900 000-00-00",
+            initialValue: existingBackup,
+            maxLength: 32,
+            keyboard: Keyboard.Telephone);
+
+        if (backup is null)
+        {
+            return;
+        }
+
+        backup = backup.Trim();
+        if (!string.IsNullOrWhiteSpace(backup) && !IsValidPhoneNumber(backup))
+        {
+            await page.DisplayAlert("Проверьте номер", "Резервный номер должен содержать минимум 6 цифр.", "Понятно");
+            return;
+        }
+
+        await _storageService.SaveAsync(AppConstants.StorageKeyParentPhone, primary);
+        if (string.IsNullOrWhiteSpace(backup))
+        {
+            await _storageService.DeleteAsync(AppConstants.StorageKeyBackupParentPhone);
+        }
+        else
+        {
+            await _storageService.SaveAsync(AppConstants.StorageKeyBackupParentPhone, backup);
+        }
+
+        await LoadParentPhonesStatusAsync();
+        await page.DisplayAlert("Номера сохранены", "В SOS ребёнок сначала отправит сообщение с геопозицией и сахаром, затем сможет позвонить по выбранному номеру.", "Понятно");
     }
 
     private async Task LoadAchievementsAsync()
@@ -684,6 +810,44 @@ public partial class ProfilePageViewModel : ObservableObject
             HealthKitButtonText = "Подключить";
             HealthKitButtonColor = "#42C0F5";
         }
+    }
+
+    private async Task LoadCgmStatusAsync()
+    {
+        var status = await _cgmConnectionService.GetStatusAsync();
+        if (!status.IsConnected || !string.Equals(status.ChildId, _currentChildId, StringComparison.Ordinal))
+        {
+            CgmStatus = "Не подключён";
+            CgmButtonText = "Подключить";
+            return;
+        }
+
+        CgmButtonText = "Отключить";
+        CgmStatus = status.LastReadingAtUtc is null
+            ? $"{status.Provider}: ждём первое показание"
+            : $"{status.Provider}: {status.LastReadingAtUtc.Value.ToLocalTime():HH:mm}";
+    }
+
+    private async Task LoadParentPhonesStatusAsync()
+    {
+        var primary = await _storageService.GetAsync(AppConstants.StorageKeyParentPhone);
+        var backup = await _storageService.GetAsync(AppConstants.StorageKeyBackupParentPhone);
+
+        ParentPhonesStatus = string.IsNullOrWhiteSpace(primary)
+            ? "Добавьте основной и резервный номер"
+            : string.IsNullOrWhiteSpace(backup)
+                ? $"Основной: {MaskPhoneNumber(primary)} · резервный не указан"
+                : $"Основной: {MaskPhoneNumber(primary)} · резервный: {MaskPhoneNumber(backup)}";
+    }
+
+    private static bool IsValidPhoneNumber(string phone) =>
+        phone.Count(char.IsDigit) >= 6 && phone.All(character =>
+            char.IsDigit(character) || character is '+' or ' ' or '-' or '(' or ')');
+
+    private static string MaskPhoneNumber(string phone)
+    {
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+        return digits.Length <= 4 ? "••••" : $"•••• {digits[^4..]}";
     }
 
     /// <summary>

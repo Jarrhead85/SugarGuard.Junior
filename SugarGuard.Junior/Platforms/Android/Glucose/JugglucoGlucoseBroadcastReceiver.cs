@@ -57,16 +57,16 @@ public sealed class JugglucoGlucoseBroadcastReceiver : BroadcastReceiver
 
         return new JugglucoBroadcastPayload(
             Action: intent.Action ?? string.Empty,
-            Glucose: ReadDouble(intent, isXdrip
-                ? JugglucoBroadcastContract.XdripGlucoseExtra
-                : JugglucoBroadcastContract.GlucoseExtra),
+            Glucose: isXdrip
+                ? ReadDouble(intent, JugglucoBroadcastContract.XdripGlucoseExtra) ?? ReadDouble(intent, JugglucoBroadcastContract.LegacyXdripGlucoseExtra)
+                : ReadDouble(intent, JugglucoBroadcastContract.GlucoseExtra),
             MgDl: ReadDouble(intent, JugglucoBroadcastContract.MgDlExtra),
-            TimestampUnixMilliseconds: ReadLong(intent, isXdrip
-                ? JugglucoBroadcastContract.XdripTimestampExtra
-                : JugglucoBroadcastContract.TimeExtra),
-            Rate: ReadDouble(intent, isXdrip
-                ? JugglucoBroadcastContract.XdripDeltaExtra
-                : JugglucoBroadcastContract.RateExtra),
+            TimestampUnixMilliseconds: isXdrip
+                ? ReadLong(intent, JugglucoBroadcastContract.XdripTimestampExtra) ?? ReadLong(intent, JugglucoBroadcastContract.LegacyXdripTimestampExtra)
+                : ReadLong(intent, JugglucoBroadcastContract.TimeExtra),
+            Rate: isXdrip
+                ? ReadDouble(intent, JugglucoBroadcastContract.XdripDeltaExtra) ?? ReadDouble(intent, JugglucoBroadcastContract.LegacyXdripDeltaExtra)
+                : ReadDouble(intent, JugglucoBroadcastContract.RateExtra),
             SensorSerialNumber: ReadString(intent, JugglucoBroadcastContract.SerialNumberExtra));
     }
 

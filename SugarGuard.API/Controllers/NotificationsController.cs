@@ -99,10 +99,17 @@ public class NotificationsController : ControllerBase
 
             await _userNotificationService.PersistCriticalLocationAsync(request, cancellationToken);
 
+            var notificationTitle = request.IsEmergencyHelp
+                ? "SOS от ребёнка"
+                : "Критический уровень глюкозы";
+            var notificationBody = request.IsEmergencyHelp
+                ? $"Ребёнок просит помощи. Глюкоза: {request.CriticalGlucose:F1} ммоль/л."
+                : $"{request.CriticalGlucose:F1} ммоль/л. Требуется внимание.";
+
             await SendWebPushAsync(
                 criticalChildId,
-                "Критический уровень глюкозы",
-                $"{request.CriticalGlucose:F1} ммоль/л. Требуется внимание.",
+                notificationTitle,
+                notificationBody,
                 $"/parent/dashboard?childId={criticalChildId}&tab=alerts",
                 requireInteraction: true,
                 cancellationToken: cancellationToken);

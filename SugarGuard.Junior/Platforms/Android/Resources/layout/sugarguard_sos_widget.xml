@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="10dp"
+    android:background="@drawable/sos_widget_background">
+  <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="match_parent"
+      android:layout_weight="1"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+    <ImageView
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_marginEnd="7dp"
+        android:contentDescription="SugarGuard"
+        android:src="@drawable/sugarguard_guardian" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+      <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="SUGARGUARD"
+          android:textAllCaps="true"
+          android:textColor="#E6FFFF"
+          android:textSize="11sp"
+          android:textStyle="bold" />
+      <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="1dp"
+          android:text="Экстренная связь"
+          android:textColor="#C8F5F7"
+          android:textSize="10sp" />
+    </LinearLayout>
+  </LinearLayout>
+  <Button
+      android:id="@+id/sos_button"
+      android:layout_width="112dp"
+      android:layout_height="match_parent"
+      android:minHeight="48dp"
+      android:background="@drawable/sos_widget_button_background"
+      android:contentDescription="Отправить SOS родителю с координатами"
+      android:text="SOS&#10;РОДИТЕЛЮ"
+      android:textColor="#FFFFFF"
+      android:textSize="13sp"
+      android:textStyle="bold" />
+</LinearLayout>

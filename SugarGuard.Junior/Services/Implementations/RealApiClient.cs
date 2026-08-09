@@ -101,7 +101,19 @@ public class RealApiClient : IApiClient
         {
             var err = await res.Content.ReadAsStringAsync();
             _logger.LogWarning("Login failed: {Status} {Body}", res.StatusCode, err);
-            return new LoginResponse { Success = false, ErrorMessage = "Неверный email или пароль" };
+
+            // Only a 401 represents rejected credentials. Returning the same
+            // response for a gateway/server outage made the mobile UI tell a
+            // child that their password was wrong while they had no internet.
+            if (res.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                return new LoginResponse { Success = false, ErrorMessage = "Неверный email или пароль" };
+            }
+
+            throw new HttpRequestException(
+                $"Login endpoint returned {(int)res.StatusCode} ({res.ReasonPhrase}).",
+                inner: null,
+                statusCode: res.StatusCode);
         }
 
         var data = await res.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -234,11 +246,14 @@ public class RealApiClient : IApiClient
         }
     }
 
-    public async Task<LoginResponse> RefreshTokenAsync(string refreshToken)
+    public async Task<LoginResponse> RefreshTokenAsync(string accessToken, string refreshToken)
     {
         // Не используем SendWithRetryAsync — это и есть механизм обновления
         // JWT-заголовок добавляется автоматически через JwtAuthorizationHandler
-        var res = await _httpClient.PostAsJsonAsync("api/auth/refresh", new { refreshToken }, JsonOptions);
+        using var res = await _httpClient.PostAsJsonAsync(
+            "api/auth/refresh",
+            new { accessToken, refreshToken },
+            JsonOptions);
         if (!res.IsSuccessStatusCode)
         {
             // Только 400/401 означают, что сервер смог обработать запрос и
@@ -252,8 +267,27 @@ public class RealApiClient : IApiClient
             };
         }
 
-        var data = await res.Content.ReadFromJsonAsync<LoginResponse>(JsonOptions);
-        return data ?? new LoginResponse { Success = false };
+        var data = await res.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var nextAccessToken = data.TryGetProperty("accessToken", out var accessTokenProperty)
+            ? accessTokenProperty.GetString()
+            : null;
+        var nextRefreshToken = data.TryGetProperty("refreshToken", out var refreshTokenProperty)
+            ? refreshTokenProperty.GetString()
+            : null;
+
+        return !string.IsNullOrWhiteSpace(nextAccessToken) && !string.IsNullOrWhiteSpace(nextRefreshToken)
+            ? new LoginResponse
+            {
+                Success = true,
+                AccessToken = nextAccessToken,
+                Token = nextAccessToken,
+                RefreshToken = nextRefreshToken
+            }
+            : new LoginResponse
+            {
+                Success = false,
+                ErrorMessage = "Сервер вернул неполный ответ обновления сессии."
+            };
     }
 
     public async Task LogoutAsync(string refreshToken)
@@ -707,7 +741,8 @@ public class RealApiClient : IApiClient
             measurementTime = request.MeasurementTime,
             latitude = request.Latitude,
             longitude = request.Longitude,
-            address = request.Address
+            address = request.Address,
+            isEmergencyHelp = request.IsEmergencyHelp
         };
 
         using var res = await SendWithRetryAsync(() =>

@@ -357,6 +357,12 @@ public class MeasurementService : IMeasurementService
             context.Measurements.Add(measurement);
             await context.SaveChangesAsync();
 
+            // SOS must contain the latest sensor value even when the dashboard
+            // has not been opened since the last CGM broadcast.
+            await _storageService.SaveAsync(
+                SugarGuard.Junior.Utilities.Constants.StorageKeyLastGlucoseValue,
+                reading.GlucoseMmolPerLiter.ToString("F1", CultureInfo.InvariantCulture));
+
             var payload = new SendMeasurementRequest
             {
                 MeasurementId = measurement.MeasurementId,
@@ -399,6 +405,20 @@ public class MeasurementService : IMeasurementService
             }
 
             await _notificationService.MarkMeasurementCompletedAsync(childId);
+
+            // CGM can emit every minute. We notify about a low value, but never
+            // call the model automatically: the child explicitly chooses whether
+            // to ask for a snack suggestion from the backpack.
+            if (status is GlucoseStatus.Low or GlucoseStatus.CriticallyLow)
+            {
+                await _storageService.SaveAsync(
+                    "cgm_snack_advice_pending",
+                    string.Join("|", childId, reading.GlucoseMmolPerLiter.ToString("F1", CultureInfo.InvariantCulture), measurementTime.ToString("O")));
+                await _notificationService.SendLocalNotificationAsync(
+                    "Низкий сахар",
+                    $"{reading.GlucoseMmolPerLiter:F1} ммоль/л. Открой SugarGuard, чтобы выбрать перекус из рюкзака.",
+                    $"cgm-low-{childId}");
+            }
             _logger.LogInformation(
                 "Показание датчика сохранено. ChildId={ChildId}; Value={GlucoseValue}; Time={MeasurementTime:O}; NotifyParents={NotifyParents}",
                 childId,

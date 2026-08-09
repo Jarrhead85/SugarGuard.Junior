@@ -19,20 +19,20 @@
     -->
 
     <Border x:Name="BannerBorder"
-            StrokeShape="RoundRectangle 18"
+            StrokeShape="RoundRectangle 14"
             StrokeThickness="1"
-            Padding="14,12"
+            Padding="10,7"
             HorizontalOptions="Fill"
             VerticalOptions="Start">
 
         <Grid ColumnDefinitions="Auto,*,Auto,Auto"
-              ColumnSpacing="10"
+              ColumnSpacing="6"
               RowDefinitions="Auto">
 
             <!-- Иконка состояния (эмодзи, задаётся из code-behind) -->
             <Label x:Name="IconLabel"
                    Grid.Column="0"
-                   FontSize="16"
+                   FontSize="14"
                    VerticalOptions="Center"
                    LineBreakMode="NoWrap" />
 
@@ -43,7 +43,7 @@
 
                 <Label x:Name="TitleLabel"
                        FontFamily="{StaticResource Satoshi}"
-                       FontSize="13"
+                       FontSize="12"
                        FontAttributes="Bold"
                        LineBreakMode="TailTruncation"
                        MaxLines="1"
@@ -51,9 +51,9 @@
 
                 <Label x:Name="MessageLabel"
                        FontFamily="{StaticResource Satoshi}"
-                       FontSize="12"
-                       LineBreakMode="WordWrap"
-                       MaxLines="2"
+                       FontSize="11"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="1"
                        TextColor="{DynamicResource TextMuted}" />
 
             </VerticalStackLayout>
@@ -69,9 +69,9 @@
                     FontSize="12"
                     FontAttributes="Bold"
                     BackgroundColor="Transparent"
-                    Padding="8,4"
-                    MinimumHeightRequest="44"
-                    MinimumWidthRequest="44"
+                    Padding="4,2"
+                    MinimumHeightRequest="32"
+                    MinimumWidthRequest="32"
                     VerticalOptions="Center"
                     IsVisible="False" />
 
@@ -87,9 +87,9 @@
                     FontSize="14"
                     TextColor="{DynamicResource TextMuted}"
                     BackgroundColor="Transparent"
-                    Padding="4"
-                    MinimumHeightRequest="44"
-                    MinimumWidthRequest="44"
+                    Padding="2"
+                    MinimumHeightRequest="32"
+                    MinimumWidthRequest="32"
                     VerticalOptions="Center" />
 
         </Grid>

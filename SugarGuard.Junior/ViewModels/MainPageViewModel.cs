@@ -40,6 +40,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     private readonly IBackpackRepository _backpackRepository;
     private readonly IChildRepository _childRepository;
     private readonly IDiabetesSettingsRepository _diabetesSettingsRepository;
+    private readonly IRecommendationOrchestrator _recommendationOrchestrator;
+    private readonly IHelpAlertPageFactory _helpAlertPageFactory;
 
     /// <summary>
     /// ID текущего ребёнка — загружается из хранилища при инициализации.
@@ -100,6 +102,23 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string childName = "друг";
+
+    [ObservableProperty]
+    private bool isType2Profile;
+
+    public string DashboardTitle => IsType2Profile ? "Мой диабет" : "Мой сахар";
+    public string GreetingText => $"Привет, {ChildName}!";
+    public string MeasurementContextLabel => IsType2Profile ? "Контекст" : "Состояние";
+    public bool ShowJuniorMascot => !IsType2Profile;
+
+    partial void OnChildNameChanged(string value) => OnPropertyChanged(nameof(GreetingText));
+
+    partial void OnIsType2ProfileChanged(bool value)
+    {
+        OnPropertyChanged(nameof(DashboardTitle));
+        OnPropertyChanged(nameof(MeasurementContextLabel));
+        OnPropertyChanged(nameof(ShowJuniorMascot));
+    }
 
     [ObservableProperty]
     private string glucoseShortcut1 = "4";
@@ -305,7 +324,9 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         IMeasurementRepository measurementRepository,
         IBackpackRepository backpackRepository,
         IChildRepository childRepository,
-        IDiabetesSettingsRepository diabetesSettingsRepository)
+        IDiabetesSettingsRepository diabetesSettingsRepository,
+        IRecommendationOrchestrator recommendationOrchestrator,
+        IHelpAlertPageFactory helpAlertPageFactory)
     {
         _measurementService = measurementService;
         _syncService = syncService;
@@ -319,6 +340,8 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         _backpackRepository = backpackRepository;
         _childRepository = childRepository;
         _diabetesSettingsRepository = diabetesSettingsRepository;
+        _recommendationOrchestrator = recommendationOrchestrator;
+        _helpAlertPageFactory = helpAlertPageFactory;
 
         SendMeasurementCommand = new AsyncRelayCommand(OnSubmitMeasurementAsync);
         CloseModalCommand = new AsyncRelayCommand(OnCloseModalAsync);
@@ -351,6 +374,10 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             _logger.LogInformation(" Инициализация MainPageViewModel");
 
             _currentChildId = await _storageService.GetAsync(AppConstants.StorageKeyCurrentChildId);
+            var careMode = await _storageService.GetAsync("profile_care_mode");
+            var diabetesType = await _storageService.GetAsync("diabetes_type");
+            IsType2Profile = string.Equals(careMode, "self-managed", StringComparison.OrdinalIgnoreCase) &&
+                             string.Equals(diabetesType, "1", StringComparison.Ordinal);
 
             if (string.IsNullOrEmpty(_currentChildId))
             {
@@ -364,6 +391,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             await _syncService.InitializeAsync();
             await OnLoadDataAsync();
             await UpdateSyncStatusAsync();
+            await OfferPendingCgmSnackAdviceAsync();
 
             _logger.LogInformation(" Инициализация завершена");
         }
@@ -507,18 +535,30 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (Shell.Current != null)
-            {
-                await Shell.Current.GoToAsync("helpalertpage");
-                return;
-            }
+            var page = _helpAlertPageFactory.Create();
+            // Внутри TabBar Shell.Current.Navigation на некоторых Android-устройствах
+            // не открывает модальную страницу. Навигация активного окна стабильна и
+            // не зависит от текущей вкладки Shell.
+            var navigation = Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation
+                             ?? Shell.Current?.Navigation;
 
-            await ShowHelpFallbackAsync();
+            if (navigation is null)
+                throw new InvalidOperationException("Навигация приложения недоступна.");
+
+            await navigation.PushModalAsync(page, animated: true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, " Ошибка перехода на страницу помощи");
-            await ShowHelpFallbackAsync();
+            _logger.LogError(ex, "Ошибка перехода на страницу помощи");
+
+            var currentPage = Application.Current?.Windows.FirstOrDefault()?.Page;
+            if (currentPage is not null)
+            {
+                await currentPage.DisplayAlert(
+                    "Не удалось открыть помощь",
+                    "Попробуйте ещё раз. Если нужна срочная помощь — позвоните взрослому или 112.",
+                    "Понятно");
+            }
         }
     }
 
@@ -725,6 +765,113 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
         {
             _logger.LogWarning(ex, "Не удалось сохранить последнее значение глюкозы в storage");
         }
+    }
+
+    private async Task OfferPendingCgmSnackAdviceAsync()
+    {
+        var pending = await _storageService.GetAsync("cgm_snack_advice_pending");
+        if (string.IsNullOrWhiteSpace(pending) || string.IsNullOrWhiteSpace(_currentChildId)) return;
+
+        var parts = pending.Split('|');
+        if (parts.Length != 3 || !string.Equals(parts[0], _currentChildId, StringComparison.Ordinal) ||
+            !DoubleParser.TryParseDecrypted(parts[1], out var glucose) ||
+            !DateTime.TryParse(parts[2], null, DateTimeStyles.RoundtripKind, out var occurredAt) ||
+            occurredAt.ToUniversalTime() < DateTime.UtcNow.AddMinutes(-15))
+        {
+            await _storageService.DeleteAsync("cgm_snack_advice_pending");
+            return;
+        }
+
+        await _storageService.DeleteAsync("cgm_snack_advice_pending");
+        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        if (page is null) return;
+
+        var wantsAdvice = await page.DisplayAlert(
+            "Низкий сахар",
+            $"Датчик показал {glucose:F1} ммоль/л. Запросить совет о перекусе из рюкзака?",
+            "Получить совет", "Позже");
+        if (!wantsAdvice) return;
+
+        var snacks = await _backpackRepository.GetByChildIdAsync(_currentChildId);
+        var names = new List<string>();
+        foreach (var snack in snacks)
+            names.Add(await _backpackRepository.GetDecryptedSnackNameAsync(snack));
+
+        var result = await _recommendationOrchestrator.GetRecommendationAsync(new OrchestratorRecommendationRequest
+        {
+            ChildId = _currentChildId,
+            GlucoseValue = glucose,
+            ChildState = "hypoglycemia",
+            AvailableSnacks = names
+        });
+
+        await OpenRecommendationModalAsync(new RecommendationResponse
+        {
+            RecommendationId = Guid.NewGuid().ToString(),
+            RecommendationText = result.Text,
+            ActionText = result.Text,
+            Urgency = "critical",
+            GlucoseValueAtRequest = glucose,
+            IsFromCache = result.IsFromCache,
+            Success = true
+        });
+    }
+
+    /// <summary>
+    /// Единый путь к совету по перекусу. Его вызывает как основная карточка,
+    /// так и сценарий SOS, поэтому ответ не расходится между экранами.
+    /// </summary>
+    public async Task RequestSnackAdviceAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentChildId))
+        {
+            await ShowHelpFallbackAsync();
+            return;
+        }
+
+        var raw = await _storageService.GetAsync(AppConstants.StorageKeyLastGlucoseValue);
+        if (string.IsNullOrWhiteSpace(raw) || !DoubleParser.TryParseDecrypted(raw, out var glucose))
+        {
+            var page = Application.Current?.Windows.FirstOrDefault()?.Page;
+            if (page is not null)
+            {
+                await page.DisplayAlert("Нет актуального значения", "Сначала добавьте измерение или дождитесь показания датчика.", "Понятно");
+            }
+            return;
+        }
+
+        // При высоком сахаре ИИ получает только значение и состояние — без
+        // рюкзака, чтобы не предложить еду. При нормальном и низком значении
+        // состав рюкзака обязателен: это обычный сценарий рекомендации.
+        var isHigh = glucose > 10d;
+        var names = new List<string>();
+        if (!isHigh)
+        {
+            var snacks = await _backpackRepository.GetByChildIdAsync(_currentChildId);
+            foreach (var snack in snacks)
+            {
+                names.Add(await _backpackRepository.GetDecryptedSnackNameAsync(snack));
+            }
+        }
+
+        var result = await _recommendationOrchestrator.GetRecommendationAsync(new OrchestratorRecommendationRequest
+        {
+            ChildId = _currentChildId,
+            GlucoseValue = glucose,
+            ChildState = isHigh ? "hyperglycemia" : glucose < 4d ? "hypoglycemia" : "snack_advice",
+            AvailableSnacks = names
+        });
+
+        await OpenRecommendationModalAsync(new RecommendationResponse
+        {
+            RecommendationId = Guid.NewGuid().ToString(),
+            RecommendationText = result.Text,
+            ActionText = result.Text,
+            Urgency = isHigh || glucose < 4d ? "critical" : "normal",
+            GlucoseValueAtRequest = glucose,
+            IsFromCache = result.IsFromCache,
+            Success = true
+        });
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ЗАГРУЗКИ ==========

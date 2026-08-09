@@ -99,12 +99,12 @@ public sealed class AchievementApiModel
     // on every child theme.
     public string DisplayImageName => Code switch
     {
-        "first_steps" => "badge_first_steps.svg",
-        "food_week" => "badge_food_week.svg",
-        "insulin_20" => "badge_insulin_20.svg",
-        "target_10" => "badge_target_10.svg",
-        "schedule_7" => "badge_schedule_7.svg",
-        "backpack_10" => "badge_backpack_10.svg",
+        "first_steps" => "achievement_first_steps.png",
+        "food_week" => "achievement_week_streak.png",
+        "insulin_20" => "achievement_brave_check.png",
+        "target_10" => "achievement_target_10.png",
+        "schedule_7" => "achievement_schedule_7.png",
+        "backpack_10" => "achievement_snack_helper.png",
         _ => "achievement_default.svg"
     };
 }

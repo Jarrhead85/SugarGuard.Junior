@@ -36,7 +36,7 @@
     <Grid>
         <ScrollView VerticalScrollBarVisibility="Never">
             <VerticalStackLayout Padding="16,30,16,22" Spacing="10">
-                <Label Text="Мой сахар"
+                <Label Text="{Binding DashboardTitle}"
                        FontFamily="{StaticResource ClashDisplay}"
                        FontSize="30"
                        FontAttributes="Bold"
@@ -51,7 +51,7 @@
                                        Message="{Binding TelegramBotStatusMessage}"
                                        IsDismissible="True" />
 
-                <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" HeightRequest="156">
+                <Border Padding="18,12" StrokeThickness="0" StrokeShape="RoundRectangle 22" MinimumHeightRequest="174">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                             <GradientStop Color="{DynamicResource BrandSecondary}" Offset="0" />
@@ -60,28 +60,28 @@
                     </Border.Background>
                     <Grid ColumnDefinitions="*,96" ColumnSpacing="10">
                         <VerticalStackLayout Grid.Column="0" Spacing="3" VerticalOptions="Center">
-                            <Label Text="{Binding ChildName, StringFormat='Привет, {0}!'}"
+                            <Label Text="{Binding GreetingText}"
                                    FontFamily="{StaticResource ClashDisplay}"
                                    FontSize="23"
                                    FontAttributes="Bold"
                                    TextColor="White"
                                    MaxLines="2" />
                             <Label Text="{Binding CurrentDate}" FontSize="13" TextColor="White" Opacity="0.9" />
-                            <Button Text="Помощь"
+                            <Button Text="SOS и помощь"
                                     Command="{Binding NavigateToHelpCommand}"
                                     Background="White"
                                     TextColor="#167F82"
                                     FontAttributes="Bold"
                                     FontSize="12"
                                     CornerRadius="14"
-                                    HeightRequest="30"
-                                    WidthRequest="104"
-                                    Padding="8,2"
+                                    HeightRequest="36"
+                                    WidthRequest="124"
+                                    Padding="10,4"
                                     HorizontalOptions="Start" />
                         </VerticalStackLayout>
                         <Border Grid.Column="1" Margin="0" Padding="0" Background="Transparent"
                                 StrokeThickness="0" StrokeShape="RoundRectangle 18">
-                            <Image Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" />
+                            <Image Source="{DynamicResource JuniorMascot}" Aspect="AspectFit" Margin="0,2,0,2" IsVisible="{Binding ShowJuniorMascot}" />
                         </Border>
                     </Grid>
                 </Border>
@@ -115,7 +115,7 @@
                             <Label Text="Ввести измерение" FontFamily="{StaticResource ClashDisplay}"
                                    FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource TextPrimary}"
                                    VerticalOptions="Center" />
-                            <Picker Grid.Column="1" Title="Состояние"
+                            <Picker Grid.Column="1" Title="{Binding MeasurementContextLabel}"
                                     ItemsSource="{Binding ChildStateDisplayNames}"
                                     SelectedIndex="{Binding SelectedChildStateIndex}"
                                     FontSize="12" WidthRequest="120"

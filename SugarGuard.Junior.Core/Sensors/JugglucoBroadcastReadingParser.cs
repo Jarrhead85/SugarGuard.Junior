@@ -15,9 +15,14 @@ public static class JugglucoBroadcastContract
     public const string SerialNumberExtra = "glucodata.Minute.SerialNumber";
     public const string TimeExtra = "glucodata.Minute.Time";
 
-    public const string XdripGlucoseExtra = "bg";
-    public const string XdripTimestampExtra = "timestamp";
-    public const string XdripDeltaExtra = "delta";
+    // xDrip+ publishes fully qualified extra names. Older bridge builds may use
+    // short aliases; the receiver accepts those as a compatibility fallback.
+    public const string XdripGlucoseExtra = "com.eveningoutpost.dexdrip.Extras.BgEstimate";
+    public const string XdripTimestampExtra = "com.eveningoutpost.dexdrip.Extras.Time";
+    public const string XdripDeltaExtra = "com.eveningoutpost.dexdrip.Extras.BgSlope";
+    public const string LegacyXdripGlucoseExtra = "bg";
+    public const string LegacyXdripTimestampExtra = "timestamp";
+    public const string LegacyXdripDeltaExtra = "delta";
 }
 
 /// <summary>

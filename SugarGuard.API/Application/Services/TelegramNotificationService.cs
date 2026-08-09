@@ -342,6 +342,23 @@ public class TelegramNotificationService : ITelegramNotificationService
     private static string FormatCriticalAlertMessage(ChildNotificationContext child, CriticalAlertRequest request)
     {
         var timeStr = FormatLocalTime(request.MeasurementTime, child.TimeZoneId);
+        if (request.IsEmergencyHelp)
+        {
+            var sosMessage = new StringBuilder();
+            sosMessage.AppendLine("🆘 SOS ОТ РЕБЁНКА");
+            sosMessage.AppendLine($"👤 Ребёнок: {child.Name}");
+            sosMessage.AppendLine($"📊 Последняя глюкоза: {request.CriticalGlucose:F1} ммоль/л");
+            sosMessage.AppendLine($"🕐 Время: {timeStr}");
+            sosMessage.AppendLine();
+            sosMessage.AppendLine("Ребёнок просит помощи. Проверьте геолокацию ниже и свяжитесь с ним.");
+            if (!string.IsNullOrWhiteSpace(request.Address))
+            {
+                sosMessage.AppendLine($"📍 Адрес: {request.Address}");
+            }
+
+            return sosMessage.ToString();
+        }
+
         var criticalType = request.CriticalGlucose < 3.3 ? "КРИТИЧЕСКИ НИЗКИЙ" : "КРИТИЧЕСКИ ВЫСОКИЙ";
 
         var message = new StringBuilder();

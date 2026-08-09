@@ -107,6 +107,19 @@ public class AuthServiceTests : IDisposable
         Assert.Equal("role_not_allowed", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task RegisterAsync_Patient_CreatesSelfManagedAccount()
+    {
+        var sut = CreateSut();
+
+        var result = await sut.RegisterAsync("patient@test.local", "SafePassword123!", UserRole.Patient);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.User);
+        Assert.Equal(UserRole.Patient, result.User!.Role);
+        Assert.False(result.User.IsEmailVerified);
+    }
+
     // ───────────────────────────────────────────────────────────────────
     // LoginAsync — 5 failure paths + success matrix
     // ───────────────────────────────────────────────────────────────────

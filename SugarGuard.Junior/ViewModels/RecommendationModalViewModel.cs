@@ -66,6 +66,14 @@ public partial class RecommendationModalViewModel : ObservableObject
     [ObservableProperty]
     private List<DecryptedSnackItem> availableSnacks = [];
 
+    /// <summary>
+    /// Выбор еды допустим только если значение не высокое. Это независимый
+    /// UI-предохранитель: даже корректный текст ИИ не должен сопровождаться
+    /// кнопками перекуса при гипергликемии.
+    /// </summary>
+    [ObservableProperty]
+    private bool canSelectSnack;
+
     /// <summary>True — рекомендация взята из кэша, а не от ИИ.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RecommendationSourceTitle))]
@@ -165,8 +173,15 @@ public partial class RecommendationModalViewModel : ObservableObject
                 ? "Приложение (на основе сохранённых данных)"
                 : "ИИ сделал предложение";
 
-            // Загружаем список перекусов из рюкзака
-            await LoadAvailableSnacksAsync();
+            // Высокий сахар — только безопасная рекомендация без рюкзака.
+            // Не полагаемся на текст модели: сам UI физически не загружает и
+            // не отображает перекусы при значении выше целевого максимума.
+            CanSelectSnack = recommendation.GlucoseValueAtRequest <= 10d;
+            AvailableSnacks = [];
+            if (CanSelectSnack)
+            {
+                await LoadAvailableSnacksAsync();
+            }
 
             _logger.LogInformation("Рекомендация установлена успешно");
         }
@@ -222,6 +237,7 @@ public partial class RecommendationModalViewModel : ObservableObject
         {
             _logger.LogError(ex, "Ошибка при загрузке перекусов из рюкзака");
             AvailableSnacks = [];
+            CanSelectSnack = false;
         }
     }
 

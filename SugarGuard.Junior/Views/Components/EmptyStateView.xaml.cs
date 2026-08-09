@@ -17,7 +17,7 @@ public partial class EmptyStateView : ContentView
             nameof(Icon),
             typeof(string),
             typeof(EmptyStateView),
-            "�",
+            "●",
             propertyChanged: OnAnyPropertyChanged);
 
     // Заголовок empty-state
@@ -189,7 +189,7 @@ public partial class EmptyStateView : ContentView
         IconContainer.BackgroundColor = softAccent;
         IconContainer.Stroke = accent;
 
-        IconLabel.Text = string.IsNullOrWhiteSpace(Icon) ? "�" : Icon;
+        IconLabel.Text = string.IsNullOrWhiteSpace(Icon) ? "●" : Icon;
         IconLabel.TextColor = accent;
 
         TitleLabel.Text = string.IsNullOrWhiteSpace(TitleText)

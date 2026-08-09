@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Networking;
 using SugarGuard.Junior.Services.Interfaces;
 using SugarGuard.Junior.Utilities;
 
@@ -47,15 +48,30 @@ public partial class LoginPageViewModel : ObservableObject
 
         ErrorMessage = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
-        {
-            ErrorMessage = "Введите email и пароль";
-            return;
-        }
-
         try
         {
             IsLoading = true;
+
+            // При повторном запуске не ждём сетевой тайм-аут. Connectivity на
+            // Android иногда остаётся Internet в авиарежиме, поэтому сначала
+            // всегда проверяем исключительно локальный, подтверждённый сеанс.
+            if (await _authenticationService.CanResumeOfflineSessionAsync())
+            {
+                await ResumeSavedOfflineSessionAsync();
+                return;
+            }
+
+            if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
+            {
+                await ResumeSavedOfflineSessionAsync();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Введите email и пароль";
+                return;
+            }
 
             var success = await _authenticationService.LoginAsync(Email, Password);
 
@@ -75,6 +91,16 @@ public partial class LoginPageViewModel : ObservableObject
             ErrorMessage = "Неверный email или пароль";
             _logger.LogWarning("401 при входе для {Email}", Email);
         }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = "Не удалось подключиться к сервису. Проверьте интернет и попробуйте снова.";
+            _logger.LogWarning(ex, "Сервис недоступен при входе для {Email}", Email);
+        }
+        catch (TaskCanceledException ex)
+        {
+            ErrorMessage = "Сервис не ответил вовремя. Проверьте интернет и попробуйте снова.";
+            _logger.LogWarning(ex, "Истёк таймаут при входе для {Email}", Email);
+        }
         catch (Exception ex)
         {
             ErrorMessage = "Ошибка подключения. Проверьте интернет.";
@@ -86,11 +112,39 @@ public partial class LoginPageViewModel : ObservableObject
         }
     }
 
-    private async Task NavigateAfterLoginAsync()
+    /// <summary>
+    /// The app normally restores this session during startup. This fallback keeps
+    /// a child out of the login trap if an older build stored the user id under a
+    /// different SecureStorage prefix and the repair only happens after this page
+    /// has already appeared.
+    /// </summary>
+    private async Task ResumeSavedOfflineSessionAsync()
+    {
+        var savedEmail = await _storageService.GetAsync("current_email");
+        if (!string.IsNullOrWhiteSpace(Email) &&
+            !string.IsNullOrWhiteSpace(savedEmail) &&
+            !string.Equals(savedEmail.Trim(), Email.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            ErrorMessage = "Нет подключения. Сменить аккаунт можно после подключения к интернету.";
+            return;
+        }
+
+        if (!await _authenticationService.CanResumeOfflineSessionAsync())
+        {
+            ErrorMessage = "Нет подключения. Для первого входа на этом телефоне нужен интернет.";
+            return;
+        }
+
+        _logger.LogInformation("Восстановлена сохранённая офлайн-сессия для {Email}", savedEmail ?? "текущего пользователя");
+        await NavigateAfterLoginAsync(preferLocalSession: true);
+    }
+
+    private async Task NavigateAfterLoginAsync(bool preferLocalSession = false)
     {
         try
         {
-            var isEmailVerified = await _authenticationService.IsEmailVerifiedAsync();
+            var isOffline = preferLocalSession || Connectivity.Current.NetworkAccess != NetworkAccess.Internet;
+            var isEmailVerified = isOffline || await _authenticationService.IsEmailVerifiedAsync();
 
             if (!isEmailVerified)
             {
@@ -102,15 +156,18 @@ public partial class LoginPageViewModel : ObservableObject
             var onboardingCompleted = await _storageService.GetAsync("onboarding_completed");
             if (!string.Equals(onboardingCompleted, "true", StringComparison.OrdinalIgnoreCase))
             {
-                var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
-                if (!restored)
+                if (!isOffline)
                 {
-                    _logger.LogInformation("Онбординг не завершён и серверный профиль ребёнка не найден, перенаправление на онбординг");
-                    await Shell.Current.GoToAsync("//onboardingpage");
-                    return;
+                    var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
+                    if (!restored)
+                    {
+                        _logger.LogInformation("Онбординг не завершён и серверный профиль ребёнка не найден, перенаправление на онбординг");
+                        await Shell.Current.GoToAsync("//onboardingpage");
+                        return;
+                    }
                 }
             }
-            else
+            else if (!isOffline)
             {
                 await _childSessionBootstrapService.EnsureChildSessionAsync();
             }

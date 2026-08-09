@@ -3,180 +3,90 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="SugarGuard.Junior.Views.Pages.HelpAlertPage"
              Title=""
+             BackgroundColor="{DynamicResource BackgroundPage}"
              Shell.NavBarIsVisible="False">
 
     <ScrollView VerticalScrollBarVisibility="Never">
         <Grid Padding="{StaticResource Spacing24}"
-              RowDefinitions="Auto,Auto,Auto"
-              RowSpacing="{StaticResource Spacing24}">
+              RowDefinitions="Auto,Auto,Auto,Auto"
+              RowSpacing="{StaticResource Spacing16}">
 
-            <!-- Верхняя зона: спокойный, но заметный сигнал важности -->
             <VerticalStackLayout Grid.Row="0"
-                                 Spacing="{StaticResource Spacing12}"
+                                 Spacing="{StaticResource Spacing8}"
                                  HorizontalOptions="Fill">
-
-                <!-- Небольшой статус вместо агрессивного тревожного баннера -->
-                <Border StrokeThickness="0"
-                        StrokeShape="RoundRectangle 999"
-                        BackgroundColor="{StaticResource Danger}"
-                        Padding="12,6"
-                        HorizontalOptions="Center"
-                        Shadow="{x:Null}">
-                    <Label Text="Срочная помощь"
-                           FontFamily="Satoshi"
-                           FontSize="12"
-                           FontAttributes="Bold"
-                           TextColor="{StaticResource White}"
-                           HorizontalTextAlignment="Center" />
-                </Border>
-
-                <!-- Главный заголовок остается крупным, но не окрашивается в danger -->
-                <Label Text="Нужна помощь?"
+                <Label Text="SOS и помощь"
                        FontFamily="ClashDisplay"
-                       FontSize="36"
+                       FontSize="32"
                        FontAttributes="Bold"
-                       TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource White}}"
-                       HorizontalTextAlignment="Center" />
-
-                <!-- Подзаголовок объясняет сценарий без лишнего давления -->
-                <Label Text="Сначала попробуйте быстро связаться с родителем. Если состояние опасное или рядом нет взрослого — сразу звоните 112."
-                       FontFamily="Satoshi"
-                       FontSize="16"
-                       TextColor="{StaticResource TextSecondary}"
-                       HorizontalTextAlignment="Center"
-                       LineBreakMode="WordWrap" />
+                       TextColor="{DynamicResource TextPrimary}"
+                       HorizontalTextAlignment="Start" />
             </VerticalStackLayout>
 
-            <!-- Главная карточка сценария -->
             <Border Grid.Row="1"
-                    BackgroundColor="{StaticResource SurfaceCard}"
-                    Stroke="{StaticResource BorderDefault}"
+                    BackgroundColor="{DynamicResource Surface}"
+                    Stroke="{DynamicResource BorderDefault}"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 24"
                     Padding="{StaticResource Spacing24}">
 
-                <VerticalStackLayout Spacing="{StaticResource Spacing20}">
-
-                    <!-- Вводный блок -->
-                    <Grid RowDefinitions="Auto,Auto"
-                          RowSpacing="{StaticResource Spacing8}">
-                        <BoxView HeightRequest="6"
-                                 WidthRequest="64"
-                                 CornerRadius="3"
-                                 Color="{StaticResource Primary}"
-                                 HorizontalOptions="Center" />
-
-                        <VerticalStackLayout Grid.Row="1"
-                                             Spacing="{StaticResource Spacing8}">
-                            <Label Text="Действуйте спокойно и быстро"
-                                   FontFamily="Satoshi"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource White}}"
-                                   HorizontalTextAlignment="Center" />
-
-                            <Label Text="Экран специально сделан крупным и простым: здесь только самые важные действия без лишних отвлекающих элементов."
-                                   FontFamily="Satoshi"
-                                   FontSize="14"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   HorizontalTextAlignment="Center"
-                                   LineBreakMode="WordWrap" />
-                        </VerticalStackLayout>
-                    </Grid>
-
-                    <!-- Блок связи с родителем -->
-                    <Border Stroke="{StaticResource BorderDefault}"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 20"
-                            BackgroundColor="{StaticResource SurfaceCard}"
-                            Padding="{StaticResource Spacing16}"
-                            Shadow="{x:Null}">
-                        <VerticalStackLayout Spacing="{StaticResource Spacing12}">
-                            <Label Text="Связаться с родителем"
-                                   FontFamily="Satoshi"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource White}}" />
-
-                            <Label Text="Это основное первое действие, если нужна помощь взрослого рядом или по телефону."
-                                   FontFamily="Satoshi"
-                                   FontSize="14"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   LineBreakMode="WordWrap" />
-
-                            <Button Text="Позвонить родителю"
-                                    Command="{Binding CallParentCommand}"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    TextColor="{StaticResource White}"
-                                    FontFamily="Satoshi"
-                                    FontSize="18"
-                                    FontAttributes="Bold"
-                                    HeightRequest="68"
-                                    CornerRadius="{StaticResource RadiusLg}"
-                                    Padding="{StaticResource Spacing16}"
-                                    HorizontalOptions="Fill"
-                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
-                        </VerticalStackLayout>
-                    </Border>
-
-                    <!-- Блок экстренного вызова -->
-                    <Border Stroke="{StaticResource BorderDefault}"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 20"
-                            BackgroundColor="{StaticResource SurfaceCard}"
-                            Padding="{StaticResource Spacing16}"
-                            Shadow="{x:Null}">
-                        <VerticalStackLayout Spacing="{StaticResource Spacing12}">
-
-                            <!-- Небольшой акцент опасности, но без красного экрана -->
-                            <Border StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 999"
-                                    BackgroundColor="{StaticResource Danger}"
-                                    Padding="10,4"
-                                    HorizontalOptions="Start"
-                                    Shadow="{x:Null}">
-                                <Label Text="Экстренно"
-                                       FontFamily="Satoshi"
-                                       FontSize="12"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource White}" />
-                            </Border>
-
-                            <Label Text="Вызвать скорую помощь"
-                                   FontFamily="Satoshi"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   TextColor="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource White}}" />
-
-                            <Label Text="Используйте этот вариант, если состояние быстро ухудшается, рядом нет взрослого или нужна срочная медицинская помощь."
-                                   FontFamily="Satoshi"
-                                   FontSize="14"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   LineBreakMode="WordWrap" />
-
-                            <Button Text="Вызвать скорую (112)"
-                                    Command="{Binding CallEmergencyCommand}"
-                                    BackgroundColor="{StaticResource Danger}"
-                                    TextColor="{StaticResource White}"
-                                    FontFamily="Satoshi"
-                                    FontSize="18"
-                                    FontAttributes="Bold"
-                                    HeightRequest="72"
-                                    CornerRadius="{StaticResource RadiusLg}"
-                                    Padding="{StaticResource Spacing16}"
-                                    HorizontalOptions="Fill"
-                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
-                        </VerticalStackLayout>
-                    </Border>
-
+                <VerticalStackLayout Spacing="{StaticResource Spacing12}">
+                    <Label Text="Рекомендация"
+                           FontFamily="Satoshi"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Label Text="{Binding SnackAdviceHint}"
+                           FontFamily="Satoshi"
+                           FontSize="15"
+                           TextColor="{DynamicResource TextSecondary}"
+                           LineBreakMode="WordWrap" />
+                    <Button Text="Получить рекомендацию"
+                            Command="{Binding GetSnackAdviceCommand}"
+                            BackgroundColor="{DynamicResource BrandPrimary}"
+                            TextColor="White"
+                            FontFamily="Satoshi"
+                            FontSize="17"
+                            FontAttributes="Bold"
+                            HeightRequest="56"
+                            CornerRadius="22"
+                            IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
                 </VerticalStackLayout>
             </Border>
 
+            <VerticalStackLayout Grid.Row="2" Spacing="{StaticResource Spacing12}">
+                <Button Text="Позвонить родителю"
+                        Command="{Binding CallParentCommand}"
+                        BackgroundColor="{DynamicResource BrandPrimary}"
+                        TextColor="White"
+                        FontFamily="Satoshi"
+                        FontSize="18"
+                        FontAttributes="Bold"
+                        HeightRequest="64"
+                        CornerRadius="24"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Button Text="Позвонить резервному"
+                        Command="{Binding CallBackupParentCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        HeightRequest="48"
+                        IsVisible="{Binding HasBackupParentPhone}"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                <Button Text="Вызвать скорую (112)"
+                        Command="{Binding CallEmergencyCommand}"
+                        BackgroundColor="{DynamicResource GlucoseDangerColor}"
+                        TextColor="White"
+                        FontFamily="Satoshi"
+                        FontSize="18"
+                        FontAttributes="Bold"
+                        HeightRequest="64"
+                        CornerRadius="24"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+            </VerticalStackLayout>
+
             <!-- Индикатор загрузки -->
-            <ActivityIndicator Grid.Row="2"
+            <ActivityIndicator Grid.Row="3"
                                IsRunning="{Binding IsLoading}"
                                IsVisible="{Binding IsLoading}"
-                               Color="{StaticResource Primary}"
+                               Color="{DynamicResource BrandPrimary}"
                                HorizontalOptions="Center" />
 
         </Grid>

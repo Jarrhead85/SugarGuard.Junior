@@ -80,6 +80,24 @@
                 <Border Style="{StaticResource Card}" Padding="{StaticResource PaddingXl}">
                     <VerticalStackLayout Spacing="{StaticResource Spacing16}">
 
+                        <VerticalStackLayout Spacing="{StaticResource Spacing4}">
+                            <Label Text="Для кого создаёте профиль?"
+                                   Style="{StaticResource CaptionText}"
+                                   FontAttributes="Bold" />
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{DynamicResource SurfaceOffset}"
+                                    Stroke="{DynamicResource InputBorderColor}"
+                                    StrokeThickness="1"
+                                    Padding="{StaticResource PaddingInput}">
+                                <Picker ItemsSource="{Binding AccountTypes}"
+                                        SelectedIndex="{Binding AccountTypeIndex}"
+                                        Title="Выберите вариант"
+                                        TextColor="{DynamicResource TextPrimary}" />
+                            </Border>
+                            <Label Text="Самостоятельный профиль предназначен для взрослых. Ребёнка по-прежнему можно подключить к родителю и врачу."
+                                   Style="{StaticResource CaptionTextFaint}" />
+                        </VerticalStackLayout>
+
                         <!-- Имя -->
                         <VerticalStackLayout Spacing="{StaticResource Spacing4}">
                             <Label Text="Имя" Style="{StaticResource CaptionText}" FontAttributes="Bold" />

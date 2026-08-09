@@ -214,7 +214,7 @@ public sealed class OnboardingService : IOnboardingService
         // есть ли привязка к ребёнку.
         bool hasChild = false;
         Guid? childId = null;
-        if (user.Role == UserRole.Parent)
+        if (user.Role is UserRole.Parent or UserRole.Patient)
         {
             var firstLink = await _db.ParentChildLinks
                 .AsNoTracking()
@@ -227,7 +227,7 @@ public sealed class OnboardingService : IOnboardingService
 
         // настройки диабета заполнены хотя бы для одного ребёнка.
         bool hasDiabetesSettings = false;
-        if (user.Role == UserRole.Parent && childId.HasValue)
+        if ((user.Role is UserRole.Parent or UserRole.Patient) && childId.HasValue)
         {
             hasDiabetesSettings = await _db.DiabetesSettings
                 .AsNoTracking()

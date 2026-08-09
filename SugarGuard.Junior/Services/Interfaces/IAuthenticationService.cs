@@ -12,6 +12,12 @@ public interface IAuthenticationService
     Task<bool> IsAuthenticatedAsync();
 
     /// <summary>
+    /// Проверяет, можно ли открыть ранее подтверждённую сессию полностью
+    /// локально, не обращаясь к сети. Нужна для надёжного запуска в дороге.
+    /// </summary>
+    Task<bool> CanResumeOfflineSessionAsync();
+
+    /// <summary>
     /// Получает текущего авторизированного пользователя
     /// Возвращает null если не авторизирован
     /// </summary>
@@ -21,7 +27,13 @@ public interface IAuthenticationService
     /// Регистрирует нового пользователя
     /// Выбрасывает исключение если данные невалидны или пользователь уже существует
     /// </summary>
-    Task<User> RegisterAsync(string firstName, string lastName, string email, string phoneNumber, string password);
+    Task<User> RegisterAsync(
+        string firstName,
+        string lastName,
+        string email,
+        string phoneNumber,
+        string password,
+        bool isSelfManagedPatient);
 
     /// <summary>
     /// Входит в аккаунт

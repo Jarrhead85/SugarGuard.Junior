@@ -28,8 +28,8 @@
 		<ApplicationId>com.sugarguard.junior</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>1.13</ApplicationDisplayVersion>
-		<ApplicationVersion>14</ApplicationVersion>
+    <ApplicationDisplayVersion>1.27</ApplicationDisplayVersion>
+    <ApplicationVersion>28</ApplicationVersion>
 		<!-- Приложение использует DI, XAML и сторонние плагины через отражение.
 		     В Release-режиме триммер может удалить необходимые типы ещё до старта. -->
 		<PublishTrimmed>false</PublishTrimmed>

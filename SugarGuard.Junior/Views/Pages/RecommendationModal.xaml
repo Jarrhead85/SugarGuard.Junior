@@ -97,28 +97,31 @@
                                LineBreakMode="WordWrap"
                                IsVisible="{Binding CacheLabel, Converter={StaticResource StringNotEmptyConverter}}" />
 
-                        <BoxView HeightRequest="1"
-                                 BackgroundColor="{StaticResource BorderDefault}" />
+                        <!-- Вся секция рюкзака скрывается при высоком сахаре.
+                             Это предохранитель уровня UI, независимый от ИИ. -->
+                        <VerticalStackLayout Spacing="16"
+                                             IsVisible="{Binding CanSelectSnack}">
+                            <BoxView HeightRequest="1"
+                                     BackgroundColor="{StaticResource BorderDefault}" />
 
-                        <!-- Подзаголовок секции выбора перекуса -->
-                        <VerticalStackLayout Spacing="6">
-                            <Label Text="Выберите перекус"
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="18"
-                                   FontAttributes="Bold"
-                                   TextColor="{StaticResource TextPrimary}" />
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="Выберите перекус"
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource TextPrimary}" />
 
-                            <Label Text="Подойдут варианты из рюкзака, которые помогут быстро выполнить рекомендацию."
-                                   FontFamily="{StaticResource Satoshi}"
-                                   FontSize="13"
-                                   TextColor="{StaticResource TextSecondary}"
-                                   LineBreakMode="WordWrap" />
-                        </VerticalStackLayout>
+                                <Label Text="Подойдут варианты из рюкзака, которые помогут быстро выполнить рекомендацию."
+                                       FontFamily="{StaticResource Satoshi}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource TextSecondary}"
+                                       LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
 
-                        <!-- Список доступных перекусов -->
-                        <CollectionView ItemsSource="{Binding AvailableSnacks}"
-                                        SelectionMode="None"
-                                        IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToBoolConverter}}">
+                            <!-- Список доступных перекусов -->
+                            <CollectionView ItemsSource="{Binding AvailableSnacks}"
+                                            SelectionMode="None"
+                                            IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToBoolConverter}}">
 
                             <CollectionView.ItemsLayout>
                                 <LinearItemsLayout Orientation="Vertical" ItemSpacing="10" />
@@ -155,16 +158,16 @@
                                     </Border>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>
-                        </CollectionView>
+                            </CollectionView>
 
-                        <!-- Пустое состояние рюкзака -->
-                        <Border Stroke="{StaticResource BorderDefault}"
-                                StrokeThickness="1"
-                                StrokeShape="RoundRectangle 20"
-                                BackgroundColor="{StaticResource SurfaceCard}"
-                                Padding="16"
-                                Shadow="{x:Null}"
-                                IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToInverseBoolConverter}}">
+                            <!-- Пустое состояние рюкзака -->
+                            <Border Stroke="{StaticResource BorderDefault}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 20"
+                                    BackgroundColor="{StaticResource SurfaceCard}"
+                                    Padding="16"
+                                    Shadow="{x:Null}"
+                                    IsVisible="{Binding AvailableSnacks.Count, Converter={StaticResource CountToInverseBoolConverter}}">
 
                             <VerticalStackLayout Spacing="8">
                                 <Label Text="Сейчас в рюкзаке нет перекусов"
@@ -181,7 +184,8 @@
                                        HorizontalTextAlignment="Center"
                                        LineBreakMode="WordWrap" />
                             </VerticalStackLayout>
-                        </Border>
+                            </Border>
+                        </VerticalStackLayout>
 
                     </VerticalStackLayout>
 

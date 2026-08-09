@@ -104,10 +104,16 @@
             </CollectionView.Header>
 
             <CollectionView.EmptyView>
-                <Grid Padding="16,20">
-                    <components:EmptyStateView TitleText="{Binding EmptyStateTitle}"
-                                               Message="{Binding EmptyStateMessage}" />
-                </Grid>
+                <Border Margin="16,30,16,12"
+                        Padding="18"
+                        Style="{StaticResource HistoryCard}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Пока нет измерений" Style="{StaticResource SectionHeadingText}" />
+                        <Label Text="За выбранные 7 дней записей нет. Добавь первое измерение на главной — здесь появится история и график."
+                               Style="{StaticResource BodyTextMuted}"
+                               FontSize="14" />
+                    </VerticalStackLayout>
+                </Border>
             </CollectionView.EmptyView>
 
             <CollectionView.ItemTemplate>
@@ -128,7 +134,7 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.Footer>
-                <VerticalStackLayout Padding="16,6,16,24" Spacing="12">
+                <VerticalStackLayout Padding="16,6,16,24" Spacing="12" IsVisible="{Binding HasMeasurements}">
                     <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
                         <Button Grid.Column="0" Text="← Назад" Style="{StaticResource SecondaryButton}"
                                 Command="{Binding LoadPreviousPageCommand}"

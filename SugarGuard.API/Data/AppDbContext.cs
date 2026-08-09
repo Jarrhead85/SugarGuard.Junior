@@ -203,6 +203,12 @@ namespace SugarGuard.API.Data
                 .Property(c => c.UpdatedAt)
                 .HasDefaultValueSql("NOW()");
 
+            modelBuilder.Entity<Child>()
+                .Property(c => c.CareMode)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(PatientCareMode.ChildWithGuardian);
+
             // DiabetesSettings 
             modelBuilder.Entity<DiabetesSettings>()
                 .HasOne(ds => ds.Child)
@@ -578,6 +584,18 @@ namespace SugarGuard.API.Data
             modelBuilder.Entity<Measurement>()
                 .HasIndex(m => new { m.ChildId, m.MeasurementTime })
                 .HasDatabaseName("idx_measurements_child_time");
+
+            modelBuilder.Entity<Measurement>()
+                .HasIndex(m => m.NutritionEntryId)
+                .IsUnique()
+                .HasFilter("nutrition_entry_id IS NOT NULL")
+                .HasDatabaseName("ux_measurements_nutrition_entry");
+
+            modelBuilder.Entity<Measurement>()
+                .HasOne(measurement => measurement.NutritionEntry)
+                .WithOne()
+                .HasForeignKey<Measurement>(measurement => measurement.NutritionEntryId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Measurement>()
                 .Property(m => m.GlucoseUiState)

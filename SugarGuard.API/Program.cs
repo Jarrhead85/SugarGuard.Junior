@@ -293,7 +293,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentOrDoctorOrAdmin", policy =>
-        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice", "ServiceAccount"));
+        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice", "Patient", "ServiceAccount"));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));

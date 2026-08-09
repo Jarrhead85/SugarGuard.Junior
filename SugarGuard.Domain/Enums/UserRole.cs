@@ -12,5 +12,7 @@ public enum UserRole
     /// Учётная запись врача, ожидающая проверки документов администратором.
     /// Такая роль не даёт доступ к данным пациентов.
     /// </summary>
-    DoctorPending = 6
+    DoctorPending = 6,
+    /// <summary>Self-managed account of an adult patient.</summary>
+    Patient = 7
 }

@@ -486,6 +486,9 @@ public class CriticalAlertRequest
     /// </summary>
     public double? Longitude { get; set; }
 
+    /// <summary>Ребёнок сам запросил экстренную связь с родителем.</summary>
+    public bool IsEmergencyHelp { get; set; }
+
     /// <summary>
     /// Точность геолокации в метрах
     /// </summary>

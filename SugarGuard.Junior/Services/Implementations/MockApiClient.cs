@@ -188,7 +188,7 @@ public class MockApiClient : IApiClient
     /// <summary>
     /// Имитирует обновление токена
     /// </summary>
-    public async Task<LoginResponse> RefreshTokenAsync(string refreshToken)
+    public async Task<LoginResponse> RefreshTokenAsync(string accessToken, string refreshToken)
     {
         _logger.LogInformation("[MOCK] Обновление токена");
         await Task.Delay(300);

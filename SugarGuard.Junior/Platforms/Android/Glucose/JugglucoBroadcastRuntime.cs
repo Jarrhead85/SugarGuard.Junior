@@ -39,5 +39,11 @@ public static class JugglucoBroadcastRuntime
             logger.LogWarning("Показание Juggluco не сохранено: {Error}", result.ErrorMessage);
         }
     }
+
+    public static T GetRequiredService<T>() where T : notnull
+    {
+        var services = _services ?? throw new InvalidOperationException("SugarGuard ещё не инициализирован.");
+        return services.GetRequiredService<T>();
+    }
 }
 #endif

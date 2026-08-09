@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:SugarGuard.Junior.ViewModels"
+             x:Class="SugarGuard.Junior.Views.Pages.CgmSetupPage"
+             x:DataType="viewmodels:CgmSetupPageViewModel"
+             BackgroundColor="{DynamicResource BackgroundPage}">
+    <ScrollView>
+        <VerticalStackLayout Padding="16,18" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Датчик глюкозы" Style="{StaticResource PageTitleText}" />
+                    <Label Text="Libre · автоматическая передача" Style="{StaticResource BodyTextMuted}" />
+                </VerticalStackLayout>
+                <Button Grid.Column="1"
+                        Text="Закрыть"
+                        Command="{Binding CloseCommand}"
+                        Style="{StaticResource GhostButton}"
+                        BorderColor="{DynamicResource BorderDefault}"
+                        BorderWidth="1"
+                        CornerRadius="14"
+                        Padding="12,5"
+                        HeightRequest="40"
+                        VerticalOptions="Start" />
+            </Grid>
+
+            <Border Style="{StaticResource Card}" Padding="14">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Почему не подключается напрямую" Style="{StaticResource SectionHeadingText}" />
+                    <Label Text="Libre не передаёт SugarGuard показания локально. Мы не просим пароль от Libre, не подключаемся к сенсору по Bluetooth и не используем облачные API." Style="{StaticResource BodyTextMuted}" />
+                    <Border BackgroundColor="{DynamicResource SurfaceOffset}" StrokeThickness="0" StrokeShape="RoundRectangle 12" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Можно и без Juggluco" FontAttributes="Bold" FontSize="13" />
+                            <Label Text="Вводите измерения вручную — дневник, рюкзак, SOS и все остальные функции продолжат работать." Style="{StaticResource BodyTextMuted}" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Padding="14">
+                <VerticalStackLayout Spacing="9">
+                    <Label Text="Автоматически через Juggluco" Style="{StaticResource SectionHeadingText}" />
+                    <Label Text="Juggluco — локальный мост на этом телефоне: он читает Libre и передаёт SugarGuard только показание через системное уведомление." Style="{StaticResource BodyTextMuted}" />
+                    <Label Text="1. Нажмите «Настроить Juggluco».&#10;2. В Juggluco откройте Settings → Exchange data → Glucodata/xDrip broadcast.&#10;3. Выберите SugarGuard." Style="{StaticResource BodyTextMuted}" FontSize="13" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Настроить Juggluco" Command="{Binding SelectJugglucoCommand}" Style="{StaticResource PrimaryButton}" FontSize="13" />
+                        <Button Grid.Column="1" Text="Открыть Juggluco" Command="{Binding OpenJugglucoCommand}" Style="{StaticResource SoftButton}" FontSize="13" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Padding="12">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Статус передачи" FontAttributes="Bold" FontSize="13" />
+                        <Label Text="{Binding StatusText}" Style="{StaticResource BodyTextMuted}" FontSize="12" />
+                    </VerticalStackLayout>
+                    <Button Grid.Column="1"
+                            Text="Отключить"
+                            Command="{Binding DisconnectCommand}"
+                            Style="{StaticResource GhostButton}"
+                            IsVisible="{Binding IsConnected}"
+                            Padding="10,3"
+                            FontSize="12" />
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

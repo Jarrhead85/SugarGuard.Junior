@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.Domain.Entities;
 
@@ -36,6 +37,13 @@ public class Child
     [MaxLength(50)]
     [Required]
     public string DiabetesType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The legacy table name is retained for compatibility, although this profile may
+    /// belong to an independently managed adult patient.
+    /// </summary>
+    [Column("care_mode")]
+    public PatientCareMode CareMode { get; set; } = PatientCareMode.ChildWithGuardian;
 
     [Column("diagnosis_date")]
     public DateOnly? DiagnosisDate { get; set; }

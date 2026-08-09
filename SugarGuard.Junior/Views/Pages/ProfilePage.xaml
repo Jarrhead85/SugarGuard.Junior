@@ -60,15 +60,12 @@
 
             <Border Style="{StaticResource ProfileCard}" IsVisible="{Binding HasAchievements}">
                 <VerticalStackLayout Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Мои достижения" Style="{StaticResource SectionTitle}" />
-                        <Label Grid.Column="1" Text="Награды за полезные привычки" Style="{StaticResource Muted}" VerticalOptions="Center" />
-                    </Grid>
+                    <Label Text="Мои достижения" Style="{StaticResource SectionTitle}" />
                     <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                         <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Achievements}" Spacing="8">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate>
-                                    <Border WidthRequest="118" Padding="8"
+                                    <Border WidthRequest="90" Padding="6"
                                             BackgroundColor="{DynamicResource SurfaceOffset}"
                                             Stroke="{DynamicResource BorderDefault}"
                                             StrokeThickness="1" StrokeShape="RoundRectangle 14">
@@ -77,9 +74,9 @@
                                                                   CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
                                         <VerticalStackLayout Spacing="3">
-                                            <Image Source="{Binding DisplayImageName}" WidthRequest="42" HeightRequest="42" HorizontalOptions="Center" />
-                                            <Label Text="{Binding Title}" FontSize="{DynamicResource TextXs}" FontAttributes="Bold"
-                                                   HorizontalTextAlignment="Center" TextColor="{DynamicResource TextPrimary}" MaxLines="2" />
+                                            <Image Source="{Binding DisplayImageName}" WidthRequest="46" HeightRequest="46" HorizontalOptions="Center" />
+                                            <Label Text="{Binding Title}" FontSize="10" FontAttributes="Bold"
+                                                   HorizontalTextAlignment="Center" TextColor="{DynamicResource TextPrimary}" MaxLines="2" LineBreakMode="TailTruncation" />
                                             <Label Text="{Binding ProgressText}" FontSize="10"
                                                    HorizontalTextAlignment="Center" TextColor="{DynamicResource TextSecondary}" />
                                             <ProgressBar Progress="{Binding ProgressValue}" ProgressColor="{DynamicResource BrandSecondary}" HeightRequest="4" />
@@ -144,42 +141,88 @@
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Подключения" Style="{StaticResource SectionTitle}" />
                     <Grid ColumnDefinitions="*,Auto">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding OpenAccessManagementCommand}" />
+                        </Grid.GestureRecognizers>
                         <VerticalStackLayout Spacing="1">
                             <Label Text="Родительский кабинет" FontAttributes="Bold" />
                             <Label Text="Коды и подключённые аккаунты" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1"
-                                Text="Открыть"
-                                Command="{Binding OpenAccessManagementCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                HeightRequest="38"
-                                Padding="12,4" />
+                        <Label Grid.Column="1"
+                               Text="›"
+                               FontSize="30"
+                               TextColor="{DynamicResource Primary}"
+                               VerticalTextAlignment="Center"
+                               VerticalOptions="Center">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding OpenAccessManagementCommand}" />
+                            </Label.GestureRecognizers>
+                        </Label>
                     </Grid>
                     <BoxView HeightRequest="1" />
-                    <Grid ColumnDefinitions="*,Auto">
-                        <VerticalStackLayout Spacing="1">
-                            <Label Text="Telegram-бот" FontAttributes="Bold" />
-                            <Label Text="{Binding TelegramStatus}" Style="{StaticResource Muted}" />
+                      <Grid ColumnDefinitions="*,Auto">
+                          <Grid.GestureRecognizers>
+                              <TapGestureRecognizer Command="{Binding ConnectTelegramCommand}" />
+                          </Grid.GestureRecognizers>
+                          <VerticalStackLayout Spacing="1">
+                              <Label Text="Telegram-бот" FontAttributes="Bold" />
+                              <Label Text="{Binding TelegramStatus}" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1"
-                                Text="{Binding TelegramButtonText}"
-                                Command="{Binding ConnectTelegramCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                HeightRequest="38"
-                                Padding="12,4" />
-                    </Grid>
-                    <BoxView HeightRequest="1" />
+                        <Label Grid.Column="1" Text="›" FontSize="30" TextColor="{DynamicResource Primary}" VerticalTextAlignment="Center">
+                            <Label.GestureRecognizers><TapGestureRecognizer Command="{Binding ConnectTelegramCommand}" /></Label.GestureRecognizers>
+                        </Label>
+                      </Grid>
+                      <BoxView HeightRequest="1" />
+                      <Grid ColumnDefinitions="*,Auto">
+                          <Grid.GestureRecognizers>
+                              <TapGestureRecognizer Command="{Binding EditParentPhonesCommand}" />
+                          </Grid.GestureRecognizers>
+                          <VerticalStackLayout Spacing="1">
+                              <Label Text="Номера для SOS" FontAttributes="Bold" />
+                              <Label Text="{Binding ParentPhonesStatus}" Style="{StaticResource Muted}" LineBreakMode="TailTruncation" />
+                          </VerticalStackLayout>
+                          <Label Grid.Column="1" Text="›" FontSize="30" TextColor="{DynamicResource Primary}" VerticalTextAlignment="Center">
+                              <Label.GestureRecognizers><TapGestureRecognizer Command="{Binding EditParentPhonesCommand}" /></Label.GestureRecognizers>
+                          </Label>
+                      </Grid>
+                      <BoxView HeightRequest="1" />
+                      <Grid ColumnDefinitions="*,Auto">
+                          <Grid.GestureRecognizers>
+                              <TapGestureRecognizer Command="{Binding ConfigureCgmCommand}" />
+                          </Grid.GestureRecognizers>
+                          <VerticalStackLayout Spacing="1">
+                              <Label Text="Датчик глюкозы (CGM)" FontAttributes="Bold" />
+                              <Label Text="{Binding CgmStatus}" Style="{StaticResource Muted}" />
+                          </VerticalStackLayout>
+                          <Label Grid.Column="1" Text="›" FontSize="30" TextColor="{DynamicResource Primary}" VerticalTextAlignment="Center">
+                              <Label.GestureRecognizers><TapGestureRecognizer Command="{Binding ConfigureCgmCommand}" /></Label.GestureRecognizers>
+                          </Label>
+                      </Grid>
+                      <BoxView HeightRequest="1" />
+                      <Grid ColumnDefinitions="*,Auto">
+                          <Grid.GestureRecognizers>
+                              <TapGestureRecognizer Command="{Binding ConfigureSosWidgetCommand}" />
+                          </Grid.GestureRecognizers>
+                          <VerticalStackLayout Spacing="1">
+                              <Label Text="SOS-виджет" FontAttributes="Bold" />
+                              <Label Text="Сообщение и текущие координаты родителю" Style="{StaticResource Muted}" />
+                          </VerticalStackLayout>
+                          <Label Grid.Column="1" Text="›" FontSize="30" TextColor="{DynamicResource Primary}" VerticalTextAlignment="Center">
+                              <Label.GestureRecognizers><TapGestureRecognizer Command="{Binding ConfigureSosWidgetCommand}" /></Label.GestureRecognizers>
+                          </Label>
+                      </Grid>
+                      <BoxView HeightRequest="1" />
                     <Grid ColumnDefinitions="*,Auto">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding OpenSupportCommand}" />
+                        </Grid.GestureRecognizers>
                         <VerticalStackLayout Spacing="1">
                             <Label Text="Поддержка" FontAttributes="Bold" />
                             <Label Text="Чат с администратором" Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1"
-                                Text="Написать"
-                                Command="{Binding OpenSupportCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                HeightRequest="38"
-                                Padding="12,4" />
+                        <Label Grid.Column="1" Text="›" FontSize="30" TextColor="{DynamicResource Primary}" VerticalTextAlignment="Center">
+                            <Label.GestureRecognizers><TapGestureRecognizer Command="{Binding OpenSupportCommand}" /></Label.GestureRecognizers>
+                        </Label>
                     </Grid>
                 </VerticalStackLayout>
             </Border>

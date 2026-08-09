@@ -82,19 +82,19 @@
 
         <CollectionView.ItemTemplate>
             <DataTemplate>
-                <Border Margin="16,0,16,10" Style="{StaticResource BagCard}">
-                    <Grid ColumnDefinitions="48,*,Auto" ColumnSpacing="11">
-                        <Border WidthRequest="48" HeightRequest="48" StrokeThickness="0"
-                                BackgroundColor="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 16">
+                <Border Margin="16,0,16,7" Style="{StaticResource BagCard}" Padding="10">
+                    <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="9">
+                        <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0"
+                                BackgroundColor="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 14">
                             <Image Source="{Binding SnackIconSource}"
-                                   WidthRequest="32"
-                                   HeightRequest="32"
+                                   WidthRequest="28"
+                                   HeightRequest="28"
                                    Aspect="AspectFit"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center" />
                         </Border>
                         <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
-                            <Label Text="{Binding SnackName}" FontSize="17" FontAttributes="Bold"
+                            <Label Text="{Binding SnackName}" FontSize="16" FontAttributes="Bold"
                                    TextColor="{DynamicResource TextPrimary}" LineBreakMode="TailTruncation" />
                             <HorizontalStackLayout Spacing="8">
                                 <Label Text="{Binding BreadUnits, StringFormat='{}{0:F1} ХЕ'}"
@@ -102,17 +102,13 @@
                                 <Label Text="{Binding QuantityText}" FontSize="13"
                                        FontAttributes="Bold" TextColor="{DynamicResource TextSecondary}" />
                             </HorizontalStackLayout>
-                            <Label Text="{Binding AddedAtText}"
-                                   FontSize="11"
-                                   TextColor="{DynamicResource TextSecondary}"
-                                   LineBreakMode="TailTruncation" />
                         </VerticalStackLayout>
                         <VerticalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
-                            <Button Text="Съесть" HeightRequest="42" Padding="15,5" CornerRadius="15"
+                            <Button Text="Съесть" HeightRequest="36" Padding="12,3" CornerRadius="13"
                                     BackgroundColor="{DynamicResource Primary}" TextColor="White" FontAttributes="Bold"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.ConsumeSnackCommand}"
                                     CommandParameter="{Binding .}" />
-                            <Button Text="Удалить" HeightRequest="44" Padding="12,4" CornerRadius="12"
+                            <Button Text="Удалить" HeightRequest="30" Padding="8,2" CornerRadius="10"
                                     SemanticProperties.Description="Удалить позицию из рюкзака" Style="{StaticResource GhostButton}" TextColor="{DynamicResource Danger}"
                                     FontSize="13" BorderColor="{DynamicResource DangerSoft}" BorderWidth="1"
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type pages:BackpackPage}}, Path=BindingContext.RemoveSnackCommand}"

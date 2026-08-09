@@ -47,6 +47,8 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     [ObservableProperty] private TimeSpan entryTime = DateTime.Now.TimeOfDay;
     [ObservableProperty] private decimal totalBreadUnits;
     [ObservableProperty] private decimal totalInsulinUnits;
+    [ObservableProperty] private int totalMeals;
+    [ObservableProperty] private bool isType2Profile;
     [ObservableProperty] private string scheduleTitle = string.Empty;
     [ObservableProperty] private TimeSpan scheduleTime = new(8, 0, 0);
     [ObservableProperty] private string plannedBreadUnitsText = string.Empty;
@@ -64,10 +66,33 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     public bool HasAchievements => Achievements.Count > 0;
     public MealScheduleApiModel? NightInsulinSchedule => Schedules.FirstOrDefault(item => item.IsNightInsulin && item.IsActive);
     public bool HasNightInsulinSchedule => NightInsulinSchedule is not null;
+    public bool HasType1NightInsulinSchedule => ShowType1NutritionFields && HasNightInsulinSchedule;
+    public bool ShowType1NutritionFields => !IsType2Profile;
+    public bool ShowInsulinSummary => !IsType2Profile;
+    public string NutritionSubtitle => IsType2Profile
+        ? "Питание, регулярность и самочувствие"
+        : "Еда, ХЕ и введённый инсулин";
+    public string NutritionPrimaryLabel => IsType2Profile ? "ПРИЁМОВ ПИЩИ" : "СЪЕДЕНО";
+    public string NutritionPrimaryValue => IsType2Profile
+        ? TotalMeals.ToString(CultureInfo.CurrentCulture)
+        : $"{TotalBreadUnits:0.##} ХЕ";
     public string EntryButtonText => _editingEntryId.HasValue ? "Сохранить изменения" : "Добавить в дневник";
     public string ScheduleButtonText => _editingScheduleId.HasValue ? "Сохранить расписание" : "Добавить время";
 
     partial void OnErrorMessageChanged(string value) => OnPropertyChanged(nameof(HasError));
+
+    partial void OnIsType2ProfileChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowType1NutritionFields));
+        OnPropertyChanged(nameof(ShowInsulinSummary));
+        OnPropertyChanged(nameof(HasType1NightInsulinSchedule));
+        OnPropertyChanged(nameof(NutritionSubtitle));
+        OnPropertyChanged(nameof(NutritionPrimaryLabel));
+        OnPropertyChanged(nameof(NutritionPrimaryValue));
+    }
+
+    partial void OnTotalBreadUnitsChanged(decimal value) => OnPropertyChanged(nameof(NutritionPrimaryValue));
+    partial void OnTotalMealsChanged(int value) => OnPropertyChanged(nameof(NutritionPrimaryValue));
 
     partial void OnScheduleIsNightInsulinChanged(bool value)
     {
@@ -84,6 +109,10 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         _childId = await _storage.GetAsync(AppConstants.StorageKeyCurrentChildId);
+        var careMode = await _storage.GetAsync("profile_care_mode");
+        var diabetesType = await _storage.GetAsync("diabetes_type");
+        IsType2Profile = string.Equals(careMode, "self-managed", StringComparison.OrdinalIgnoreCase) &&
+                         string.Equals(diabetesType, "1", StringComparison.Ordinal);
         if (string.IsNullOrWhiteSpace(_childId)) { ErrorMessage = "Профиль ребёнка ещё не выбран."; return; }
         await LoadAsync();
     }
@@ -109,6 +138,7 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
             var summary = summaryTask.Result;
             TotalBreadUnits = summary?.TotalBreadUnits ?? 0;
             TotalInsulinUnits = summary?.TotalInsulinUnits ?? 0;
+            TotalMeals = summary?.Days.Sum(day => day.EntriesCount) ?? 0;
             BuildDays(summary?.Days ?? []);
             NotifyCollections();
             await ScheduleMealRemindersAsync(Schedules);
@@ -128,8 +158,13 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(_childId) || IsBusy) return;
         if (string.IsNullOrWhiteSpace(MealName)) { ErrorMessage = "Укажи, что было съедено."; return; }
-        if (!TryDecimal(BreadUnitsText, out var breadUnits) || breadUnits is < 0 or > 50) { ErrorMessage = "ХЕ должны быть числом от 0 до 50."; return; }
-        if (!TryDecimal(InsulinUnitsText, out var insulin) || insulin is < 0 or > 100) { ErrorMessage = "Инсулин должен быть числом от 0 до 100."; return; }
+        var breadUnits = 0m;
+        var insulin = 0m;
+        if (ShowType1NutritionFields)
+        {
+            if (!TryDecimal(BreadUnitsText, out breadUnits) || breadUnits is < 0 or > 50) { ErrorMessage = "ХЕ должны быть числом от 0 до 50."; return; }
+            if (!TryDecimal(InsulinUnitsText, out insulin) || insulin is < 0 or > 100) { ErrorMessage = "Инсулин должен быть числом от 0 до 100."; return; }
+        }
         decimal? glucose = null;
         if (!string.IsNullOrWhiteSpace(GlucoseBeforeText))
         {
@@ -267,6 +302,8 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
     private async Task SaveScheduleAsync()
     {
         if (string.IsNullOrWhiteSpace(_childId) || IsBusy) return;
+        if (IsType2Profile)
+            ScheduleIsNightInsulin = false;
         if (string.IsNullOrWhiteSpace(ScheduleTitle) && !ScheduleIsNightInsulin) { ErrorMessage = "Укажи название приёма пищи."; return; }
         decimal? planned = null;
         if (!string.IsNullOrWhiteSpace(PlannedBreadUnitsText))
@@ -329,7 +366,8 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
         {
             if (schedule.IsNightInsulin)
             {
-                await ScheduleNightInsulinRemindersAsync(schedule);
+                if (!IsType2Profile)
+                    await ScheduleNightInsulinRemindersAsync(schedule);
                 continue;
             }
 
@@ -380,7 +418,7 @@ public partial class NutritionTrackerPageViewModel : ObservableObject
 
     private void ResetEntryForm() { _editingEntryId = null; MealName = BreadUnitsText = InsulinUnitsText = GlucoseBeforeText = Notes = string.Empty; EntryDate = DateTime.Today; EntryTime = DateTime.Now.TimeOfDay; ShowEntryForm = false; OnPropertyChanged(nameof(EntryButtonText)); }
     private void ResetScheduleForm() { _editingScheduleId = null; ScheduleTitle = PlannedBreadUnitsText = string.Empty; ScheduleTime = new TimeSpan(8, 0, 0); ScheduleIsNightInsulin = false; ShowScheduleForm = false; OnPropertyChanged(nameof(ScheduleButtonText)); }
-    private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); OnPropertyChanged(nameof(NightInsulinSchedule)); OnPropertyChanged(nameof(HasNightInsulinSchedule)); }
+    private void NotifyCollections() { OnPropertyChanged(nameof(HasEntries)); OnPropertyChanged(nameof(HasSchedules)); OnPropertyChanged(nameof(HasAchievements)); OnPropertyChanged(nameof(NightInsulinSchedule)); OnPropertyChanged(nameof(HasNightInsulinSchedule)); OnPropertyChanged(nameof(HasType1NightInsulinSchedule)); }
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> source) { target.Clear(); foreach (var item in source) target.Add(item); }
     private static bool TryDecimal(string text, out decimal value) => decimal.TryParse(text.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out value);
 

@@ -92,6 +92,21 @@ public class MeasurementsService : IMeasurementsService
         if (recommendation is not null)
             measurement.RecommendationId = recommendation.RecommendationId;
 
+        // A manually entered value is the authoritative measurement. If the same
+        // value and timestamp was already mirrored from the nutrition diary, keep
+        // only this record to avoid duplicate points on charts and in analytics.
+        var mirroredNutritionMeasurement = await db.Measurements
+            .FirstOrDefaultAsync(item => item.NutritionEntryId != null
+                                         && item.ChildId == measurement.ChildId
+                                         && item.MeasurementTime == measurement.MeasurementTime
+                                         && item.GlucoseValue == measurement.GlucoseValue,
+                cancellationToken);
+
+        if (mirroredNutritionMeasurement is not null)
+        {
+            db.Measurements.Remove(mirroredNutritionMeasurement);
+        }
+
         db.Measurements.Add(measurement);
         await db.SaveChangesAsync(cancellationToken);
 

@@ -124,6 +124,14 @@ public sealed class ParentChildLinkDto
 
     public string? ParentEmail { get; init; } // Email родителя для отображения в административной таблице
 
+    public string? ParentDisplayName { get; init; }
+    public string? ParentPhotoUrl { get; init; }
+    public string ParentRoleLabel { get; init; } = "Родитель";
+    public bool HasParentPhoto => !string.IsNullOrWhiteSpace(ParentPhotoUrl);
+    public string ParentAvatarInitial => string.IsNullOrWhiteSpace(ParentDisplayName)
+        ? "Р"
+        : ParentDisplayName.Trim()[0].ToString().ToUpperInvariant();
+
     public string? ParentTelegramUsername { get; init; } // Telegram-имя родителя
 
     public Guid ChildId { get; init; } // Идентификатор ребёнка
@@ -141,6 +149,14 @@ public sealed class DoctorChildLinkDto
     public Guid DoctorUserId { get; init; } // Идентификатор пользователя-врача
 
     public string? DoctorEmail { get; init; } // Email врача для отображения в административной таблице
+
+    public string? DoctorDisplayName { get; init; }
+    public string? DoctorPhotoUrl { get; init; }
+    public string DoctorRoleLabel { get; init; } = "Врач";
+    public bool HasDoctorPhoto => !string.IsNullOrWhiteSpace(DoctorPhotoUrl);
+    public string DoctorAvatarInitial => string.IsNullOrWhiteSpace(DoctorDisplayName)
+        ? "В"
+        : DoctorDisplayName.Trim()[0].ToString().ToUpperInvariant();
 
     public Guid ChildId { get; init; } // Идентификатор ребёнка
 

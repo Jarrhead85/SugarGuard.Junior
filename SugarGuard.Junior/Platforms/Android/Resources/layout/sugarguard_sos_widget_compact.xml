@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp"
+    android:background="@drawable/sos_widget_background">
+  <LinearLayout
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+    <ImageView
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="4dp"
+        android:contentDescription="SugarGuard"
+        android:src="@drawable/sugarguard_guardian" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SUGAR&#10;GUARD"
+        android:textAllCaps="true"
+        android:textColor="#E6FFFF"
+        android:textSize="9sp"
+        android:textStyle="bold" />
+  </LinearLayout>
+  <Button
+      android:id="@+id/sos_button"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:layout_marginTop="6dp"
+      android:background="@drawable/sos_widget_button_background"
+      android:contentDescription="Отправить SOS родителю с координатами"
+      android:text="SOS РОДИТЕЛЮ"
+      android:textColor="#FFFFFF"
+      android:textSize="11sp"
+      android:textStyle="bold" />
+</LinearLayout>

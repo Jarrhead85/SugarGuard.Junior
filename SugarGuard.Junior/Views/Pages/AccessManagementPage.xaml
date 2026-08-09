@@ -1,184 +1,105 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:ViewModels="clr-namespace:SugarGuard.Junior.ViewModels"
+             xmlns:viewmodels="clr-namespace:SugarGuard.Junior.ViewModels"
              x:Class="SugarGuard.Junior.Views.Pages.AccessManagementPage"
-             Title="Доступ к моим данным"
+             x:DataType="viewmodels:AccessManagementPageViewModel"
+             Title="Связь с родителем"
              BackgroundColor="{DynamicResource BackgroundPage}">
-
     <ScrollView>
-        <VerticalStackLayout Padding="{StaticResource PaddingPage}"
-                             Spacing="{StaticResource Spacing20}">
+        <VerticalStackLayout Padding="16,14" Spacing="12">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <VerticalStackLayout Spacing="1">
+                    <Label Text="Связь с родителем" Style="{StaticResource PageTitleText}" />
+                    <Label Text="Подключайте родителей и врачей кодами." Style="{StaticResource BodyTextMuted}" />
+                </VerticalStackLayout>
+                <Button Grid.Column="1" Text="Закрыть" Command="{Binding CloseCommand}" Style="{StaticResource GhostButton}"
+                        BorderColor="{DynamicResource BorderDefault}" BorderWidth="1" CornerRadius="14" Padding="12,5" />
+            </Grid>
 
-            <VerticalStackLayout Spacing="{StaticResource Spacing8}">
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="{StaticResource Spacing12}">
-                    <Label Text="Связь с родителем"
-                           Style="{StaticResource PageTitleText}"
-                           VerticalOptions="Center"
-                           MaxLines="2"
-                           LineBreakMode="WordWrap" />
-                    <Button Text="Закрыть"
-                            Command="{Binding CloseCommand}"
-                            Style="{StaticResource GhostButton}"
-                            HorizontalOptions="End"
-                            VerticalOptions="Center"
-                            Grid.Column="1" />
-                </Grid>
-                <Label Text="Выдайте код в приложении, а родитель введёт его в веб-кабинете SugarGuard. После этого он увидит измерения, историю и рюкзак."
-                       Style="{StaticResource BodyTextMuted}" />
-            </VerticalStackLayout>
+            <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" Color="{StaticResource Primary}" HorizontalOptions="Center" />
 
-            <ActivityIndicator IsRunning="{Binding IsLoading}"
-                               IsVisible="{Binding IsLoading}"
-                               Color="{StaticResource Primary}"
-                               HorizontalOptions="Center" />
-
-            <Border Style="{StaticResource HeroCard}"
-                    Padding="{StaticResource PaddingLg}">
-                <VerticalStackLayout Spacing="{StaticResource Spacing16}">
-                    <Label Text="Код для родителя"
-                           Style="{StaticResource SectionHeadingText}" />
-
-                    <Label Text="Нажмите кнопку, покажите код родителю или отправьте ему. Каждый новый код заменяет предыдущий активный код."
-                           Style="{StaticResource CaptionTextFaint}" />
-
-                    <Button Text="Выдать код родителю"
-                            Command="{Binding GenerateParentInviteCommand}"
-                            Style="{StaticResource PrimaryButton}"
-                            IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
-
-                    <Border IsVisible="{Binding ShowInviteCode}"
-                            Style="{StaticResource Card}"
-                            BackgroundColor="{DynamicResource SurfacePrimarySoft}"
-                            Padding="{StaticResource PaddingLg}">
-                        <VerticalStackLayout Spacing="{StaticResource Spacing12}"
-                                             HorizontalOptions="Center">
-                            <Label Text="{Binding InviteCode}"
-                                   Style="{StaticResource ValueText}"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center"
-                                   MaxLines="1"
-                                   LineBreakMode="NoWrap" />
-                            <Label Text="{Binding InviteCodeExpiresText}"
-                                   Style="{StaticResource CaptionTextFaint}"
-                                   HorizontalTextAlignment="Center" />
-
-                            <Grid ColumnDefinitions="*,*"
-                                  ColumnSpacing="{StaticResource Spacing12}">
-                                <Button Text="Копировать"
-                                        Command="{Binding CopyInviteCodeCommand}"
-                                        Style="{StaticResource SoftButton}"
-                                        Grid.Column="0" />
-                                <Button Text="Скрыть"
-                                        Command="{Binding CloseInviteCodeCommand}"
-                                        Style="{StaticResource GhostButton}"
-                                        Grid.Column="1" />
+            <Border Style="{StaticResource HeroCard}" Padding="14">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Код для родителя" Style="{StaticResource SectionHeadingText}" />
+                    <Label Text="Выдайте одноразовый код — родитель введёт его в своём кабинете." Style="{StaticResource CaptionTextFaint}" />
+                    <Button Text="Выдать код родителю" Command="{Binding GenerateParentInviteCommand}" Style="{StaticResource PrimaryButton}" IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                    <Border IsVisible="{Binding ShowInviteCode}" Style="{StaticResource Card}" BackgroundColor="{DynamicResource SurfacePrimarySoft}" Padding="12">
+                        <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <Label Text="{Binding InviteCode}" Style="{StaticResource ValueText}" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                            <Label Text="{Binding InviteCodeExpiresText}" Style="{StaticResource CaptionTextFaint}" HorizontalTextAlignment="Center" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <Button Text="Копировать" Command="{Binding CopyInviteCodeCommand}" Style="{StaticResource SoftButton}" />
+                                <Button Grid.Column="1" Text="Скрыть" Command="{Binding CloseInviteCodeCommand}" Style="{StaticResource GhostButton}" />
                             </Grid>
                         </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>
             </Border>
 
-            <VerticalStackLayout Spacing="{StaticResource Spacing12}">
-                <Label Text="Подключённые родители"
-                       Style="{StaticResource SectionHeadingTextMuted}" />
-
-                <BindableLayout.ItemsSource>
-                    <Binding Path="ParentLinks" />
-                </BindableLayout.ItemsSource>
-
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Подключённые родители" Style="{StaticResource SectionHeadingTextMuted}" />
+                <BindableLayout.ItemsSource><Binding Path="ParentLinks" /></BindableLayout.ItemsSource>
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource ListCard}"
-                                Padding="{StaticResource PaddingLg}">
-                            <Grid ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="{StaticResource Spacing12}">
-                                <VerticalStackLayout Spacing="{StaticResource Spacing4}">
-                                    <Label Text="{Binding ParentEmail, FallbackValue='Родитель'}"
-                                           Style="{StaticResource BodyText}" />
-                                    <Label Text="{Binding CreatedAt, StringFormat='Подключён {0:dd.MM.yyyy}'}"
-                                           Style="{StaticResource CaptionTextFaint}" />
+                        <Border Style="{StaticResource ListCard}" Padding="10" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
+                                <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" Background="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 21">
+                                    <Grid>
+                                        <Label Text="{Binding ParentAvatarInitial}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{StaticResource Primary}" FontAttributes="Bold" />
+                                        <Image Source="{Binding ParentPhotoUrl}" IsVisible="{Binding HasParentPhoto}" Aspect="AspectFill" />
+                                    </Grid>
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                    <Label Text="{Binding ParentDisplayName, TargetNullValue='Родитель'}" Style="{StaticResource BodyText}" />
+                                    <Label Text="{Binding ParentRoleLabel}" Style="{StaticResource CaptionText}" TextColor="{StaticResource Primary}" />
+                                    <Label Text="{Binding ParentEmail}" Style="{StaticResource CaptionTextFaint}" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding CreatedAt, StringFormat='Подключён {0:dd.MM.yyyy}'}" Style="{StaticResource CaptionTextFaint}" />
                                 </VerticalStackLayout>
-                                <Button Text="Отвязать"
-                                        Style="{StaticResource GhostButton}"
-                                        TextColor="{StaticResource GlucoseDangerColor}"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=RemoveParentLinkCommand}"
-                                        CommandParameter="{Binding LinkId}"
-                                        Grid.Column="1" />
+                                <Button Grid.Column="2" Text="Отвязать" Style="{StaticResource GhostButton}" TextColor="{DynamicResource GlucoseDangerColor}" Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AccessManagementPageViewModel}}, Path=RemoveParentLinkCommand}" CommandParameter="{Binding LinkId}" VerticalOptions="Center" />
                             </Grid>
                         </Border>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
-
                 <BindableLayout.EmptyView>
-                    <Border Style="{StaticResource ListCard}"
-                            Padding="{StaticResource PaddingLg}">
-                        <Label Text="Пока нет подключённых родителей. Выдайте код и попросите родителя ввести его в веб-кабинете."
-                               Style="{StaticResource BodyTextMuted}"
-                               HorizontalTextAlignment="Center" />
-                    </Border>
+                    <Label Text="Пока нет подключённых родителей." Style="{StaticResource BodyTextMuted}" />
                 </BindableLayout.EmptyView>
             </VerticalStackLayout>
 
-            <VerticalStackLayout Spacing="{StaticResource Spacing12}">
-                <Label Text="Врач"
-                       Style="{StaticResource SectionHeadingTextMuted}" />
-
-                <BindableLayout.ItemsSource>
-                    <Binding Path="DoctorLinks" />
-                </BindableLayout.ItemsSource>
-
+            <VerticalStackLayout Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Врачи" Style="{StaticResource SectionHeadingTextMuted}" />
+                    <Button Grid.Column="1" Text="Выдать код врачу" Command="{Binding GenerateDoctorInviteCommand}" Style="{StaticResource SoftButton}" IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                </Grid>
+                <BindableLayout.ItemsSource><Binding Path="DoctorLinks" /></BindableLayout.ItemsSource>
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource ListCard}"
-                                Padding="{StaticResource PaddingLg}">
-                            <Grid ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="{StaticResource Spacing12}">
-                                <VerticalStackLayout Spacing="{StaticResource Spacing4}">
-                                    <Label Text="{Binding DoctorEmail, FallbackValue='Врач'}"
-                                           Style="{StaticResource BodyText}" />
-                                    <Label Text="{Binding CreatedAt, StringFormat='Подключён {0:dd.MM.yyyy}'}"
-                                           Style="{StaticResource CaptionTextFaint}" />
+                        <Border Style="{StaticResource ListCard}" Padding="10" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
+                                <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" Background="{DynamicResource SurfacePrimarySoft}" StrokeShape="RoundRectangle 21">
+                                    <Grid>
+                                        <Label Text="{Binding DoctorAvatarInitial}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" TextColor="{StaticResource Primary}" FontAttributes="Bold" />
+                                        <Image Source="{Binding DoctorPhotoUrl}" IsVisible="{Binding HasDoctorPhoto}" Aspect="AspectFill" />
+                                    </Grid>
+                                </Border>
+                                <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                    <Label Text="{Binding DoctorDisplayName, TargetNullValue='Врач'}" Style="{StaticResource BodyText}" />
+                                    <Label Text="{Binding DoctorRoleLabel}" Style="{StaticResource CaptionText}" TextColor="{StaticResource Primary}" />
+                                    <Label Text="{Binding DoctorEmail}" Style="{StaticResource CaptionTextFaint}" LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding CreatedAt, StringFormat='Подключён {0:dd.MM.yyyy}'}" Style="{StaticResource CaptionTextFaint}" />
                                 </VerticalStackLayout>
-                                <Button Text="Отвязать"
-                                        Style="{StaticResource GhostButton}"
-                                        TextColor="{StaticResource GlucoseDangerColor}"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ViewModels:AccessManagementPageViewModel}}, Path=RemoveDoctorLinkCommand}"
-                                        CommandParameter="{Binding LinkId}"
-                                        Grid.Column="1" />
+                                <Button Grid.Column="2" Text="Отвязать" Style="{StaticResource GhostButton}" TextColor="{DynamicResource GlucoseDangerColor}" Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:AccessManagementPageViewModel}}, Path=RemoveDoctorLinkCommand}" CommandParameter="{Binding LinkId}" VerticalOptions="Center" />
                             </Grid>
                         </Border>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
-
                 <BindableLayout.EmptyView>
-                    <Border Style="{StaticResource ListCard}"
-                            Padding="{StaticResource PaddingLg}">
-                        <Label Text="Врач пока не подключён. Код для врача можно выдать позже."
-                               Style="{StaticResource BodyTextMuted}"
-                               HorizontalTextAlignment="Center" />
-                    </Border>
+                    <Label Text="Врач пока не подключён." Style="{StaticResource BodyTextMuted}" />
                 </BindableLayout.EmptyView>
-
-                <Button Text="Выдать код врачу"
-                        Command="{Binding GenerateDoctorInviteCommand}"
-                        Style="{StaticResource SoftButton}"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
             </VerticalStackLayout>
 
-            <Label Text="{Binding SuccessMessage}"
-                   Style="{StaticResource CaptionText}"
-                   TextColor="{StaticResource Primary}"
-                   HorizontalTextAlignment="Center"
-                   IsVisible="{Binding SuccessMessage, Converter={StaticResource StringToBoolConverter}}" />
-
-            <Label Text="{Binding ErrorMessage}"
-                   Style="{StaticResource CaptionText}"
-                   TextColor="{StaticResource GlucoseDangerColor}"
-                   HorizontalTextAlignment="Center"
-                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
-
+            <Label Text="{Binding SuccessMessage}" Style="{StaticResource CaptionText}" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" IsVisible="{Binding SuccessMessage, Converter={StaticResource StringToBoolConverter}}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource CaptionText}" TextColor="{DynamicResource GlucoseDangerColor}" HorizontalTextAlignment="Center" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

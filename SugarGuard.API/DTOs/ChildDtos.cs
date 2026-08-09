@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
+using SugarGuard.Domain.Enums;
+
 namespace SugarGuard.API.DTOs;
 
 /// <summary>
@@ -14,6 +16,7 @@ public sealed class ChildResponse
     public decimal Weight { get; init; }
     public decimal Height { get; init; }
     public string DiabetesType { get; init; } = string.Empty;
+    public PatientCareMode CareMode { get; init; }
     public DateOnly? DiagnosisDate { get; init; }
     public string? InsulinScheme { get; init; }
     public string CurrentInsulins { get; init; } = "[]";
@@ -59,6 +62,8 @@ public sealed class CreateChildRequest
     [Required]
     [MaxLength(50)]
     public string DiabetesType { get; init; } = string.Empty;
+
+    public PatientCareMode CareMode { get; init; } = PatientCareMode.ChildWithGuardian;
 
     public DateOnly? DiagnosisDate { get; init; }
 

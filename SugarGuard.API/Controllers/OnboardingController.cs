@@ -77,6 +77,7 @@ public sealed class OnboardingController : ControllerBase
 
         if (role.Value is not (UserRole.Parent
                                or UserRole.ChildDevice
+                               or UserRole.Patient
                                or UserRole.Admin
                                or UserRole.SupportAdmin
                                or UserRole.ServiceAccount))
@@ -122,7 +123,7 @@ public sealed class OnboardingController : ControllerBase
             ChildResponse child;
             Guid? linkId;
 
-            if (role.Value == UserRole.ChildDevice)
+            if (role.Value is UserRole.ChildDevice or UserRole.Patient)
             {
                 var existingChildId = (await _childAccess.GetAccessibleChildIdsAsync(cancellationToken))
                     .FirstOrDefault();

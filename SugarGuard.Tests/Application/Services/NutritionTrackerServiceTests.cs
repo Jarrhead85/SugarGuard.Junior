@@ -45,6 +45,94 @@ public sealed class NutritionTrackerServiceTests
         var dayWithEntry = Assert.Single(summary.Days, day => day.EntriesCount > 0);
         Assert.Equal(2.5m, dayWithEntry.BreadUnits);
         Assert.Equal(1.5m, dayWithEntry.InsulinUnits);
+
+        var measurement = Assert.Single(context.Measurements);
+        Assert.Equal(created.NutritionEntryId, measurement.NutritionEntryId);
+        Assert.Equal(recordedAt, measurement.MeasurementTime);
+        Assert.Equal(5.8m, measurement.GlucoseValue);
+        Assert.Equal("nutrition", measurement.DataSource);
+    }
+
+    [Fact]
+    public async Task UpdateAndDeleteEntry_SynchronizesPreMealMeasurement()
+    {
+        await using var context = CreateContext();
+        var child = CreateChild();
+        context.Children.Add(child);
+        await context.SaveChangesAsync();
+        var currentUser = new Mock<ICurrentUserContext>();
+        currentUser.Setup(service => service.GetRole()).Returns(UserRole.Parent);
+        var service = new NutritionTrackerService(context, currentUser.Object);
+
+        var created = await service.CreateEntryAsync(child.ChildId, Guid.NewGuid(), new SaveNutritionEntryRequest
+        {
+            RecordedAt = DateTime.UtcNow.AddHours(-1),
+            MealType = MealType.Lunch,
+            MealName = "Обед",
+            BreadUnits = 3m,
+            GlucoseBefore = 6.1m
+        }, CancellationToken.None);
+
+        var updatedTime = DateTime.UtcNow;
+        await service.UpdateEntryAsync(child.ChildId, created.NutritionEntryId, new SaveNutritionEntryRequest
+        {
+            RecordedAt = updatedTime,
+            MealType = MealType.Lunch,
+            MealName = "Обед",
+            BreadUnits = 3m,
+            GlucoseBefore = 7.2m
+        }, CancellationToken.None);
+
+        var updatedMeasurement = Assert.Single(context.Measurements);
+        Assert.Equal(updatedTime, updatedMeasurement.MeasurementTime);
+        Assert.Equal(7.2m, updatedMeasurement.GlucoseValue);
+
+        await service.UpdateEntryAsync(child.ChildId, created.NutritionEntryId, new SaveNutritionEntryRequest
+        {
+            RecordedAt = updatedTime,
+            MealType = MealType.Lunch,
+            MealName = "Обед",
+            BreadUnits = 3m
+        }, CancellationToken.None);
+
+        Assert.Empty(context.Measurements);
+
+        Assert.True(await service.DeleteEntryAsync(child.ChildId, created.NutritionEntryId, CancellationToken.None));
+        Assert.Empty(context.NutritionEntries);
+    }
+
+    [Fact]
+    public async Task CreateEntry_WhenSameMeasurementAlreadyExists_DoesNotCreateDuplicate()
+    {
+        await using var context = CreateContext();
+        var child = CreateChild();
+        var recordedAt = DateTime.UtcNow;
+        context.Children.Add(child);
+        context.Measurements.Add(new Measurement
+        {
+            ChildId = child.ChildId,
+            GlucoseValue = 6.4m,
+            MeasurementTime = recordedAt,
+            DataSource = "manual"
+        });
+        await context.SaveChangesAsync();
+
+        var currentUser = new Mock<ICurrentUserContext>();
+        currentUser.Setup(service => service.GetRole()).Returns(UserRole.Parent);
+        var service = new NutritionTrackerService(context, currentUser.Object);
+
+        await service.CreateEntryAsync(child.ChildId, Guid.NewGuid(), new SaveNutritionEntryRequest
+        {
+            RecordedAt = recordedAt,
+            MealType = MealType.Lunch,
+            MealName = "Обед",
+            BreadUnits = 2.5m,
+            GlucoseBefore = 6.4m
+        }, CancellationToken.None);
+
+        var measurement = Assert.Single(context.Measurements);
+        Assert.Null(measurement.NutritionEntryId);
+        Assert.Equal("manual", measurement.DataSource);
     }
 
     [Fact]

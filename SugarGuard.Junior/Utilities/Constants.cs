@@ -80,6 +80,12 @@ public static class Constants
     public const string StorageKeyParentPhone = "parent_phone";
 
     /// <summary>
+    /// Резервный номер родителя для экстренного сценария. Хранится только
+    /// в защищённом хранилище на телефоне ребёнка.
+    /// </summary>
+    public const string StorageKeyBackupParentPhone = "backup_parent_phone";
+
+    /// <summary>
     /// Ключ для хранения последнего известного значения глюкозы (F1, инвариантная культура).
     /// Обновляется MainPageViewModel при загрузке данных главного экрана.
     /// Используется HelpAlertPageViewModel для передачи актуального значения в CriticalAlertRequest.

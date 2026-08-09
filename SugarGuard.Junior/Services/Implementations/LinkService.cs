@@ -14,6 +14,7 @@ namespace SugarGuard.Junior.Services.Implementations;
 public class LinkService : ILinkService
 {
     private readonly HttpClient _httpClient;
+    private readonly IAuthenticationService _authenticationService;
     private readonly ILogger<LinkService> _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -21,9 +22,13 @@ public class LinkService : ILinkService
         PropertyNameCaseInsensitive = true
     };
 
-    public LinkService(HttpClient httpClient, ILogger<LinkService> logger)
+    public LinkService(
+        HttpClient httpClient,
+        IAuthenticationService authenticationService,
+        ILogger<LinkService> logger)
     {
         _httpClient = httpClient;
+        _authenticationService = authenticationService;
         _logger = logger;
     }
 
@@ -37,6 +42,9 @@ public class LinkService : ILinkService
                 LinkId = x.LinkId,
                 ParentUserId = x.UserId,
                 ParentEmail = x.EmailForLogin,
+                ParentDisplayName = x.DisplayName,
+                ParentPhotoUrl = NormalizePhotoUrl(x.PhotoUrl),
+                ParentRoleLabel = "Родитель",
                 ParentTelegramUsername = x.TelegramId?.ToString(),
                 ChildId = links.ChildId,
                 CreatedAt = x.LinkedAt
@@ -45,7 +53,7 @@ public class LinkService : ILinkService
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка получения списка родителей для ребёнка {ChildId}", childId);
-            return [];
+            throw;
         }
     }
 
@@ -59,6 +67,9 @@ public class LinkService : ILinkService
                 LinkId = x.LinkId,
                 DoctorUserId = x.UserId,
                 DoctorEmail = x.EmailForLogin,
+                DoctorDisplayName = x.DisplayName,
+                DoctorPhotoUrl = NormalizePhotoUrl(x.PhotoUrl),
+                DoctorRoleLabel = string.IsNullOrWhiteSpace(x.Specialty) ? "Врач" : $"Врач · {x.Specialty}",
                 ChildId = links.ChildId,
                 CreatedAt = x.LinkedAt
             }).ToList();
@@ -66,7 +77,7 @@ public class LinkService : ILinkService
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.LogError(ex, "Ошибка получения списка врачей для ребёнка {ChildId}", childId);
-            return [];
+            throw;
         }
     }
 
@@ -234,13 +245,42 @@ public class LinkService : ILinkService
         }
     }
 
+    private static string? NormalizePhotoUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (Uri.TryCreate(value, UriKind.Absolute, out var absolute)) return absolute.ToString();
+
+        return Uri.TryCreate(new Uri(SugarGuard.Junior.Utilities.Constants.SugarGuardApiBaseUrl), value, out var resolved)
+            ? resolved.ToString()
+            : null;
+    }
+
     private async Task<ChildAccessLinksApiResponse> GetChildLinksAsync(Guid childId)
     {
-        using var response = await _httpClient.GetAsync($"api/invite-codes/{childId}/links");
+        using var response = await SendWithSessionRefreshAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, $"api/invite-codes/{childId}/links"));
         response.EnsureSuccessStatusCode();
 
         return await response.Content.ReadFromJsonAsync<ChildAccessLinksApiResponse>(JsonOptions)
             ?? new ChildAccessLinksApiResponse { ChildId = childId };
+    }
+
+    /// <summary>
+    /// LinkService uses a separate typed client. Refresh the expired access
+    /// token once here so a valid relationship is never rendered as an empty
+    /// list merely because the app resumed from an offline session.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithSessionRefreshAsync(Func<HttpRequestMessage> requestFactory)
+    {
+        var response = await _httpClient.SendAsync(requestFactory());
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+        {
+            return response;
+        }
+
+        response.Dispose();
+        await _authenticationService.RefreshTokenAsync();
+        return await _httpClient.SendAsync(requestFactory());
     }
 
     private static GenerateInviteCodeResponse MapInviteCodeResponse(InviteCodeApiResponse? result, string targetRole)
@@ -360,5 +400,8 @@ public class LinkService : ILinkService
         public string? EmailForLogin { get; init; }
         public long? TelegramId { get; init; }
         public DateTime LinkedAt { get; init; }
+        public string? DisplayName { get; init; }
+        public string? PhotoUrl { get; init; }
+        public string? Specialty { get; init; }
     }
 }

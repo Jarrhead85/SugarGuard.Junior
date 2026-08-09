@@ -367,6 +367,33 @@ public class ChildrenServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAsync_PatientRole_CreatesSelfManagedProfileAndSelfLink()
+    {
+        var patient = CreateUser(UserRole.Patient);
+        var sut = CreateSut();
+
+        var result = await sut.CreateAsync(patient.UserId, UserRole.Patient, new CreateChildRequest
+        {
+            FirstName = "Анна",
+            LastName = "Иванова",
+            DateOfBirth = new DateOnly(1988, 4, 10),
+            DiabetesType = "Type2"
+        });
+
+        Assert.Equal(PatientCareMode.SelfManaged, result.Child.CareMode);
+        Assert.NotNull(result.ParentLinkId);
+
+        using var verifyDb = new AppDbContext(_dbOptions);
+        var link = await verifyDb.ParentChildLinks.SingleAsync();
+        Assert.Equal(patient.UserId, link.ParentUserId);
+        Assert.Equal(ParentChildLinkType.SelfLinkPatient, link.LinkType);
+
+        var accessible = await sut.GetAccessibleAsync(patient.UserId, UserRole.Patient, 1, 10);
+        Assert.Single(accessible.Items);
+        Assert.Equal(result.Child.ChildId, accessible.Items[0].ChildId);
+    }
+
+    [Fact]
     public async Task CreateAsync_AdminRole_DoesNotCreateParentLink()
     {
         var admin = CreateUser(UserRole.Admin);

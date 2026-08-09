@@ -70,6 +70,13 @@ public sealed class ChildrenService : IChildrenService
             query = query.Where(c => db.DoctorChildLinks
                 .Any(l => l.DoctorUserId == userId && l.ChildId == c.ChildId && l.IsActive));
         }
+        else if (role == UserRole.Patient)
+        {
+            query = query.Where(c => db.ParentChildLinks
+                .Any(l => l.ParentUserId == userId
+                          && l.ChildId == c.ChildId
+                          && l.LinkType == ParentChildLinkType.SelfLinkPatient));
+        }
         else
         {
             query = query.Where(c => db.ParentChildLinks
@@ -129,7 +136,7 @@ public sealed class ChildrenService : IChildrenService
 
         var now = DateTime.UtcNow;
 
-        if (role == UserRole.ChildDevice)
+        if (role is UserRole.ChildDevice or UserRole.Patient)
         {
             var existingSelfLink = await db.ParentChildLinks
                 .Where(l => l.ParentUserId == userId)
@@ -167,7 +174,7 @@ public sealed class ChildrenService : IChildrenService
                         action: "child.updated",
                         targetType: "Child",
                         targetId: existingChild.ChildId.ToString(),
-                        details: $"ChildDevice={userId};Source=CreateAsyncExistingSelfLink",
+                        details: $"SelfManagedUser={userId};Role={role};Source=CreateAsyncExistingSelfLink",
                         cancellationToken: cancellationToken);
 
                     return new CreateChildResult
@@ -189,6 +196,9 @@ public sealed class ChildrenService : IChildrenService
             Weight = request.Weight ?? DefaultWeightKg,
             Height = request.Height ?? DefaultHeightCm,
             DiabetesType = request.DiabetesType.Trim(),
+            CareMode = role == UserRole.Patient
+                ? PatientCareMode.SelfManaged
+                : PatientCareMode.ChildWithGuardian,
             DiagnosisDate = request.DiagnosisDate,
             InsulinScheme = request.InsulinScheme?.Trim(),
             CurrentInsulins = "[]",
@@ -200,8 +210,8 @@ public sealed class ChildrenService : IChildrenService
                 : request.PhotoUrl.Trim(),
             CreatedAt = now,
             UpdatedAt = now,
-            SetupCompleted = role == UserRole.ChildDevice,
-            SetupCompletedAt = role == UserRole.ChildDevice ? now : null
+            SetupCompleted = role is UserRole.ChildDevice or UserRole.Patient,
+            SetupCompletedAt = role is UserRole.ChildDevice or UserRole.Patient ? now : null
         };
 
         db.Children.Add(child);
@@ -212,7 +222,7 @@ public sealed class ChildrenService : IChildrenService
             UpdatedAt = now
         });
 
-        if (role is UserRole.Parent or UserRole.ChildDevice)
+        if (role is UserRole.Parent or UserRole.ChildDevice or UserRole.Patient)
         {
             parentLinkId = Guid.NewGuid();
             db.ParentChildLinks.Add(new ParentChildLink
@@ -222,9 +232,12 @@ public sealed class ChildrenService : IChildrenService
                 ChildId = child.ChildId,
                 CreatedAt = now,
                 LinkedByUserId = userId,
-                LinkType = role == UserRole.ChildDevice
-                    ? ParentChildLinkType.SelfLinkChildDevice
-                    : ParentChildLinkType.Regular
+                LinkType = role switch
+                {
+                    UserRole.ChildDevice => ParentChildLinkType.SelfLinkChildDevice,
+                    UserRole.Patient => ParentChildLinkType.SelfLinkPatient,
+                    _ => ParentChildLinkType.Regular
+                }
             });
         }
 
@@ -468,6 +481,7 @@ public sealed class ChildrenService : IChildrenService
         Weight = child.Weight,
         Height = child.Height,
         DiabetesType = child.DiabetesType,
+        CareMode = child.CareMode,
         DiagnosisDate = child.DiagnosisDate,
         InsulinScheme = child.InsulinScheme,
         CurrentInsulins = child.CurrentInsulins,

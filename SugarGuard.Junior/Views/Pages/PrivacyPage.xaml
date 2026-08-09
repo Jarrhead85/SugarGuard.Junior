@@ -20,9 +20,6 @@
                            TextColor="{DynamicResource TextPrimary}" />
                     <Label Text="Данные передаются по защищённому соединению, используются для отображения в кабинетах родителя и врача, рекомендаций и уведомлений. Доступ к данным ребёнка получают только подключённые родители, врачи и администраторы поддержки."
                            TextColor="{DynamicResource TextPrimary}" />
-                    <Label Text="Оператор, организация, адрес и email указаны на сайте как временные заглушки и будут заполнены владельцем сервиса."
-                           TextColor="{DynamicResource TextSecondary}"
-                           FontSize="13" />
                     <Label Text="При плохом самочувствии не ждите ответа поддержки: обратитесь к взрослому или вызовите экстренную помощь."
                            TextColor="{DynamicResource Danger}"
                            FontAttributes="Bold" />

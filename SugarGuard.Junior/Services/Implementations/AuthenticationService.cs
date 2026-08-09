@@ -24,7 +24,7 @@ public class AuthenticationService(
     private const string CurrentEmailKey = "current_email";
     private const string EmailVerifiedKey = "email_verified";
     private const string OfflineSessionVerifiedAtKey = "offline_session_verified_at_utc";
-    private static readonly TimeSpan OfflineSessionLifetime = TimeSpan.FromDays(7);
+    private static readonly TimeSpan OnlineSessionRefreshInterval = TimeSpan.FromDays(7);
 
     // ─────────────────────────────────────────────────────────────
     // Проверка состояния сессии
@@ -38,6 +38,14 @@ public class AuthenticationService(
         try
         {
             var token = await secureStorage.GetAccessTokenAsync();
+            // Older mobile builds used two storage wrappers for the current user id.
+            // Repair that split before deciding whether an existing session may start
+            // offline. The JWT is read only from the device's secure storage.
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await RestoreCurrentUserIdAsync(token);
+            }
+
             if (string.IsNullOrEmpty(token))
             {
                 if (await HasOfflineSessionAsync())
@@ -136,40 +144,121 @@ public class AuthenticationService(
 
     private async Task<bool> HasOfflineSessionAsync()
     {
-        var userId = await storageService.GetAsync(CurrentUserIdKey);
-        var childId = await storageService.GetAsync(SugarGuard.Junior.Utilities.Constants.StorageKeyCurrentChildId);
-
-        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(childId))
+        var accessToken = await secureStorage.GetAccessTokenAsync();
+        var userIdFromToken = string.IsNullOrWhiteSpace(accessToken)
+            ? null
+            : ParseUserIdFromJwt(accessToken);
+        var userId = await GetStoredCurrentUserIdAsync();
+        if (string.IsNullOrWhiteSpace(userIdFromToken) && string.IsNullOrWhiteSpace(userId))
         {
             return false;
         }
 
-        if (await userRepository.GetByIdAsync(userId) is null)
+        if (!string.IsNullOrWhiteSpace(userIdFromToken) && string.IsNullOrWhiteSpace(userId))
         {
-            return false;
+            await SaveCurrentUserIdAsync(userIdFromToken);
         }
+        else if (!string.IsNullOrWhiteSpace(userIdFromToken) && !string.Equals(userId, userIdFromToken, StringComparison.Ordinal))
+        {
+            await SaveCurrentUserIdAsync(userIdFromToken);
+        }
+
+        var hasEmailVerificationFlag = string.Equals(
+            await storageService.GetAsync(EmailVerifiedKey),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        var hasRefreshToken = !string.IsNullOrWhiteSpace(await secureStorage.GetRefreshTokenAsync());
 
         var verifiedAtText = await storageService.GetAsync(OfflineSessionVerifiedAtKey);
-        if (DateTime.TryParse(
-                verifiedAtText,
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.RoundtripKind,
-                out var verifiedAt))
+        var hasVerifiedSessionMarker = DateTime.TryParse(
+            verifiedAtText,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind,
+            out _);
+
+        // Do not query the local EF database here: a schema migration or damaged
+        // optional profile cache must not force an online login. A marker created
+        // only after successful login/verification turns this device into a
+        // trusted offline device. This also repairs old releases that lost their
+        // SecureStorage token during an app update while keeping the verified
+        // device identity. Server revocation is checked on the next connection.
+        if (!hasRefreshToken && !hasEmailVerificationFlag)
         {
-            return verifiedAt.ToUniversalTime() >= DateTime.UtcNow - OfflineSessionLifetime;
+            return false;
         }
 
-        // Миграция существующих установок: наличие пары защищённых токенов и
-        // локального профиля доказывает ранее успешный вход. Создаём первый
-        // семидневный офлайн-допуск, не заставляя ребёнка входить в сеть после обновления.
-        if (!string.IsNullOrWhiteSpace(await secureStorage.GetRefreshTokenAsync()))
+        // Обновление приложения не должно блокировать ребёнка вне сети. Если
+        // подтверждённая сессия была создана старой версией, сохраняем её локально
+        // до следующего подключения: сервер всё равно проверит отзыв токена онлайн.
+        if (!hasVerifiedSessionMarker && !string.IsNullOrWhiteSpace(userIdFromToken))
         {
             await MarkSessionVerifiedAsync();
-            logger.LogInformation("Создан офлайн-допуск для существующей локальной сессии.");
-            return true;
+            logger.LogInformation("Восстановлен офлайн-допуск для существующей локальной сессии.");
         }
 
-        return false;
+        return hasVerifiedSessionMarker || !string.IsNullOrWhiteSpace(userIdFromToken);
+    }
+
+    /// <summary>
+    /// Не выполняет refresh-token или иных сетевых операций. Этот путь
+    /// используется до отображения формы входа: сохранённый ребёнок должен
+    /// открыть свои зашифрованные данные даже если Android ошибочно считает
+    /// сеть доступной.
+    /// </summary>
+    public Task<bool> CanResumeOfflineSessionAsync() => HasOfflineSessionAsync();
+
+    /// <summary>
+    /// Reads the current user id from both historical storage locations. Early
+    /// versions wrote it through <see cref="IStorageService"/>, while
+    /// <c>CurrentUserService</c> reads it through <see cref="ISecureStorageService"/>,
+    /// which adds its own prefix. Keep the copies in sync while old installations
+    /// migrate naturally on their next launch.
+    /// </summary>
+    private async Task<string?> GetStoredCurrentUserIdAsync()
+    {
+        var userId = await storageService.GetAsync(CurrentUserIdKey);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            await secureStorage.SaveAsync(CurrentUserIdKey, userId);
+            return userId;
+        }
+
+        userId = await secureStorage.GetAsync(CurrentUserIdKey);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            await SaveCurrentUserIdAsync(userId);
+        }
+
+        return userId;
+    }
+
+    private async Task RestoreCurrentUserIdAsync(string accessToken)
+    {
+        var userIdFromToken = ParseUserIdFromJwt(accessToken);
+        if (!string.IsNullOrWhiteSpace(userIdFromToken))
+        {
+            var rawUserId = await storageService.GetAsync(CurrentUserIdKey);
+            var prefixedUserId = await secureStorage.GetAsync(CurrentUserIdKey);
+
+            if (!string.Equals(rawUserId, userIdFromToken, StringComparison.Ordinal) ||
+                !string.Equals(prefixedUserId, userIdFromToken, StringComparison.Ordinal))
+            {
+                await SaveCurrentUserIdAsync(userIdFromToken);
+                logger.LogInformation("Идентификатор пользователя синхронизирован с сохранённой сессией.");
+            }
+
+            return;
+        }
+
+        // A malformed legacy token cannot be the source of truth. We still
+        // preserve the migration between the two local storage wrappers.
+        await GetStoredCurrentUserIdAsync();
+    }
+
+    private async Task SaveCurrentUserIdAsync(string userId)
+    {
+        await storageService.SaveAsync(CurrentUserIdKey, userId);
+        await secureStorage.SaveAsync(CurrentUserIdKey, userId);
     }
 
     private async Task<SessionRefreshResult> TryRenewSessionWeeklyAsync()
@@ -180,7 +269,7 @@ public class AuthenticationService(
                         System.Globalization.CultureInfo.InvariantCulture,
                         System.Globalization.DateTimeStyles.RoundtripKind,
                         out var verifiedAt)
-                    || verifiedAt.ToUniversalTime() <= DateTime.UtcNow - OfflineSessionLifetime;
+                    || verifiedAt.ToUniversalTime() <= DateTime.UtcNow - OnlineSessionRefreshInterval;
 
         if (!isDue)
         {
@@ -209,14 +298,15 @@ public class AuthenticationService(
     private async Task<SessionRefreshResult> TryRefreshSessionAsync()
     {
         var refreshToken = await secureStorage.GetRefreshTokenAsync();
-        if (string.IsNullOrWhiteSpace(refreshToken))
+        var accessToken = await secureStorage.GetAccessTokenAsync();
+        if (string.IsNullOrWhiteSpace(refreshToken) || string.IsNullOrWhiteSpace(accessToken))
         {
             return SessionRefreshResult.Rejected;
         }
 
         try
         {
-            var response = await apiClient.RefreshTokenAsync(refreshToken);
+            var response = await apiClient.RefreshTokenAsync(accessToken, refreshToken);
             if (response.Success && !string.IsNullOrWhiteSpace(response.AccessToken))
             {
                 await secureStorage.SaveAuthTokenAsync(response.AccessToken, response.RefreshToken);
@@ -248,7 +338,12 @@ public class AuthenticationService(
     {
         secureStorage.ClearAuthTokens();
         await storageService.DeleteAsync(CurrentUserIdKey);
+        secureStorage.Delete(CurrentUserIdKey);
+        await storageService.DeleteAsync(CurrentEmailKey);
+        await storageService.DeleteAsync(EmailVerifiedKey);
         await storageService.DeleteAsync(OfflineSessionVerifiedAtKey);
+        await storageService.DeleteAsync(SugarGuard.Junior.Utilities.Constants.StorageKeyCurrentChildId);
+        await storageService.DeleteAsync("onboarding_completed");
     }
 
     private enum SessionRefreshResult
@@ -265,7 +360,7 @@ public class AuthenticationService(
     {
         try
         {
-            var userId = await storageService.GetAsync(CurrentUserIdKey);
+            var userId = await GetStoredCurrentUserIdAsync();
             if (string.IsNullOrEmpty(userId))
             {
                 logger.LogWarning("Текущий пользователь не найден");
@@ -292,8 +387,13 @@ public class AuthenticationService(
     /// <summary>
     /// Регистрирует нового пользователя через API.
     /// </summary>
-    public async Task<User> RegisterAsync(string firstName, string lastName, string email,
-        string phoneNumber, string password)
+    public async Task<User> RegisterAsync(
+        string firstName,
+        string lastName,
+        string email,
+        string phoneNumber,
+        string password,
+        bool isSelfManagedPatient)
     {
         try
         {
@@ -320,7 +420,7 @@ public class AuthenticationService(
                 Email = email,
                 PhoneNumber = phoneNumber,
                 Password = password,
-                Role = "ChildDevice"
+                Role = isSelfManagedPatient ? "Patient" : "ChildDevice"
             };
 
             var registrationResponse = await apiClient.RegisterAsync(registrationRequest);
@@ -344,9 +444,15 @@ public class AuthenticationService(
             };
 
             // Сохраняем в локальную БД
-            await storageService.SaveAsync(CurrentUserIdKey, userId);
+            // Do not let a previous account's tokens authenticate a newly
+            // registered, still-unverified account on this device.
+            secureStorage.ClearAuthTokens();
+            await SaveCurrentUserIdAsync(userId);
             await storageService.SaveAsync(CurrentEmailKey, email);
-            await MarkSessionVerifiedAsync();
+            // Registration is not an authenticated session: the email must be
+            // verified before this device may start the profile offline.
+            await storageService.DeleteAsync(EmailVerifiedKey);
+            await storageService.DeleteAsync(OfflineSessionVerifiedAtKey);
 
             try
             {
@@ -371,7 +477,7 @@ public class AuthenticationService(
                 logger.LogWarning(ex, "Registration succeeded on API, but local user cache was not saved. UserId={UserId}", userId);
             }
             // Сохраняем current_user_id в storage
-            await storageService.SaveAsync(CurrentUserIdKey, userId);
+            await SaveCurrentUserIdAsync(userId);
             await storageService.SaveAsync(CurrentEmailKey, email);
 
             // Сохраняем токен если пришёл с регистрацией
@@ -426,12 +532,26 @@ public class AuthenticationService(
             var userId = ParseUserIdFromJwt(loginResponse.AccessToken!)
              ?? throw new InvalidOperationException("Не удалось получить UserId из токена");
 
-            await storageService.SaveAsync(CurrentUserIdKey, userId);
+            await SaveCurrentUserIdAsync(userId);
             await storageService.SaveAsync(CurrentEmailKey, email);
+            await storageService.SaveAsync(EmailVerifiedKey, "true");
             await MarkSessionVerifiedAsync();
 
             logger.LogInformation("Вход успешен: {Email} UserId={UserId}", email, userId);
             return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            // The login page must be able to distinguish an unavailable server
+            // from rejected credentials. Do not collapse transport failures into
+            // the same false result as a 401 response.
+            logger.LogWarning(ex, "Сервер недоступен во время входа.");
+            throw;
+        }
+        catch (TaskCanceledException ex)
+        {
+            logger.LogWarning(ex, "Истёк таймаут во время входа.");
+            throw;
         }
         catch (Exception ex)
         {
@@ -461,18 +581,23 @@ public class AuthenticationService(
             var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(payload));
             using var doc = System.Text.Json.JsonDocument.Parse(json);
 
-            // JWT sub = userId
-            if (doc.RootElement.TryGetProperty("sub", out var sub))
-                return sub.GetString();
-
-            // Fallback: поле userId или nameid
-            if (doc.RootElement.TryGetProperty("userId", out var uid))
-                return uid.GetString();
-
-            if (doc.RootElement.TryGetProperty(
-                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
-                out var nameId))
-                return nameId.GetString();
+            // JWT handlers serialise ClaimTypes.NameIdentifier differently across
+            // framework versions (sub, nameid or the full URI). The API also keeps
+            // its explicit UserId claim. Compare names case-insensitively so a
+            // mobile upgrade can recover the session from any issued token.
+            foreach (var property in doc.RootElement.EnumerateObject())
+            {
+                if (string.Equals(property.Name, "sub", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(property.Name, "userId", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(property.Name, "nameid", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        property.Name,
+                        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return property.Value.GetString();
+                }
+            }
 
             return null;
         }
@@ -560,9 +685,7 @@ public class AuthenticationService(
             }
 
             // Очищаем всё локальное состояние
-            secureStorage.ClearAuthTokens();
-            await storageService.DeleteAsync(CurrentUserIdKey);
-            await storageService.DeleteAsync(OfflineSessionVerifiedAtKey);
+            await ClearLocalSessionAsync();
 
             logger.LogInformation("Выход успешен");
             return true;
@@ -637,11 +760,12 @@ public class AuthenticationService(
 
                 if (!string.IsNullOrWhiteSpace(response.UserId))
                 {
-                    await storageService.SaveAsync(CurrentUserIdKey, response.UserId);
+                    await SaveCurrentUserIdAsync(response.UserId);
                 }
 
                 await storageService.SaveAsync(CurrentEmailKey, normalizedEmail);
                 await storageService.SaveAsync(EmailVerifiedKey, "true");
+                await MarkSessionVerifiedAsync();
                 // Обновляем флаг верификации у локального пользователя
                 var user = await GetCurrentUserAsync();
                 if (user is not null)

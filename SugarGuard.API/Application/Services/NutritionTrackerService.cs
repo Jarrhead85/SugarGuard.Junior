@@ -61,6 +61,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         Apply(entity, request);
         entity.Source = ResolveSource();
         _context.NutritionEntries.Add(entity);
+        await SynchronizePreMealMeasurementAsync(entity, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         await RefreshAchievementsAsync(childId, cancellationToken);
         return MapEntry(entity);
@@ -81,17 +82,24 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         }
 
         Apply(entity, request);
+        await SynchronizePreMealMeasurementAsync(entity, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return MapEntry(entity);
     }
 
     public async Task<bool> DeleteEntryAsync(Guid childId, Guid entryId, CancellationToken cancellationToken)
     {
-        var deleted = await _context.NutritionEntries
-            .Where(entry => entry.ChildId == childId && entry.NutritionEntryId == entryId)
-            .ExecuteDeleteAsync(cancellationToken);
+        var entry = await _context.NutritionEntries
+            .FirstOrDefaultAsync(entry => entry.ChildId == childId && entry.NutritionEntryId == entryId, cancellationToken);
 
-        return deleted > 0;
+        if (entry is null)
+        {
+            return false;
+        }
+
+        _context.NutritionEntries.Remove(entry);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<IReadOnlyList<MealScheduleResponse>> GetSchedulesAsync(Guid childId, CancellationToken cancellationToken) =>
@@ -390,6 +398,7 @@ public sealed class NutritionTrackerService : INutritionTrackerService
     private NutritionEntrySource ResolveSource() => _currentUser.GetRole() switch
     {
         UserRole.ChildDevice => NutritionEntrySource.Child,
+        UserRole.Patient => NutritionEntrySource.Child,
         UserRole.Parent => NutritionEntrySource.Parent,
         UserRole.Doctor => NutritionEntrySource.Doctor,
         _ => NutritionEntrySource.Admin
@@ -406,6 +415,55 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         entity.Notes = request.Notes?.Trim();
         entity.UpdatedAt = DateTime.UtcNow;
     }
+
+    private async Task SynchronizePreMealMeasurementAsync(NutritionEntry entry, CancellationToken cancellationToken)
+    {
+        var measurement = await _context.Measurements
+            .FirstOrDefaultAsync(item => item.NutritionEntryId == entry.NutritionEntryId, cancellationToken);
+
+        if (entry.GlucoseBefore is not { } glucoseBefore)
+        {
+            if (measurement is not null)
+            {
+                _context.Measurements.Remove(measurement);
+            }
+
+            return;
+        }
+
+        if (measurement is null)
+        {
+            var matchingStandaloneMeasurementExists = await _context.Measurements
+                .AsNoTracking()
+                .AnyAsync(item => item.NutritionEntryId == null
+                                  && item.ChildId == entry.ChildId
+                                  && item.MeasurementTime == entry.RecordedAt
+                                  && item.GlucoseValue == glucoseBefore,
+                    cancellationToken);
+
+            if (matchingStandaloneMeasurementExists)
+            {
+                return;
+            }
+
+            _context.Measurements.Add(CreatePreMealMeasurement(entry, glucoseBefore));
+            return;
+        }
+
+        measurement.ChildId = entry.ChildId;
+        measurement.MeasurementTime = entry.RecordedAt;
+        measurement.GlucoseValue = glucoseBefore;
+        measurement.DataSource = "nutrition";
+    }
+
+    private static Measurement CreatePreMealMeasurement(NutritionEntry entry, decimal glucoseBefore) => new()
+    {
+        ChildId = entry.ChildId,
+        GlucoseValue = glucoseBefore,
+        MeasurementTime = entry.RecordedAt,
+        DataSource = "nutrition",
+        NutritionEntryId = entry.NutritionEntryId
+    };
 
     private static void Apply(MealSchedule entity, SaveMealScheduleRequest request)
     {

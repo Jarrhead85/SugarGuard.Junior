@@ -18,6 +18,9 @@ public partial class RegisterPageViewModel : ObservableObject
     private int currentStep;
 
     [ObservableProperty]
+    private int accountTypeIndex;
+
+    [ObservableProperty]
     private string email = string.Empty;
 
     [ObservableProperty]
@@ -61,6 +64,14 @@ public partial class RegisterPageViewModel : ObservableObject
     [ObservableProperty]
     private bool canGoNext;
 
+    public List<string> AccountTypes { get; } = new()
+    {
+        "Профиль ребёнка",
+        "Мой профиль (взрослый)"
+    };
+
+    public bool IsSelfManagedPatient => AccountTypeIndex == 1;
+
     public RegisterPageViewModel(
         IAuthenticationService authenticationService,
         IStorageService storageService,
@@ -79,7 +90,14 @@ public partial class RegisterPageViewModel : ObservableObject
 
     partial void OnDateOfBirthChanged(DateTime value)
     {
-        ParentConsentRequired = CalculateAge(value) < 14;
+        ParentConsentRequired = !IsSelfManagedPatient && CalculateAge(value) < 14;
+        ValidateStep1();
+    }
+
+    partial void OnAccountTypeIndexChanged(int value)
+    {
+        ParentConsentRequired = !IsSelfManagedPatient && CalculateAge(DateOfBirth) < 14;
+        OnPropertyChanged(nameof(IsSelfManagedPatient));
         ValidateStep1();
     }
 
@@ -141,7 +159,8 @@ public partial class RegisterPageViewModel : ObservableObject
                 LastName,
                 Email,
                 PhoneNumber,
-                Password);
+                Password,
+                IsSelfManagedPatient);
 
             if (user is not null)
             {
@@ -205,6 +224,7 @@ public partial class RegisterPageViewModel : ObservableObject
             await _storageService.SaveAsync("pending_child_first_name", FirstName.Trim());
             await _storageService.SaveAsync("pending_child_last_name", string.IsNullOrWhiteSpace(LastName) ? "Ребенок" : LastName.Trim());
             await _storageService.SaveAsync("pending_child_date_of_birth", DateOfBirth.ToString("O"));
+            await _storageService.SaveAsync("profile_care_mode", IsSelfManagedPatient ? "self-managed" : "child");
         }
         catch (Exception ex)
         {
@@ -246,7 +266,7 @@ public partial class RegisterPageViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(FirstName))
         {
-            ErrorMessage = "Введите имя ребёнка.";
+            ErrorMessage = IsSelfManagedPatient ? "Введите своё имя." : "Введите имя ребёнка.";
             return false;
         }
 
@@ -266,6 +286,12 @@ public partial class RegisterPageViewModel : ObservableObject
         if (ParentConsentRequired && !ParentConsentGiven)
         {
             ErrorMessage = "Требуется согласие родителя.";
+            return false;
+        }
+
+        if (IsSelfManagedPatient && CalculateAge(DateOfBirth) < 18)
+        {
+            ErrorMessage = "Самостоятельный профиль доступен с 18 лет.";
             return false;
         }
 

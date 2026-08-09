@@ -39,6 +39,13 @@ public class Measurement
     [Column("recommendation_id")]
     public Guid? RecommendationId { get; set; }
 
+    /// <summary>
+    /// Запись дневника питания, из которой было добавлено измерение до приёма пищи.
+    /// Позволяет синхронно исправлять или удалять значение вместе с записью дневника.
+    /// </summary>
+    [Column("nutrition_entry_id")]
+    public Guid? NutritionEntryId { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -52,4 +59,7 @@ public class Measurement
 
     [ForeignKey(nameof(RecommendationId))]
     public virtual AIRecommendation? AIRecommendation { get; set; }
+
+    [ForeignKey(nameof(NutritionEntryId))]
+    public virtual NutritionEntry? NutritionEntry { get; set; }
 }

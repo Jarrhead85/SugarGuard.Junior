@@ -175,7 +175,7 @@ public sealed class UserNotificationService : IUserNotificationService
             .Where(notification =>
                 parentIds.Contains(notification.RecipientUserId) &&
                 notification.ChildId == childId &&
-                notification.SourceType == "critical_location" &&
+                notification.SourceType == (request.IsEmergencyHelp ? "sos_location" : "critical_location") &&
                 notification.CreatedAt >= duplicateSince)
             .Select(notification => notification.RecipientUserId)
             .Distinct()
@@ -201,9 +201,11 @@ public sealed class UserNotificationService : IUserNotificationService
                 RecipientUserId = parentId,
                 ChildId = childId,
                 Type = "danger",
-                Title = "Критический уровень глюкозы",
-                Description = $"{request.CriticalGlucose:F1} ммоль/л. {locationText}",
-                SourceType = "critical_location",
+                Title = request.IsEmergencyHelp ? "SOS от ребёнка" : "Критический уровень глюкозы",
+                Description = request.IsEmergencyHelp
+                    ? $"Ребёнок просит помощи. Глюкоза: {request.CriticalGlucose:F1} ммоль/л. {locationText}"
+                    : $"{request.CriticalGlucose:F1} ммоль/л. {locationText}",
+                SourceType = request.IsEmergencyHelp ? "sos_location" : "critical_location",
                 SourceId = Guid.NewGuid(),
                 CreatedAt = createdAt,
                 IsRead = false

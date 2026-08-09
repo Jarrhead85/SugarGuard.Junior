@@ -38,9 +38,11 @@ public interface IApiClient
     Task<bool> SendEmailVerificationCodeAsync(string email);
 
     /// <summary>
-    /// Обновление токена доступа (refresh token)
+    /// Обновление токена доступа. API verifies that the refresh token belongs
+    /// to the user encoded in the (possibly expired) access token, so both
+    /// values are required for a refresh-token rotation.
     /// </summary>
-    Task<LoginResponse> RefreshTokenAsync(string refreshToken);
+    Task<LoginResponse> RefreshTokenAsync(string accessToken, string refreshToken);
 
     Task LogoutAsync(string refreshToken);
 

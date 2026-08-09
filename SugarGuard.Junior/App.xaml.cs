@@ -170,10 +170,14 @@ public partial class App : Application
             StartReEncryptionInBackground();
 
             // 4. Проверяем, есть ли действующая сессия пользователя.
-            var isAuthenticated = await _authenticationService.IsAuthenticatedAsync();
+            // Не доверяем одному только Connectivity: в авиарежиме Android
+            // может ещё некоторое время сообщать Internet. Сначала открываем
+            // проверенную локальную сессию без сетевого refresh-запроса.
+            var resumedOfflineSession = await _authenticationService.CanResumeOfflineSessionAsync();
+            var isAuthenticated = resumedOfflineSession || await _authenticationService.IsAuthenticatedAsync();
 
             if (isAuthenticated)
-                await InitializeAuthenticatedSessionFlowAsync();
+                await InitializeAuthenticatedSessionFlowAsync(resumedOfflineSession);
             else
                 await NavigateToLoginAsync();
 
@@ -567,13 +571,13 @@ public partial class App : Application
     }
 
     /// <summary>Выполняет инициализацию сессии авторизованного пользователя.</summary>
-    private async Task InitializeAuthenticatedSessionFlowAsync()
+    private async Task InitializeAuthenticatedSessionFlowAsync(bool preferLocalSession = false)
     {
         _logger.LogInformation("Authenticated session found. Checking verification and onboarding flow.");
 
         var shell = _serviceProvider.GetRequiredService<AppShell>();
 
-        var isOffline = Connectivity.Current.NetworkAccess != NetworkAccess.Internet;
+        var isOffline = preferLocalSession || Connectivity.Current.NetworkAccess != NetworkAccess.Internet;
         var isEmailVerified = isOffline || await _authenticationService.IsEmailVerifiedAsync();
         if (!isEmailVerified)
         {
@@ -591,8 +595,8 @@ public partial class App : Application
             }
             else
             {
-                var restored = await _childSessionBootstrapService.EnsureChildSessionAsync();
-                if (!restored)
+                var restored = await TryRestoreChildSessionOnlineAsync();
+                if (restored == false)
                 {
                     _logger.LogInformation("Onboarding is not completed and no server child was found. Navigating to onboarding page.");
                     await NavigateOnMainThreadAsync(shell, "//onboardingpage");
@@ -602,7 +606,7 @@ public partial class App : Application
         }
         else if (!isOffline)
         {
-            await _childSessionBootstrapService.EnsureChildSessionAsync();
+            await TryRestoreChildSessionOnlineAsync();
         }
 
         await _mainPageViewModel.InitializeAsync();
@@ -611,6 +615,24 @@ public partial class App : Application
 
         _logger.LogInformation("Main page and sync services initialized after startup flow checks.");
         await NavigateOnMainThreadAsync(shell, "//mainpage");
+    }
+
+    /// <summary>
+    /// Connectivity can report a connected Wi-Fi network while its upstream is
+    /// unavailable. A failed optional bootstrap must never return a child to the
+    /// login screen or delay access to encrypted local data.
+    /// </summary>
+    private async Task<bool?> TryRestoreChildSessionOnlineAsync()
+    {
+        try
+        {
+            return await _childSessionBootstrapService.EnsureChildSessionAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(exception, "Сервер недоступен при восстановлении профиля. Продолжаем с локальными данными.");
+            return null;
+        }
     }
 
     private async Task InitializeAuthenticatedSessionAsync()

@@ -21,21 +21,49 @@ public partial class HelpAlertPageViewModel : ObservableObject
     private readonly IStorageService _storageService;
     private readonly INotificationService _notificationService;
     private readonly IApiClient _apiClient;
+    private readonly IWidgetEmergencyService _emergencyService;
+    private readonly ILocationService _locationService;
+    private readonly MainPageViewModel _mainPageViewModel;
     private readonly ILogger<HelpAlertPageViewModel> _logger;
 
     [ObservableProperty]
     private bool isLoading = false;
 
+    [ObservableProperty]
+    private bool hasBackupParentPhone;
+
+    [ObservableProperty]
+    private string snackAdviceHint = "Добавьте измерение или дождитесь показания датчика, чтобы получить рекомендацию.";
+
     public HelpAlertPageViewModel(
         IStorageService storageService,
         INotificationService notificationService,
         IApiClient apiClient,
+        IWidgetEmergencyService emergencyService,
+        ILocationService locationService,
+        MainPageViewModel mainPageViewModel,
         ILogger<HelpAlertPageViewModel> logger)
     {
         _storageService = storageService;
         _notificationService = notificationService;
         _apiClient = apiClient;
+        _emergencyService = emergencyService;
+        _locationService = locationService;
+        _mainPageViewModel = mainPageViewModel;
         _logger = logger;
+    }
+
+    public async Task InitializeAsync()
+    {
+        var backup = await _storageService.GetAsync(AppConstants.StorageKeyBackupParentPhone);
+        HasBackupParentPhone = !string.IsNullOrWhiteSpace(backup);
+
+        var glucose = await GetLatestGlucoseValueAsync();
+        SnackAdviceHint = glucose <= 0d
+            ? "Добавьте измерение или дождитесь показания датчика, чтобы получить рекомендацию."
+            : glucose > 10d
+                ? $"Последний сахар {glucose:F1} ммоль/л. Рекомендация не будет учитывать рюкзак."
+                : $"Последний сахар {glucose:F1} ммоль/л. Рекомендация учтёт содержимое рюкзака.";
     }
 
     /// <summary>
@@ -45,27 +73,46 @@ public partial class HelpAlertPageViewModel : ObservableObject
     [RelayCommand]
     private async Task CallParentAsync()
     {
+        await CallParentNumberAsync(AppConstants.StorageKeyParentPhone, "родителя");
+    }
+
+    [RelayCommand]
+    private async Task CallBackupParentAsync()
+    {
+        await CallParentNumberAsync(AppConstants.StorageKeyBackupParentPhone, "резервному родителю");
+    }
+
+    private async Task CallParentNumberAsync(string storageKey, string contactName)
+    {
         if (IsLoading) return;
 
         try
         {
             IsLoading = true;
 
-            var phone = await _storageService.GetAsync(AppConstants.StorageKeyParentPhone);
+            // В экранной форме можно запросить разрешение, в отличие от
+            // фонового виджета. Сначала отправляем SOS с координатами и
+            // последней глюкозой, затем открываем звонок.
+            var hasLocation = await _locationService.IsLocationPermissionGrantedAsync()
+                              || await _locationService.RequestLocationPermissionAsync();
+            var sosSent = hasLocation && await _emergencyService.SendSosAsync();
+            if (!sosSent)
+            {
+                _logger.LogWarning("HelpAlert: SOS с координатами не был доставлен до набора номера.");
+            }
+
+            var phone = await _storageService.GetAsync(storageKey);
 
             if (string.IsNullOrWhiteSpace(phone))
             {
-                _logger.LogWarning("Номер телефона родителя не найден в хранилище");
-                await ShowAlertAsync("Ошибка", "Номер телефона родителя не задан. Обратитесь к родителю для настройки.", "OK");
+                _logger.LogWarning("Номер телефона для SOS не найден в хранилище. Contact={ContactName}", contactName);
+                await ShowAlertAsync("Номер не указан", "Попросите родителя добавить номер в профиле → «Номера для SOS».", "Понятно");
                 return;
             }
 
-            // Сначала отправляем API-алерт
-            await SendCriticalApiAlertAsync();
-
             // Затем инициируем звонок
             PhoneDialer.Open(phone);
-            _logger.LogInformation("Инициирован звонок родителю");
+            _logger.LogInformation("Инициирован звонок {ContactName}", contactName);
         }
         catch (FeatureNotSupportedException)
         {
@@ -82,6 +129,14 @@ public partial class HelpAlertPageViewModel : ObservableObject
             IsLoading = false;
         }
     }
+
+    /// <summary>
+    /// Помощь не дублирует совет на главном экране: это SOS-сценарий, из
+    /// которого ребёнок при необходимости открывает тот же единый совет по
+    /// перекусу с учётом текущей глюкозы и содержимого рюкзака.
+    /// </summary>
+    [RelayCommand]
+    private Task GetSnackAdviceAsync() => _mainPageViewModel.RequestSnackAdviceAsync();
 
     /// <summary>
     /// Отправляет критический алерт через API (уведомление родителю через Telegram/Push).

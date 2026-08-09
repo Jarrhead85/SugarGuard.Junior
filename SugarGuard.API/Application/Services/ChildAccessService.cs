@@ -68,6 +68,7 @@ public sealed class ChildAccessService : IChildAccessService
                 .AnyAsync(link => link.ParentUserId == userId.Value && link.ChildId == childId,
                     cancellationToken),
             UserRole.ChildDevice => await HasChildDeviceAccessAsync(userId.Value, childId, cancellationToken),
+            UserRole.Patient => await HasPatientAccessAsync(userId.Value, childId, cancellationToken),
             _ => false
         };
     }
@@ -105,6 +106,11 @@ public sealed class ChildAccessService : IChildAccessService
         if (role.Value == UserRole.ChildDevice)
         {
             return await GetChildDeviceChildIdsAsync(userId.Value, cancellationToken);
+        }
+
+        if (role.Value == UserRole.Patient)
+        {
+            return await GetPatientChildIdsAsync(userId.Value, cancellationToken);
         }
 
         return await _context.ParentChildLinks.AsNoTracking()
@@ -155,6 +161,29 @@ public sealed class ChildAccessService : IChildAccessService
         var linkedIds = await _context.ParentChildLinks.AsNoTracking()
             .Where(link => link.ParentUserId == userId
                            && link.LinkType == ParentChildLinkType.SelfLinkChildDevice)
+            .Select(link => link.ChildId)
+            .ToListAsync(cancellationToken);
+
+        return linkedIds.Distinct().ToList();
+    }
+
+    private Task<bool> HasPatientAccessAsync(
+        Guid userId,
+        Guid childId,
+        CancellationToken cancellationToken) => _context.ParentChildLinks
+        .AsNoTracking()
+        .AnyAsync(link => link.ParentUserId == userId
+                          && link.ChildId == childId
+                          && link.LinkType == ParentChildLinkType.SelfLinkPatient,
+            cancellationToken);
+
+    private async Task<IReadOnlyList<Guid>> GetPatientChildIdsAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var linkedIds = await _context.ParentChildLinks.AsNoTracking()
+            .Where(link => link.ParentUserId == userId
+                           && link.LinkType == ParentChildLinkType.SelfLinkPatient)
             .Select(link => link.ChildId)
             .ToListAsync(cancellationToken);
 
