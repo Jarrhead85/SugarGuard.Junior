@@ -115,7 +115,7 @@
                         <span class="parent-nav-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-3-3v6m-7 4h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>
                         </span>
-                        <span>Записки врача</span>
+                          <span>Взаимодействие с врачом</span>
                     </a>
                     <a class="parent-nav-item @ParentNavClass("profile")" href="@ParentNavHref("profile")">
                         <span class="parent-nav-icon" aria-hidden="true">
@@ -369,7 +369,11 @@
                     </div>
                     <div class="doctor-context-metrics" aria-label="Сводка по системе">
                         <span><b>@adminUserCount</b> пользователей</span>
-                        <span class="@(adminPendingDoctorCount > 0 ? "attention" : "")"><b>@adminPendingDoctorCount</b> ожидают проверки</span>
+                        <AuthorizeView Roles="Admin">
+                            <Authorized Context="verificationAdminContext">
+                                <span class="@(adminPendingDoctorCount > 0 ? "attention" : "")"><b>@adminPendingDoctorCount</b> ожидают проверки</span>
+                            </Authorized>
+                        </AuthorizeView>
                     </div>
                     <a class="doctor-context-link" href="/admin/dashboard">Дашборд</a>
                 </section>
@@ -397,7 +401,11 @@
                     <a class="@PortalTabClass("/admin", "/admin/dashboard")" href="/admin/dashboard">Дашборд</a>
                     <a class="@PortalTabClass("/admin/work-queue")" href="/admin/work-queue">Очередь</a>
                     <a class="@PortalTabClass("/admin/users")" href="/admin/users">Пользователи</a>
-                    <a class="@PortalTabClass("/admin/doctor-requests")" href="/admin/doctor-requests">Верификация</a>
+                    <AuthorizeView Roles="Admin">
+                        <Authorized Context="verificationTabAdminContext">
+                            <a class="@PortalTabClass("/admin/doctor-requests")" href="/admin/doctor-requests">Верификация</a>
+                        </Authorized>
+                    </AuthorizeView>
                     <a class="@PortalTabClass("/admin/links")" href="/admin/links">Связи</a>
                     <a class="@PortalTabClass("/admin/audit", "/admin/audit-log")" href="/admin/audit">Журнал аудита</a>
                     <a class="@PortalTabClass("/admin/system", "/admin/system-stats")" href="/admin/system">Система</a>
@@ -553,7 +561,7 @@
 
             if (role is "Admin" or "SupportAdmin")
             {
-                await LoadAdminSidebarDataAsync();
+                await LoadAdminSidebarDataAsync(role);
             }
         }
         finally
@@ -583,14 +591,15 @@
         StateHasChanged();
     }
 
-    private async Task LoadAdminSidebarDataAsync()
+    private async Task LoadAdminSidebarDataAsync(string role)
     {
         try
         {
             var users = await Api.GetAdminUsersAsync(limit: 500);
             adminUserCount = users.Count;
-            adminPendingDoctorCount = users.Count(user =>
-                string.Equals(user.Role, "DoctorPending", StringComparison.OrdinalIgnoreCase));
+            adminPendingDoctorCount = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                ? (await Api.GetPendingDoctorVerificationsAsync()).Count
+                : 0;
         }
         catch
         {

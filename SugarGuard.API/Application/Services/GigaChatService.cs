@@ -422,31 +422,163 @@ public class GigaChatService : IGigaChatService
             return BuildLegacyClinicalDigest(request, maxLength);
         }
 
-        var requiredLines = new[]
+        var intent = DeterminePromptIntent(request, context);
+        var isType2 = IsType2Diabetes(request.DiabetesType, context.Profile.DiabetesType);
+        var currentGlucose = Convert.ToDecimal(request.CurrentGlucose);
+        var needsHypoglycemiaContext = currentGlucose <= context.Profile.TargetRangeMin
+            || intent == PromptIntent.AcuteGlucose;
+
+        var requiredLines = new List<string?>
         {
             BuildCurrentLine(context, request),
             BuildProfileLine(context, request),
-            BuildBackpackLine(context),
-            BuildLastMealLine(context),
-            BuildLastInsulinLine(context)
+            BuildLastMealLine(context)
         };
 
-        var optionalLines = new[]
+        // Для СД1 рюкзак и последнее введение инсулина обычно критичны.
+        // При СД2 они добавляются только для ситуации с риском гипогликемии,
+        // чтобы не засорять обычные вопросы о питании и образе жизни детскими
+        // данными, которых у взрослого может не быть.
+        if (!isType2 || needsHypoglycemiaContext)
         {
-            BuildCurrentInsulinsLine(context),
-            _gigaChatOptions.IncludeDoctorNotesInExternalPrompt
-                ? BuildImportantDoctorNotesLine(context)
-                : null,
-            BuildDailySummaryLine(context),
-            BuildConsumedBackpackLine(context),
-            BuildRecentMeasurementsLine(context),
-            BuildRecentNutritionLine(context),
-            BuildRecentInsulinLine(context),
-            BuildLongTermPatternsLine(context),
-            BuildConversationLine(context)
-        };
+            requiredLines.Add(BuildBackpackLine(context));
+            requiredLines.Add(BuildLastInsulinLine(context));
+        }
 
-        return ComposeClinicalDigest(requiredLines, optionalLines, maxLength);
+        var optionalLines = BuildAdaptiveOptionalLines(context, intent);
+        var digest = ComposeClinicalDigest(requiredLines, optionalLines, maxLength);
+
+        _logger.LogInformation(
+            "GigaChat adaptive context built. Conversation={ConversationId}, Intent={Intent}, DiabetesType={DiabetesType}, Characters={Characters}, Limit={Limit}",
+            request.ConversationId,
+            intent,
+            isType2 ? "Type2" : "Other",
+            digest.Length,
+            maxLength);
+
+        return digest;
+    }
+
+    private IEnumerable<string?> BuildAdaptiveOptionalLines(ClinicalContext context, PromptIntent intent)
+    {
+        var currentInsulins = BuildCurrentInsulinsLine(context);
+        var doctorNotes = _gigaChatOptions.IncludeDoctorNotesInExternalPrompt
+            ? BuildImportantDoctorNotesLine(context)
+            : null;
+        var dailySummary = BuildDailySummaryLine(context);
+        var consumedBackpack = BuildConsumedBackpackLine(context);
+        var recentMeasurements = BuildRecentMeasurementsLine(context);
+        var recentNutrition = BuildRecentNutritionLine(context);
+        var recentInsulin = BuildRecentInsulinLine(context);
+        var longTermPatterns = BuildLongTermPatternsLine(context);
+        var conversation = BuildConversationLine(context);
+
+        return intent switch
+        {
+            PromptIntent.Nutrition =>
+            [
+                recentNutrition,
+                dailySummary,
+                recentMeasurements,
+                longTermPatterns,
+                recentInsulin,
+                conversation,
+                doctorNotes,
+                currentInsulins,
+                consumedBackpack
+            ],
+            PromptIntent.Trend =>
+            [
+                recentMeasurements,
+                dailySummary,
+                longTermPatterns,
+                recentNutrition,
+                recentInsulin,
+                conversation,
+                doctorNotes,
+                currentInsulins,
+                consumedBackpack
+            ],
+            PromptIntent.Medication =>
+            [
+                currentInsulins,
+                recentInsulin,
+                recentMeasurements,
+                dailySummary,
+                conversation,
+                doctorNotes,
+                recentNutrition,
+                longTermPatterns,
+                consumedBackpack
+            ],
+            PromptIntent.AcuteGlucose =>
+            [
+                recentMeasurements,
+                consumedBackpack,
+                recentNutrition,
+                recentInsulin,
+                dailySummary,
+                doctorNotes,
+                longTermPatterns,
+                conversation,
+                currentInsulins
+            ],
+            _ =>
+            [
+                dailySummary,
+                recentMeasurements,
+                recentNutrition,
+                longTermPatterns,
+                conversation,
+                recentInsulin,
+                doctorNotes,
+                currentInsulins,
+                consumedBackpack
+            ]
+        };
+    }
+
+    private static PromptIntent DeterminePromptIntent(GigaChatRequest request, ClinicalContext context)
+    {
+        var currentGlucose = Convert.ToDecimal(request.CurrentGlucose);
+        if (currentGlucose <= context.Profile.TargetRangeMin
+            || currentGlucose >= context.Profile.TargetRangeMax + 3m)
+        {
+            return PromptIntent.AcuteGlucose;
+        }
+
+        var question = (request.Question ?? string.Empty).ToLowerInvariant();
+        if (ContainsAny(question, "еда", "пит", "углевод", "перекус", "завтрак", "обед", "ужин", "порц", "блюд", "рацион"))
+        {
+            return PromptIntent.Nutrition;
+        }
+
+        if (ContainsAny(question, "инсулин", "укол", "доз", "препарат", "таблет", "лекарств"))
+        {
+            return PromptIntent.Medication;
+        }
+
+        return ContainsAny(question, "почему", "тренд", "динамик", "раст", "пада", "скач", "утром", "ночью", "недел", "вчера")
+            ? PromptIntent.Trend
+            : PromptIntent.General;
+    }
+
+    private static bool IsType2Diabetes(string? requestDiabetesType, string? contextDiabetesType) =>
+        string.Equals(requestDiabetesType, "Type2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(contextDiabetesType, "Type2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(requestDiabetesType, "2 типа", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(contextDiabetesType, "2 типа", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsAny(string value, params string[] terms) =>
+        terms.Any(value.Contains);
+
+    private enum PromptIntent
+    {
+        General,
+        Nutrition,
+        Trend,
+        Medication,
+        AcuteGlucose
     }
 
     private static string BuildLegacyClinicalDigest(GigaChatRequest request, int maxLength)

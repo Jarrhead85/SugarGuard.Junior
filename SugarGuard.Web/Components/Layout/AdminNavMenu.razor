@@ -9,7 +9,11 @@
             <NavItem Href="/admin/dashboard" Icon="grid" Label="Дашборд" />
             <NavItem Href="/admin/work-queue" Icon="check-square" Label="Рабочая очередь" />
             <NavItem Href="/admin/users" Icon="users" Label="Пользователи" Badge="@UserCount" />
-            <NavItem Href="/admin/doctor-requests" Icon="user-check" Label="Верификация" Badge="@PendingDoctorCount" BadgeClass="warning" />
+            <AuthorizeView Roles="Admin">
+                <Authorized Context="fullAdminContext">
+                    <NavItem Href="/admin/doctor-requests" Icon="user-check" Label="Верификация" Badge="@PendingDoctorCount" BadgeClass="warning" />
+                </Authorized>
+            </AuthorizeView>
             <NavItem Href="/admin/links" Icon="link" Label="Связи" />
             <NavItem Href="/admin/audit" Icon="file-text" Label="Журнал аудита" />
             <NavItem Href="/admin/system" Icon="activity" Label="Система" />

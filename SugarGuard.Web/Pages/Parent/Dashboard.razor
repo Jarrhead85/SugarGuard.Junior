@@ -141,7 +141,7 @@
     <button class="tab @TabClass("doctor")" role="tab"
             aria-selected="@(_activeTab == "doctor")"
             aria-controls="pane-doctor"
-            @onclick='() => SwitchTab("doctor")'>Записки врача</button>
+            @onclick='() => SwitchTab("doctor")'>Взаимодействие с врачом</button>
 
     <button class="tab @TabClass("profile")" role="tab"
             aria-selected="@(_activeTab == "profile")"
@@ -441,7 +441,7 @@
                 <button class="btn btn--ghost btn--sm @(_measurementChartRange == "week" ? "btn--soft" : "")"
                         @onclick='() => SetMeasurementChartRangeAsync("week")'>Неделя</button>
                 <button class="btn btn--ghost btn--sm @(_measurementChartRange == "month" ? "btn--soft" : "")"
-                        @onclick='() => SetMeasurementChartRangeAsync("month")'>Месяц</button>
+                        @onclick='() => SetMeasurementChartRangeAsync("month")'>30 дней</button>
                 <button class="btn btn--ghost btn--sm @(_measurementChartRange == "custom" ? "btn--soft" : "")"
                         @onclick='() => SetMeasurementChartRangeAsync("custom")'>Период</button>
             </div>
@@ -915,8 +915,6 @@
                     <div class="card-title">Записки врача</div>
                     <div class="card-sub">Рекомендации и назначения</div>
                 </div>
-                <button class="btn btn--primary btn--sm"
-                        @onclick="NavigateToAccessLinks">Управлять доступом</button>
             </div>
             <div class="note-list" role="list">
                 @if (_doctorNotes.Count == 0)
@@ -950,49 +948,15 @@
             </div>
         </div>
 
-        @* Связанные врачи *@
+        @* Подключённые врачи *@
         <div>
             <div class="card" style="margin-bottom:var(--spacing-4)">
                 <div class="card-head">
                     <div>
-                        <div class="card-title">Доступ родителей</div>
-                        <div class="card-sub">Кто может управлять профилем ребёнка</div>
+                        <div class="card-title">Врачи ребёнка</div>
+                        <div class="card-sub">Специалисты, которым открыт доступ к профилю</div>
                     </div>
-                    <button class="btn btn--soft btn--sm" @onclick="NavigateToAccessLinks">Коды доступа</button>
-                </div>
-                @if (_linkedParents.Count == 0)
-                {
-                    <div class="empty-state empty-state--compact" role="status">
-                        Родительские связи не найдены. Обновите данные или создайте код доступа.
-                    </div>
-                }
-                else
-                {
-                    <div class="settings-group" role="list">
-                        @foreach (var parent in _linkedParents)
-                        {
-                            <div class="setting-row" role="listitem">
-                                <div class="doctor-avatar" aria-hidden="true">
-                                    @GetInitials(string.IsNullOrWhiteSpace(parent.DisplayName) ? parent.EmailForLogin : parent.DisplayName)
-                                </div>
-                                <div class="setting-text">
-                                    <div class="setting-label">@(string.IsNullOrWhiteSpace(parent.DisplayName) ? GetDisplayName(parent.EmailForLogin, parent.TelegramId) : parent.DisplayName)</div>
-                                    <div class="setting-desc">Подключён @ToDisplayTime(parent.LinkedAt).ToString("dd.MM.yyyy HH:mm")</div>
-                                </div>
-                                <button class="btn btn--ghost btn--sm" @onclick="() => UnlinkParentAsync(parent.LinkId)">Отвязать</button>
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-
-            <div class="card" style="margin-bottom:var(--spacing-4)">
-                <div class="card-head">
-                    <div>
-                        <div class="card-title">Доступ врачей</div>
-                        <div class="card-sub">Кто видит профиль ребёнка</div>
-                    </div>
-                    <button class="btn btn--soft btn--sm" @onclick="NavigateToAccessLinks">Коды доступа</button>
+                    <button class="btn btn--primary btn--sm" @onclick="OpenAccessManager">Подключить врача</button>
                 </div>
                 @if (_linkedDoctors.Count == 0)
                 {
@@ -1026,7 +990,6 @@
                                         Подключён @ToDisplayTime(doctor.LinkedAt).ToString("dd.MM.yyyy HH:mm")
                                     </div>
                                 </div>
-                                <button class="btn btn--ghost btn--sm" @onclick="() => UnlinkDoctorAsync(doctor.LinkId)">Отвязать</button>
                             </div>
                         }
                     </div>
@@ -1034,13 +997,13 @@
             </div>
 
             <div class="card">
-                <div class="card-title" style="margin-bottom:var(--spacing-3)">Как подключить врача</div>
+                <div class="card-title" style="margin-bottom:var(--spacing-3)">Подключить врача</div>
                 <p class="card-sub" style="line-height:1.55">
-                    Откройте раздел доступа, создайте код для роли «Врач» и передайте его специалисту.
-                    После активации врач увидит измерения, рюкзак и сможет оставлять рекомендации.
+                    Создайте одноразовый код и передайте его специалисту. После активации врач увидит
+                    данные ребёнка и сможет оставлять рекомендации.
                 </p>
                 <button class="btn btn--primary btn--sm" style="margin-top:var(--spacing-4)"
-                        @onclick="NavigateToAccessLinks">Открыть доступы</button>
+                        @onclick="OpenAccessManager">Подключить врача</button>
             </div>
         </div>
     </div>
@@ -1524,11 +1487,11 @@
                     }
                     <div class="setting-row">
                         <div class="setting-text">
-                            <div class="setting-label">Доступ другим</div>
-                            <div class="setting-desc">Коды привязки для второго родителя или врача</div>
+                            <div class="setting-label">Доступ к ребёнку</div>
+                            <div class="setting-desc">Подключение и отключение родителей и врачей</div>
                         </div>
                         <button class="btn btn--ghost btn--sm"
-                                @onclick="NavigateToAccessLinks">Открыть</button>
+                                @onclick="OpenAccessManager">Управлять</button>
                     </div>
                     <div class="setting-row">
                         <div class="setting-text">
@@ -1543,6 +1506,10 @@
         </div>
     </div>
 </div>
+
+<ChildAccessModal @bind-IsVisible="_isAccessManagerOpen"
+                  ChildId="_selectedChildId"
+                  OnAccessChanged="RefreshAccessLinksAsync" />
 
 @code {
     [SupplyParameterFromQuery(Name = "tab")]
@@ -1627,6 +1594,7 @@
     private string? _childProfileError;
     private ChildProfileForm _childProfileForm = new();
     private bool _isTargetEditorOpen;
+    private bool _isAccessManagerOpen;
     private string? _targetFormError;
     private TargetSettingsForm _targetForm = new();
     private decimal _targetMin = 4.0m;
@@ -2737,7 +2705,7 @@
         var localFrom = _measurementChartRange switch
         {
             "week" => localTo.AddDays(-7),
-            "month" => localTo.AddMonths(-1),
+            "month" => localTo.AddDays(-30),
             "custom" => _measurementChartFrom.Date,
             _ => MoscowNow.Date
         };
@@ -3465,7 +3433,7 @@
         ShowNotice($"{device.Name}: подключение сохранено.");
     }
 
-    private void NavigateToAccessLinks()
+    private void OpenAccessManager()
     {
         if (_selectedChildId == Guid.Empty)
         {
@@ -3473,8 +3441,13 @@
             return;
         }
 
-        Navigation.NavigateTo($"/parent/children/{_selectedChildId:D}/links");
+        _isAccessManagerOpen = true;
     }
+
+    private Task RefreshAccessLinksAsync() =>
+        _selectedChildId == Guid.Empty
+            ? Task.CompletedTask
+            : LoadAccessLinksAsync(_selectedChildId);
 
     private void OpenParentProfileEditor()
     {

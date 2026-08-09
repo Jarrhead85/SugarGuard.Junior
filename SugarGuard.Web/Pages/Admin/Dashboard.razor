@@ -11,6 +11,7 @@
 @inject SugarGuardApiService Api
 @inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
+@inject ICurrentUserService CurrentUser
 
 <PageTitle>Дашборд — SugarGuard Admin</PageTitle>
 
@@ -223,7 +224,7 @@
                 <div class="admin-panel-head">
                     <div>
                         <h2>Очередь верификации</h2>
-                        <p>Пользователи с ролью DoctorPending.</p>
+                        <p>Документы отправлены и ожидают решения.</p>
                     </div>
                     <span class="admin-badge">@PendingDoctors.Count ожидают</span>
                 </div>
@@ -235,13 +236,13 @@
                 else
                 {
                     <div class="admin-verify-list">
-                        @foreach (var user in PendingDoctors.Take(4))
+                        @foreach (var request in PendingDoctors.Take(4))
                         {
-                            <article class="admin-verify-item" @key="user.UserId">
-                                <span class="admin-avatar">@GetInitials(user.EmailForLogin)</span>
+                            <article class="admin-verify-item" @key="request.RequestId">
+                                <span class="admin-avatar">@GetInitials(request.Email)</span>
                                 <div>
-                                    <strong>@user.EmailForLogin</strong>
-                                    <small>Создан @FormatDate(user.CreatedAt)</small>
+                                    <strong>@request.Email</strong>
+                                    <small>Отправлено @FormatDate(request.SubmittedAt)</small>
                                 </div>
                                 <span class="admin-badge admin-badge--warning">Врач</span>
                             </article>
@@ -277,6 +278,7 @@
     private IReadOnlyList<AdminParentChildLinkDto> _parentLinks = [];
     private IReadOnlyList<AdminDoctorChildLinkDto> _doctorLinks = [];
     private IReadOnlyList<SyncLogVm> _syncLogs = [];
+    private IReadOnlyList<DoctorVerificationRequestVm> _pendingDoctorRequests = [];
 
     private bool IsHealthy => _health?.DatabaseOk == true
         && string.Equals(_health.Status, "healthy", StringComparison.OrdinalIgnoreCase);
@@ -320,11 +322,7 @@
     private void PreviousAuditPage() => _auditPage = Math.Max(1, _auditPage - 1);
     private void NextAuditPage() => _auditPage = Math.Min(AuditPageCount, _auditPage + 1);
 
-    private List<AdminUserVm> PendingDoctors =>
-        _users
-            .Where(x => x.IsActive && IsRole(x.Role, "DoctorPending"))
-            .OrderBy(x => x.CreatedAt)
-            .ToList();
+    private IReadOnlyList<DoctorVerificationRequestVm> PendingDoctors => _pendingDoctorRequests;
 
     private IReadOnlyList<RoleRow> RoleRows
     {
@@ -401,8 +399,12 @@
             var parentLinksTask = Api.GetAdminParentChildLinksAsync(cts.Token);
             var doctorLinksTask = Api.GetAdminDoctorChildLinksAsync(cts.Token);
             var syncTask = Api.GetSyncLogsAsync(limit: 100, cancellationToken: cts.Token);
+            var role = await CurrentUser.GetRoleAsync(cts.Token);
+            var doctorRequestsTask = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                ? Api.GetPendingDoctorVerificationsAsync(cts.Token)
+                : Task.FromResult<IReadOnlyList<DoctorVerificationRequestVm>>([]);
 
-            await Task.WhenAll(statsTask, healthTask, serverMetricsTask, botsTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask);
+            await Task.WhenAll(statsTask, healthTask, serverMetricsTask, botsTask, usersTask, auditTask, parentLinksTask, doctorLinksTask, syncTask, doctorRequestsTask);
 
             _stats = await statsTask;
             _health = await healthTask;
@@ -414,6 +416,9 @@
             _parentLinks = await parentLinksTask ?? [];
             _doctorLinks = await doctorLinksTask ?? [];
             _syncLogs = await syncTask ?? [];
+            _pendingDoctorRequests = (await doctorRequestsTask)
+                .OrderBy(request => request.SubmittedAt)
+                .ToList();
             _loadedAt = DateTime.UtcNow;
 
             if (_stats is null || _health is null)
@@ -627,6 +632,7 @@
     private static string FormatLocal(DateTime value) => $"{ToMoscowTime(value).ToString("dd.MM.yyyy HH:mm", RuCulture)} МСК";
     private static string FormatMoscow(DateTime? value) => value.HasValue ? FormatLocal(value.Value) : "нет данных";
     private static string FormatDate(DateTime value) => ToMoscowTime(value).ToString("dd.MM.yyyy", RuCulture);
+    private static string FormatDate(DateTime? value) => value.HasValue ? FormatDate(value.Value) : "—";
     private static string FormatShortTime(DateTime value) => ToMoscowTime(value).ToString("HH:mm", RuCulture);
 
     private static DateTime ToMoscowTime(DateTime value)

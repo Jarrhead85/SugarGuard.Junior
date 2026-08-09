@@ -1,0 +1,315 @@
+@using Microsoft.JSInterop
+@using SugarGuard.Domain.Enums
+@using SugarGuard.Shared.Constants
+@using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
+@inject SugarGuardApiService Api
+@inject IJSRuntime Js
+
+@if (IsVisible)
+{
+    <div class="child-access-modal__backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="childAccessModalTitle"
+         @onclick="CloseAsync">
+        <section class="child-access-modal" @onclick:stopPropagation="true">
+            <header class="child-access-modal__header">
+                <div>
+                    <p class="child-access-modal__eyebrow">Профиль ребёнка</p>
+                    <h2 id="childAccessModalTitle">Доступ к ребёнку</h2>
+                    <p>Подключайте родителей и врачей по одноразовым кодам, а также управляйте действующими связями.</p>
+                </div>
+                <button class="child-access-modal__close" type="button" @onclick="CloseAsync" aria-label="Закрыть">×</button>
+            </header>
+
+            <div class="child-access-modal__body">
+                @if (!string.IsNullOrWhiteSpace(_loadError))
+                {
+                    <div class="child-access-modal__error" role="alert">@_loadError</div>
+                }
+
+                @if (_isLoading)
+                {
+                    <div class="child-access-modal__loading" role="status">Загружаем доступы…</div>
+                }
+                else
+                {
+                    <section aria-labelledby="newAccessTitle">
+                        <div class="child-access-modal__section-heading">
+                            <div>
+                                <h3 id="newAccessTitle">Подключить пользователя</h3>
+                                <p>Код действует 48 часов и используется один раз.</p>
+                            </div>
+                        </div>
+
+                        <div class="child-access-modal__invite-grid">
+                            @foreach (var role in InviteRoles)
+                            {
+                                var activeCode = GetActiveCode(role);
+                                <article class="child-access-modal__invite-card">
+                                    <div>
+                                        <strong>@GetRoleLabel(role)</strong>
+                                        <p>@GetRoleDescription(role)</p>
+                                    </div>
+                                    @if (activeCode is null)
+                                    {
+                                        <button class="btn btn--primary btn--sm"
+                                                type="button"
+                                                disabled="@(_isGeneratingRole is not null)"
+                                                @onclick="() => GenerateAsync(role)">
+                                            @(_isGeneratingRole == role ? "Создаём…" : "Выдать код")
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div class="child-access-modal__code-block">
+                                            <code>@FormatCode(activeCode.Code)</code>
+                                            <span>до @(activeCode.ExpiresAt?.ToLocalTime().ToString("dd.MM HH:mm"))</span>
+                                            <div class="child-access-modal__code-actions">
+                                                <button class="btn btn--soft btn--sm" type="button" @onclick="() => CopyCodeAsync(activeCode.Code)">Копировать</button>
+                                                <button class="btn btn--ghost btn--sm" type="button" @onclick="() => RevokeCodeAsync(activeCode)">Отозвать</button>
+                                            </div>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </section>
+
+                    <section aria-labelledby="linkedAccessTitle">
+                        <div class="child-access-modal__section-heading">
+                            <div>
+                                <h3 id="linkedAccessTitle">Кому уже открыт доступ</h3>
+                                <p>Отвязанный пользователь сразу потеряет доступ к данным ребёнка.</p>
+                            </div>
+                        </div>
+
+                        <div class="child-access-modal__links-grid">
+                            @foreach (var group in AccessGroups)
+                            {
+                                <article class="child-access-modal__links-group">
+                                    <h4>@group.Title</h4>
+                                    @if (group.Links.Count == 0)
+                                    {
+                                        <p class="child-access-modal__empty">@group.EmptyMessage</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="child-access-modal__linked-list" role="list">
+                                            @foreach (var link in group.Links)
+                                            {
+                                                <div class="child-access-modal__linked-item" role="listitem">
+                                                    <div>
+                                                        <strong>@GetDisplayName(link)</strong>
+                                                        <small>@(string.IsNullOrWhiteSpace(link.Specialty) ? "Подключён" : link.Specialty)</small>
+                                                    </div>
+                                                    <button class="btn btn--ghost btn--sm"
+                                                            type="button"
+                                                            @onclick="() => UnlinkAsync(group.LinkType, link)">Отвязать</button>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+
+            <footer class="child-access-modal__footer">
+                <button class="btn btn--ghost" type="button" @onclick="CloseAsync">Готово</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public Guid ChildId { get; set; }
+
+    [Parameter]
+    public EventCallback OnAccessChanged { get; set; }
+
+    private static readonly UserRole[] InviteRoles = [UserRole.Parent, UserRole.Doctor];
+    private readonly List<InviteCodeVm> _activeCodes = [];
+    private readonly List<LinkedAccessUserVm> _parentLinks = [];
+    private readonly List<LinkedAccessUserVm> _doctorLinks = [];
+    private Guid _loadedChildId;
+    private bool _wasOpen;
+    private bool _isLoading;
+    private UserRole? _isGeneratingRole;
+    private string? _loadError;
+
+    private IReadOnlyList<AccessGroup> AccessGroups =>
+    [
+        new("Родители", "parent", _parentLinks, "Других родителей пока нет."),
+        new("Врачи", "doctor", _doctorLinks, "Врачи пока не подключены.")
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsVisible)
+        {
+            _wasOpen = false;
+            return;
+        }
+
+        if (!_wasOpen || _loadedChildId != ChildId)
+        {
+            _wasOpen = true;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (ChildId == Guid.Empty)
+        {
+            _loadError = "Не удалось определить профиль ребёнка.";
+            return;
+        }
+
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            var codesTask = Api.GetActiveInviteCodesAsync(ChildId);
+            var linksTask = Api.GetChildAccessLinksAsync(ChildId);
+            await Task.WhenAll(codesTask, linksTask);
+
+            _activeCodes.Clear();
+            _activeCodes.AddRange((await codesTask).Where(code => code.IsActive));
+
+            _parentLinks.Clear();
+            _doctorLinks.Clear();
+            var links = await linksTask;
+            if (links is not null)
+            {
+                _parentLinks.AddRange(links.ParentLinks);
+                _doctorLinks.AddRange(links.DoctorLinks);
+            }
+
+            _loadedChildId = ChildId;
+        }
+        catch (Exception)
+        {
+            _loadError = "Не удалось загрузить доступы. Проверьте подключение и попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task GenerateAsync(UserRole role)
+    {
+        _isGeneratingRole = role;
+        _loadError = null;
+        try
+        {
+            var result = await Api.GenerateInviteCodeAsync(ChildId, role);
+            if (result is null)
+            {
+                _loadError = "Не удалось создать код. Попробуйте ещё раз.";
+                return;
+            }
+
+            _activeCodes.RemoveAll(code => code.TargetRole == role);
+            _activeCodes.Add(result);
+        }
+        catch (Exception)
+        {
+            _loadError = "Не удалось создать код. Попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isGeneratingRole = null;
+        }
+    }
+
+    private async Task RevokeCodeAsync(InviteCodeVm code)
+    {
+        if (await Api.RevokeInviteCodeAsync(code.InviteCodeId))
+        {
+            _activeCodes.RemoveAll(item => item.InviteCodeId == code.InviteCodeId);
+        }
+        else
+        {
+            _loadError = "Не удалось отозвать код. Попробуйте ещё раз.";
+        }
+    }
+
+    private async Task CopyCodeAsync(string code)
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("navigator.clipboard.writeText", FormatCode(code));
+        }
+        catch (JSException)
+        {
+            _loadError = "Не удалось скопировать код. Скопируйте его вручную.";
+        }
+    }
+
+    private async Task UnlinkAsync(string linkType, LinkedAccessUserVm link)
+    {
+        var target = linkType == "doctor" ? "врача" : "родителя";
+        var confirmed = await Js.InvokeAsync<bool>("confirm", $"Отвязать {target} от профиля ребёнка?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        if (!await Api.UnlinkChildAccessAsync(ChildId, linkType, link.LinkId))
+        {
+            _loadError = "Не удалось отвязать пользователя. Попробуйте ещё раз.";
+            return;
+        }
+
+        var links = linkType == "doctor" ? _doctorLinks : _parentLinks;
+        links.RemoveAll(item => item.LinkId == link.LinkId);
+        await OnAccessChanged.InvokeAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    private InviteCodeVm? GetActiveCode(UserRole role) => _activeCodes.FirstOrDefault(code => code.TargetRole == role);
+
+    private static string GetRoleLabel(UserRole role) => role == UserRole.Doctor ? "Врач" : "Родитель";
+
+    private static string GetRoleDescription(UserRole role) => role == UserRole.Doctor
+        ? "Просмотр показателей и рекомендации."
+        : "Полный доступ к данным и уведомлениям.";
+
+    private static string FormatCode(string code)
+    {
+        var normalized = ConnectionCodeFormat.Normalize(code);
+        return normalized is not null && ConnectionCodeFormat.IsValid(normalized, normalize: false)
+            ? ConnectionCodeFormat.Format(normalized)
+            : code;
+    }
+
+    private static string GetDisplayName(LinkedAccessUserVm link) =>
+        string.IsNullOrWhiteSpace(link.DisplayName)
+            ? link.EmailForLogin ?? "Пользователь"
+            : link.DisplayName;
+
+    private sealed record AccessGroup(
+        string Title,
+        string LinkType,
+        List<LinkedAccessUserVm> Links,
+        string EmptyMessage);
+}

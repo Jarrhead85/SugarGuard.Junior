@@ -134,10 +134,14 @@ namespace SugarGuard.Web.Services
         }
 
         /// <summary>Возвращает очередь заявок врачей для полного администратора.</summary>
-        public async Task<HttpResponseMessage> GetPendingDoctorVerificationsAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<DoctorVerificationRequestVm>> GetPendingDoctorVerificationsAsync(
+            CancellationToken cancellationToken = default)
         {
             var client = await CreateAuthorizedClientAsync(cancellationToken);
-            return await client.GetAsync("api/doctor-verification/admin/pending", cancellationToken);
+            return await GetRequiredAsync<List<DoctorVerificationRequestVm>>(
+                client,
+                "api/doctor-verification/admin/pending",
+                cancellationToken);
         }
 
         /// <summary>Подтверждает или отклоняет заявку врача.</summary>

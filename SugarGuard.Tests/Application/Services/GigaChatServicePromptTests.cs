@@ -92,6 +92,38 @@ public sealed class GigaChatServicePromptTests
     }
 
     [Fact]
+    public void BuildPrompt_WhenType2NutritionQuestion_PrioritizesNutritionHistoryWithoutChildBackpackContext()
+    {
+        var request = CreateStructuredRequest();
+        request.DiabetesType = "Type2";
+        request.Question = "Что лучше выбрать на ужин?";
+
+        var context = JsonSerializer.Deserialize<ClinicalContext>(
+            request.StructuredContextJson!,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(context);
+        context.Profile.DiabetesType = "Type2";
+        context.RecentHistory.Nutrition =
+        [
+            new NutritionContext
+            {
+                RecordedAt = DateTime.UtcNow.AddHours(-2),
+                MealType = "Dinner",
+                MealName = "гречка и курица",
+                BreadUnits = 2.1m,
+                Source = "mobile"
+            }
+        ];
+        request.StructuredContextJson = JsonSerializer.Serialize(context, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        var prompt = InvokeBuildPrompt(request);
+
+        Assert.Contains("Недавнее питание:", prompt);
+        Assert.Contains("гречка и курица", prompt);
+        Assert.DoesNotContain("Рюкзак сейчас:", prompt);
+    }
+
+    [Fact]
     public void BuildPrompt_WhenDataContainsPseudoTags_EscapesThemInsideTheDataBlocks()
     {
         var request = CreateStructuredRequest();

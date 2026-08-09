@@ -2,6 +2,7 @@
 @using System.Globalization
 @using System.Text
 @using Microsoft.AspNetCore.Authorization
+@using SugarGuard.Shared.Constants
 @using SugarGuard.Web.Services
 @using DoctorNoteVm = SugarGuard.Web.ViewModels.DoctorNoteVm
 @using static SugarGuard.Web.Services.SugarGuardApiService
@@ -22,6 +23,21 @@
         </div>
 
         <div class="doctor-hero-actions">
+            <AuthorizeView Roles="Doctor">
+                <Authorized>
+                    <button class="doctor-btn doctor-btn--soft"
+                            type="button"
+                            @onclick="OpenConnectPatientModal">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="19" y1="8" x2="19" y2="14" />
+                            <line x1="16" y1="11" x2="22" y2="11" />
+                        </svg>
+                        Подключить пациента
+                    </button>
+                </Authorized>
+            </AuthorizeView>
             <a class="doctor-btn doctor-btn--soft @(ExportDisabled ? "is-disabled" : null)"
                href="@PatientsCsvHref"
                download="sugarguard-doctor-patients.csv"
@@ -195,7 +211,7 @@
                         {
                             var status = GetPatientStatus(patient);
                             <tr @key="patient.ChildId">
-                                <td>
+                                <td data-label="Пациент">
                                     <div class="doctor-patient-name">
                                         <span class="doctor-avatar"
                                               style="background:@GetAvatarGradient(patient)"
@@ -208,24 +224,24 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td>@FormatAge(patient.DateOfBirth)</td>
-                                <td class="num @GetTirTextClass(patient.TimeInTargetRange)">@FormatPercent(patient.TimeInTargetRange)</td>
-                                <td>
+                                <td data-label="Возраст">@FormatAge(patient.DateOfBirth)</td>
+                                <td data-label="TIR за 7 дней" class="num @GetTirTextClass(patient.TimeInTargetRange)">@FormatPercent(patient.TimeInTargetRange)</td>
+                                <td data-label="Прогресс">
                                     <div class="doctor-progress" aria-label="TIR @FormatPercent(patient.TimeInTargetRange)">
                                         <span class="@GetTirFillClass(patient.TimeInTargetRange)"
                                               style="width:@FormatProgressWidth(patient.TimeInTargetRange)">
                                         </span>
                                     </div>
                                 </td>
-                                <td class="muted">@FormatMeasurementTime(patient.LatestMeasurementTime)</td>
-                                <td>@FormatHypoHyper(patient)</td>
-                                <td>
+                                <td data-label="Последнее измерение" class="muted">@FormatMeasurementTime(patient.LatestMeasurementTime)</td>
+                                <td data-label="Гипо / гипер">@FormatHypoHyper(patient)</td>
+                                <td data-label="Статус">
                                     <span class="doctor-chip @status.CssClass">
                                         <span class="doctor-chip-dot" aria-hidden="true"></span>
                                         @status.Label
                                     </span>
                                 </td>
-                                <td>
+                                <td data-label="Действия">
                                     <div class="doctor-row-actions">
                                         <button class="doctor-row-button"
                                                 type="button"
@@ -248,6 +264,80 @@
         }
     }
 </section>
+
+@if (_isConnectPatientModalOpen)
+{
+    <div class="doctor-modal-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="connectPatientModalTitle"
+         @onclick="CloseConnectPatientModal">
+        <div class="doctor-modal doctor-modal--connect" @onclick:stopPropagation="true">
+            <header class="doctor-modal-header">
+                <div>
+                    <h2 id="connectPatientModalTitle">Подключить пациента</h2>
+                    <p>Введите код, который создал родитель ребёнка в разделе «Управление доступом».</p>
+                </div>
+                <button class="doctor-modal-close"
+                        type="button"
+                        @onclick="CloseConnectPatientModal"
+                        aria-label="Закрыть">
+                    ×
+                </button>
+            </header>
+            <div class="doctor-modal-body">
+                @if (_connectPatientSuccess)
+                {
+                    <div class="doctor-connect-success" role="status">
+                        <span class="doctor-connect-success__icon" aria-hidden="true">✓</span>
+                        <div>
+                            <strong>Пациент подключён</strong>
+                            <p>Список пациентов уже обновлён. Теперь можно открыть карту ребёнка.</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <label class="doctor-field" for="doctorInviteCode">
+                        <span>Код подключения</span>
+                        <input id="doctorInviteCode"
+                               class="doctor-code-input"
+                               type="text"
+                               maxlength="9"
+                               autocomplete="one-time-code"
+                               inputmode="text"
+                               placeholder="ABCD-1234"
+                               value="@_connectionCode"
+                               @oninput="OnConnectionCodeChanged"
+                               disabled="@_isConnecting" />
+                    </label>
+                    <p class="doctor-connect-hint">Код одноразовый и должен быть создан для роли «Врач».</p>
+                    @if (!string.IsNullOrWhiteSpace(_connectPatientError))
+                    {
+                        <div class="doctor-inline-error" role="alert">@_connectPatientError</div>
+                    }
+                }
+            </div>
+            <footer class="doctor-modal-footer">
+                <button class="doctor-btn doctor-btn--ghost"
+                        type="button"
+                        disabled="@_isConnecting"
+                        @onclick="CloseConnectPatientModal">
+                    @(_connectPatientSuccess ? "Готово" : "Отмена")
+                </button>
+                @if (!_connectPatientSuccess)
+                {
+                    <button class="doctor-btn doctor-btn--primary"
+                            type="button"
+                            disabled="@(_isConnecting || !ConnectionCodeFormat.IsValid(_connectionCode))"
+                            @onclick="ClaimPatientInviteCodeAsync">
+                        @(_isConnecting ? "Подключаем…" : "Подключить")
+                    </button>
+                }
+            </footer>
+        </div>
+    </div>
+}
 
 @if (_isNoteModalOpen && _selectedPatient is not null)
 {
@@ -348,6 +438,12 @@
     private bool _noteIsImportant;
     private bool _isNoteSubmitting;
     private string? _noteError;
+
+    private bool _isConnectPatientModalOpen;
+    private bool _isConnecting;
+    private bool _connectPatientSuccess;
+    private string _connectionCode = string.Empty;
+    private string? _connectPatientError;
 
     private int TotalPatients => _cohortSummary?.TotalPatients ?? _patients.Count;
 
@@ -753,6 +849,78 @@
         if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн назад";
 
         return ToMoscowTime(measurementUtc).ToString("dd.MM.yyyy", RuCulture);
+    }
+
+    private void OpenConnectPatientModal()
+    {
+        _connectionCode = string.Empty;
+        _connectPatientError = null;
+        _connectPatientSuccess = false;
+        _isConnectPatientModalOpen = true;
+    }
+
+    private void CloseConnectPatientModal()
+    {
+        if (_isConnecting)
+        {
+            return;
+        }
+
+        _isConnectPatientModalOpen = false;
+    }
+
+    private void OnConnectionCodeChanged(ChangeEventArgs args)
+    {
+        var source = args.Value?.ToString() ?? string.Empty;
+        var normalized = ConnectionCodeFormat.Normalize(source) ?? string.Empty;
+        var value = new string(normalized.Take(ConnectionCodeFormat.Length).ToArray());
+        _connectionCode = value.Length <= 4 ? value : $"{value[..4]}-{value[4..]}";
+        _connectPatientError = null;
+    }
+
+    private async Task ClaimPatientInviteCodeAsync()
+    {
+        if (!ConnectionCodeFormat.IsValid(_connectionCode))
+        {
+            _connectPatientError = "Введите код в формате ABCD-1234.";
+            return;
+        }
+
+        _isConnecting = true;
+        _connectPatientError = null;
+
+        try
+        {
+            var result = await ApiService.ClaimInviteCodeAsync(_connectionCode, _cts.Token);
+            if (result?.Success == true)
+            {
+                await LoadDataAsync(showLoading: false);
+                _connectPatientSuccess = true;
+                return;
+            }
+
+            _connectPatientError = result?.ErrorCode switch
+            {
+                "code_not_found" or "codenotfound" => "Код не найден. Проверьте правильность ввода.",
+                "code_expired" or "codeexpired" or "expired" => "Срок действия кода истёк. Попросите родителя создать новый.",
+                "code_already_used" or "codealreadyused" or "alreadyused" => "Этот код уже был использован или отозван.",
+                "role_mismatch" or "rolemismatch" => "Этот код создан не для врача. Попросите код для роли «Врач».",
+                "unauthorized" => "Сессия истекла. Войдите в кабинет ещё раз.",
+                _ => "Не удалось подключить пациента. Попробуйте ещё раз."
+            };
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Не удалось подключить пациента по инвайт-коду.");
+            _connectPatientError = "Не удалось подключить пациента. Проверьте интернет и попробуйте ещё раз.";
+        }
+        finally
+        {
+            _isConnecting = false;
+        }
     }
 
     private void OnSearchChanged(ChangeEventArgs args)

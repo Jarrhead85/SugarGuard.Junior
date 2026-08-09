@@ -2,19 +2,26 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Admin")]
 
-@using System.Net.Http.Json
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using SugarGuard.Web.Services
+@using SugarGuard.Web.ViewModels
 
 @inject SugarGuardApiService Api
 @inject IJSRuntime JS
+@inject ILogger<DoctorRequests> Logger
 
 <PageTitle>Проверка врачей — SugarGuard</PageTitle>
 
 <div class="requests-page">
+    <div class="requests-toolbar">
+        <button class="btn btn-ghost" type="button" @onclick="LoadAsync" disabled="@_loading">
+            @(_loading ? "Обновляем…" : "Обновить заявки")
+        </button>
+    </div>
     @if (!string.IsNullOrWhiteSpace(_message)) { <div class="request-alert @(_error ? "request-alert--error" : "request-alert--success")">@_message</div> }
     @if (_loading) { <section class="requests-panel"><p>Загружаем заявки…</p></section> }
+    else if (_loadFailed) { <section class="requests-panel empty"><span>!</span><h2>Не удалось получить заявки</h2><p>Повторите загрузку. Ошибка соединения больше не считается пустой очередью.</p><button class="btn btn-primary" type="button" @onclick="LoadAsync">Повторить</button></section> }
     else if (_requests.Count == 0) { <section class="requests-panel empty"><span>✓</span><h2>Нет заявок на проверку</h2><p>Когда кандидат отправит документы, заявка появится здесь.</p></section> }
     else
     {
@@ -44,18 +51,157 @@
 </div>
 
 <style>
-    .requests-page{display:grid;gap:20px}.requests-layout{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(0,1.4fr);gap:18px;align-items:start}.requests-list,.requests-panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card)}.requests-list{overflow:hidden}.request-row{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:16px;border:0;border-bottom:1px solid var(--color-border);background:transparent;color:var(--color-text);cursor:pointer;font:inherit}.request-row:last-child{border-bottom:0}.request-row:hover,.request-row.selected{background:rgba(27,142,139,.08)}.request-row__avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:rgba(27,142,139,.12)}.request-row__content{min-width:0;display:grid;gap:3px;flex:1}.request-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.request-row small{color:var(--color-text-muted);font-size:12px}.request-row__count,.status-pill{border-radius:999px;padding:4px 8px;background:rgba(220,151,20,.12);color:#8a5b00;font-size:12px;font-weight:700}.requests-panel{padding:clamp(18px,3vw,28px)}.empty{text-align:center;padding:56px 20px}.empty span{display:grid;place-items:center;margin:0 auto 14px;width:48px;height:48px;border-radius:50%;background:rgba(27,142,139,.13);color:var(--color-primary);font-size:24px}.empty h2,.detail-heading h2{margin:0;font-family:var(--font-display)}.empty p,.detail-heading p{color:var(--color-text-muted)}.detail-heading{display:flex;justify-content:space-between;gap:14px;align-items:start}.eyebrow{font-size:11px;font-weight:800;color:var(--color-primary);letter-spacing:.08em}.detail-grid{display:grid;grid-template-columns:170px 1fr;gap:10px 16px;margin:26px 0}.detail-grid dt{color:var(--color-text-muted);font-size:13px}.detail-grid dd{margin:0;font-weight:600;font-size:14px}.candidate-comment{padding:13px;background:var(--color-surface-offset);border-radius:var(--radius-sm);font-size:14px}.candidate-comment p{margin:6px 0 0;white-space:pre-wrap}.documents{margin-top:24px;display:grid;gap:9px}.documents h3{margin:0;font-size:15px}.document-link{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);text-decoration:none}.document-link>span:nth-child(2){display:grid;gap:2px;flex:1;font-size:14px}.document-link small{font-size:12px;color:var(--color-text-muted)}.document-link b{font-size:12px;color:var(--color-primary)}.review-form{display:grid;gap:8px;margin-top:26px}.review-form label{font-weight:700;font-size:13px}.review-form textarea{box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font:inherit}.review-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:4px}.request-alert{padding:12px 14px;border-radius:var(--radius-sm)}.request-alert--success{color:#087a63;background:rgba(27,142,139,.11)}.request-alert--error{color:#ae3547;background:rgba(219,89,103,.11)}.btn-danger{background:#c84959;color:#fff}@@media(max-width:800px){.requests-layout{grid-template-columns:1fr}.requests-list{max-height:280px;overflow-y:auto}}@@media(max-width:480px){.requests-page{gap:14px}.requests-panel{padding:18px}.detail-grid{grid-template-columns:1fr;gap:3px;margin:20px 0}.detail-grid dt{margin-top:8px}.review-actions{flex-direction:column-reverse}.review-actions .btn{width:100%}}
+    .requests-page{display:grid;gap:20px}.requests-toolbar{display:flex;justify-content:flex-end}.requests-layout{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(0,1.4fr);gap:18px;align-items:start}.requests-list,.requests-panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card)}.requests-list{overflow:hidden}.request-row{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:16px;border:0;border-bottom:1px solid var(--color-border);background:transparent;color:var(--color-text);cursor:pointer;font:inherit}.request-row:last-child{border-bottom:0}.request-row:hover,.request-row.selected{background:rgba(27,142,139,.08)}.request-row__avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:rgba(27,142,139,.12)}.request-row__content{min-width:0;display:grid;gap:3px;flex:1}.request-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.request-row small{color:var(--color-text-muted);font-size:12px}.request-row__count,.status-pill{border-radius:999px;padding:4px 8px;background:rgba(220,151,20,.12);color:#8a5b00;font-size:12px;font-weight:700}.requests-panel{padding:clamp(18px,3vw,28px)}.empty{text-align:center;padding:56px 20px}.empty span{display:grid;place-items:center;margin:0 auto 14px;width:48px;height:48px;border-radius:50%;background:rgba(27,142,139,.13);color:var(--color-primary);font-size:24px}.empty h2,.detail-heading h2{margin:0;font-family:var(--font-display)}.empty p,.detail-heading p{color:var(--color-text-muted)}.detail-heading{display:flex;justify-content:space-between;gap:14px;align-items:start}.eyebrow{font-size:11px;font-weight:800;color:var(--color-primary);letter-spacing:.08em}.detail-grid{display:grid;grid-template-columns:170px 1fr;gap:10px 16px;margin:26px 0}.detail-grid dt{color:var(--color-text-muted);font-size:13px}.detail-grid dd{margin:0;font-weight:600;font-size:14px}.candidate-comment{padding:13px;background:var(--color-surface-offset);border-radius:var(--radius-sm);font-size:14px}.candidate-comment p{margin:6px 0 0;white-space:pre-wrap}.documents{margin-top:24px;display:grid;gap:9px}.documents h3{margin:0;font-size:15px}.document-link{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);text-decoration:none}.document-link>span:nth-child(2){display:grid;gap:2px;flex:1;font-size:14px}.document-link small{font-size:12px;color:var(--color-text-muted)}.document-link b{font-size:12px;color:var(--color-primary)}.review-form{display:grid;gap:8px;margin-top:26px}.review-form label{font-weight:700;font-size:13px}.review-form textarea{box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font:inherit}.review-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:4px}.request-alert{padding:12px 14px;border-radius:var(--radius-sm)}.request-alert--success{color:#087a63;background:rgba(27,142,139,.11)}.request-alert--error{color:#ae3547;background:rgba(219,89,103,.11)}.btn-danger{background:#c84959;color:#fff}@@media(max-width:800px){.requests-layout{grid-template-columns:1fr}.requests-list{max-height:280px;overflow-y:auto}}@@media(max-width:480px){.requests-page{gap:14px}.requests-panel{padding:18px}.detail-grid{grid-template-columns:1fr;gap:3px;margin:20px 0}.detail-grid dt{margin-top:8px}.review-actions{flex-direction:column-reverse}.review-actions .btn{width:100%}}
 </style>
 
 @code {
-    private readonly List<Request> _requests=[]; private Request? _selected; private bool _loading=true; private bool _reviewing; private bool _error; private string? _message; private string? _reviewComment;
-    protected override async Task OnInitializedAsync()=>await LoadAsync();
-    private async Task LoadAsync(){_loading=true;_message=null;try{using var response=await Api.GetPendingDoctorVerificationsAsync();if(!response.IsSuccessStatusCode){SetMessage("Не удалось загрузить заявки.",true);return;}var list=await response.Content.ReadFromJsonAsync<List<Request>>()??[];_requests.Clear();_requests.AddRange(list);_selected=_requests.FirstOrDefault();}catch{SetMessage("Не удалось загрузить заявки. Проверьте подключение.",true);}finally{_loading=false;}}
-    private void Select(Request request){_selected=request;_reviewComment=null;_message=null;}
-    private Task ApproveAsync()=>ReviewAsync(true);
-    private Task RejectAsync()=>ReviewAsync(false);
-    private async Task ReviewAsync(bool approved){if(_selected is null)return;if(!approved&&string.IsNullOrWhiteSpace(_reviewComment)){SetMessage("Для отклонения укажите причину для кандидата.",true);return;}_reviewing=true;try{using var response=await Api.ReviewDoctorVerificationAsync(_selected.RequestId,approved,_reviewComment);if(!response.IsSuccessStatusCode){SetMessage(await ReadErrorAsync(response),true);return;}_requests.RemoveAll(item=>item.RequestId==_selected.RequestId);_selected=_requests.FirstOrDefault();_reviewComment=null;SetMessage(approved?"Врач подтверждён, доступ к кабинету открыт.":"Регистрация врача отклонена, кандидат получил уведомление.",false);}catch{SetMessage("Не удалось сохранить решение.",true);}finally{_reviewing=false;}}
-    private async Task DownloadAsync(Document document){try{using var response=await Api.GetDoctorVerificationDocumentAsync(document.DocumentId);if(!response.IsSuccessStatusCode){SetMessage("Не удалось открыть документ.",true);return;}var bytes=await response.Content.ReadAsByteArrayAsync();var contentType=response.Content.Headers.ContentType?.MediaType??"application/octet-stream";await JS.InvokeVoidAsync("SugarGuard.downloadBase64",document.FileName,contentType,Convert.ToBase64String(bytes));}catch{SetMessage("Не удалось открыть документ.",true);}}
-    private void SetMessage(string message,bool error){_message=message;_error=error;}private static async Task<string> ReadErrorAsync(HttpResponseMessage response){try{return (await response.Content.ReadFromJsonAsync<ApiError>())?.Message??"Не удалось сохранить решение.";}catch{return "Не удалось сохранить решение.";}}private static string FormatDate(DateTime? value)=>value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")??"—";private static string FormatSize(long value)=>value<1024*1024?$"{value/1024d:0} КБ":$"{value/1024d/1024d:0.0} МБ";
-    private sealed class Request{public Guid RequestId{get;set;}public string Email{get;set;}=string.Empty;public string Specialty{get;set;}=string.Empty;public string LicenseNumber{get;set;}=string.Empty;public string? OrganizationName{get;set;}public string? Comment{get;set;}public DateTime? SubmittedAt{get;set;}public List<Document> Documents{get;set;}=[];} private sealed class Document{public Guid DocumentId{get;set;}public string FileName{get;set;}=string.Empty;public long SizeBytes{get;set;}}private sealed class ApiError{public string? Message{get;set;}}
+    private readonly List<DoctorVerificationRequestVm> _requests = [];
+    private DoctorVerificationRequestVm? _selected;
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _reviewing;
+    private bool _error;
+    private string? _message;
+    private string? _reviewComment;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        _message = null;
+
+        try
+        {
+            var requests = await Api.GetPendingDoctorVerificationsAsync();
+            _requests.Clear();
+            _requests.AddRange(requests);
+            _selected = _requests.FirstOrDefault();
+        }
+        catch (Exception exception)
+        {
+            _loadFailed = true;
+            SetMessage("Не удалось загрузить заявки. Проверьте подключение и повторите попытку.", true);
+            Logger.LogError(exception, "Не удалось загрузить заявки на верификацию врачей.");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Select(DoctorVerificationRequestVm request)
+    {
+        _selected = request;
+        _reviewComment = null;
+        _message = null;
+    }
+
+    private Task ApproveAsync() => ReviewAsync(approved: true);
+    private Task RejectAsync() => ReviewAsync(approved: false);
+
+    private async Task ReviewAsync(bool approved)
+    {
+        if (_selected is null)
+        {
+            return;
+        }
+
+        if (!approved && string.IsNullOrWhiteSpace(_reviewComment))
+        {
+            SetMessage("Для отклонения укажите причину для кандидата.", true);
+            return;
+        }
+
+        var requestId = _selected.RequestId;
+        _reviewing = true;
+        try
+        {
+            using var response = await Api.ReviewDoctorVerificationAsync(
+                requestId,
+                approved,
+                _reviewComment);
+            if (!response.IsSuccessStatusCode)
+            {
+                SetMessage(await ReadErrorAsync(response), true);
+                return;
+            }
+
+            _requests.RemoveAll(item => item.RequestId == requestId);
+            _selected = _requests.FirstOrDefault();
+            _reviewComment = null;
+            SetMessage(
+                approved
+                    ? "Врач подтверждён, доступ к кабинету открыт."
+                    : "Регистрация врача отклонена, кандидат получил уведомление.",
+                false);
+        }
+        catch (Exception exception)
+        {
+            SetMessage("Не удалось сохранить решение.", true);
+            Logger.LogError(exception, "Не удалось обработать заявку врача {RequestId}.", requestId);
+        }
+        finally
+        {
+            _reviewing = false;
+        }
+    }
+
+    private async Task DownloadAsync(DoctorVerificationDocumentVm document)
+    {
+        try
+        {
+            using var response = await Api.GetDoctorVerificationDocumentAsync(document.DocumentId);
+            if (!response.IsSuccessStatusCode)
+            {
+                SetMessage("Не удалось открыть документ.", true);
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            await JS.InvokeVoidAsync(
+                "SugarGuard.downloadBase64",
+                document.FileName,
+                contentType,
+                Convert.ToBase64String(bytes));
+        }
+        catch (Exception exception)
+        {
+            SetMessage("Не удалось открыть документ.", true);
+            Logger.LogError(exception, "Не удалось скачать документ верификации {DocumentId}.", document.DocumentId);
+        }
+    }
+
+    private void SetMessage(string message, bool error)
+    {
+        _message = message;
+        _error = error;
+    }
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            return (await response.Content.ReadFromJsonAsync<ApiError>())?.Message
+                ?? "Не удалось сохранить решение.";
+        }
+        catch
+        {
+            return "Не удалось сохранить решение.";
+        }
+    }
+
+    private static string FormatDate(DateTime? value) =>
+        value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—";
+
+    private static string FormatSize(long value) => value < 1024 * 1024
+        ? $"{value / 1024d:0} КБ"
+        : $"{value / 1024d / 1024d:0.0} МБ";
+
+    private sealed class ApiError
+    {
+        public string? Message { get; set; }
+    }
 }

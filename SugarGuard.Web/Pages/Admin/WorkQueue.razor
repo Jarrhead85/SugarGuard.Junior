@@ -2,13 +2,13 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Admin,SupportAdmin")]
 
-@using System.Net.Http.Json
 @using Microsoft.AspNetCore.Authorization
 @using SugarGuard.Domain.Enums
 @using SugarGuard.Web.Services
 @using SugarGuard.Web.ViewModels
 
 @inject SugarGuardApiService Api
+@inject ICurrentUserService CurrentUser
 
 <PageTitle>Рабочая очередь — SugarGuard Admin</PageTitle>
 
@@ -77,14 +77,15 @@
             var supportTask = Api.GetSupportConversationsAsync();
             var healthTask = Api.GetAdminHealthAsync();
             var usageTask = Api.GetAdminGigaChatUsageAsync();
-            using var doctorResponse = await Api.GetPendingDoctorVerificationsAsync();
+            var role = await CurrentUser.GetRoleAsync();
+            var doctorRequests = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                ? await Api.GetPendingDoctorVerificationsAsync()
+                : [];
 
             var support = await supportTask;
             var health = await healthTask;
             _gigaChatUsage = await usageTask;
-            _pendingDoctorRequests = doctorResponse.IsSuccessStatusCode
-                ? (await doctorResponse.Content.ReadFromJsonAsync<List<DoctorRequestSummary>>() ?? []).Count
-                : 0;
+            _pendingDoctorRequests = doctorRequests.Count;
             WaitingForSupportCount = support.Count(item => item.Status == SupportConversationStatus.WaitingForSupport);
             _isSystemHealthy = health?.DatabaseOk == true
                 && string.Equals(health.Status, "healthy", StringComparison.OrdinalIgnoreCase);
@@ -122,5 +123,4 @@
         : "Не задан";
 
     private sealed record QueueItem(string Icon, string Title, string Description, string Href, string Tone);
-    private sealed class DoctorRequestSummary { public Guid RequestId { get; init; } }
 }

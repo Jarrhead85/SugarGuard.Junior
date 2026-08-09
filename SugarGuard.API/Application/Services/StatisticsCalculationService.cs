@@ -43,10 +43,9 @@ public sealed class StatisticsCalculationService : IStatisticsCalculationService
             ),
 
             "month" => (
-                new DateTime(targetDate.Year, targetDate.Month, 1, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(targetDate.Year, targetDate.Month, 1, 0, 0, 0, DateTimeKind.Utc)
-                    .AddMonths(1).AddTicks(-1),
-                "Месяц"
+                targetDate.AddDays(-30),
+                targetDate,
+                "30 дней"
             ),
 
             "year" => (

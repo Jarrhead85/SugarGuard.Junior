@@ -68,6 +68,7 @@ public sealed class DoctorVerificationService : IDoctorVerificationService
         foreach (var document in documents)
             preparedFiles.Add(await ValidateAndReadAsync(document, cancellationToken));
 
+        var isNewRequest = current is null;
         current ??= new DoctorVerificationRequest { UserId = userId };
         current.Specialty = request.Specialty.Trim();
         current.EncryptedLicenseNumber = _crypto.Encrypt(request.LicenseNumber.Trim());
@@ -102,7 +103,7 @@ public sealed class DoctorVerificationService : IDoctorVerificationService
 
         user.DoctorSpecialty = current.Specialty;
         user.EncryptedDoctorLicense = current.EncryptedLicenseNumber;
-        if (current.RequestId == Guid.Empty)
+        if (isNewRequest)
             _db.DoctorVerificationRequests.Add(current);
 
         await _db.SaveChangesAsync(cancellationToken);
