@@ -116,7 +116,8 @@ sudo systemctl --no-pager --full status sugarguard-bot.service | sed -n '1,45p'
 "@
 
 $localScript = Join-Path $env:TEMP "sugarguard-deploy-bot-$timestamp.sh"
-[System.IO.File]::WriteAllText($localScript, $deployScriptContent, [System.Text.UTF8Encoding]::new($false))
+$deployScriptWithUnixLineEndings = $deployScriptContent.Replace("`r`n", "`n")
+[System.IO.File]::WriteAllText($localScript, $deployScriptWithUnixLineEndings, [System.Text.UTF8Encoding]::new($false))
 
 try {
     scp @sshArgs $localScript "${User}@${Server}:$remoteScript"
