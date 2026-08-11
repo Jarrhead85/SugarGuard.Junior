@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SugarGuard.API.Application.Exceptions;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
@@ -82,10 +83,18 @@ public class MeasurementsController : ControllerBase
 
         Domain.Entities.Measurement measurement;
         var measurementAlreadyExists = request.MeasurementId.HasValue &&
-            await _measurements.GetByIdAsync(request.MeasurementId.Value, cancellationToken) is not null;
+            (await _measurements.GetByIdAsync(request.MeasurementId.Value, cancellationToken))?.ChildId == request.ChildId;
         try
         {
             measurement = await _measurements.CreateAsync(request, cancellationToken);
+        }
+        catch (MeasurementIdConflictException)
+        {
+            return Conflict(new
+            {
+                error = "measurement_id_conflict",
+                message = "Идентификатор измерения уже использован."
+            });
         }
         catch (Exception ex)
         {
@@ -100,10 +109,9 @@ public class MeasurementsController : ControllerBase
         var response = measurement.ToResponse(_glucoseStatusService, _glucoseUiStateService);
 
         _logger.LogInformation(
-            "CreateMeasurement: MeasurementId={MeasurementId} ChildId={ChildId} " +
-            "Glucose={GlucoseValue} Status={Status}.",
-            measurement.MeasurementId, measurement.ChildId,
-            measurement.GlucoseValue, glucoseStatus);
+            "CreateMeasurement completed. MeasurementId={MeasurementId} Status={Status}.",
+            measurement.MeasurementId,
+            glucoseStatus);
 
         var criticalAlert = isCritical
             ? new CriticalAlertRequest

@@ -170,7 +170,7 @@ public sealed class JwtAuthStateProvider : AuthenticationStateProvider
         var principal = BuildPrincipal(accessToken);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(principal)));
 
-        _logger.LogInformation("JwtAuthStateProvider: пользователь {Email} вошёл в систему.", email);
+        _logger.LogInformation("JwtAuthStateProvider: пользователь вошёл в систему.");
         return null;
     }
 

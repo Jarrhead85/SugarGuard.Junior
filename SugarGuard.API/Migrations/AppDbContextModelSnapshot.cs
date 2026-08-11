@@ -17,7 +17,7 @@ namespace SugarGuard.API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1439,6 +1439,12 @@ namespace SugarGuard.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -1903,6 +1909,13 @@ namespace SugarGuard.API.Migrations
                         .HasDefaultValue("Parent")
                         .HasColumnName("role");
 
+                    b.Property<long>("SecurityVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("security_version");
+
                     b.Property<long?>("TelegramId")
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_id");
@@ -1911,8 +1924,8 @@ namespace SugarGuard.API.Migrations
 
                     b.HasIndex("EmailForLogin")
                         .IsUnique()
-                        .HasDatabaseName("ix_users_emailforlogin")
-                        .HasFilter("\"emailforlogin\" IS NOT NULL");
+                        .HasDatabaseName("ix_users_email_for_login")
+                        .HasFilter("email_for_login IS NOT NULL");
 
                     b.HasIndex("MaxUserId")
                         .IsUnique()
@@ -1920,7 +1933,7 @@ namespace SugarGuard.API.Migrations
 
                     b.HasIndex("TelegramId")
                         .IsUnique()
-                        .HasFilter("\"telegramid\" IS NOT NULL");
+                        .HasFilter("telegram_id IS NOT NULL");
 
                     b.ToTable("users");
                 });

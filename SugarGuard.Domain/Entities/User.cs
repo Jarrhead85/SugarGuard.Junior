@@ -65,6 +65,13 @@ public class User
    
     [Column("isactive")]
     public bool IsActive { get; set; } = true; // Активен ли пользователь
+
+    /// <summary>
+    /// Incremented whenever credentials, role or account activation changes.
+    /// Access tokens carry this value and are rejected after a sensitive change.
+    /// </summary>
+    [Column("security_version")]
+    public long SecurityVersion { get; set; }
    
     [Column("deactivatedat")]
     public DateTime? DeactivatedAt { get; set; } // Дата и время деактивации

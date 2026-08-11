@@ -40,10 +40,29 @@ public class PushSubscriptionController : ControllerBase
             return Unauthorized();
 
         var result = await _webPush.SubscribeAsync(request, uid, cancellationToken);
+        _logger.LogInformation("Web Push subscription request completed. Result={Result}", result);
 
-        _logger.LogInformation("User {UserId} subscribed to Web Push", userId);
-
-        return Ok(result);
+        return result switch
+        {
+            PushSubscribeResult.Created or PushSubscribeResult.Updated => Ok(new NotificationResponse
+            {
+                Success = true,
+                SentAt = DateTime.UtcNow
+            }),
+            PushSubscribeResult.InvalidEndpoint => this.ProblemWithCode(400, "Invalid Push Endpoint",
+                "Указан неподдерживаемый адрес push-сервиса", "invalid_push_endpoint"),
+            PushSubscribeResult.EndpointOwnedByAnotherUser => Conflict(new
+            {
+                error = "push_endpoint_conflict",
+                message = "Эта push-подписка уже зарегистрирована."
+            }),
+            PushSubscribeResult.LimitExceeded => StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                error = "push_subscription_limit",
+                message = "Достигнут лимит push-подписок."
+            }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
     }
 
     /// <summary>

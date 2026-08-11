@@ -32,8 +32,7 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
-            _logger.LogInformation("Отправка уведомления об измерении: {GlucoseValue} ммоль/л для {ChildId}", 
-                request.GlucoseValue, request.ChildId);
+            _logger.LogInformation("Постановка уведомления об измерении в очередь. ChildId={ChildId}", request.ChildId);
 
             // Получаем всех родителей ребёнка
             var parentTelegramIds = await GetParentTelegramIdsAsync(request.ChildId);
@@ -63,7 +62,7 @@ public class TelegramNotificationService : ITelegramNotificationService
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось поставить уведомление в очередь"
             };
         }
     }
@@ -75,8 +74,7 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
-            _logger.LogInformation("Отправка уведомления о перекусе: {SnackName} для {ChildId}", 
-                request.SnackName, request.ChildId);
+            _logger.LogInformation("Постановка уведомления о перекусе в очередь. ChildId={ChildId}", request.ChildId);
 
             // Получаем всех родителей ребёнка
             var parentTelegramIds = await GetParentTelegramIdsAsync(request.ChildId);
@@ -106,7 +104,7 @@ public class TelegramNotificationService : ITelegramNotificationService
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось поставить уведомление в очередь"
             };
         }
     }
@@ -118,8 +116,7 @@ public class TelegramNotificationService : ITelegramNotificationService
     {
         try
         {
-            _logger.LogWarning("Отправка критического уведомления: {CriticalGlucose} ммоль/л для {ChildId}", 
-                request.CriticalGlucose, request.ChildId);
+            _logger.LogWarning("Постановка критического уведомления в очередь. ChildId={ChildId}", request.ChildId);
 
             // Получаем всех родителей ребёнка
             var parentTelegramIds = await GetParentTelegramIdsAsync(request.ChildId);
@@ -156,7 +153,7 @@ public class TelegramNotificationService : ITelegramNotificationService
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось поставить критическое уведомление в очередь"
             };
         }
     }
@@ -192,9 +189,8 @@ public class TelegramNotificationService : ITelegramNotificationService
             }
             catch (Exception ex)
             {
-                var error = $"Ошибка постановки уведомления для родителя {telegramId}: {ex.Message}";
-                errors.Add(error);
-                _logger.LogError(ex, "✗ {Error}", error);
+                errors.Add("delivery_failed");
+                _logger.LogError(ex, "Не удалось поставить Telegram-уведомление в очередь.");
             }
         }
 
@@ -202,7 +198,7 @@ public class TelegramNotificationService : ITelegramNotificationService
         {
             Success = queuedCount > 0,
             ParentsNotified = queuedCount,
-            ErrorMessage = errors.Any() ? string.Join("; ", errors) : null
+            ErrorMessage = errors.Any() ? "Не удалось доставить часть уведомлений" : null
         };
     }
 

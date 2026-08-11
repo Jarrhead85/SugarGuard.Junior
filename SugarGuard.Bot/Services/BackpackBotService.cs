@@ -260,7 +260,7 @@ public class BackpackBotService
         try
         {
             var safeName = MarkdownSafe.EscapeMarkdownV1(MarkdownSafe.Truncate(snackName));
-            _logger.LogInformation("Запрос подтверждения удаления перекуса {SnackName} для пользователя {UserId}", safeName, userId);
+            _logger.LogInformation("Запрос подтверждения удаления перекуса. UserId={UserId}", userId);
 
             var message = $"""
                 🗑️ **Удаление перекуса**
@@ -425,8 +425,7 @@ public class BackpackBotService
                 cancellationToken: cancellationToken
             );
 
-            _logger.LogInformation("Перекус {SnackName} ({BreadUnits} ХЕ) добавлен пользователем {UserId}", 
-                result.SnackName, result.BreadUnits, userId);
+            _logger.LogInformation("Перекус добавлен пользователем. UserId={UserId}", userId);
         }
         else
         {

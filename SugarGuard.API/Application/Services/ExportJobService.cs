@@ -206,16 +206,7 @@ public sealed class ExportJobService : IExportJobService
     /// Экранирует поле CSV
     /// </summary>
     private static string EscapeCsvField(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-
-        // Если содержит спецсимволы — оборачиваем в кавычки, внутренние кавычки удваиваем
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
-            return $"\"{value.Replace("\"", "\"\"")}\"";
-
-        return value;
-    }
+        => CsvCellEncoder.Encode(value);
 
     private static ExportJobResponse MapToResponse(ExportJob job) => new()
     {

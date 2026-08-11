@@ -434,7 +434,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
             if (!DoubleParser.TryParseDecrypted(NewGlucoseValue, out double glucoseValue))
             {
                 ShowError("Введите корректное число");
-                _logger.LogWarning("Некорректное значение глюкозы: {Value}", NewGlucoseValue);
+                _logger.LogWarning("Введено некорректное значение глюкозы.");
                 return;
             }
 
@@ -443,7 +443,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
                 ShowError(
                     $"Введите значение от {GlucoseLevels.InputMinValue:0.0} " +
                     $"до {GlucoseLevels.InputMaxValue:0.0} ммоль/л");
-                _logger.LogWarning("Значение глюкозы вне допустимого диапазона: {Value}", glucoseValue);
+                _logger.LogWarning("Значение глюкозы вне допустимого диапазона.");
                 return;
             }
 
@@ -667,8 +667,7 @@ public partial class MainPageViewModel : ObservableObject, IDisposable
 
                 LastGlucoseValueDecimal = (decimal)glucoseValue;
 
-                _logger.LogDebug("Последнее измерение: {Value} ммоль/л, статус: {Status}",
-                    glucoseValue, status);
+                _logger.LogDebug("Последнее измерение загружено. Status={Status}", status);
             }
             else
             {

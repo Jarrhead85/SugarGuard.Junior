@@ -82,12 +82,18 @@ public class SyncLogService : ISyncLogService
     public async Task<(Domain.Entities.SyncLog? Log, ResolveOneStatus Status)> ResolveAsync(
         Guid id,
         string resolution,
+        IReadOnlyCollection<Guid> accessibleChildIds,
         CancellationToken cancellationToken = default)
     {
+        if (accessibleChildIds.Count == 0)
+            return (null, ResolveOneStatus.NotFound);
+
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
         var log = await db.SyncLogs
-            .FirstOrDefaultAsync(l => l.SyncLogId == id, cancellationToken);
+            .FirstOrDefaultAsync(
+                l => l.SyncLogId == id && accessibleChildIds.Contains(l.ChildId),
+                cancellationToken);
 
         if (log is null)
             return (null, ResolveOneStatus.NotFound);
@@ -108,12 +114,13 @@ public class SyncLogService : ISyncLogService
             action: "sync_conflict.resolved",
             targetType: "SyncLog",
             targetId: log.SyncLogId.ToString(),
-            details: $"Resolution={resolution};ChildId={log.ChildId};EntityType={log.EntityType};EntityId={log.EntityId}",
+            details: $"Resolution={resolution};EntityType={log.EntityType}",
             cancellationToken: CancellationToken.None);
 
         _logger.LogInformation(
-            "ResolveAsync: конфликт разрешён. SyncLogId={SyncLogId} Resolution={Resolution} ChildId={ChildId}.",
-            log.SyncLogId, resolution, log.ChildId);
+            "ResolveAsync completed. SyncLogId={SyncLogId} Resolution={Resolution}.",
+            log.SyncLogId,
+            resolution);
 
         return (log, ResolveOneStatus.Success);
     }

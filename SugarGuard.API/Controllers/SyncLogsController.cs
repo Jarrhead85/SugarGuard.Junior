@@ -108,8 +108,12 @@ public class SyncLogsController : ControllerBase
 
         try
         {
+            var accessibleChildIds = await _childAccess.GetAccessibleChildIdsAsync(cancellationToken);
             var (log, status) = await _syncLogService.ResolveAsync(
-                id, request.Resolution, cancellationToken);
+                id,
+                request.Resolution,
+                accessibleChildIds,
+                cancellationToken);
 
             switch (status)
             {
@@ -127,9 +131,6 @@ public class SyncLogsController : ControllerBase
                         throw new InvalidOperationException(
                             "ResolveAsync returned Success but log is null.");
                     }
-
-                    if (!await _childAccess.CanAccessChildAsync(log.ChildId, cancellationToken))
-                        return Forbid();
 
                     return Ok(MapToResponse(log));
 

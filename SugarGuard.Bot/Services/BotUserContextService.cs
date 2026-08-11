@@ -51,7 +51,7 @@ public class BotUserContextService : IBotUserContextService
     {
         try
         {
-            _logger.LogInformation("Получение текущего ChildId для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogInformation("Получение текущего контекста Telegram-пользователя.");
 
             var response = await _httpClient.GetAsync($"/api/bot-service/context/{telegramUserId}", cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -62,8 +62,7 @@ public class BotUserContextService : IBotUserContextService
 
                 if (result?.CurrentChildId is Guid currentChildId)
                 {
-                    _logger.LogInformation("Контекст получен: ChildId={ChildId}, HasContext={HasContext}",
-                        currentChildId, result.HasContext);
+                    _logger.LogInformation("Контекст Telegram-пользователя получен. HasContext={HasContext}", result.HasContext);
                     return currentChildId;
                 }
 
@@ -74,16 +73,13 @@ public class BotUserContextService : IBotUserContextService
                 {
                     var childId = linkedChildren[0].ChildId;
                     _ = await SetCurrentChildIdAsync(telegramUserId, childId, cancellationToken);
-                    _logger.LogInformation(
-                        "Автоматически выбран единственный ребёнок {ChildId} для Telegram {TelegramUserId}",
-                        childId,
-                        telegramUserId);
+                    _logger.LogInformation("Автоматически выбран единственный привязанный профиль ребёнка.");
                     return childId;
                 }
 
                 if (result != null)
                 {
-                    _logger.LogInformation("Контекст Telegram {TelegramUserId} не содержит активного ребёнка", telegramUserId);
+                    _logger.LogInformation("Контекст Telegram-пользователя не содержит активного ребёнка.");
                     return null;
                 }
             }
@@ -93,7 +89,7 @@ public class BotUserContextService : IBotUserContextService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при получении контекста для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogError(ex, "Ошибка при получении контекста Telegram-пользователя.");
             return null;
         }
     }
@@ -103,8 +99,7 @@ public class BotUserContextService : IBotUserContextService
     {
         try
         {
-            _logger.LogInformation("Установка ChildId={ChildId} для Telegram пользователя {TelegramUserId}",
-                childId, telegramUserId);
+            _logger.LogInformation("Установка контекста Telegram-пользователя.");
 
             var request = new SetBotUserContextRequest
             {
@@ -119,7 +114,7 @@ public class BotUserContextService : IBotUserContextService
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("Контекст успешно установлен для Telegram пользователя {TelegramUserId}", telegramUserId);
+                _logger.LogInformation("Контекст Telegram-пользователя успешно установлен.");
                 return true;
             }
 
@@ -128,7 +123,7 @@ public class BotUserContextService : IBotUserContextService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при установке контекста для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogError(ex, "Ошибка при установке контекста Telegram-пользователя.");
             return false;
         }
     }
@@ -138,7 +133,7 @@ public class BotUserContextService : IBotUserContextService
     {
         try
         {
-            _logger.LogInformation("Получение списка привязанных детей для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogInformation("Получение списка привязанных профилей ребёнка.");
 
             var response = await _httpClient.GetAsync($"/api/bot-service/context/{telegramUserId}/children", cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -159,7 +154,7 @@ public class BotUserContextService : IBotUserContextService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при получении списка детей для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogError(ex, "Ошибка при получении списка привязанных профилей ребёнка.");
             return new List<ChildSummaryBot>();
         }
     }
@@ -183,7 +178,7 @@ public class BotUserContextService : IBotUserContextService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Не удалось получить настройку ежедневной сводки для Telegram {TelegramUserId}", telegramUserId);
+            _logger.LogWarning(ex, "Не удалось получить настройку ежедневной Telegram-сводки.");
             return null;
         }
     }
@@ -205,7 +200,7 @@ public class BotUserContextService : IBotUserContextService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Не удалось сохранить настройку ежедневной сводки для Telegram {TelegramUserId}", telegramUserId);
+            _logger.LogWarning(ex, "Не удалось сохранить настройку ежедневной Telegram-сводки.");
             return false;
         }
     }
@@ -215,14 +210,14 @@ public class BotUserContextService : IBotUserContextService
     {
         try
         {
-            _logger.LogInformation("Очистка контекста для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogInformation("Очистка контекста Telegram-пользователя.");
 
             // Очистка контекста = установка ChildId в null
             return await SetCurrentChildIdAsync(telegramUserId, null, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при очистке контекста для Telegram пользователя {TelegramUserId}", telegramUserId);
+            _logger.LogError(ex, "Ошибка при очистке контекста Telegram-пользователя.");
             return false;
         }
     }

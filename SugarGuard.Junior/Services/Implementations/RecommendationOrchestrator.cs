@@ -101,7 +101,7 @@ public class RecommendationOrchestrator : IRecommendationOrchestrator
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("API timeout для глюкозы {Glucose}", request.GlucoseValue);
+                _logger.LogWarning("API timeout при запросе рекомендации.");
             }
             catch (Exception ex)
             {

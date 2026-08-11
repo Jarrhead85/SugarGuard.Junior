@@ -25,6 +25,7 @@ namespace SugarGuard.Junior.Security;
 public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
 {
     private const string KeyStorageKey = "sugarguard_master_key_v2";
+    private const string LegacyKeyStorageKey = "sugarguard_master_key";
     private const int Aes256KeySize = 32;
 
     private readonly ILogger<MauiSecureStorageKeyProvider> _logger;
@@ -67,22 +68,39 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
 
             var stored = await SecureStorage.GetAsync(KeyStorageKey);
 
+            // Preserve access to data created by the legacy CBC service. The
+            // same 256-bit key is valid for the one-time CBC -> GCM migration;
+            // generating a different v2 key here would make existing rows
+            // permanently unreadable.
+            if (string.IsNullOrEmpty(stored))
+            {
+                var legacyStored = await SecureStorage.GetAsync(LegacyKeyStorageKey);
+                if (TryDecodeAes256Key(legacyStored, out var legacyKey))
+                {
+                    await SecureStorage.SetAsync(KeyStorageKey, legacyStored!);
+                    _cachedKey = legacyKey;
+                    _logger.LogInformation("Legacy master key migrated to the versioned key slot.");
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(legacyStored))
+                {
+                    throw new CryptographicException(
+                        "The legacy encryption key is invalid. Refusing to replace it because that would destroy access to local data.");
+                }
+            }
+
+            if (TryDecodeAes256Key(stored, out var storedKey))
+            {
+                _cachedKey = storedKey;
+                _logger.LogDebug("Master key loaded from SecureStorage ({Len} bytes).", _cachedKey.Length);
+                return;
+            }
+
             if (!string.IsNullOrEmpty(stored))
             {
-                try
-                {
-                    _cachedKey = Convert.FromBase64String(stored);
-                    if (_cachedKey.Length == Aes256KeySize)
-                    {
-                        _logger.LogDebug("Master key loaded from SecureStorage ({Len} bytes).", _cachedKey.Length);
-                        return;
-                    }
-                    _logger.LogWarning("Stored key has wrong length {Len}, regenerating.", _cachedKey.Length);
-                }
-                catch (FormatException ex)
-                {
-                    _logger.LogWarning(ex, "Stored key is not valid Base64, regenerating.");
-                }
+                throw new CryptographicException(
+                    "The stored encryption key is invalid. Refusing to replace it because that would destroy access to local data.");
             }
 
             // Генерируем новый ключ AES-256.
@@ -97,6 +115,26 @@ public sealed class MauiSecureStorageKeyProvider : IPlatformKeyProvider
         finally
         {
             _initializationLock.Release();
+        }
+    }
+
+    private static bool TryDecodeAes256Key(string? encoded, out byte[] key)
+    {
+        key = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(encoded))
+        {
+            return false;
+        }
+
+        try
+        {
+            key = Convert.FromBase64String(encoded);
+            return key.Length == Aes256KeySize;
+        }
+        catch (FormatException)
+        {
+            key = Array.Empty<byte>();
+            return false;
         }
     }
 }

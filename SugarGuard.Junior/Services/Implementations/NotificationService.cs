@@ -205,8 +205,7 @@ public class NotificationService : INotificationService
         {
             var criticalId = $"critical_alert_{Guid.NewGuid()}";
             
-            _logger.LogError("КРИТИЧЕСКОЕ УВЕДОМЛЕНИЕ: {Title} - Глюкоза: {GlucoseValue} ммоль/л", 
-                title, glucoseValue);
+            _logger.LogError("Критическое локальное уведомление создано. Title={Title}", title);
 
             // Вибрация
             try

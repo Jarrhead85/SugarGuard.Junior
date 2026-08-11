@@ -553,7 +553,8 @@ public sealed class NutritionTrackerService : INutritionTrackerService
         return Encoding.GetEncoding(1251);
     }
 
-    private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+    private static string Csv(string? value) =>
+        CsvCellEncoder.Encode(value, delimiter: ';', alwaysQuote: true);
 
     private static string MealLabel(MealType type) => type switch
     {

@@ -12,10 +12,12 @@ namespace SugarGuard.API.Application.Services;
 public sealed class WebPushService : IWebPushService
 {
     private const int MaxPushParallelism = 4;
+    private const int MaxSubscriptionsPerUser = 10;
 
     private readonly IPushSubscriptionRepository _repository;
     private readonly AppDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly IWebPushEndpointValidator _endpointValidator;
     private readonly WebPushClient _client;
     private readonly ILogger<WebPushService> _logger;
 
@@ -23,33 +25,48 @@ public sealed class WebPushService : IWebPushService
         IPushSubscriptionRepository repository,
         AppDbContext db,
         IConfiguration configuration,
+        IWebPushEndpointValidator endpointValidator,
+        HttpClient httpClient,
         ILogger<WebPushService> logger)
     {
         _repository = repository;
         _db = db;
         _configuration = configuration;
-        _client = new WebPushClient();
+        _endpointValidator = endpointValidator;
+        _client = new WebPushClient(httpClient);
         _logger = logger;
     }
 
-    public async Task<NotificationResponse> SubscribeAsync(
+    public async Task<PushSubscribeResult> SubscribeAsync(
         PushSubscriptionRequest request,
         Guid userId,
         CancellationToken ct = default)
     {
+        if (!_endpointValidator.TryValidateAndNormalize(request.Endpoint, out var endpoint))
+        {
+            return PushSubscribeResult.InvalidEndpoint;
+        }
+
         var sub = new DomainPushSub
         {
             UserId = userId,
-            Endpoint = request.Endpoint,
+            Endpoint = endpoint,
             P256Dh = request.P256Dh,
             Auth = request.Auth,
             UserAgent = request.UserAgent
         };
 
-        await _repository.AddAsync(sub, ct);
+        var result = await _repository.UpsertForUserAsync(sub, MaxSubscriptionsPerUser, ct);
         _logger.LogInformation("Web Push подписка сохранена. UserId: {UserId}", userId);
 
-        return new NotificationResponse { Success = true, SentAt = DateTime.UtcNow };
+        return result switch
+        {
+            PushSubscriptionUpsertResult.Created => PushSubscribeResult.Created,
+            PushSubscriptionUpsertResult.Updated => PushSubscribeResult.Updated,
+            PushSubscriptionUpsertResult.EndpointOwnedByAnotherUser => PushSubscribeResult.EndpointOwnedByAnotherUser,
+            PushSubscriptionUpsertResult.LimitExceeded => PushSubscribeResult.LimitExceeded,
+            _ => throw new InvalidOperationException("Unknown Web Push upsert result.")
+        };
     }
 
     public async Task<UnsubscribeResult> UnsubscribeAsync(
@@ -57,7 +74,12 @@ public sealed class WebPushService : IWebPushService
         Guid userId,
         CancellationToken ct = default)
     {
-        var sub = await _repository.GetByEndpointAsync(endpoint, ct);
+        if (!_endpointValidator.TryValidateAndNormalize(endpoint, out var normalizedEndpoint))
+        {
+            return UnsubscribeResult.NotFound;
+        }
+
+        var sub = await _repository.GetByEndpointAsync(normalizedEndpoint, ct);
         if (sub is null)
         {
             return UnsubscribeResult.NotFound;
@@ -65,14 +87,11 @@ public sealed class WebPushService : IWebPushService
 
         if (sub.UserId != userId)
         {
-            _logger.LogWarning(
-                "Попытка отписать чужой Web Push endpoint. UserId={UserId}, Endpoint={Endpoint}",
-                userId,
-                endpoint);
-            return UnsubscribeResult.Forbidden;
+            _logger.LogWarning("Attempt to unsubscribe a Web Push endpoint owned by another user.");
+            return UnsubscribeResult.NotFound;
         }
 
-        return await _repository.RemoveByEndpointAsync(endpoint, ct)
+        return await _repository.RemoveByEndpointAsync(normalizedEndpoint, userId, ct)
             ? UnsubscribeResult.Removed
             : UnsubscribeResult.NotFound;
     }
@@ -111,24 +130,48 @@ public sealed class WebPushService : IWebPushService
             },
             async (subscription, innerCt) =>
             {
+                if (!_endpointValidator.TryValidateAndNormalize(subscription.Endpoint, out var endpoint))
+                {
+                    _logger.LogWarning(
+                        "Rejected an invalid persisted Web Push endpoint. SubscriptionId={SubscriptionId}",
+                        subscription.SubscriptionId);
+                    await _repository.RemoveByEndpointAsync(
+                        subscription.Endpoint,
+                        subscription.UserId,
+                        innerCt);
+                    return;
+                }
+
                 try
                 {
                     var webPushSubscription = new PushSubscription(
-                        subscription.Endpoint,
+                        endpoint,
                         subscription.P256Dh,
                         subscription.Auth);
-                    await _client.SendNotificationAsync(webPushSubscription, payload, vapidDetails);
+                    await _client.SendNotificationAsync(
+                        webPushSubscription,
+                        payload,
+                        vapidDetails,
+                        innerCt);
                 }
                 catch (WebPushException ex) when (ex.StatusCode is
                     System.Net.HttpStatusCode.Gone or
                     System.Net.HttpStatusCode.NotFound)
                 {
-                    _logger.LogInformation("Удалена устаревшая Web Push подписка. Endpoint={Endpoint}", subscription.Endpoint);
-                    await _repository.RemoveByEndpointAsync(subscription.Endpoint, innerCt);
+                    _logger.LogInformation(
+                        "Removed an expired Web Push subscription. SubscriptionId={SubscriptionId}",
+                        subscription.SubscriptionId);
+                    await _repository.RemoveByEndpointAsync(
+                        subscription.Endpoint,
+                        subscription.UserId,
+                        innerCt);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Ошибка отправки Web Push. Endpoint={Endpoint}", subscription.Endpoint);
+                    _logger.LogError(
+                        ex,
+                        "Web Push delivery failed. SubscriptionId={SubscriptionId}",
+                        subscription.SubscriptionId);
                 }
             });
     }

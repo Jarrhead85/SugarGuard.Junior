@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Extensions;
@@ -55,14 +56,15 @@ public class FaqContentController : ControllerBase
     /// </summary>
     [Authorize(Policy = "DoctorOrAdmin")]
     [HttpPost("images")]
-    [RequestSizeLimit(5 * 1024 * 1024)]
+    [EnableRateLimiting("faq-images")]
+    [RequestSizeLimit(2 * 1024 * 1024)]
     public async Task<ActionResult<FaqImageUploadResponse>> UploadImage(
         IFormFile file,
         CancellationToken cancellationToken)
     {
-        if (file.Length is <= 0 or > 5 * 1024 * 1024)
+        if (file.Length is <= 0 or > 2 * 1024 * 1024)
         {
-            return BadRequest(new { error = "invalid_file_size", message = "Размер изображения должен быть не больше 5 МБ." });
+            return BadRequest(new { error = "invalid_file_size", message = "Размер изображения должен быть не больше 2 МБ." });
         }
 
         await using var input = file.OpenReadStream();

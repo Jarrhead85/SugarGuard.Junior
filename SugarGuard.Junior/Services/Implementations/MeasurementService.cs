@@ -117,12 +117,12 @@ public class MeasurementService : IMeasurementService
     {
         try
         {
-            _logger.LogInformation("Обработка измерения: {GlucoseValue} ммоль/л для {ChildId}", glucoseValue, childId);
+            _logger.LogInformation("Обработка измерения. ChildId={ChildId}", childId);
 
             // 1⃣ ВАЛИДАЦИЯ
             if (!GlucoseLevels.IsValidInput(glucoseValue))
             {
-                _logger.LogWarning("Значение вне диапазона: {GlucoseValue}", glucoseValue);
+                _logger.LogWarning("Значение измерения вне допустимого диапазона.");
                 return null;
             }
 
@@ -151,7 +151,7 @@ public class MeasurementService : IMeasurementService
             // создаёт backend вместе с измерением, чтобы время, глюкоза и координаты не рассинхронизировались.
             if (GlucoseLevels.IsCritical(glucoseValue))
             {
-                _logger.LogWarning("КРИТИЧЕСКИЙ УРОВЕНЬ ГЛЮКОЗЫ: {GlucoseValue} ммоль/л", glucoseValue);
+                _logger.LogWarning("Обнаружен критический уровень глюкозы.");
 
                 try
                 {
@@ -289,6 +289,20 @@ public class MeasurementService : IMeasurementService
             return new SensorMeasurementSaveResult(false, false, null, "Значение датчика вне допустимого диапазона.");
         }
 
+        // Defence in depth: callers cannot bypass the local confirmation flow by
+        // invoking the measurement service directly with an implicit broadcast.
+        if (!SensorGlucoseTrustPolicy.IsTrustedForMedicalUse(reading))
+        {
+            _logger.LogWarning(
+                "Неподтверждённое показание внешнего CGM отклонено на границе медицинской обработки.");
+            return new SensorMeasurementSaveResult(
+                false,
+                false,
+                null,
+                null,
+                RequiresConfirmation: true);
+        }
+
         try
         {
             var measurementTime = NormalizeMeasurementTime(reading.MeasurementTimeUtc);
@@ -304,10 +318,7 @@ public class MeasurementService : IMeasurementService
 
             if (isDuplicate)
             {
-                _logger.LogDebug(
-                    "Повторное показание Juggluco пропущено. ChildId={ChildId}; Time={MeasurementTime:O}",
-                    childId,
-                    measurementTime);
+                _logger.LogDebug("Повторное подтверждённое показание CGM пропущено.");
                 return new SensorMeasurementSaveResult(false, true, null, null);
             }
 
@@ -420,17 +431,14 @@ public class MeasurementService : IMeasurementService
                     $"cgm-low-{childId}");
             }
             _logger.LogInformation(
-                "Показание датчика сохранено. ChildId={ChildId}; Value={GlucoseValue}; Time={MeasurementTime:O}; NotifyParents={NotifyParents}",
-                childId,
-                reading.GlucoseMmolPerLiter,
-                measurementTime,
+                "Подтверждённое показание CGM сохранено. NotifyParents={NotifyParents}",
                 notifyParents);
 
             return new SensorMeasurementSaveResult(true, false, measurement.MeasurementId, null);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка сохранения показания датчика для ChildId={ChildId}.", childId);
+            _logger.LogError(ex, "Ошибка сохранения подтверждённого показания CGM.");
             return new SensorMeasurementSaveResult(false, false, null, "Не удалось сохранить показание датчика.");
         }
     }
@@ -490,7 +498,7 @@ public class MeasurementService : IMeasurementService
     {
         try
         {
-            _logger.LogInformation("Логирование перекуса: {SnackName}", request.SnackName);
+            _logger.LogInformation("Логирование события перекуса.");
 
             // 1⃣ Логируем в таблицу истории потребления
             var encryptedSnackName = await _cryptoService.EncryptAsync(request.SnackName);

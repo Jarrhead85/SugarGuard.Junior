@@ -90,6 +90,7 @@ public class BackpackController : ControllerBase
     /// Добавляет новый перекус в рюкзак ребёнка
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(BackpackItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -144,6 +145,7 @@ public class BackpackController : ControllerBase
     /// Обновляет название и ХЕ позиции рюкзака.
     /// </summary>
     [HttpPut("{itemId:guid}")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(BackpackItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -207,6 +209,7 @@ public class BackpackController : ControllerBase
     /// </summary>
 
     [HttpDelete("{itemId:guid}")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -253,6 +256,7 @@ public class BackpackController : ControllerBase
     /// </summary>
 
     [HttpPost("{itemId:guid}/consume")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(ConsumeSnackResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

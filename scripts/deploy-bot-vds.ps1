@@ -44,7 +44,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Не удалось упаковать Telegram-бота."
 }
 
-$sshArgs = @("-i", $KeyPath, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new")
+$sshArgs = @(
+    "-i", $KeyPath,
+    "-o", "BatchMode=yes",
+    "-o", "IdentitiesOnly=yes",
+    "-o", "StrictHostKeyChecking=yes"
+)
 
 scp @sshArgs $packagePath "${User}@${Server}:$remotePackage"
 if ($LASTEXITCODE -ne 0) {
@@ -53,6 +58,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $deployScriptContent = @"
 set -euo pipefail
+umask 077
 
 target="/opt/sugarguard/bot"
 backup_dir="/opt/sugarguard/backups"
@@ -60,21 +66,26 @@ package="$remotePackage"
 timestamp="$timestamp"
 config_backup="/tmp/sugarguard-bot-appsettings-`$timestamp.json"
 
-sudo mkdir -p "`$backup_dir"
+sudo install -d -o root -g root -m 0700 "`$backup_dir"
 sudo systemctl stop sugarguard-bot.service
 
 if [ -d "`$target" ]; then
-    sudo tar -C "`$(dirname "`$target")" -czf "`$backup_dir/bot-`$timestamp.tar.gz" "`$(basename "`$target")"
+    sudo tar -C "`$(dirname "`$target")" \
+        --exclude="`$(basename "`$target")/appsettings.json" \
+        -czf "`$backup_dir/bot-`$timestamp.tar.gz" "`$(basename "`$target")"
+    sudo chmod 0600 "`$backup_dir/bot-`$timestamp.tar.gz"
     if [ -f "`$target/appsettings.json" ]; then
-        sudo cp "`$target/appsettings.json" "`$config_backup"
+        sudo install -o root -g root -m 0600 "`$target/appsettings.json" "`$config_backup"
     fi
 fi
 
 sudo rm -rf "`${target}.new" "`${target}.old"
 sudo mkdir -p "`${target}.new"
 sudo tar -xzf "`$package" -C "`${target}.new"
-sudo chown -R sugarguard:sugarguard "`${target}.new"
-sudo chmod +x "`${target}.new/SugarGuard.Bot"
+sudo chown -R root:sugarguard "`${target}.new"
+sudo find "`${target}.new" -type d -exec chmod 0750 {} +
+sudo find "`${target}.new" -type f -exec chmod 0640 {} +
+sudo chmod 0750 "`${target}.new/SugarGuard.Bot"
 
 if [ -d "`$target" ]; then
     sudo mv "`$target" "`${target}.old"
@@ -84,8 +95,8 @@ sudo mv "`${target}.new" "`$target"
 
 if [ -f "`$config_backup" ]; then
     sudo mv "`$config_backup" "`$target/appsettings.json"
-    sudo chown sugarguard:sugarguard "`$target/appsettings.json"
-    sudo chmod 600 "`$target/appsettings.json"
+    sudo chown root:sugarguard "`$target/appsettings.json"
+    sudo chmod 0640 "`$target/appsettings.json"
 fi
 
 if ! sudo systemctl start sugarguard-bot.service || ! sudo systemctl is-active --quiet sugarguard-bot.service; then

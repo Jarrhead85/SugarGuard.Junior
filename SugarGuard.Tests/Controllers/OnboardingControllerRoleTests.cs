@@ -269,7 +269,6 @@ public class OnboardingControllerRoleTests
     [Theory]
     [InlineData(UserRole.Admin)]
     [InlineData(UserRole.SupportAdmin)]
-    [InlineData(UserRole.ServiceAccount)]
     public async Task CreateChildOnboarding_AdminRoles_DelegatesToService(UserRole adminRole)
     {
         var userId = Guid.NewGuid();

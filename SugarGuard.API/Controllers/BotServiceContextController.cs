@@ -112,8 +112,7 @@ public class BotServiceContextController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "BotService: ошибка при получении контекста для {TelegramUserId}.",
-                telegramUserId);
+            _logger.LogError(ex, "BotService: ошибка при получении контекста Telegram-пользователя.");
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
@@ -178,8 +177,7 @@ public class BotServiceContextController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "BotService: ошибка при получении детей для {TelegramUserId}.",
-                telegramUserId);
+            _logger.LogError(ex, "BotService: ошибка при получении привязанных профилей ребёнка.");
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }

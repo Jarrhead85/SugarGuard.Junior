@@ -5,12 +5,17 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Controllers;
+using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
+using SugarGuard.Domain.Entities;
+using SugarGuard.Domain.Enums;
 
 namespace SugarGuard.Tests.Integration;
 
@@ -30,10 +35,25 @@ public sealed class AdminUsersRolesAuthorizationTests
     [Fact]
     public async Task UpdateRole_SupportAdmin_IsForbidden()
     {
+        var userId = Guid.NewGuid();
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Users.Add(new User
+            {
+                UserId = userId,
+                Role = UserRole.SupportAdmin,
+                IsActive = true,
+                IsEmailVerified = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer",
-            CreateToken(Guid.NewGuid(), "SupportAdmin"));
+            CreateToken(userId, "SupportAdmin"));
 
         var response = await client.PutAsJsonAsync(
             $"/api/admin/users-roles/users/{Guid.NewGuid()}/role",
@@ -69,7 +89,8 @@ public sealed class AdminUsersRolesAuthorizationTests
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Role, role),
+            new Claim("sv", "0")
         };
 
         var token = new JwtSecurityToken(

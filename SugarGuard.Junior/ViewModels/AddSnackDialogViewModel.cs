@@ -144,7 +144,7 @@ public partial class AddSnackDialogViewModel : ObservableObject
             IsLoading = true;
             ErrorMessage = string.Empty;
 
-            _logger.LogInformation("Добавление перекуса: {SnackName}", SnackName);
+            _logger.LogInformation("Добавление перекуса.");
 
             // Парсим хлебные единицы
             if (!DoubleParser.TryParseDecrypted(BreadUnitsText, out var breadUnits))
@@ -168,7 +168,7 @@ public partial class AddSnackDialogViewModel : ObservableObject
                 {
                     var decryptedName = await _backpackRepository.GetDecryptedSnackNameAsync(result);
                     var decryptedBU = await _backpackRepository.GetDecryptedBreadUnitsAsync(result);
-                    _logger.LogInformation(" Перекус добавлен: {SnackName} ({BreadUnits} ХЕ)", decryptedName, decryptedBU);
+                    _logger.LogInformation("Перекус успешно добавлен.");
                 }
                 catch (Exception ex)
                 {

@@ -62,7 +62,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<LoginResponse> LoginAsync(string email, string password)
     {
-        _logger.LogInformation("[MOCK] Попытка входа: {Email}", email);
+        _logger.LogInformation("[MOCK] Попытка входа.");
 
         // Имитируем задержку сети (500мс)
         await Task.Delay(500);
@@ -82,7 +82,7 @@ public class MockApiClient : IApiClient
                 ExpiresAt = DateTime.UtcNow.AddMinutes(15)
             };
 
-            _logger.LogInformation(" [MOCK] Вход успешен для {Email}", email);
+            _logger.LogInformation("[MOCK] Вход успешен.");
 
             return new LoginResponse
             {
@@ -100,7 +100,7 @@ public class MockApiClient : IApiClient
             };
         }
 
-        _logger.LogWarning(" [MOCK] Неверные учётные данные: {Email}", email);
+        _logger.LogWarning("[MOCK] Неверные учётные данные.");
         return new LoginResponse
         {
             Success = false,
@@ -113,7 +113,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<RegistrationResponse> RegisterAsync(RegistrationRequest request)
     {
-        _logger.LogInformation("[MOCK] Регистрация: {Email}", request.Email);
+        _logger.LogInformation("[MOCK] Регистрация.");
         await Task.Delay(500);
 
         // Проверяем, существует ли уже пользователь
@@ -140,7 +140,7 @@ public class MockApiClient : IApiClient
         // Создаём рюкзак для ребёнка
         MockBackpacks[userId] = new List<string> { "яблоко" };
 
-        _logger.LogInformation(" [MOCK] Регистрация успешна: {Email}", request.Email);
+        _logger.LogInformation("[MOCK] Регистрация успешна.");
 
         return new RegistrationResponse
         {
@@ -156,13 +156,13 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<VerifyCodeResponse> VerifyEmailAsync(string email, string code)
     {
-        _logger.LogInformation("[MOCK] Проверка кода для {Email}", email);
+        _logger.LogInformation("[MOCK] Проверка кода email.");
         await Task.Delay(300);
 
         // В mock всегда успешно (код "123456")
         if (code == "123456")
         {
-            _logger.LogInformation(" [MOCK] Email подтверждён: {Email}", email);
+            _logger.LogInformation("[MOCK] Email подтверждён.");
             return new VerifyCodeResponse { IsValid = true };
         }
 
@@ -178,10 +178,10 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<bool> SendEmailVerificationCodeAsync(string email)
     {
-        _logger.LogInformation("[MOCK] Отправка кода на {Email}", email);
+        _logger.LogInformation("[MOCK] Отправка кода email.");
         await Task.Delay(1000);
 
-        _logger.LogInformation(" [MOCK] Код '123456' отправлен на {Email}", email);
+        _logger.LogInformation("[MOCK] Тестовый код отправлен.");
         return true;
     }
 
@@ -243,7 +243,7 @@ public class MockApiClient : IApiClient
     {
         try
         {
-            _logger.LogInformation("[MOCK] Отправка измерения: {GlucoseValue} ммоль/л", request.GlucoseValue);
+            _logger.LogInformation("[MOCK] Отправка измерения.");
 
             var response = new MeasurementResponse
             {
@@ -429,7 +429,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<bool> AddSnackAsync(AddSnackRequest request)
     {
-        _logger.LogInformation("[MOCK] Добавление перекуса: {SnackName} для {ChildId}", request.SnackName, request.ChildId);
+        _logger.LogInformation("[MOCK] Добавление перекуса. ChildId={ChildId}", request.ChildId);
         await Task.Delay(300);
 
         if (MockBackpacks.TryGetValue(request.ChildId, out var snacks))
@@ -551,7 +551,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<bool> SendMeasurementNotificationAsync(MeasurementNotificationRequest request)
     {
-        _logger.LogInformation("[MOCK] Отправка уведомления об измерении: {GlucoseValue} ммоль/л", request.GlucoseValue);
+        _logger.LogInformation("[MOCK] Отправка уведомления об измерении.");
         await Task.Delay(200);
         _logger.LogInformation(" [MOCK] Уведомление об измерении отправлено родителям");
         return true;
@@ -562,7 +562,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<bool> SendSnackConsumedNotificationAsync(SnackConsumedNotificationRequest request)
     {
-        _logger.LogInformation("[MOCK] Отправка уведомления о перекусе: {SnackName}", request.SnackName);
+        _logger.LogInformation("[MOCK] Отправка уведомления о перекусе.");
         await Task.Delay(200);
         _logger.LogInformation(" [MOCK] Уведомление о перекусе отправлено родителям");
         return true;
@@ -573,7 +573,7 @@ public class MockApiClient : IApiClient
     /// </summary>
     public async Task<bool> SendCriticalAlertAsync(CriticalAlertRequest request)
     {
-        _logger.LogWarning("[MOCK]  Критическое уведомление: {GlucoseValue} ммоль/л", request.GlucoseValue);
+        _logger.LogWarning("[MOCK] Критическое уведомление.");
         await Task.Delay(300);
         _logger.LogInformation(" [MOCK] Критическое уведомление отправлено родителям");
         return true;

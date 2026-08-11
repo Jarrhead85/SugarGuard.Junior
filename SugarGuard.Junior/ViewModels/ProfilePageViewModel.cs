@@ -754,7 +754,7 @@ public partial class ProfilePageViewModel : ObservableObject
                     TargetRangeText = $"{targetMin:0.0} - {targetMax:0.0} ммоль/л";
                 }
                 
-                _logger.LogInformation("Profile data loaded for {ChildName}", firstName);
+                _logger.LogInformation("Profile data loaded.");
             }
             else
             {

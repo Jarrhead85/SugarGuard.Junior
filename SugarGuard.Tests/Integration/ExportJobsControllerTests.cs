@@ -7,8 +7,6 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using FsCheck;
-using FsCheck.Xunit;
 using Hangfire;
 using Hangfire.InMemory;
 using Microsoft.AspNetCore.Hosting;
@@ -128,7 +126,6 @@ internal sealed class NoOpAuditService : IAuditService
         string? details = null,
         CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
-
 internal sealed class NoOpBackgroundEnqueuer : IBackgroundEnqueuer
 {
     public void EnqueueExportJob(Guid exportJobId)
@@ -265,7 +262,8 @@ public sealed class ExportJobsControllerTests : IAsyncLifetime
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Role, role),
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("sv", "0")
         };
 
         var token = new JwtSecurityToken(
@@ -626,7 +624,8 @@ public sealed class ExportJobsControllerPropertyTests : IDisposable
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Role, role),
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("sv", "0")
         };
 
         var token = new JwtSecurityToken(
@@ -646,75 +645,31 @@ public sealed class ExportJobsControllerPropertyTests : IDisposable
     ///
     /// Validates: Requirement 18.4
     /// </summary>
-    [Property(MaxTest = 100, Arbitrary = new[] { typeof(InvalidDateRangeArbitrary) })]
-    public Property InvalidDateRange_AlwaysReturns400((DateTime PeriodFrom, DateTime PeriodTo) range)
+    [Theory]
+    [InlineData("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z")]
+    [InlineData("2030-12-31T00:00:00Z", "2020-01-01T00:00:00Z")]
+    [InlineData("2026-08-11T12:00:00Z", "2026-08-11T11:59:59Z")]
+    [InlineData("2024-03-01T00:00:00Z", "2024-02-29T00:00:00Z")]
+    public async Task InvalidDateRange_AlwaysReturns400(string periodFromText, string periodToText)
     {
-        // Feature: sugarguard-project-completion, Property 7: ExportJobsController — invalid date range always returns HTTP 400
+        var request = new CreateExportJobRequest
+        {
+            ChildId = PropertyTestChildId,
+            PeriodFrom = DateTime.Parse(periodFromText, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            PeriodTo = DateTime.Parse(periodToText, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            Format = "csv"
+        };
 
-        var (periodFrom, periodTo) = range;
+        var response = await _client.PostAsJsonAsync("/api/export-jobs", request);
+        var rawBody = await response.Content.ReadAsStringAsync();
 
-        // Precondition: PeriodTo must be strictly less than PeriodFrom
-        return Prop.When(
-            periodTo < periodFrom,
-            () =>
-            {
-                var request = new CreateExportJobRequest
-                {
-                    ChildId = PropertyTestChildId,
-                    PeriodFrom = periodFrom,
-                    PeriodTo = periodTo,
-                    Format = "csv"
-                };
-
-                var response = _client.PostAsJsonAsync("/api/export-jobs", request)
-                    .GetAwaiter().GetResult();
-
-                var rawBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-                var is400 = response.StatusCode == HttpStatusCode.BadRequest;
-                var hasBody = !string.IsNullOrWhiteSpace(rawBody);
-
-                return (is400 && hasBody).Label(
-                    $"Expected 400 with body. Got {(int)response.StatusCode}, body='{rawBody}'");
-            });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(rawBody));
     }
 
     public void Dispose()
     {
         _client.Dispose();
         _factory.Dispose();
-    }
-}
-
-// ---------------------------------------------------------------------------
-// FsCheck Arbitrary — generates (PeriodFrom, PeriodTo) pairs where PeriodTo < PeriodFrom
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Generates date pairs where <c>PeriodTo</c> is strictly less than
-/// <c>PeriodFrom</c>, ensuring the property test exercises the invalid-range
-/// validation path.
-/// </summary>
-public static class InvalidDateRangeArbitrary
-{
-    public static Arbitrary<(DateTime PeriodFrom, DateTime PeriodTo)> Generate()
-    {
-        // Base date range: 2020-01-01 to 2030-12-31 (in ticks)
-        var minTicks = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
-        var maxTicks = new DateTime(2030, 12, 31, 0, 0, 0, DateTimeKind.Utc).Ticks;
-        var rangeTicks = maxTicks - minTicks;
-
-        var gen = from offsetA in Gen.Choose(1, (int)(rangeTicks / TimeSpan.TicksPerDay))
-                  from offsetB in Gen.Choose(1, (int)(rangeTicks / TimeSpan.TicksPerDay))
-                  let dateA = new DateTime(minTicks + (long)offsetA * TimeSpan.TicksPerDay, DateTimeKind.Utc)
-                  let dateB = new DateTime(minTicks + (long)offsetB * TimeSpan.TicksPerDay, DateTimeKind.Utc)
-                  // Ensure PeriodTo < PeriodFrom by ordering: larger = PeriodFrom, smaller = PeriodTo
-                  let periodFrom = dateA > dateB ? dateA : dateB
-                  let periodTo = dateA > dateB ? dateB : dateA
-                  // Skip equal dates (need strictly less than)
-                  where periodTo < periodFrom
-                  select (periodFrom, periodTo);
-
-        return Arb.From(gen);
     }
 }

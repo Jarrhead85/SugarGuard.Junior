@@ -126,7 +126,6 @@ public class ChildrenServiceTests : IDisposable
 
     [Theory]
     [InlineData(UserRole.SupportAdmin)]
-    [InlineData(UserRole.ServiceAccount)]
     public async Task GetAccessibleAsync_AdminLikeRoles_ReturnAllChildren(UserRole role)
     {
         var c1 = CreateChild();
@@ -453,7 +452,7 @@ public class ChildrenServiceTests : IDisposable
         });
 
         Assert.Equal("Europe/Moscow", result.Child.TimeZoneId);
-        Assert.Equal("https://example.com/p.jpg", result.Child.PhotoUrl);
+        Assert.Null(result.Child.PhotoUrl);
     }
 
     [Fact]
@@ -675,12 +674,11 @@ public class ChildrenServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("image/jpeg")]
-    [InlineData("image/png")]
-    [InlineData("image/webp")]
-    [InlineData("image/gif")]
-    [InlineData("IMAGE/JPEG")]  // case-insensitive
-    public async Task UploadPhotoAsync_AllowedContentType_Succeeds(string contentType)
+    [InlineData("image/jpeg", "x.jpg")]
+    [InlineData("image/png", "x.png")]
+    [InlineData("image/webp", "x.webp")]
+    [InlineData("IMAGE/JPEG", "x.jpeg")]
+    public async Task UploadPhotoAsync_AllowedContentType_Succeeds(string contentType, string fileName)
     {
         var c = CreateChild();
         using (var db = new AppDbContext(_dbOptions))
@@ -689,7 +687,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var file = new TestFormFile(Encoding.UTF8.GetBytes("fake image bytes"), "x.jpg", contentType);
+        var file = new TestFormFile(CreateValidImageBytes(contentType), fileName, contentType);
 
         var result = await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
 
@@ -726,7 +724,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var file = new TestFormFile(new byte[100], "x.png", "");
+        var file = new TestFormFile(CreateValidImageBytes("image/png"), "x.png", "");
 
         var result = await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
 
@@ -737,7 +735,7 @@ public class ChildrenServiceTests : IDisposable
     public async Task UploadPhotoAsync_ChildNotFound_ReturnsNull()
     {
         var sut = CreateSut();
-        var file = new TestFormFile(new byte[100], "x.jpg", "image/jpeg");
+        var file = new TestFormFile(CreateValidImageBytes("image/jpeg"), "x.jpg", "image/jpeg");
 
         var result = await sut.UploadPhotoAsync(Guid.NewGuid(), file, _uploadRoot, "https://api.test");
 
@@ -754,7 +752,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var content = Encoding.UTF8.GetBytes("image-bytes-here");
+        var content = CreateValidImageBytes("image/jpeg");
         var file = new TestFormFile(content, "photo.jpg", "image/jpeg");
 
         var result = await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
@@ -776,10 +774,11 @@ public class ChildrenServiceTests : IDisposable
     {
         var c = CreateChild();
         // Создаём старый файл
-        var oldRelative = $"/uploads/children/{c.ChildId}/old.jpg";
+        var oldFileName = $"{Guid.NewGuid():N}.jpg";
+        var oldRelative = $"/uploads/children/{c.ChildId}/{oldFileName}";
         var oldDir = Path.Combine(_uploadRoot, "uploads", "children", c.ChildId.ToString());
         Directory.CreateDirectory(oldDir);
-        var oldFile = Path.Combine(oldDir, "old.jpg");
+        var oldFile = Path.Combine(oldDir, oldFileName);
         await File.WriteAllBytesAsync(oldFile, new byte[] { 1, 2, 3 });
 
         c.PhotoUrl = oldRelative;
@@ -789,7 +788,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var newFile = new TestFormFile(new byte[] { 9, 9, 9 }, "new.jpg", "image/jpeg");
+        var newFile = new TestFormFile(CreateValidImageBytes("image/jpeg"), "new.jpg", "image/jpeg");
 
         await sut.UploadPhotoAsync(c.ChildId, newFile, _uploadRoot, "https://api.test");
 
@@ -810,7 +809,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var file = new TestFormFile(new byte[] { 1 }, "new.jpg", "image/jpeg");
+        var file = new TestFormFile(CreateValidImageBytes("image/jpeg"), "new.jpg", "image/jpeg");
 
         await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
 
@@ -833,7 +832,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var file = new TestFormFile(new byte[] { 5, 5, 5 }, "photo.png", "image/png");
+        var file = new TestFormFile(CreateValidImageBytes("image/png"), "photo.png", "image/png");
 
         var result = await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
 
@@ -854,7 +853,7 @@ public class ChildrenServiceTests : IDisposable
             await db.SaveChangesAsync();
         }
         var sut = CreateSut();
-        var file = new TestFormFile(new byte[100], "x.jpg", "image/jpeg");
+        var file = new TestFormFile(CreateValidImageBytes("image/jpeg", 100), "x.jpg", "image/jpeg");
 
         await sut.UploadPhotoAsync(c.ChildId, file, _uploadRoot, "https://api.test");
 
@@ -895,10 +894,11 @@ public class ChildrenServiceTests : IDisposable
     public async Task DeletePhotoAsync_LocalPhoto_RemovesFileAndClearsUrl()
     {
         var c = CreateChild();
-        var relative = $"/uploads/children/{c.ChildId}/x.jpg";
+        var fileName = $"{Guid.NewGuid():N}.jpg";
+        var relative = $"/uploads/children/{c.ChildId}/{fileName}";
         var dir = Path.Combine(_uploadRoot, "uploads", "children", c.ChildId.ToString());
         Directory.CreateDirectory(dir);
-        var file = Path.Combine(dir, "x.jpg");
+        var file = Path.Combine(dir, fileName);
         await File.WriteAllBytesAsync(file, new byte[] { 1 });
         c.PhotoUrl = relative;
 
@@ -987,5 +987,27 @@ public class ChildrenServiceTests : IDisposable
         var saved = await verifyDb.Children.FindAsync(c.ChildId);
         Assert.Null(saved!.PhotoUrl);
         Assert.True(result);
+    }
+
+    private static byte[] CreateValidImageBytes(string contentType, int minimumLength = 32)
+    {
+        var bytes = new byte[Math.Max(minimumLength, 16)];
+        if (contentType.Equals("image/png", StringComparison.OrdinalIgnoreCase))
+        {
+            new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }.CopyTo(bytes, 0);
+        }
+        else if (contentType.Equals("image/webp", StringComparison.OrdinalIgnoreCase))
+        {
+            "RIFF"u8.CopyTo(bytes);
+            "WEBP"u8.CopyTo(bytes.AsSpan(8));
+        }
+        else
+        {
+            bytes[0] = 0xFF;
+            bytes[1] = 0xD8;
+            bytes[2] = 0xFF;
+        }
+
+        return bytes;
     }
 }

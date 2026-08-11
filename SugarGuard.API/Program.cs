@@ -208,12 +208,20 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    options.AddFixedWindowLimiter("recommendations", cfg =>
+    options.AddPolicy("recommendations", context =>
     {
-        cfg.PermitLimit = 10;
-        cfg.Window = TimeSpan.FromMinutes(1);
-        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        cfg.QueueLimit = 2;
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? context.User.FindFirst("sub")?.Value
+                     ?? $"anonymous:{Program.GetClientIp(context)}";
+
+        return RateLimitPartition.GetFixedWindowLimiter($"recommendations:{userId}", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
     });
 
     options.AddFixedWindowLimiter("bot-login", cfg =>
@@ -222,6 +230,54 @@ builder.Services.AddRateLimiter(options =>
         cfg.Window = TimeSpan.FromMinutes(1);
         cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         cfg.QueueLimit = 0;
+    });
+
+    options.AddPolicy("safety-events", context =>
+    {
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? context.User.FindFirst("sub")?.Value
+                     ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter($"safety:{userId}", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 6,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("support-write", context =>
+    {
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? context.User.FindFirst("sub")?.Value
+                     ?? $"anonymous:{Program.GetClientIp(context)}";
+
+        return RateLimitPartition.GetFixedWindowLimiter($"support-write:{userId}", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("faq-images", context =>
+    {
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? context.User.FindFirst("sub")?.Value
+                     ?? $"anonymous:{Program.GetClientIp(context)}";
+
+        return RateLimitPartition.GetFixedWindowLimiter($"faq-images:{userId}", _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromHours(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
     });
 
     options.OnRejected = async (context, cancellationToken) =>
@@ -288,12 +344,59 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userIdValue = context.Principal?.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var roleValue = context.Principal?.FindFirst(
+                    System.Security.Claims.ClaimTypes.Role)?.Value;
+                var securityVersionValue = context.Principal?.FindFirst("sv")?.Value;
+
+                if (!Guid.TryParse(userIdValue, out var userId)
+                    || !long.TryParse(
+                        securityVersionValue,
+                        System.Globalization.NumberStyles.None,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out var securityVersion)
+                    || string.IsNullOrWhiteSpace(roleValue))
+                {
+                    context.Fail("Access token is missing required security claims.");
+                    return;
+                }
+
+                var dbFactory = context.HttpContext.RequestServices
+                    .GetRequiredService<IDbContextFactory<AppDbContext>>();
+                await using var db = await dbFactory.CreateDbContextAsync(context.HttpContext.RequestAborted);
+                var currentUser = await db.Users
+                    .AsNoTracking()
+                    .Where(user => user.UserId == userId)
+                    .Select(user => new { user.IsActive, user.Role, user.SecurityVersion })
+                    .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                if (currentUser is null
+                    || !currentUser.IsActive
+                    || currentUser.SecurityVersion != securityVersion
+                    || !string.Equals(currentUser.Role.ToString(), roleValue, StringComparison.Ordinal))
+                {
+                    context.Fail("Access token has been revoked.");
+                }
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ParentOrDoctorOrAdmin", policy =>
-        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice", "Patient", "ServiceAccount"));
+        policy.RequireRole("Parent", "Doctor", "Admin", "SupportAdmin", "ChildDevice", "Patient"));
+
+    options.AddPolicy("ChildDataWrite", policy =>
+        policy.RequireRole("Parent", "Admin", "SupportAdmin", "ChildDevice", "Patient"));
+
+    options.AddPolicy("ChildSafetyEvent", policy =>
+        policy.RequireRole("ChildDevice", "Patient"));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin", "SupportAdmin"));
@@ -486,7 +589,18 @@ builder.Services.AddScoped<IMaxBotClient, MaxBotClient>();
 builder.Services.AddHostedService<MaxWebhookRegistrationService>();
 
 // Web Push
-builder.Services.AddScoped<IWebPushService, WebPushService>();
+builder.Services
+    .AddHttpClient<IWebPushService, WebPushService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectTimeout = TimeSpan.FromSeconds(5),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    });
+builder.Services.AddSingleton<IWebPushEndpointValidator, WebPushEndpointValidator>();
 
 builder.Services.AddScoped<ExportJobProcessor>();
 
@@ -668,7 +782,6 @@ if (!app.Environment.IsDevelopment() && !useSqlite)
 app.UseHttpLogging();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 
 // Security headers (Helmet-like)
 app.Use(async (context, next) =>
@@ -682,6 +795,8 @@ app.Use(async (context, next) =>
         "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
     await next();
 });
+
+app.UseStaticFiles();
 
 app.UseCors("WebClient");
 app.UseAuthentication();

@@ -13,6 +13,15 @@ public enum UnsubscribeResult
     Forbidden
 }
 
+public enum PushSubscribeResult
+{
+    Created,
+    Updated,
+    InvalidEndpoint,
+    EndpointOwnedByAnotherUser,
+    LimitExceeded
+}
+
 /// <summary>
 /// Сервис Web Push-уведомлений
 /// </summary>
@@ -21,7 +30,7 @@ public interface IWebPushService
     /// <summary>
     /// Регистрирует подписку браузера
     /// </summary>
-    Task<NotificationResponse> SubscribeAsync(
+    Task<PushSubscribeResult> SubscribeAsync(
         PushSubscriptionRequest request, Guid userId, CancellationToken ct = default);
 
     /// <summary>

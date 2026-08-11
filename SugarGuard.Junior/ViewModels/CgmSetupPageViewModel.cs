@@ -11,18 +11,24 @@ public partial class CgmSetupPageViewModel : ObservableObject
     private readonly IStorageService _storage;
     private readonly ICgmConnectionService _connection;
     private readonly ICgmBridgeLauncher _launcher;
+    private readonly ISensorGlucoseIngestionService _ingestion;
 
     [ObservableProperty] private string statusText = "Выберите Juggluco, чтобы начать.";
     [ObservableProperty] private bool isConnected;
+    [ObservableProperty] private bool hasPendingReading;
+    [ObservableProperty] private string pendingReadingText = string.Empty;
+    private string? _pendingConfirmationId;
 
     public CgmSetupPageViewModel(
         IStorageService storage,
         ICgmConnectionService connection,
-        ICgmBridgeLauncher launcher)
+        ICgmBridgeLauncher launcher,
+        ISensorGlucoseIngestionService ingestion)
     {
         _storage = storage;
         _connection = connection;
         _launcher = launcher;
+        _ingestion = ingestion;
     }
 
     public async Task InitializeAsync()
@@ -35,6 +41,8 @@ public partial class CgmSetupPageViewModel : ObservableObject
                 ? $"Последние данные: {last.ToLocalTime():dd.MM HH:mm}."
                 : "Связка сохранена. Ожидаем первое показание из Juggluco."
             : "Датчик подключается через приложение на этом же телефоне.";
+
+        await LoadPendingReadingAsync();
     }
 
     [RelayCommand]
@@ -70,6 +78,43 @@ public partial class CgmSetupPageViewModel : ObservableObject
         await _connection.DisconnectAsync();
         IsConnected = false;
         StatusText = "Передача CGM отключена.";
+    }
+
+    [RelayCommand]
+    private async Task ConfirmPendingReadingAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingConfirmationId)) return;
+
+        var result = await _ingestion.ConfirmPendingAsync(_pendingConfirmationId);
+        StatusText = result.IsSaved
+            ? "Показание подтверждено и добавлено в историю."
+            : result.IsDuplicate
+                ? "Это показание уже есть в истории."
+                : result.ErrorMessage ?? "Не удалось подтвердить показание.";
+        await LoadPendingReadingAsync();
+    }
+
+    [RelayCommand]
+    private async Task RejectPendingReadingAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingConfirmationId)) return;
+
+        await _ingestion.RejectPendingAsync(_pendingConfirmationId);
+        StatusText = "Неподтверждённое показание отклонено.";
+        await LoadPendingReadingAsync();
+    }
+
+    [RelayCommand]
+    private Task RefreshPendingReadingAsync() => LoadPendingReadingAsync();
+
+    private async Task LoadPendingReadingAsync()
+    {
+        var pending = await _ingestion.GetPendingAsync();
+        _pendingConfirmationId = pending?.ConfirmationId;
+        HasPendingReading = pending is not null;
+        PendingReadingText = pending is null
+            ? string.Empty
+            : $"{pending.Reading.GlucoseMmolPerLiter:F1} ммоль/л · {pending.Reading.MeasurementTimeUtc.ToLocalTime():HH:mm}";
     }
 
     [RelayCommand]

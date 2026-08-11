@@ -22,7 +22,8 @@ public sealed class JugglucoBroadcastReadingParserTests
         Assert.NotNull(reading);
         Assert.Equal(7.0, reading.GlucoseMmolPerLiter);
         Assert.Equal(receivedAt, reading.MeasurementTimeUtc);
-        Assert.Equal("Juggluco", reading.Source);
+        Assert.Equal("JugglucoBroadcast", reading.Source);
+        Assert.Equal(SensorReadingTrust.UntrustedExternalBroadcast, reading.Trust);
     }
 
     [Fact]

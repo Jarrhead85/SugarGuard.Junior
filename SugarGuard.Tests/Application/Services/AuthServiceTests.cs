@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Application.Services;
 using SugarGuard.API.Data;
 using SugarGuard.API.Security;
+using SugarGuard.API.Services;
 using SugarGuard.Application.Audit;
 using SugarGuard.Domain.Entities;
 using SugarGuard.Domain.Enums;
@@ -40,6 +42,8 @@ public class AuthServiceTests : IDisposable
     private readonly Mock<IAuditService> _audit = new();
     private readonly Mock<IPasswordVerificationService> _passwordVerification = new();
     private readonly Mock<ICryptoService> _crypto = new();
+    private readonly Mock<IVerificationService> _verificationService = new();
+    private readonly Mock<IHostEnvironment> _environment = new();
     private readonly DbContextOptions<AppDbContext> _dbOptions;
 
     public AuthServiceTests()
@@ -51,6 +55,12 @@ public class AuthServiceTests : IDisposable
         _crypto
             .Setup(c => c.Encrypt(It.IsAny<string>()))
             .Returns((string value) => $"enc:{value}");
+        _verificationService
+            .Setup(service => service.IsEmailVerified(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                VerificationPurpose.Registration))
+            .Returns(true);
     }
 
     public void Dispose()
@@ -70,6 +80,8 @@ public class AuthServiceTests : IDisposable
             _audit.Object,
             _crypto.Object,
             config ?? new ConfigurationBuilder().Build(),
+            _verificationService.Object,
+            _environment.Object,
             NullLogger<AuthService>.Instance);
 
     private static User CreateUser(UserRole role, bool isActive = true, bool isEmailVerified = true) => new()
@@ -253,17 +265,17 @@ public class AuthServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoginAsync_PasswordVerificationNeverCalled_WhenUserNotFound()
+    public async Task LoginAsync_UserNotFound_PerformsDummyPasswordVerification()
     {
-        // Оптимизация: если пользователь не найден, не нужно делать
-        // дорогую PBKDF2-проверку (это timing-safe).
+        // The missing-user path performs the same expensive verification as a
+        // real account, preventing account enumeration by response timing.
         var sut = CreateSut();
 
         await sut.LoginAsync("nobody@nowhere.local", "any");
 
         _passwordVerification.Verify(
             p => p.VerifyPassword(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
-            Times.Never);
+            Times.Once);
     }
 
     [Fact]
@@ -770,6 +782,35 @@ public class AuthServiceTests : IDisposable
 
         // StringComparison.Ordinal — должно быть точное совпадение регистра
         Assert.False(sut.ValidateBotApiKey("casesensitive"));
+    }
+
+    [Fact]
+    public async Task ConfirmEmailAsync_InvalidVerificationProof_DoesNotActivateAccount()
+    {
+        var user = CreateUser(UserRole.Parent, isEmailVerified: false);
+        await using (var db = new AppDbContext(_dbOptions))
+        {
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+
+        _verificationService
+            .Setup(service => service.IsEmailVerified(
+                user.EmailForLogin!,
+                "invalid-proof",
+                VerificationPurpose.Registration))
+            .Returns(false);
+
+        var result = await CreateSut().ConfirmEmailAsync(
+            user.EmailForLogin!,
+            "invalid-proof");
+
+        Assert.False(result.Success);
+        Assert.Equal("invalid_verification_proof", result.ErrorCode);
+
+        await using var verificationDb = new AppDbContext(_dbOptions);
+        var persisted = await verificationDb.Users.SingleAsync(candidate => candidate.UserId == user.UserId);
+        Assert.False(persisted.IsEmailVerified);
     }
 
     // ───────────────────────────────────────────────────────────────────

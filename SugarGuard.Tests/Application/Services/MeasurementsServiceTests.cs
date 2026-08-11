@@ -159,18 +159,13 @@ public class MeasurementsServiceTests : IDisposable
         var saved = await verifyDb.Measurements.FindAsync(result.MeasurementId);
         Assert.NotNull(saved);
 
-        // C-3: AuditLog details НЕ должен содержать Notes/ChildState.
-        // Не проверяем формат Glucose= (decimal.ToString() использует CurrentCulture
-        // и в ru-RU даёт "5,5" вместо "5.5") — нам важна только семантика защиты PHI.
+        // The audit trail records provenance but never exact glucose, child ID,
+        // notes or state: those fields are PHI and belong in the protected data store.
         _audit.Verify(a => a.WriteAsync(
             "measurement.created",
             "Measurement",
             result.MeasurementId.ToString(),
-            It.Is<string>(s => s != null
-                            && s.Contains($"Child={c.ChildId}")
-                            && s.Contains("Glucose=")
-                            && !s.Contains("SECRET_NOTE")
-                            && !s.Contains("before_meal")),
+            It.Is<string>(s => s == "Source=manual"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

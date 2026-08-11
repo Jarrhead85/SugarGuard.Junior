@@ -63,10 +63,24 @@ public sealed class MauiEncryptionService : ICryptoService
         if (string.IsNullOrEmpty(encryptedBase64))
             return Task.FromResult(encryptedBase64);
 
-        // Уже-расшифрованный plaintext (idempotency для legacy-кода).
+        // Before version prefixes were introduced, encrypted values were stored
+        // as Base64(iv || CBC ciphertext). Treating an unprefixed value as
+        // plaintext bypasses authentication and also breaks the re-encryption
+        // job, so legacy values must be decrypted explicitly and fail closed.
         if (!HasVersionPrefix(encryptedBase64))
         {
-            return Task.FromResult(encryptedBase64);
+            try
+            {
+                var plain = _encryptionService.Decrypt(
+                    encryptedBase64,
+                    EncryptionVersion.LegacyCbc);
+                return Task.FromResult(plain);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Legacy ciphertext decryption failed.");
+                throw;
+            }
         }
 
         try

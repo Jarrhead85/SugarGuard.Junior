@@ -397,7 +397,7 @@ public class AuthenticationService(
     {
         try
         {
-            logger.LogInformation("Регистрация: {Email}", email);
+            logger.LogInformation("Начата регистрация пользователя.");
 
             if (string.IsNullOrWhiteSpace(firstName))
                 throw new ArgumentException("Имя не может быть пустым", nameof(firstName));
@@ -428,7 +428,7 @@ public class AuthenticationService(
             if (!registrationResponse.Success)
                 throw new InvalidOperationException(registrationResponse.Message ?? "Ошибка регистрации");
 
-            logger.LogInformation("Регистрация успешна: {Email}", email);
+            logger.LogInformation("Регистрация пользователя успешно завершена.");
 
             var userId = registrationResponse.UserId
                 ?? throw new InvalidOperationException("UserId не может быть null");
@@ -506,7 +506,7 @@ public class AuthenticationService(
     {
         try
         {
-            logger.LogInformation("Вход в аккаунт: {Email}", email);
+            logger.LogInformation("Начат вход в аккаунт.");
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
@@ -537,7 +537,7 @@ public class AuthenticationService(
             await storageService.SaveAsync(EmailVerifiedKey, "true");
             await MarkSessionVerifiedAsync();
 
-            logger.LogInformation("Вход успешен: {Email} UserId={UserId}", email, userId);
+            logger.LogInformation("Вход успешно завершён. UserId={UserId}", userId);
             return true;
         }
         catch (HttpRequestException ex)
@@ -745,7 +745,7 @@ public class AuthenticationService(
     {
         try
         {
-            logger.LogInformation("Подтверждение email для {Email}", email);
+            logger.LogInformation("Начато подтверждение email.");
 
             var normalizedEmail = email.Trim().ToLowerInvariant();
             var response = await apiClient.VerifyEmailAsync(normalizedEmail, verificationCode);
@@ -801,12 +801,12 @@ public class AuthenticationService(
     {
         try
         {
-            logger.LogInformation("Отправка кода подтверждения на {Email}", email);
+            logger.LogInformation("Отправка кода подтверждения email.");
 
             var result = await apiClient.SendEmailVerificationCodeAsync(email);
 
             if (result)
-                logger.LogInformation("Код подтверждения отправлен на {Email}", email);
+                logger.LogInformation("Код подтверждения email отправлен.");
             else
                 logger.LogWarning("Ошибка отправки кода");
 

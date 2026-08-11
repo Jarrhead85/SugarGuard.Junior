@@ -49,6 +49,31 @@
                 </VerticalStackLayout>
             </Border>
 
+            <Border Style="{StaticResource Card}"
+                    Padding="14"
+                    Stroke="{DynamicResource Warning}"
+                    IsVisible="{Binding HasPendingReading}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Проверьте новое показание" Style="{StaticResource SectionHeadingText}" />
+                    <Label Text="Источник — другое приложение Android. Сверьте значение с экраном датчика, прежде чем оно попадёт в рекомендации и SOS."
+                           Style="{StaticResource BodyTextMuted}"
+                           FontSize="12" />
+                    <Label Text="{Binding PendingReadingText}"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Подтвердить"
+                                Command="{Binding ConfirmPendingReadingCommand}"
+                                Style="{StaticResource PrimaryButton}" />
+                        <Button Grid.Column="1"
+                                Text="Отклонить"
+                                Command="{Binding RejectPendingReadingCommand}"
+                                Style="{StaticResource SoftButton}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
             <Border Style="{StaticResource Card}" Padding="12">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                     <VerticalStackLayout Spacing="2">

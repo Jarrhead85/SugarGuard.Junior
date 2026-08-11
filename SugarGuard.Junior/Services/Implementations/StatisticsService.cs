@@ -179,7 +179,7 @@ public class StatisticsService : IStatisticsService
                 }
                 else
                 {
-                    _logger.LogWarning("Значение глюкозы вне диапазона: {GlucoseValue}", glucoseValue);
+                    _logger.LogWarning("Обнаружено значение глюкозы вне допустимого диапазона.");
                 }
             }
             else

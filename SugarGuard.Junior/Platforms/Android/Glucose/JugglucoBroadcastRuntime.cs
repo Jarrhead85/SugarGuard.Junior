@@ -34,7 +34,7 @@ public static class JugglucoBroadcastRuntime
         var ingestionService = services.GetRequiredService<ISensorGlucoseIngestionService>();
         var result = await ingestionService.IngestAsync(reading);
 
-        if (!result.IsSaved && !result.IsDuplicate)
+        if (!result.IsSaved && !result.IsDuplicate && !result.RequiresConfirmation)
         {
             logger.LogWarning("Показание Juggluco не сохранено: {Error}", result.ErrorMessage);
         }

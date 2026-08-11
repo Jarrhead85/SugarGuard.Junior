@@ -116,6 +116,7 @@ public sealed class AuthController : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("auth-login")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register(
@@ -142,10 +143,14 @@ public sealed class AuthController : ControllerBase
         {
             if (result.ErrorCode == "email_already_registered")
             {
-                return Conflict(new
+                // Keep the public response indistinguishable from a registration
+                // that requires mailbox access. This prevents account discovery;
+                // the owner can continue through login/password recovery.
+                return Accepted(new
                 {
-                    error = result.ErrorCode,
-                    message = result.ErrorMessage
+                    success = true,
+                    message = "If this address can be registered, verification instructions will be sent.",
+                    requiresEmailVerification = true
                 });
             }
 
@@ -181,7 +186,7 @@ public sealed class AuthController : ControllerBase
                 });
             }
 
-            if (IsDemoEmailBypassEnabled())
+            if (!result.IsExistingUnverified && IsDemoEmailBypassEnabled())
             {
                 await _auth.ConfirmEmailAsync(
                     request.Email,
@@ -410,6 +415,17 @@ public sealed class AuthController : ControllerBase
 
         var newPlainRefreshToken = await _refreshTokenService.RotateAsync(
             existingToken, userId, ip, userAgent, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(newPlainRefreshToken))
+        {
+            await _auth.WriteRefreshFailedAuditAsync(
+                userId, "concurrent_refresh_rejected", cancellationToken);
+            return Unauthorized(new
+            {
+                error = "refresh_token_already_used",
+                message = "Refresh token has already been rotated."
+            });
+        }
 
         // Выпускаем новый access-токен
         var newAccessToken = _jwtTokenService.GenerateToken(user);

@@ -309,9 +309,7 @@ public sealed class SupportConversationService : ISupportConversationService
         if (attachment is not null)
         {
             _logger.LogInformation(
-                "Получено вложение обращения в поддержку. FileName={FileName} ContentType={ContentType} Length={Length}",
-                attachment.FileName,
-                attachment.ContentType,
+                "Получено вложение обращения в поддержку. Length={Length}",
                 attachment.Length);
 
             if (attachment.Length == 0)
@@ -328,14 +326,20 @@ public sealed class SupportConversationService : ISupportConversationService
             await using var stream = attachment.OpenReadStream();
             using var memory = new MemoryStream();
             await stream.CopyToAsync(memory, cancellationToken);
+            var content = memory.ToArray();
+            var format = DetectSupportImageFormat(content);
+            if (format is null)
+            {
+                throw new ArgumentException("К обращению можно приложить только изображение JPEG, PNG или WebP.");
+            }
+
             attachments.Add(new EmailAttachment(
-                Path.GetFileName(attachment.FileName),
-                string.IsNullOrWhiteSpace(attachment.ContentType) ? "application/octet-stream" : attachment.ContentType,
-                memory.ToArray()));
+                $"screenshot{format.Value.Extension}",
+                format.Value.ContentType,
+                content));
 
             _logger.LogInformation(
-                "Вложение обращения подготовлено к отправке. FileName={FileName} Length={Length}",
-                attachments[^1].FileName,
+                "Вложение обращения проверено и подготовлено. Length={Length}",
                 attachments[^1].Content.Length);
         }
 
@@ -354,6 +358,28 @@ public sealed class SupportConversationService : ISupportConversationService
         }
 
         return attachments;
+    }
+
+    private static (string Extension, string ContentType)? DetectSupportImageFormat(ReadOnlySpan<byte> content)
+    {
+        if (content.Length >= 8 &&
+            content[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+        {
+            return (".png", "image/png");
+        }
+
+        if (content.Length >= 3 && content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF)
+        {
+            return (".jpg", "image/jpeg");
+        }
+
+        if (content.Length >= 12 && content[..4].SequenceEqual("RIFF"u8) &&
+            content.Slice(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return (".webp", "image/webp");
+        }
+
+        return null;
     }
 
     private async Task SendSupportEmailAsync(

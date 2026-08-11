@@ -75,6 +75,7 @@ namespace SugarGuard.API.Data
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            IncrementSecurityVersions();
             var recipients = GetRecipientsWithNewNotifications();
             var result = base.SaveChanges(acceptAllChangesOnSuccess);
             TrimExcessNotifications(recipients);
@@ -85,6 +86,7 @@ namespace SugarGuard.API.Data
             bool acceptAllChangesOnSuccess,
             CancellationToken cancellationToken = default)
         {
+            IncrementSecurityVersions();
             var recipients = GetRecipientsWithNewNotifications();
             var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
             await TrimExcessNotificationsAsync(recipients, cancellationToken);
@@ -97,6 +99,20 @@ namespace SugarGuard.API.Data
             .Select(entry => entry.Entity.RecipientUserId)
             .Where(userId => userId != Guid.Empty)
             .ToHashSet();
+
+        private void IncrementSecurityVersions()
+        {
+            foreach (var entry in ChangeTracker.Entries<User>().Where(entry => entry.State == EntityState.Modified))
+            {
+                if (entry.Property(user => user.PasswordHash).IsModified
+                    || entry.Property(user => user.PasswordSalt).IsModified
+                    || entry.Property(user => user.Role).IsModified
+                    || entry.Property(user => user.IsActive).IsModified)
+                {
+                    entry.Entity.SecurityVersion++;
+                }
+            }
+        }
 
         private void TrimExcessNotifications(IReadOnlySet<Guid> recipientUserIds)
         {
@@ -150,7 +166,7 @@ namespace SugarGuard.API.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.TelegramId)
                 .IsUnique()
-                .HasFilter("\"telegramid\" IS NOT NULL");
+                .HasFilter("telegram_id IS NOT NULL");
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.MaxUserId)
@@ -160,8 +176,8 @@ namespace SugarGuard.API.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.EmailForLogin)
                 .IsUnique()
-                .HasFilter("\"emailforlogin\" IS NOT NULL")
-                .HasDatabaseName("ix_users_emailforlogin");
+                .HasFilter("email_for_login IS NOT NULL")
+                .HasDatabaseName("ix_users_email_for_login");
 
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
@@ -176,6 +192,11 @@ namespace SugarGuard.API.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.DailySummaryEnabled)
                 .HasDefaultValue(true);
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.SecurityVersion)
+                .HasDefaultValue(0L)
+                .IsConcurrencyToken();
 
             modelBuilder.Entity<DoctorVerificationRequest>(entity =>
             {
@@ -716,6 +737,10 @@ namespace SugarGuard.API.Data
 
                 entity.Property(t => t.CreatedByUserAgent)
                     .HasMaxLength(256);
+
+                entity.Property(t => t.ConcurrencyVersion)
+                    .IsConcurrencyToken()
+                    .HasDefaultValue(0L);
 
                 entity.Property(t => t.CreatedAt)
                     .HasDefaultValueSql("NOW()");

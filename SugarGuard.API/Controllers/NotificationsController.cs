@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.API.Services;
@@ -73,6 +74,8 @@ public class NotificationsController : ControllerBase
     /// Отправить критическое уведомление с геолокацией
     /// </summary>
     [HttpPost("critical-alert")]
+    [Authorize(Policy = "ChildSafetyEvent")]
+    [EnableRateLimiting("safety-events")]
     public async Task<ActionResult<NotificationResponse>> SendCriticalAlert(
         [FromBody] CriticalAlertRequest request,
         CancellationToken cancellationToken)
@@ -89,8 +92,7 @@ public class NotificationsController : ControllerBase
                 return BadRequest(new { error = "validation_error", details = errors });
             }
 
-            _logger.LogWarning("Получен запрос на критическое уведомление для {ChildId}: {CriticalGlucose} ммоль/л", 
-                request.ChildId, request.CriticalGlucose);
+            _logger.LogWarning("Critical safety event received.");
 
             if (!Guid.TryParse(request.ChildId, out var criticalChildId) || !await _childAccess.CanAccessChildAsync(criticalChildId))
             {
@@ -142,7 +144,7 @@ public class NotificationsController : ControllerBase
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось отправить критическое уведомление."
             });
         }
     }
@@ -151,6 +153,8 @@ public class NotificationsController : ControllerBase
     /// Отправить уведомление об измерении глюкозы
     /// </summary>
     [HttpPost("measurement")]
+    [Authorize(Policy = "ChildSafetyEvent")]
+    [EnableRateLimiting("safety-events")]
     public async Task<ActionResult<NotificationResponse>> SendMeasurementNotification([FromBody] MeasurementNotificationRequest request)
     {
         try
@@ -164,8 +168,7 @@ public class NotificationsController : ControllerBase
                 return BadRequest(new { error = "validation_error", details = errors });
             }
 
-            _logger.LogInformation("Получен запрос на уведомление об измерении для {ChildId}: {GlucoseValue} ммоль/л", 
-                request.ChildId, request.GlucoseValue);
+            _logger.LogInformation("Measurement notification request received.");
 
             if (!Guid.TryParse(request.ChildId, out var measurementChildId) || !await _childAccess.CanAccessChildAsync(measurementChildId))
             {
@@ -197,7 +200,7 @@ public class NotificationsController : ControllerBase
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось отправить уведомление об измерении."
             });
         }
     }
@@ -230,6 +233,8 @@ public class NotificationsController : ControllerBase
     /// Отправить уведомление о съеденном перекусе
     /// </summary>
     [HttpPost("snack-consumed")]
+    [Authorize(Policy = "ChildSafetyEvent")]
+    [EnableRateLimiting("safety-events")]
     public async Task<ActionResult<NotificationResponse>> SendSnackConsumedNotification([FromBody] SnackConsumedNotificationRequest request)
     {
         try
@@ -243,8 +248,7 @@ public class NotificationsController : ControllerBase
                 return BadRequest(new { error = "validation_error", details = errors });
             }
 
-            _logger.LogInformation("Получен запрос на уведомление о перекусе для {ChildId}: {SnackName}", 
-                request.ChildId, request.SnackName);
+            _logger.LogInformation("Snack notification request received.");
 
             if (!Guid.TryParse(request.ChildId, out var snackChildId) || !await _childAccess.CanAccessChildAsync(snackChildId))
             {
@@ -270,7 +274,7 @@ public class NotificationsController : ControllerBase
             {
                 Success = false,
                 ParentsNotified = 0,
-                ErrorMessage = ex.Message
+                ErrorMessage = "Не удалось отправить уведомление о перекусе."
             });
         }
     }

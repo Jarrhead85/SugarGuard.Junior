@@ -77,34 +77,34 @@ public partial class LoginPageViewModel : ObservableObject
 
             if (success)
             {
-                _logger.LogInformation("Вход выполнен успешно для {Email}", Email);
+                _logger.LogInformation("Вход выполнен успешно.");
                 await NavigateAfterLoginAsync();
             }
             else
             {
                 ErrorMessage = "Неверный email или пароль";
-                _logger.LogWarning("Неверные учётные данные для {Email}", Email);
+                _logger.LogWarning("Неверные учётные данные.");
             }
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             ErrorMessage = "Неверный email или пароль";
-            _logger.LogWarning("401 при входе для {Email}", Email);
+            _logger.LogWarning("Сервер отклонил учётные данные при входе.");
         }
         catch (HttpRequestException ex)
         {
             ErrorMessage = "Не удалось подключиться к сервису. Проверьте интернет и попробуйте снова.";
-            _logger.LogWarning(ex, "Сервис недоступен при входе для {Email}", Email);
+            _logger.LogWarning(ex, "Сервис недоступен при входе.");
         }
         catch (TaskCanceledException ex)
         {
             ErrorMessage = "Сервис не ответил вовремя. Проверьте интернет и попробуйте снова.";
-            _logger.LogWarning(ex, "Истёк таймаут при входе для {Email}", Email);
+            _logger.LogWarning(ex, "Истёк таймаут при входе.");
         }
         catch (Exception ex)
         {
             ErrorMessage = "Ошибка подключения. Проверьте интернет.";
-            _logger.LogError(ex, "Ошибка при входе для {Email}", Email);
+            _logger.LogError(ex, "Ошибка при входе.");
         }
         finally
         {
@@ -135,7 +135,7 @@ public partial class LoginPageViewModel : ObservableObject
             return;
         }
 
-        _logger.LogInformation("Восстановлена сохранённая офлайн-сессия для {Email}", savedEmail ?? "текущего пользователя");
+        _logger.LogInformation("Восстановлена сохранённая офлайн-сессия.");
         await NavigateAfterLoginAsync(preferLocalSession: true);
     }
 

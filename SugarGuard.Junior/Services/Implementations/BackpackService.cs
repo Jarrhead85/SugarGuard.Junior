@@ -63,7 +63,7 @@ public class BackpackService : IBackpackService
     {
         try
         {
-            _logger.LogInformation(" Добавление перекуса: {SnackName} ({BreadUnits} ХЕ)", snackName, breadUnits);
+            _logger.LogInformation("Добавление перекуса.");
 
             if (string.IsNullOrWhiteSpace(snackName))
             {
@@ -106,7 +106,7 @@ public class BackpackService : IBackpackService
                     item.BackpackItemId);
             }
 
-            _logger.LogInformation(" Перекус добавлен: {SnackName}", snackName);
+            _logger.LogInformation("Перекус успешно добавлен.");
             return item;
         }
         catch (Exception ex)

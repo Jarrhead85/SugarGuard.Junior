@@ -52,7 +52,7 @@ public class AIRecommendationService : IAIRecommendationService
     {
         try
         {
-            _logger.LogInformation(" Получение рекомендации: глюкоза={Glucose}, состояние={State}", currentGlucose, childState);
+            _logger.LogInformation("Получение рекомендации. ChildState={State}", childState);
 
             var currentStatus = GlucoseClassifier.Classify(currentGlucose);
             var canUseCache = currentStatus == Models.Enums.GlucoseStatus.Normal;

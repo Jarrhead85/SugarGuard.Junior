@@ -41,8 +41,7 @@ public class RecommendationCacheService : IRecommendationCacheService
     {
         try
         {
-            _logger.LogInformation("Добавление рекомендации в кэш: ребёнок {ChildId}, глюкоза {Glucose}", 
-                childId, glucoseValue);
+            _logger.LogInformation("Добавление рекомендации в кэш. ChildId={ChildId}", childId);
 
             var cachedItem = new CachedRecommendation
             {
@@ -99,8 +98,7 @@ public class RecommendationCacheService : IRecommendationCacheService
     {
         try
         {
-            _logger.LogInformation("Поиск рекомендации в кэше: ребёнок {ChildId}, глюкоза {Glucose}", 
-                childId, glucoseValue);
+            _logger.LogInformation("Поиск рекомендации в кэше. ChildId={ChildId}", childId);
 
             lock (_cacheLock)
             {

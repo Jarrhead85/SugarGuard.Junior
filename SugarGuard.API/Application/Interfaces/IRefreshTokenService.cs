@@ -27,7 +27,7 @@ public interface IRefreshTokenService
     /// <summary>
     /// Ротирует refresh-токен
     /// </summary>
-    Task<string> RotateAsync(
+    Task<string?> RotateAsync(
         RefreshToken existingToken,
         string userId,
         string? createdByIp,

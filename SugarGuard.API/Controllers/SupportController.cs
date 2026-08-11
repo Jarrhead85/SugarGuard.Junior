@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.DTOs;
 using SugarGuard.Domain.Enums;
@@ -24,6 +25,7 @@ public sealed class SupportController : ControllerBase
         Ok(await _service.GetConversationAsync(conversationId, cancellationToken));
 
     [HttpPost("conversations")]
+    [EnableRateLimiting("support-write")]
     public async Task<ActionResult<SupportConversationDetailsDto>> CreateConversation(
         [FromBody] CreateSupportConversationRequest request,
         CancellationToken cancellationToken)
@@ -34,6 +36,7 @@ public sealed class SupportController : ControllerBase
 
     [RequestSizeLimit(6 * 1024 * 1024)]
     [HttpPost("requests")]
+    [EnableRateLimiting("support-write")]
     public async Task<ActionResult<SupportConversationDetailsDto>> CreateEmailRequest(
         [FromForm] CreateSupportEmailRequest request,
         CancellationToken cancellationToken)
@@ -55,6 +58,7 @@ public sealed class SupportController : ControllerBase
     }
 
     [HttpPost("conversations/{conversationId:guid}/messages")]
+    [EnableRateLimiting("support-write")]
     public async Task<ActionResult<SupportMessageDto>> AddMessage(
         Guid conversationId,
         [FromBody] AddSupportMessageRequest request,

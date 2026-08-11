@@ -79,8 +79,7 @@ public sealed class OnboardingController : ControllerBase
                                or UserRole.ChildDevice
                                or UserRole.Patient
                                or UserRole.Admin
-                               or UserRole.SupportAdmin
-                               or UserRole.ServiceAccount))
+                               or UserRole.SupportAdmin))
         {
             _logger.LogWarning(
                 "CreateChildOnboarding: попытка создания ребёнка запрещённой ролью. " +

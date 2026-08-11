@@ -25,6 +25,7 @@ public interface ISyncLogService
     Task<(SyncLog? Log, ResolveOneStatus Status)> ResolveAsync(
         Guid id,
         string resolution,
+        IReadOnlyCollection<Guid> accessibleChildIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>

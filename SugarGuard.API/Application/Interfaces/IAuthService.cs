@@ -116,7 +116,8 @@ public sealed record AuthRegistrationResult(
     User? User,
     bool Success,
     string? ErrorCode,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    bool IsExistingUnverified = false);
 
 public sealed record AuthEmailVerificationResult(
     User? User,

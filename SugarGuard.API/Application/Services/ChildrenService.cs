@@ -27,12 +27,12 @@ public sealed class ChildrenService : IChildrenService
     /// </summary>
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png", ".webp", ".gif"
+        ".jpg", ".jpeg", ".png", ".webp"
     };
 
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "image/jpeg", "image/png", "image/webp", "image/gif"
+        "image/jpeg", "image/png", "image/webp"
     };
 
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
@@ -61,7 +61,7 @@ public sealed class ChildrenService : IChildrenService
 
         IQueryable<Child> query = db.Children.AsNoTracking();
 
-        if (role is UserRole.Admin or UserRole.SupportAdmin or UserRole.ServiceAccount)
+        if (role is UserRole.Admin or UserRole.SupportAdmin)
         {
             // без фильтра — админ видит всех
         }
@@ -205,9 +205,8 @@ public sealed class ChildrenService : IChildrenService
             TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
                 ? "UTC"
                 : request.TimeZoneId.Trim(),
-            PhotoUrl = string.IsNullOrWhiteSpace(request.PhotoUrl)
-                ? null
-                : request.PhotoUrl.Trim(),
+            // PhotoUrl is server-owned. Clients must use the dedicated upload endpoint.
+            PhotoUrl = null,
             CreatedAt = now,
             UpdatedAt = now,
             SetupCompleted = role is UserRole.ChildDevice or UserRole.Patient,
@@ -270,9 +269,6 @@ public sealed class ChildrenService : IChildrenService
         child.TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
             ? child.TimeZoneId
             : request.TimeZoneId.Trim();
-        child.PhotoUrl = string.IsNullOrWhiteSpace(request.PhotoUrl)
-            ? child.PhotoUrl
-            : request.PhotoUrl.Trim();
         child.UpdatedAt = updatedAt;
     }
 
@@ -301,9 +297,6 @@ public sealed class ChildrenService : IChildrenService
         child.TimeZoneId = string.IsNullOrWhiteSpace(request.TimeZoneId)
             ? child.TimeZoneId
             : request.TimeZoneId.Trim();
-        child.PhotoUrl = string.IsNullOrWhiteSpace(request.PhotoUrl)
-            ? child.PhotoUrl
-            : request.PhotoUrl.Trim();
         child.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -360,11 +353,24 @@ public sealed class ChildrenService : IChildrenService
         var extension = Path.GetExtension(file.FileName);
         if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
             throw new InvalidOperationException(
-                "Недопустимый формат файла. Разрешены: jpg, jpeg, png, webp, gif.");
+                "Недопустимый формат файла. Разрешены: jpg, jpeg, png, webp.");
 
         if (!string.IsNullOrEmpty(file.ContentType) && !AllowedContentTypes.Contains(file.ContentType))
             throw new InvalidOperationException(
                 $"Недопустимый Content-Type: {file.ContentType}.");
+
+        await using var source = file.OpenReadStream();
+        await using var bufferedImage = new MemoryStream((int)file.Length);
+        await source.CopyToAsync(bufferedImage, cancellationToken);
+
+        var detected = DetectImageFormat(bufferedImage.GetBuffer().AsSpan(0, (int)bufferedImage.Length));
+        if (detected is null
+            || !IsExtensionCompatible(extension, detected.Value.Extension)
+            || (!string.IsNullOrEmpty(file.ContentType)
+                && !string.Equals(file.ContentType, detected.Value.ContentType, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Содержимое файла не соответствует поддерживаемому формату изображения.");
+        }
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
 
@@ -375,7 +381,7 @@ public sealed class ChildrenService : IChildrenService
             return null;
 
         // Генерируем уникальный относительный путь: uploads/children/{childId}/{guid}.{ext}
-        var uniqueFileName = $"{Guid.NewGuid()}{extension.ToLowerInvariant()}";
+        var uniqueFileName = $"{Guid.NewGuid()}{detected.Value.Extension}";
         var childDir = Path.Combine(uploadRoot, "uploads", "children", childId.ToString());
         var absolutePath = Path.Combine(childDir, uniqueFileName);
         var relativeUrl = $"/uploads/children/{childId}/{uniqueFileName}";
@@ -383,18 +389,30 @@ public sealed class ChildrenService : IChildrenService
         Directory.CreateDirectory(childDir);
 
         // Удаляем старый файл, если он указывает на локальный путь
-        TryDeleteLocalFile(child.PhotoUrl, uploadRoot);
+        TryDeleteLocalFile(child.PhotoUrl, uploadRoot, childId);
 
         // Сохраняем новый файл атомарно: пишем во временный .tmp, затем File.Move.
         var tempPath = absolutePath + ".tmp";
-        await using (var stream = new FileStream(
-            tempPath, FileMode.Create, FileAccess.Write, FileShare.None,
-            bufferSize: 81920, useAsync: true))
+        try
         {
-            await file.CopyToAsync(stream, cancellationToken);
-        }
+            bufferedImage.Position = 0;
+            await using (var stream = new FileStream(
+                tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                bufferSize: 81920, useAsync: true))
+            {
+                await bufferedImage.CopyToAsync(stream, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
 
-        File.Move(tempPath, absolutePath, overwrite: true);
+            File.Move(tempPath, absolutePath);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
 
         child.PhotoUrl = relativeUrl;
         child.UpdatedAt = DateTime.UtcNow;
@@ -424,7 +442,7 @@ public sealed class ChildrenService : IChildrenService
         if (child is null || string.IsNullOrEmpty(child.PhotoUrl))
             return false;
 
-        TryDeleteLocalFile(child.PhotoUrl, uploadRoot);
+        TryDeleteLocalFile(child.PhotoUrl, uploadRoot, childId);
 
         child.PhotoUrl = null;
         child.UpdatedAt = DateTime.UtcNow;
@@ -442,23 +460,36 @@ public sealed class ChildrenService : IChildrenService
     /// <summary>
     /// Удаляет локальный файл
     /// </summary>
-    private static void TryDeleteLocalFile(string? photoUrl, string uploadRoot)
+    private static void TryDeleteLocalFile(string? photoUrl, string uploadRoot, Guid childId)
     {
         if (string.IsNullOrWhiteSpace(photoUrl))
             return;
 
-        // Только локальные относительные пути
-        if (photoUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            photoUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        var expectedPrefix = $"/uploads/children/{childId:D}/";
+        if (!photoUrl.StartsWith(expectedPrefix, StringComparison.Ordinal)
+            || photoUrl.Length <= expectedPrefix.Length)
+        {
+            return;
+        }
+
+        var fileName = photoUrl[expectedPrefix.Length..];
+        if (fileName.Contains('/') || fileName.Contains('\\'))
             return;
 
-        var trimmed = photoUrl.TrimStart('/');
-        var absolute = Path.Combine(uploadRoot, trimmed);
+        var extension = Path.GetExtension(fileName);
+        if (!Guid.TryParse(Path.GetFileNameWithoutExtension(fileName), out _)
+            || !AllowedExtensions.Contains(extension))
+        {
+            return;
+        }
 
-        // Защита от path traversal: итоговый путь должен оставаться внутри uploadRoot.
-        var fullRoot = Path.GetFullPath(uploadRoot);
-        var fullFile = Path.GetFullPath(absolute);
-        if (!fullFile.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+        var childDirectory = Path.GetFullPath(
+            Path.Combine(uploadRoot, "uploads", "children", childId.ToString("D")));
+        var fullFile = Path.GetFullPath(Path.Combine(childDirectory, fileName));
+        var childDirectoryPrefix = childDirectory.TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullFile.StartsWith(childDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
             return;
 
         try
@@ -466,11 +497,43 @@ public sealed class ChildrenService : IChildrenService
             if (File.Exists(fullFile))
                 File.Delete(fullFile);
         }
-        catch
+        catch (IOException)
         {
-
+            // A failed cleanup must not make the profile operation unavailable.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Permissions are reported by infrastructure monitoring; do not leak paths.
         }
     }
+
+    private static (string Extension, string ContentType)? DetectImageFormat(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length >= 8
+            && bytes[..8].SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }))
+        {
+            return (".png", "image/png");
+        }
+
+        if (bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            return (".jpg", "image/jpeg");
+        }
+
+        if (bytes.Length >= 12
+            && bytes[..4].SequenceEqual("RIFF"u8)
+            && bytes.Slice(8, 4).SequenceEqual("WEBP"u8))
+        {
+            return (".webp", "image/webp");
+        }
+
+        return null;
+    }
+
+    private static bool IsExtensionCompatible(string suppliedExtension, string detectedExtension) =>
+        string.Equals(suppliedExtension, detectedExtension, StringComparison.OrdinalIgnoreCase)
+        || (string.Equals(detectedExtension, ".jpg", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(suppliedExtension, ".jpeg", StringComparison.OrdinalIgnoreCase));
 
     private static ChildResponse MapToResponse(Child child) => new()
     {

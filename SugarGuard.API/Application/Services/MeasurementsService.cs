@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SugarGuard.API.Application.Exceptions;
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Data;
 using SugarGuard.API.DTOs;
@@ -65,10 +66,20 @@ public class MeasurementsService : IMeasurementsService
         {
             var existing = await db.Measurements
                 .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.MeasurementId == request.MeasurementId.Value, cancellationToken);
+                .FirstOrDefaultAsync(
+                    m => m.MeasurementId == request.MeasurementId.Value
+                         && m.ChildId == request.ChildId,
+                    cancellationToken);
             if (existing is not null)
             {
                 return existing;
+            }
+
+            if (await db.Measurements
+                    .AsNoTracking()
+                    .AnyAsync(m => m.MeasurementId == request.MeasurementId.Value, cancellationToken))
+            {
+                throw new MeasurementIdConflictException();
             }
         }
 
@@ -86,7 +97,8 @@ public class MeasurementsService : IMeasurementsService
         var recommendation = await db.AIRecommendations
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                item => item.MeasurementId == measurement.MeasurementId,
+                item => item.MeasurementId == measurement.MeasurementId
+                        && item.ChildId == measurement.ChildId,
                 cancellationToken);
 
         if (recommendation is not null)
@@ -114,7 +126,7 @@ public class MeasurementsService : IMeasurementsService
             action: "measurement.created",
             targetType: "Measurement",
             targetId: measurement.MeasurementId.ToString(),
-            details: $"Child={measurement.ChildId};Glucose={measurement.GlucoseValue}",
+            details: $"Source={measurement.DataSource}",
             cancellationToken: CancellationToken.None);
 
         return measurement;

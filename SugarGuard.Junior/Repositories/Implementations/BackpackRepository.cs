@@ -82,7 +82,7 @@ public class BackpackRepository : BaseRepository<BackpackItem>, IBackpackReposit
             await ctx.Set<BackpackItem>().AddAsync(item);
             await ctx.SaveChangesAsync();
 
-            Logger.LogInformation(" Перекус добавлен: {SnackName} ({BreadUnits} ХЕ)", snackName, breadUnits);
+            Logger.LogInformation("Перекус добавлен в локальный репозиторий.");
             return item;
         }
         catch (Exception ex)

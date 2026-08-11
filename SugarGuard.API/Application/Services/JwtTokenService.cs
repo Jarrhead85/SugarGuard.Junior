@@ -29,6 +29,7 @@ public class JwtTokenService : IJwtTokenService
         {
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new Claim("UserId", user.UserId.ToString()),
+            new Claim("sv", user.SecurityVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         };
         if (user.TelegramId.HasValue)
             claims.Add(new Claim("TelegramId", user.TelegramId.Value.ToString()));

@@ -131,7 +131,7 @@ public sealed class RefreshTokenService : IRefreshTokenService
 
     // Ротация
     /// <inheritdoc/>
-    public async Task<string> RotateAsync(
+    public async Task<string?> RotateAsync(
         RefreshToken existingToken,
         string userId,
         string? createdByIp,
@@ -159,9 +159,27 @@ public sealed class RefreshTokenService : IRefreshTokenService
         existingToken.RevokedAt = DateTime.UtcNow;
         existingToken.RevokedReason = "rotation";
         existingToken.ReplacedByToken = newTokenHash;
+        existingToken.ConcurrencyVersion++;
 
         _context.RefreshTokens.Add(newEntity);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            // ConcurrencyVersion входит в WHERE обновления. При двух запросах
+            // только первый обновит старую строку; вставка нового токена во
+            // втором запросе будет откатана той же транзакцией SaveChanges.
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            _context.Entry(newEntity).State = EntityState.Detached;
+            _context.Entry(existingToken).State = EntityState.Detached;
+            _logger.LogWarning(
+                exception,
+                "Параллельная ротация refresh-токена отклонена. UserId={UserId} TokenId={TokenId}",
+                userId,
+                existingToken.Id);
+            return null;
+        }
 
         _logger.LogInformation(
             "Ротация refresh-токена. UserId={UserId} ExpiresAt={ExpiresAt}",

@@ -27,6 +27,12 @@ public sealed class RefreshToken
 
     public string? CreatedByUserAgent { get; set; } // User-Agent клиента в момент создания токена
 
+    /// <summary>
+    /// Оптимистическая версия строки. Не позволяет двум параллельным запросам
+    /// успешно ротировать один и тот же refresh-токен.
+    /// </summary>
+    public long ConcurrencyVersion { get; set; }
+
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt; // Токен истёк по времени
 
     public bool IsActive => !IsRevoked && !IsExpired; // Токен активен

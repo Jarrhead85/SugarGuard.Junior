@@ -524,7 +524,7 @@ public partial class BackpackPageViewModel : ObservableObject
         try
         {
             var decryptedName = await _backpackRepository.GetDecryptedSnackNameAsync(item);
-            _logger.LogInformation("Перекус добавлен через диалог: {SnackName}", decryptedName);
+            _logger.LogInformation("Перекус добавлен через диалог.");
 
             // Отписываемся сразу после первого срабатывания
             if (sender is AddSnackDialogViewModel viewModel)

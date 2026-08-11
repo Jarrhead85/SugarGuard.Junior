@@ -136,7 +136,8 @@ public class RecommendationService : IRecommendationService
         {
             persistedMeasurementId = await db.Measurements
                 .AsNoTracking()
-                .Where(measurement => measurement.MeasurementId == measurementId.Value)
+                .Where(measurement => measurement.MeasurementId == measurementId.Value
+                                      && measurement.ChildId == childId)
                 .Select(measurement => (Guid?)measurement.MeasurementId)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -159,7 +160,10 @@ public class RecommendationService : IRecommendationService
         if (persistedMeasurementId.HasValue)
         {
             var measurement = await db.Measurements
-                .FirstOrDefaultAsync(m => m.MeasurementId == persistedMeasurementId.Value, cancellationToken);
+                .FirstOrDefaultAsync(
+                    m => m.MeasurementId == persistedMeasurementId.Value
+                         && m.ChildId == childId,
+                    cancellationToken);
 
             if (measurement is not null)
             {

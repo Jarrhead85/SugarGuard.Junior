@@ -35,13 +35,5 @@ public sealed class CsvExportService : ICsvExportService
     /// Экранирует значение ячейки CSV
     /// </summary>
     private static string EscapeCsv(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-
-        if (!value.Contains(',') && !value.Contains('"') && !value.Contains('\n'))
-            return value;
-
-        return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
-    }
+        => CsvCellEncoder.Encode(value);
 }

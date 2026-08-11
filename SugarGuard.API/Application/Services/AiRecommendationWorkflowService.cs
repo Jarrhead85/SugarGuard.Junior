@@ -74,7 +74,12 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
             ? $"Подскажи безопасное действие при глюкозе {request.GlucoseValue:F1} ммоль/л."
             : request.Question.Trim();
 
-        await SaveUserMessageAsync(conversation.ConversationId, request.MeasurementId, question, cancellationToken);
+        await SaveUserMessageAsync(
+            conversation.ConversationId,
+            request.ChildId,
+            request.MeasurementId,
+            question,
+            cancellationToken);
 
         var context = await _contextBuilder.BuildAsync(
             request.ChildId,
@@ -255,12 +260,17 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
 
     private async Task SaveUserMessageAsync(
         Guid conversationId,
+        Guid childId,
         Guid? measurementId,
         string question,
         CancellationToken cancellationToken)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var persistedMeasurementId = await FindPersistedMeasurementIdAsync(db, measurementId, cancellationToken);
+        var persistedMeasurementId = await FindPersistedMeasurementIdAsync(
+            db,
+            childId,
+            measurementId,
+            cancellationToken);
 
         db.Set<AiConversationMessage>().Add(new AiConversationMessage
         {
@@ -296,7 +306,7 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
         {
             ChildId = childId,
             ConversationId = conversationId,
-            MeasurementId = await FindPersistedMeasurementIdAsync(db, measurementId, cancellationToken),
+            MeasurementId = await FindPersistedMeasurementIdAsync(db, childId, measurementId, cancellationToken),
             FormatVersion = formatVersion,
             ContextJson = contextJson,
             CreatedAt = DateTime.UtcNow
@@ -305,7 +315,7 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
         db.Set<AiConversationMessage>().Add(new AiConversationMessage
         {
             ConversationId = conversationId,
-            MeasurementId = await FindPersistedMeasurementIdAsync(db, measurementId, cancellationToken),
+            MeasurementId = await FindPersistedMeasurementIdAsync(db, childId, measurementId, cancellationToken),
             RecommendationId = recommendationId,
             Role = AiMessageRole.Assistant,
             Text = Trim(response.RecommendationText, 4000),
@@ -330,6 +340,7 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
 
     private static async Task<Guid?> FindPersistedMeasurementIdAsync(
         AppDbContext db,
+        Guid childId,
         Guid? measurementId,
         CancellationToken cancellationToken)
     {
@@ -340,7 +351,8 @@ public sealed class AiRecommendationWorkflowService : IAiRecommendationWorkflowS
 
         return await db.Measurements
             .AsNoTracking()
-            .Where(measurement => measurement.MeasurementId == measurementId.Value)
+            .Where(measurement => measurement.MeasurementId == measurementId.Value
+                                  && measurement.ChildId == childId)
             .Select(measurement => (Guid?)measurement.MeasurementId)
             .FirstOrDefaultAsync(cancellationToken);
     }

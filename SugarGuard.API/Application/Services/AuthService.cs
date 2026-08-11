@@ -2,6 +2,7 @@
 using SugarGuard.API.Application.Interfaces;
 using SugarGuard.API.Data;
 using SugarGuard.API.Security;
+using SugarGuard.API.Services;
 using SugarGuard.Application.Audit;
 using SugarGuard.Application.Security;
 using SugarGuard.Domain.Entities;
@@ -16,11 +17,16 @@ namespace SugarGuard.API.Application.Services;
 /// </summary>
 public class AuthService : IAuthService
 {
+    private static readonly (string HashBase64, string SaltBase64) DummyCredentials =
+        HashPassword("SugarGuard timing equalization only");
+
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IPasswordVerificationService _passwordVerification;
     private readonly IAuditService _audit;
     private readonly ICryptoService _crypto;
     private readonly IConfiguration _configuration;
+    private readonly IVerificationService _verificationService;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -29,6 +35,8 @@ public class AuthService : IAuthService
         IAuditService audit,
         ICryptoService crypto,
         IConfiguration configuration,
+        IVerificationService verificationService,
+        IHostEnvironment environment,
         ILogger<AuthService> logger)
     {
         _dbFactory = dbFactory;
@@ -36,6 +44,8 @@ public class AuthService : IAuthService
         _audit = audit;
         _crypto = crypto;
         _configuration = configuration;
+        _verificationService = verificationService;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -73,27 +83,17 @@ public class AuthService : IAuthService
         {
             if (existingUser is { IsActive: true, IsEmailVerified: false })
             {
-                var retryCredentials = HashPassword(password);
-                existingUser.PasswordHash = retryCredentials.HashBase64;
-                existingUser.PasswordSalt = retryCredentials.SaltBase64;
-                existingUser.Role = role;
-                existingUser.OnboardingCompleted = false;
-                existingUser.OnboardingCurrentStep = Math.Max(existingUser.OnboardingCurrentStep, 1);
-
-                await db.SaveChangesAsync(cancellationToken);
-
                 await _audit.WriteAsync(
                     "auth.register.retry_unverified",
                     "User",
                     existingUser.UserId.ToString(),
-                    "verification_resent",
+                    "verification_resent_without_credential_change",
                     cancellationToken);
 
                 _logger.LogInformation(
-                    "Registration retried for unverified user. UserId={UserId}",
-                    existingUser.UserId);
+                    "Registration retried for an unverified account; credentials were preserved.");
 
-                return new AuthRegistrationResult(existingUser, true, null, null);
+                return new AuthRegistrationResult(existingUser, true, null, null, IsExistingUnverified: true);
             }
 
             await _audit.WriteAsync(
@@ -149,6 +149,25 @@ public class AuthService : IAuthService
         string verificationToken,
         CancellationToken cancellationToken = default)
     {
+        var isDemoBypass = _environment.IsDevelopment() &&
+            _configuration.GetValue<bool>("DemoEmailBypass:Enabled") &&
+            string.Equals(
+                verificationToken,
+                "demo-email-bypass",
+                StringComparison.Ordinal);
+
+        if (!isDemoBypass && !_verificationService.IsEmailVerified(
+                email,
+                verificationToken,
+                VerificationPurpose.Registration))
+        {
+            return new AuthEmailVerificationResult(
+                null,
+                false,
+                "invalid_verification_proof",
+                "Email verification proof is invalid or expired.");
+        }
+
         var emailForLogin = email.Trim().ToLowerInvariant();
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
@@ -202,6 +221,10 @@ public class AuthService : IAuthService
 
         if (user is null)
         {
+            _ = _passwordVerification.VerifyPassword(
+                password,
+                DummyCredentials.HashBase64,
+                DummyCredentials.SaltBase64);
             await _audit.WriteAsync("auth.login.failed", "User", null,
                 "user_not_found", cancellationToken);
             return new LoginResult(null, LoginFailureReason.UserNotFound);

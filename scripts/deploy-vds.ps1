@@ -115,7 +115,8 @@ if ($deployWeb) {
 $sshArgs = @(
     "-i", $KeyPath,
     "-o", "BatchMode=yes",
-    "-o", "StrictHostKeyChecking=accept-new"
+    "-o", "IdentitiesOnly=yes",
+    "-o", "StrictHostKeyChecking=yes"
 )
 
 if ($deployApi) {
@@ -138,14 +139,18 @@ if ($deployWeb) {
 
 $remoteScript = @"
 set -euo pipefail
+umask 077
 
 timestamp="$timestamp"
 deploy_api="$($deployApi.ToString().ToLowerInvariant())"
 deploy_web="$($deployWeb.ToString().ToLowerInvariant())"
 
 backup_dir="/opt/sugarguard/backups"
-sudo mkdir -p "`$backup_dir"
-sudo install -d -o sugarguard -g sugarguard -m 0750 /var/lib/sugarguard/uploads/profiles
+sudo install -d -o root -g root -m 0700 "`$backup_dir"
+sudo install -d -o sugarguard -g sugarguard -m 0750 \
+    /var/lib/sugarguard/uploads/profiles \
+    /var/lib/sugarguard/uploads/doctor-verification \
+    /var/lib/sugarguard/uploads/article-images
 
 api_package="/tmp/sugarguard-api-`$timestamp.tar.gz"
 web_package="/tmp/sugarguard-web-`$timestamp.tar.gz"
@@ -194,6 +199,7 @@ deploy_one() {
             --exclude="`$target_name/wwwroot/uploads" \
             --exclude="`$target_name/wwwroot/downloads" \
             -czf "`$backup_dir/`$name-`$timestamp.tar.gz" "`$target_name"
+        sudo chmod 0600 "`$backup_dir/`$name-`$timestamp.tar.gz"
     fi
 
     echo "Extracting `$package"
@@ -216,8 +222,19 @@ deploy_one() {
         sudo cp -a "`$target/wwwroot/downloads" "`$target.new/wwwroot/downloads"
     fi
 
-    sudo chown -R sugarguard:sugarguard "`$target.new"
-    sudo chmod +x "`$target.new/`$executable" || true
+    sudo chown -R root:sugarguard "`$target.new"
+    sudo find "`$target.new" -type d -exec chmod 0750 {} +
+    sudo find "`$target.new" -type f -exec chmod 0640 {} +
+    sudo chmod 0750 "`$target.new/`$executable"
+
+    # Child photos are the only runtime-writable files left under wwwroot.
+    # Other medical uploads are stored outside the release under /var/lib.
+    if [ "`$name" = "api" ]; then
+        sudo install -d -o sugarguard -g sugarguard -m 0750 "`$target.new/wwwroot/uploads/children"
+        sudo chown -R sugarguard:sugarguard "`$target.new/wwwroot/uploads/children"
+        sudo find "`$target.new/wwwroot/uploads/children" -type d -exec chmod 0750 {} +
+        sudo find "`$target.new/wwwroot/uploads/children" -type f -exec chmod 0640 {} +
+    fi
 
     if sudo test -d "`$target"; then
         sudo mv "`$target" "`$target.old"

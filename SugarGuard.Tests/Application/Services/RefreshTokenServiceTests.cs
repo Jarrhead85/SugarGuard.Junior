@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -24,6 +25,7 @@ namespace SugarGuard.Tests.Application.Services;
 public class RefreshTokenServiceTests : IDisposable
 {
     private readonly DbContextOptions<AppDbContext> _dbOptions;
+    private readonly SqliteConnection _connection;
     private readonly Mock<IAuditService> _audit = new();
     private readonly Mock<IWebPushService> _webPush = new();
     private readonly Mock<IEmailService> _email = new();
@@ -31,9 +33,14 @@ public class RefreshTokenServiceTests : IDisposable
 
     public RefreshTokenServiceTests()
     {
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
         _dbOptions = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseSqlite(_connection)
             .Options;
+
+        using var context = new AppDbContext(_dbOptions);
+        context.Database.EnsureCreated();
 
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -60,6 +67,7 @@ public class RefreshTokenServiceTests : IDisposable
     {
         using var ctx = CreateContext();
         ctx.Database.EnsureDeleted();
+        _connection.Dispose();
     }
 
     // ───────────────────────────────────────────────────────────────────
@@ -461,6 +469,51 @@ public class RefreshTokenServiceTests : IDisposable
         var newEntity = allTokens.First(t => t.Id != oldToken.Id);
         Assert.False(newEntity.IsRevoked);
         Assert.Null(newEntity.ReplacedByToken);
+    }
+
+    [Fact]
+    public async Task RotateAsync_ConcurrentRequests_OnlyOneRotationSucceeds()
+    {
+        // Arrange: both requests loaded the same active token version.
+        Guid userId;
+        long tokenId;
+        await using (var seedContext = CreateContext())
+        {
+            var user = CreateUser();
+            seedContext.Users.Add(user);
+            await seedContext.SaveChangesAsync();
+
+            var seedService = CreateSut(seedContext);
+            var (_, token) = await seedService.CreateAsync(
+                user.UserId.ToString(), null, null, default);
+            userId = user.UserId;
+            tokenId = token.Id;
+        }
+
+        await using var firstContext = CreateContext();
+        await using var secondContext = CreateContext();
+        var firstToken = await firstContext.RefreshTokens.SingleAsync(t => t.Id == tokenId);
+        var secondToken = await secondContext.RefreshTokens.SingleAsync(t => t.Id == tokenId);
+
+        // Act: the first request advances the concurrency token. The stale
+        // second request must not create another active refresh token.
+        var firstResult = await CreateSut(firstContext).RotateAsync(
+            firstToken, userId.ToString(), "192.0.2.1", "first", default);
+        var secondResult = await CreateSut(secondContext).RotateAsync(
+            secondToken, userId.ToString(), "192.0.2.2", "second", default);
+
+        // Assert
+        Assert.NotNull(firstResult);
+        Assert.Null(secondResult);
+
+        await using var verificationContext = CreateContext();
+        var tokens = await verificationContext.RefreshTokens
+            .Where(t => t.UserId == userId)
+            .ToListAsync();
+        Assert.Equal(2, tokens.Count);
+        Assert.Single(tokens, t => t.Id == tokenId && t.IsRevoked);
+        Assert.Single(tokens, t => t.Id != tokenId && !t.IsRevoked);
+        Assert.Equal(1, tokens.Single(t => t.Id == tokenId).ConcurrencyVersion);
     }
 
     // ───────────────────────────────────────────────────────────────────

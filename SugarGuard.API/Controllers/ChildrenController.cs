@@ -134,6 +134,7 @@ public class ChildrenController : ControllerBase
     /// Создать профиль ребёнка
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(ChildResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -183,6 +184,7 @@ public class ChildrenController : ControllerBase
     /// Обновить профиль ребёнка
     /// </summary>
     [HttpPut("{childId:guid}")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(ChildResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -263,6 +265,7 @@ public class ChildrenController : ControllerBase
     /// Создать или обновить медицинские настройки диабета ребёнка
     /// </summary>
     [HttpPatch("{childId:guid}/diabetes-settings")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(typeof(DiabetesSettingsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -327,6 +330,7 @@ public class ChildrenController : ControllerBase
     /// Удаляет ребёнка. Только Admin.
     /// </summary>
     [HttpDelete("{childId:guid}")]
+    [Authorize(Policy = "ChildDataWrite")]
     [Authorize(Policy = "AdminOnly")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -358,6 +362,7 @@ public class ChildrenController : ControllerBase
     /// Загружает фото профиля ребёнка
     /// </summary>
     [HttpPost("{childId:guid}/photo")]
+    [Authorize(Policy = "ChildDataWrite")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)] // 6 МБ — фото до 5 МБ + form overhead
     [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
@@ -413,6 +418,7 @@ public class ChildrenController : ControllerBase
     /// Удаляет фото профиля ребёнка
     /// </summary>
     [HttpDelete("{childId:guid}/photo")]
+    [Authorize(Policy = "ChildDataWrite")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

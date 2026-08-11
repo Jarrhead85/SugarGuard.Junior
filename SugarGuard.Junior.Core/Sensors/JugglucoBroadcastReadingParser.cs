@@ -91,9 +91,10 @@ public static class JugglucoBroadcastReadingParser
             glucoseMmol,
             measurementTime,
             normalizedReceivedAt,
-            "Juggluco",
+            "JugglucoBroadcast",
             string.IsNullOrWhiteSpace(payload.SensorSerialNumber) ? null : payload.SensorSerialNumber.Trim(),
-            NormalizeRate(payload.Rate));
+            NormalizeRate(payload.Rate),
+            SensorReadingTrust.UntrustedExternalBroadcast);
 
         return true;
     }

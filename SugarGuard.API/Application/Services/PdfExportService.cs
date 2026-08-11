@@ -38,8 +38,7 @@ public class PdfExportService : IPdfExportService
     {
         try
         {
-            _logger.LogInformation("Генерация PDF-отчёта для ребёнка {ChildName}, период {Period}", 
-                childName, statistics.Period);
+            _logger.LogInformation("Генерация PDF-отчёта. Period={Period}", statistics.Period);
 
             var document = Document.Create(container =>
             {
@@ -234,7 +233,7 @@ public class PdfExportService : IPdfExportService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при генерации PDF-отчёта для ребёнка {ChildName}", childName);
+            _logger.LogError(ex, "Ошибка при генерации PDF-отчёта.");
             throw;
         }
     }
@@ -246,8 +245,9 @@ public class PdfExportService : IPdfExportService
     {
         try
         {
-            _logger.LogInformation("Генерация подробного PDF-отчёта для ребёнка {ChildName}, измерений: {Count}", 
-                childName, statistics.Measurements.Count);
+            _logger.LogInformation(
+                "Генерация подробного PDF-отчёта. MeasurementCount={Count}",
+                statistics.Measurements.Count);
 
             var document = Document.Create(container =>
             {
@@ -339,7 +339,7 @@ public class PdfExportService : IPdfExportService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при генерации подробного PDF-отчёта для ребёнка {ChildName}", childName);
+            _logger.LogError(ex, "Ошибка при генерации подробного PDF-отчёта.");
             throw;
         }
     }

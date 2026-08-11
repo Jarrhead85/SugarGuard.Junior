@@ -55,8 +55,7 @@ public class GigaChatService : IGigaChatService
         
         try
         {
-            _logger.LogInformation("Запрос рекомендации от GigaChat для ребёнка {ChildId}, глюкоза {Glucose}", 
-                request.ChildId, request.CurrentGlucose);
+            _logger.LogInformation("Запрос рекомендации от GigaChat. ChildId={ChildId}", request.ChildId);
 
             // Получаем access token
             var token = await GetAccessTokenAsync();

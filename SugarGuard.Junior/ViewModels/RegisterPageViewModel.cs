@@ -164,7 +164,7 @@ public partial class RegisterPageViewModel : ObservableObject
 
             if (user is not null)
             {
-                _logger.LogInformation("Регистрация успешна для {Email}", Email);
+                _logger.LogInformation("Регистрация успешно завершена.");
 
                 await SavePendingChildProfileAsync();
                 try
