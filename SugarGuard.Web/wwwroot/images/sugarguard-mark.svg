@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">SugarGuard</title>
+  <desc id="desc">Защитный знак с каплей и линией пульса</desc>
+  <defs>
+    <linearGradient id="background" x1="6" y1="7" x2="58" y2="57" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0aa59b"/>
+      <stop offset="1" stop-color="#2874dc"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="24" y1="17" x2="41" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8ffff"/>
+      <stop offset="1" stop-color="#d7fbf6"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#background)"/>
+  <path d="M32 10.5 50 17v13.3c0 11.2-7.2 19.8-18 23.2-10.8-3.4-18-12-18-23.2V17l18-6.5Z" fill="#062b4a" fill-opacity=".22" stroke="#fff" stroke-opacity=".7" stroke-width="1.5"/>
+  <path d="M32 17.5s-10.2 11.4-10.2 18.8a10.2 10.2 0 1 0 20.4 0C42.2 28.9 32 17.5 32 17.5Z" fill="url(#drop)"/>
+  <path d="M18.5 36.2h7.2l2.5-5.1 4.1 10.3 3.2-6.3h10" fill="none" stroke="#075f72" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+  <circle cx="32" cy="26" r="2.1" fill="#f0b63e"/>
+</svg>

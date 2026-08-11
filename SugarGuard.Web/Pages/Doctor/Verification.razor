@@ -10,7 +10,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>Подтверждение врача — SugarGuard</PageTitle>
+<PageTitle>Подтверждение врача - SugarGuard</PageTitle>
 
 <div class="verification-page">
     <PageHeader Eyebrow="КАБИНЕТ ВРАЧА" Title="Подтверждение квалификации"
@@ -113,7 +113,7 @@
         try { var error = await response.Content.ReadFromJsonAsync<ApiError>(); return error?.Message ?? "Не удалось отправить заявку."; } catch { return "Не удалось отправить заявку."; }
     }
     private static string FormatSize(long value) => value < 1024 * 1024 ? $"{value / 1024d:0} КБ" : $"{value / 1024d / 1024d:0.0} МБ";
-    private static string FormatDate(DateTime? value) => value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—";
+    private static string FormatDate(DateTime? value) => value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-";
     private sealed class VerificationModel { [Required(ErrorMessage="Укажите специальность"), StringLength(200, MinimumLength=2)] public string Specialty {get;set;}=string.Empty; [Required(ErrorMessage="Укажите номер документа"), StringLength(120, MinimumLength=3)] public string LicenseNumber {get;set;}=string.Empty; public string? OrganizationName {get;set;} public string? Comment {get;set;} }
     private sealed class VerificationResponse { public string Status {get;set;}=string.Empty; public string Specialty {get;set;}=string.Empty; public DateTime? SubmittedAt {get;set;} public string? ReviewComment {get;set;} public List<Document> Documents {get;set;}=[]; }
     private sealed class Document { public string FileName {get;set;}=string.Empty; }

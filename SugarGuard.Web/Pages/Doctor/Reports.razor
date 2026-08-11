@@ -12,7 +12,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<Reports> Logger
 
-<PageTitle>Аналитика группы — SugarGuard</PageTitle>
+<PageTitle>Аналитика группы - SugarGuard</PageTitle>
 
 <section class="doctor-report-page">
     <header class="doctor-report-hero">
@@ -155,7 +155,7 @@
             var values = _patients.Where(p => p.LatestGlucose is not null).Select(p => p.LatestGlucose!.Value).ToList();
             if (values.Count == 0)
             {
-                return "—";
+                return "-";
             }
 
             return $"{values.Average():0.0} ммоль/л";
@@ -258,7 +258,7 @@
     {
         if (dateOfBirth == default)
         {
-            return "—";
+            return "-";
         }
 
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -273,7 +273,7 @@
 
     private static string FormatGlucose(DoctorPatientSummaryVm patient)
         => patient.LatestGlucose is null
-            ? "—"
+            ? "-"
             : $"{patient.LatestGlucose.Value.ToString("0.0", RuCulture)} ммоль/л";
 
     private static string FormatPercent(double value)

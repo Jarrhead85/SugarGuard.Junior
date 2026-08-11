@@ -11,7 +11,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>Audit Log — SugarGuard Admin</PageTitle>
+<PageTitle>Audit Log - SugarGuard Admin</PageTitle>
 
 <div class="admin-audit-page">
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
@@ -127,7 +127,7 @@
                                    Description="Записи отсортированы по убыванию времени создания на стороне API.">
                         <TrailingContent>
                             <span class="sg-pill sg-pill-neutral">
-                                Показано: @PageStart–@PageEnd из @_totalCount
+                                Показано: @PageStart-@PageEnd из @_totalCount
                             </span>
                         </TrailingContent>
                     </SectionHeader>
@@ -165,8 +165,8 @@
                                     <details class="sg-audit-details">
                                         <summary>Технические детали</summary>
                                         <dl>
-                                            <div><dt>Actor</dt><dd>@(log.ActorUserId?.ToString() ?? "—")</dd></div>
-                                            <div><dt>Target ID</dt><dd class="sg-break-anywhere">@(!string.IsNullOrWhiteSpace(log.TargetId) ? log.TargetId : "—")</dd></div>
+                                            <div><dt>Actor</dt><dd>@(log.ActorUserId?.ToString() ?? "-")</dd></div>
+                                            <div><dt>Target ID</dt><dd class="sg-break-anywhere">@(!string.IsNullOrWhiteSpace(log.TargetId) ? log.TargetId : "-")</dd></div>
                                             <div><dt>Audit ID</dt><dd>@log.AuditLogId</dd></div>
                                         </dl>
                                         @if (!string.IsNullOrWhiteSpace(log.Details))
@@ -1240,7 +1240,7 @@
     {
         if (_logs.Count == 0)
         {
-            return "—";
+            return "-";
         }
 
         return FormatLocal(_logs.Max(x => x.CreatedAt));

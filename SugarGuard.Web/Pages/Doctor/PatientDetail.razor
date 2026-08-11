@@ -125,7 +125,7 @@
                     }
                 </div>
                 <div class="doctor-chart-legend" aria-label="Легенда графика">
-                    <span><i class="success"></i>Норма 4,0–10,0</span>
+                    <span><i class="success"></i>Норма 4,0-10,0</span>
                     <span><i class="warning"></i>Вне диапазона</span>
                     <span><i class="danger"></i>Критично</span>
                 </div>
@@ -227,15 +227,15 @@
     private int _chartPeriodHours = 24;
 
     private string PatientPageTitle => _patient is null
-        ? "Пациент — SugarGuard"
-        : $"{GetFullName(_patient)} — SugarGuard";
+        ? "Пациент - SugarGuard"
+        : $"{GetFullName(_patient)} - SugarGuard";
 
     private string PatientMeta => _patient is null
         ? string.Empty
         : $"{FormatDiabetesType(_patient.DiabetesType)} · {FormatAge(_patient.DateOfBirth)} · последнее измерение: {FormatMeasurementTime(_patient.LatestMeasurementTime)}";
 
     private string HypoHyperLabel => _measurements.Count == 0
-        ? "— / —"
+        ? "- / -"
         : $"{_measurements.Count(m => m.GlucoseValue < 4.0m)} / {_measurements.Count(m => m.GlucoseValue > 10m)}";
 
     private string ChartSubtitle => ChartPoints.Count >= 2

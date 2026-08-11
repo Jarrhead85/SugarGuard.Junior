@@ -11,7 +11,7 @@
 @inject IJSRuntime JS
 @inject ILogger<DoctorRequests> Logger
 
-<PageTitle>Проверка врачей — SugarGuard</PageTitle>
+<PageTitle>Проверка врачей - SugarGuard</PageTitle>
 
 <div class="requests-page">
     <div class="requests-toolbar">
@@ -194,7 +194,7 @@
     }
 
     private static string FormatDate(DateTime? value) =>
-        value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—";
+        value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-";
 
     private static string FormatSize(long value) => value < 1024 * 1024
         ? $"{value / 1024d:0} КБ"

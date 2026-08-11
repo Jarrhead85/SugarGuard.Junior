@@ -1772,6 +1772,161 @@ select {
 /* Public legal and support information pages. */
 .legal-page{min-height:100dvh;padding:clamp(20px,4vw,56px);color:#12334a;background:#f4faf9 url('/images/landing-hero-watercolor-v2.png') center/cover fixed;font-family:Inter,system-ui,sans-serif}.legal-page::before{content:"";position:fixed;inset:0;background:rgba(250,252,249,.84);backdrop-filter:blur(8px);pointer-events:none}.legal-back,.legal-card{position:relative;z-index:1}.legal-back{display:inline-flex;margin-bottom:18px;color:#087f7d;font-weight:750;text-decoration:none}.legal-card{max-width:900px;margin:0 auto;padding:clamp(24px,5vw,54px);border:1px solid rgba(28,123,119,.2);border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 24px 70px rgba(23,67,79,.14)}.legal-card header{padding-bottom:24px;border-bottom:1px solid rgba(18,51,74,.1)}.legal-kicker{color:#0b8d88;font-size:13px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.legal-card h1{margin:8px 0;font-family:Georgia,serif;font-size:clamp(34px,5vw,56px);line-height:1.03}.legal-card header p,.legal-card section p{color:#536d7e;line-height:1.65}.legal-card section{padding-top:24px}.legal-card h2{margin:0 0 8px;font-family:Georgia,serif;font-size:23px}.legal-note{margin-top:28px;padding:18px 20px;border-left:4px solid #d4a43b;border-radius:10px;color:#5a4a26;background:#fff8e8;line-height:1.55}.legal-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.legal-actions a{padding:11px 16px;border:1px solid rgba(11,141,136,.3);border-radius:999px;color:#087f7d;text-decoration:none;font-weight:800}.legal-actions a.primary{color:#fff;background:linear-gradient(100deg,#159a96,#2d7ee2)}
 @media(max-width:600px){.legal-page{padding:16px}.legal-card{padding:22px 18px;border-radius:18px}}
+
+/* Public trust pages share the same calm visual language as the 2026 landing. */
+.legal-page {
+    max-width: 100%;
+    overflow-x: hidden;
+    color: #10233d;
+    background:
+        radial-gradient(circle at 92% 4%, rgba(46, 190, 181, .13), transparent 28rem),
+        radial-gradient(circle at 4% 42%, rgba(49, 111, 210, .08), transparent 30rem),
+        #f5f8fb;
+    font-family: "Satoshi", "Segoe UI", sans-serif;
+}
+
+.legal-page::before {
+    display: none;
+}
+
+.legal-card {
+    width: min(100%, 900px);
+    overflow-wrap: anywhere;
+    border-color: #d6e0ea;
+    border-radius: 28px;
+    background: #fff;
+    box-shadow: 0 20px 56px rgba(16, 35, 61, .10);
+}
+
+.legal-card h1,
+.legal-card h2 {
+    color: #10233d;
+    font-family: inherit;
+    letter-spacing: -.03em;
+}
+
+.legal-card header p,
+.legal-card section p,
+.legal-card section li {
+    color: #52627a;
+}
+
+.legal-card section p,
+.legal-card section li {
+    line-height: 1.68;
+}
+
+.legal-card section ul {
+    display: grid;
+    gap: 8px;
+    padding-left: 22px;
+    margin: 10px 0 0;
+}
+
+.legal-card section a {
+    color: #075f5d;
+    font-weight: 750;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.legal-status {
+    margin-top: 26px;
+    padding: 18px 20px;
+    border: 1px solid #b9ddd9;
+    border-radius: 16px;
+    color: #123e49;
+    background: #eef9f7;
+}
+
+.legal-status strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.legal-status p {
+    margin: 0;
+    color: #405e6d;
+    line-height: 1.58;
+}
+
+.legal-actions a:hover {
+    border-color: #087370;
+    background: #e8f6f4;
+}
+
+.legal-actions a.primary:hover {
+    color: #fff;
+    background: linear-gradient(100deg, #087370, #1d63c3);
+}
+
+.legal-page :where(a, button, summary):focus-visible {
+    outline: 3px solid #f0a62b;
+    outline-offset: 4px;
+}
+
+.legal-page h1:focus-visible {
+    outline: 0;
+}
+
+[data-theme="dark"] .legal-page {
+    color: #eef6f8;
+    background:
+        radial-gradient(circle at 92% 4%, rgba(46, 190, 181, .10), transparent 28rem),
+        radial-gradient(circle at 4% 42%, rgba(49, 111, 210, .10), transparent 30rem),
+        #07131f;
+}
+
+[data-theme="dark"] .legal-card {
+    border-color: #284052;
+    background: #0e2030;
+    box-shadow: 0 20px 56px rgba(0, 0, 0, .28);
+}
+
+[data-theme="dark"] .legal-card h1,
+[data-theme="dark"] .legal-card h2 {
+    color: #eef6f8;
+}
+
+[data-theme="dark"] .legal-card header p,
+[data-theme="dark"] .legal-card section p,
+[data-theme="dark"] .legal-card section li {
+    color: #bdcad8;
+}
+
+[data-theme="dark"] .legal-status {
+    border-color: #2e5a5b;
+    color: #eef6f8;
+    background: #123c3e;
+}
+
+[data-theme="dark"] .legal-status p {
+    color: #c5d9d8;
+}
+
+[data-theme="dark"] .legal-note {
+    color: #ffe1a4;
+    background: #493718;
+}
+
+[data-theme="dark"] .legal-actions a {
+    color: #7be3db;
+    border-color: #3c6970;
+}
+
+@media (max-width: 600px) {
+    .legal-card {
+        border-radius: 20px;
+    }
+
+    .legal-status {
+        padding: 16px;
+    }
+
+    .legal-card h1 {
+        font-size: clamp(1.75rem, 7.7vw, 2.2rem);
+    }
+}
 /* В кабинете врача название раздела уже отображается общей шапкой и верхними вкладками. */
 .app-shell--doctor .doctor-hero,
 .app-shell--doctor .doctor-report-hero,

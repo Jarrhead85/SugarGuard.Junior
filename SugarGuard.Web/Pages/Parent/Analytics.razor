@@ -7,7 +7,7 @@
 @inject NavigationManager NavigationManager
 @inject ExportDownloadStore ExportDownloads
 
-<PageTitle>Аналитика — SugarGuard</PageTitle>
+<PageTitle>Аналитика - SugarGuard</PageTitle>
 
 <PageHeader Title="Аналитика"
             Subtitle="Статистика и паттерны глюкозы"
@@ -70,7 +70,7 @@
                         </span>
                     }
                 </span>
-                <span class="kpi-hint">Цель: 4.0–10.0</span>
+                <span class="kpi-hint">Цель: 4.0-10.0</span>
             </div>
 
             @* TIR *@
@@ -94,7 +94,7 @@
             <div class="kpi-card" role="article" aria-label="Индекс управления глюкозой">
                 <span class="kpi-label">GMI, %</span>
                 <span class="kpi-value">
-                    @(_stats.Gmi > 0 ? _stats.Gmi.ToString("F1") : "—")
+                    @(_stats.Gmi > 0 ? _stats.Gmi.ToString("F1") : "-")
                 </span>
                 <span class="kpi-hint">HbA1c-приближение</span>
             </div>
@@ -272,7 +272,7 @@
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M8 12l2 2 4-4"/>
             </svg>
-            <p class="empty-state__text">Паттерны не обнаружены — отличный результат!</p>
+            <p class="empty-state__text">Паттерны не обнаружены - отличный результат!</p>
         </div>
     }
 </section>
@@ -613,9 +613,9 @@
         return new[]
         {
             new TirZone("Крит. низкий < 3.0",  critLow,  "#DB5967"),
-            new TirZone("Низкий 3.0–3.9",       low,      "#E3A32B"),
-            new TirZone("Целевой 4.0–10.0",     inRange,  "#37A563"),
-            new TirZone("Высокий 10.1–14.0",    high,     "#E3A32B"),
+            new TirZone("Низкий 3.0-3.9",       low,      "#E3A32B"),
+            new TirZone("Целевой 4.0-10.0",     inRange,  "#37A563"),
+            new TirZone("Высокий 10.1-14.0",    high,     "#E3A32B"),
             new TirZone("Крит. высокий > 14.0", critHigh, "#DB5967"),
         };
     }

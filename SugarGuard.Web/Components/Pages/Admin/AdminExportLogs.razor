@@ -7,7 +7,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>Экспорт — SugarGuard Admin</PageTitle>
+<PageTitle>Экспорт - SugarGuard Admin</PageTitle>
 
 <div class="admin-ops-page">
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -102,11 +102,11 @@
                             <tr @key="job.ExportJobId">
                                 <td><code>@ShortId(job.ExportJobId)</code></td>
                                 <td><code>@ShortId(job.ChildId)</code></td>
-                                <td>@FormatDate(job.PeriodFrom) — @FormatDate(job.PeriodTo)</td>
+                                <td>@FormatDate(job.PeriodFrom) - @FormatDate(job.PeriodTo)</td>
                                 <td>@job.Format.ToUpperInvariant()</td>
                                 <td><span class="admin-pill admin-pill--@GetStatusTone(job.Status)">@job.Status</span></td>
                                 <td>@FormatDateTime(job.CreatedAt)</td>
-                                <td>@(job.CompletedAt.HasValue ? FormatDateTime(job.CompletedAt.Value) : "—")</td>
+                                <td>@(job.CompletedAt.HasValue ? FormatDateTime(job.CompletedAt.Value) : "-")</td>
                                 <td class="admin-actions-cell">
                                     @if (!string.IsNullOrWhiteSpace(job.DownloadUrl))
                                     {

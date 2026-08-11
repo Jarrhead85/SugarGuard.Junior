@@ -1,7 +1,6 @@
 @page "/"
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@using SugarGuard.Web.Services
 
 @attribute [AllowAnonymous]
 @layout EmptyLayout
@@ -9,993 +8,671 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ILogger<Index> Logger
 
-@* Автоматический редирект авторизованных пользователей *@
+<PageTitle>SugarGuard - диабет ребёнка под совместным контролем</PageTitle>
+<HeadContent>
+    <meta name="description"
+          content="SugarGuard объединяет измерения глюкозы, питание, подсказки, уведомления и наблюдение врача в Android-приложении и веб-кабинете." />
+    <meta name="theme-color" content="#0f8f8a" />
+    <link rel="canonical" href="https://sugar-guard.ru/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="SugarGuard - диабет ребёнка под совместным контролем" />
+    <meta property="og:description" content="Глюкоза, питание, отчёты и информационные подсказки - в Android-приложении и веб-кабинетах для семьи и врача." />
+    <meta property="og:url" content="https://sugar-guard.ru/" />
+</HeadContent>
 
-<PageTitle>SugarGuard — система управления диабетом</PageTitle>
+<div class="@LandingClass">
+    <a class="sg-landing__skip-link" href="#main-content">Перейти к содержанию</a>
 
-<div class="sg-landing">
-
-    @* ШАПКА *@
     <header class="sg-landing__header">
-        <div class="sg-landing__header-inner">
-            <a class="sg-landing__brand" href="/" aria-label="SugarGuard — на главную">
+        <div class="sg-landing__container sg-landing__header-inner">
+            <a class="sg-landing__brand" href="/" aria-label="SugarGuard - на главную">
                 <span class="sg-landing__logo" aria-hidden="true">
-                    <img src="/images/sugarguard-icon.png" alt="" />
+                    <img src="/images/sugarguard-mark.svg" alt="" width="44" height="44" />
                 </span>
-                <span class="sg-landing__brand-name">SugarGuard</span>
+                <span>
+                    <strong>SugarGuard</strong>
+                    <small>Рядом, когда это важно</small>
+                </span>
             </a>
 
-            <nav class="sg-landing__nav" aria-label="Навигация">
-                <button class="sg-landing__theme-toggle"
+            <nav class="sg-landing__main-nav" aria-label="Разделы страницы">
+                <a href="#audiences">Для кого</a>
+                <a href="#how-it-works">Как работает</a>
+                <a href="#interface">Интерфейс</a>
+                <a href="#trust">Безопасность</a>
+                <a href="#faq">FAQ</a>
+            </nav>
+
+            <div class="sg-landing__header-actions">
+                <button class="sg-icon-button"
                         type="button"
                         @onclick="ToggleThemeAsync"
-                        aria-label="Переключить тему"
-                        title="Переключить тему">
-                    @(isDarkTheme ? "☀" : "☾")
+                        aria-label="@(isDarkTheme ? "Включить светлую тему" : "Включить тёмную тему")"
+                        aria-pressed="@isDarkTheme"
+                        title="@(isDarkTheme ? "Включить светлую тему" : "Включить тёмную тему")">
+                    @if (isDarkTheme)
+                    {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41" />
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8Z" />
+                        </svg>
+                    }
                 </button>
-                <a class="sg-landing__nav-link" href="/login">Войти</a>
-                <a class="sg-landing__nav-link sg-landing__nav-link--primary" href="/register">
-                    Зарегистрироваться
-                </a>
-            </nav>
+                <a class="sg-link-button sg-link-button--quiet" href="/login">Войти</a>
+                <a class="sg-link-button sg-link-button--header" href="/downloads/android">Скачать приложение</a>
+            </div>
         </div>
     </header>
 
-    @* HERO *@
     <main id="main-content">
-        <section class="sg-landing__hero" aria-labelledby="hero-heading">
-            <div class="sg-landing__hero-inner">
-
-                <div class="sg-landing__hero-content">
-                    <div class="sg-landing__eyebrow" role="status" aria-live="polite">
-                        <span class="sg-landing__dot" aria-hidden="true"></span>
-                        Система в сети
+        <section class="sg-landing__hero" aria-labelledby="hero-title">
+            <div class="sg-landing__container sg-landing__hero-grid">
+                <div class="sg-landing__hero-copy">
+                    <div class="sg-landing__status-row">
+                        <span class="sg-status-badge">
+                            <span class="sg-status-badge__dot" aria-hidden="true"></span>
+                            Открытая пилотная версия
+                        </span>
+                        <span class="sg-platform-badge">Android + Web</span>
                     </div>
 
-                    <h1 id="hero-heading" class="sg-landing__hero-title">
-                        Диабет под<br />контролем
-                    </h1>
-
-                    <p class="sg-landing__hero-desc">
-                        Отслеживайте уровень глюкозы, получайте ИИ-рекомендации
-                        и держите врача в курсе — всё в одном приложении.
+                    <h1 id="hero-title">Диабет ребёнка - под совместным контролем семьи и врача</h1>
+                    <p class="sg-landing__hero-lead">
+                        Глюкоза, питание, тревожные события, заметки врача и понятные подсказки -
+                        в мобильном приложении ребёнка и связанных веб-кабинетах.
                     </p>
 
                     <div class="sg-landing__hero-actions">
-                        <a href="/login"
-                           class="sg-btn sg-btn--primary"
-                           aria-label="Войти в личный кабинет">
-                            Войти
-                        </a>
-                        <a href="/register"
-                           class="sg-btn sg-btn--ghost"
-                           aria-label="Создать новый аккаунт">
-                            Зарегистрироваться
-                        </a>
-                        <a href="/downloads/android"
-                           class="sg-btn sg-btn--ghost"
-                           aria-label="Скачать Android-приложение SugarGuard Junior">
+                        <a class="sg-cta sg-cta--primary" href="/downloads/android">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 20h14" />
+                            </svg>
                             Скачать APK
                         </a>
+                        <a class="sg-cta sg-cta--secondary" href="#how-it-works">Посмотреть, как это работает</a>
                     </div>
+                    <p class="sg-landing__account-link">
+                        Уже используете SugarGuard? <a href="/login">Войти в кабинет</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="/register">Создать аккаунт</a>
+                    </p>
+
+                    <ul class="sg-landing__proof-list" role="list">
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                            Офлайн после первого онлайн-входа
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                            SOS с глюкозой и геопозицией
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                            Управляемый доступ родителей и врача
+                        </li>
+                    </ul>
                 </div>
 
-                @* Акварельная иллюстрация SugarGuard *@
-                <div class="sg-landing__hero-visual" aria-hidden="true">
-                    <img class="sg-landing__hero-illustration"
-                         src="/images/landing-hero-watercolor-v2.png"
-                         alt="" />
-                </div>
-
-            </div>
-        </section>
-
-        @* ФИЧИ *@
-        <section class="sg-landing__features" aria-labelledby="features-heading">
-            <div class="sg-landing__section-inner">
-                <h2 id="features-heading" class="sg-landing__section-title">
-                    Всё, что нужно для управления диабетом
-                </h2>
-
-                <ul class="sg-landing__features-grid" role="list">
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <path d="M3 3v18h18" />
-                                <path d="m7 14 4-4 3 3 5-7" />
+                <div class="sg-product-stage" aria-hidden="true">
+                    <div class="sg-product-stage__glow"></div>
+                    <div class="sg-phone-mockup">
+                        <div class="sg-phone-mockup__bar">
+                            <span>9:41</span>
+                            <span>● ● ▰</span>
+                        </div>
+                        <div class="sg-phone-mockup__hello">Привет, Тимофей!</div>
+                        <div class="sg-phone-mockup__glucose">
+                            <span class="sg-phone-mockup__drop">
+                                <svg viewBox="0 0 24 24"><path d="M12 2S5.5 9.4 5.5 14.4a6.5 6.5 0 1 0 13 0C18.5 9.4 12 2 12 2Z" /></svg>
+                            </span>
+                            <div><strong>5,8</strong><small>ммоль/л</small></div>
+                            <span class="sg-ui-pill sg-ui-pill--ok">В норме</span>
+                        </div>
+                        <div class="sg-phone-mockup__chart">
+                            <span class="sg-phone-mockup__range"></span>
+                            <svg viewBox="0 0 320 100" preserveAspectRatio="none">
+                                <path class="sg-chart-line" d="M4 69 C34 62, 52 73, 82 61 S132 40, 164 51 S216 69, 244 44 S286 30, 316 36" />
+                                <g class="sg-chart-points">
+                                    <circle cx="4" cy="69" r="4" />
+                                    <circle cx="82" cy="61" r="4" />
+                                    <circle cx="164" cy="51" r="4" />
+                                    <circle cx="244" cy="44" r="4" />
+                                    <circle cx="316" cy="36" r="4" />
+                                </g>
                             </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">График глюкозы</h3>
-                        <p class="sg-landing__feature-desc">
-                            Наглядная визуализация за день, неделю и месяц
-                            с зонами целевого диапазона.
-                        </p>
-                    </li>
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="9" />
-                                <path d="M12 8v4l3 3" />
-                            </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">ИИ-рекомендации</h3>
-                        <p class="sg-landing__feature-desc">
-                            Персональные советы на основе GigaChat с учётом
-                            текущего уровня глюкозы и состояния ребёнка.
-                        </p>
-                    </li>
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <path d="M6 7h12" />
-                                <path d="M9 7V5a3 3 0 1 1 6 0v2" />
-                                <path d="M6 7l1 12h10l1-12" />
-                            </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">Рюкзачок</h3>
-                        <p class="sg-landing__feature-desc">
-                            Быстрый учёт перекусов в хлебных единицах
-                            с уведомлением родителей через Telegram.
-                        </p>
-                    </li>
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">Связь с врачом</h3>
-                        <p class="sg-landing__feature-desc">
-                            Врач видит историю измерений, добавляет заметки
-                            и получает сводку по пациентам.
-                        </p>
-                    </li>
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">Безопасность</h3>
-                        <p class="sg-landing__feature-desc">
-                            Медицинские данные шифруются AES-256.
-                            JWT с Refresh Token Rotation и строгим RBAC.
-                        </p>
-                    </li>
-                    <li class="sg-landing__feature-card">
-                        <span class="sg-landing__feature-icon" aria-hidden="true">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2">
-                                <polyline points="8 17 12 21 16 17" />
-                                <line x1="12" y1="12" x2="12" y2="21" />
-                                <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" />
-                            </svg>
-                        </span>
-                        <h3 class="sg-landing__feature-title">Синхронизация</h3>
-                        <p class="sg-landing__feature-desc">
-                            Данные синхронизируются между мобильным
-                            приложением и веб-кабинетом в реальном времени.
-                        </p>
-                    </li>
-                </ul>
-            </div>
-        </section>
-
-        @* РОЛИ *@
-        <section class="sg-landing__roles" aria-labelledby="roles-heading">
-            <div class="sg-landing__section-inner">
-                <h2 id="roles-heading" class="sg-landing__section-title">
-                    Личный кабинет для каждой роли
-                </h2>
-
-                <div class="sg-landing__roles-grid">
-                    <div class="sg-landing__role-card sg-landing__role-card--parent">
-                        <div class="sg-landing__role-icon" aria-hidden="true">👨‍👩‍👦</div>
-                        <h3 class="sg-landing__role-title">Родитель</h3>
-                        <p class="sg-landing__role-desc">
-                            Мониторинг глюкозы, управление рюкзачком, аналитика,
-                            экспорт отчётов и связь с врачом.
-                        </p>
+                            <div><span>08:00</span><span>12:00</span><span>Сейчас</span></div>
+                        </div>
+                        <div class="sg-phone-mockup__advice">
+                            <span>Подсказка</span>
+                            <strong>Сахар в целевом диапазоне</strong>
+                            <small>Продолжай по своему обычному плану.</small>
+                        </div>
+                        <div class="sg-phone-mockup__nav">
+                            <span class="is-active">⌂</span><span>▥</span><span>▢</span><span>◉</span>
+                        </div>
                     </div>
-                    <div class="sg-landing__role-card sg-landing__role-card--doctor">
-                        <div class="sg-landing__role-icon" aria-hidden="true">👨‍⚕️</div>
-                        <h3 class="sg-landing__role-title">Врач</h3>
-                        <p class="sg-landing__role-desc">
-                            Список пациентов с TIR, история измерений,
-                            заметки и сводная статистика.
-                        </p>
-                    </div>
-                    <div class="sg-landing__role-card sg-landing__role-card--admin">
-                        <div class="sg-landing__role-icon" aria-hidden="true">🛡️</div>
-                        <h3 class="sg-landing__role-title">Администратор</h3>
-                        <p class="sg-landing__role-desc">
-                            Управление пользователями, аудит, системный мониторинг
-                            и генерация инвайт-кодов.
-                        </p>
+
+                    <div class="sg-dashboard-mockup">
+                        <div class="sg-dashboard-mockup__top">
+                            <span><i></i>SugarGuard</span>
+                            <span class="sg-ui-pill">Сегодня</span>
+                        </div>
+                        <div class="sg-dashboard-mockup__heading">
+                            <div><small>Кабинет родителя</small><strong>Обзор за сегодня</strong></div>
+                            <span class="sg-ui-pill sg-ui-pill--ok">Данные синхронизированы</span>
+                        </div>
+                        <div class="sg-dashboard-mockup__metrics">
+                            <div><small>Последний сахар</small><strong>5,8</strong><span>ммоль/л</span></div>
+                            <div><small>В диапазоне</small><strong>82%</strong><span>за 7 дней</span></div>
+                            <div><small>События</small><strong>1</strong><span>требует внимания</span></div>
+                        </div>
+                        <div class="sg-dashboard-mockup__body">
+                            <div class="sg-dashboard-mockup__graph">
+                                <div class="sg-dashboard-mockup__graph-head"><strong>Динамика глюкозы</strong><small>24 часа</small></div>
+                                <svg viewBox="0 0 520 155" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="hero-area" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0" stop-color="#17968f" stop-opacity=".22" />
+                                            <stop offset="1" stop-color="#17968f" stop-opacity="0" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path class="sg-dashboard-area" d="M0 116 C55 94, 82 102, 128 82 S216 50, 268 69 S354 111, 405 72 S474 48, 520 56 L520 155 L0 155Z" />
+                                    <path class="sg-chart-line" d="M0 116 C55 94, 82 102, 128 82 S216 50, 268 69 S354 111, 405 72 S474 48, 520 56" />
+                                </svg>
+                            </div>
+                            <div class="sg-dashboard-mockup__event">
+                                <span class="sg-event-icon">!</span>
+                                <div><strong>Родитель уведомлён</strong><small>SOS · координаты получены</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        @* CTA *@
-        <section class="sg-landing__cta" aria-labelledby="cta-heading">
-            <div class="sg-landing__section-inner sg-landing__section-inner--narrow">
-                <h2 id="cta-heading" class="sg-landing__cta-title">
-                    Начните прямо сейчас
-                </h2>
-                <p class="sg-landing__cta-desc">
-                    Присоединяйтесь к SugarGuard — безопасной системе управления
-                    диабетом для детей и их родителей.
+                <p class="sg-visually-hidden">
+                    Предварительный просмотр мобильного приложения с текущей глюкозой и веб-кабинета родителя с графиком и уведомлением.
                 </p>
-                <div class="sg-landing__hero-actions">
-                    <a href="/login"
-                       class="sg-btn sg-btn--primary sg-btn--lg"
-                       aria-label="Войти в личный кабинет">
-                        Войти
-                    </a>
-                    <a href="/register"
-                       class="sg-btn sg-btn--ghost sg-btn--lg"
-                       aria-label="Зарегистрироваться">
-                        Создать аккаунт
-                    </a>
+            </div>
+        </section>
+
+        <section class="sg-landing__signal-bar" aria-label="Ключевые свойства продукта">
+            <div class="sg-landing__container sg-landing__signal-grid">
+                <div><strong>Android-приложение</strong><span>Дневник ребёнка на телефоне</span></div>
+                <div><strong>Web-кабинеты</strong><span>Родитель, врач и администратор</span></div>
+                <div><strong>Офлайн-сценарии</strong><span>Записи сохраняются до синхронизации</span></div>
+                <div><strong>Экспорт данных</strong><span>Отчёты для обсуждения с врачом</span></div>
+            </div>
+        </section>
+
+        <section id="audiences" class="sg-section sg-section--audiences sg-reveal" aria-labelledby="audiences-title">
+            <div class="sg-landing__container">
+                <header class="sg-section__header">
+                    <span class="sg-section__kicker">Один сервис - разные задачи</span>
+                    <h2 id="audiences-title">Каждый видит только то, что нужно для его роли</h2>
+                    <p>Выберите свой сценарий и посмотрите, какую ежедневную проблему решает SugarGuard.</p>
+                </header>
+
+                <div class="sg-audience-tabs" role="group" aria-label="Сценарии пользователей">
+                    @foreach (var audience in Audiences)
+                    {
+                        <button id="audience-tab-@audience.Id"
+                                class="@AudienceTabClass(audience.Id)"
+                                type="button"
+                                aria-pressed="@(activeAudienceId == audience.Id ? "true" : "false")"
+                                @onclick="() => SelectAudience(audience.Id)">
+                            <span>@audience.Number</span>
+                            @audience.Label
+                        </button>
+                    }
                 </div>
+
+                <div id="audience-panel"
+                     class="sg-audience-panel"
+                     aria-live="polite">
+                    <div class="sg-audience-panel__copy">
+                        <span class="sg-audience-panel__eyebrow">@ActiveAudience.Eyebrow</span>
+                        <h3>@ActiveAudience.Title</h3>
+                        <p>@ActiveAudience.Description</p>
+                        <ul role="list">
+                            @foreach (var benefit in ActiveAudience.Benefits)
+                            {
+                                <li>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                                    @benefit
+                                </li>
+                            }
+                        </ul>
+                        <a class="sg-text-link" href="@ActiveAudience.CtaHref">@ActiveAudience.CtaLabel <span aria-hidden="true">→</span></a>
+                    </div>
+                    <div class="sg-audience-panel__preview" aria-hidden="true">
+                        <div class="sg-role-preview__header">
+                            <span>@ActiveAudience.PreviewLabel</span>
+                            <i></i><i></i><i></i>
+                        </div>
+                        <div class="sg-role-preview__card">
+                            <small>@ActiveAudience.PreviewTitle</small>
+                            <strong>@ActiveAudience.PreviewMetric</strong>
+                            <span>@ActiveAudience.PreviewCaption</span>
+                        </div>
+                        <div class="sg-role-preview__rows">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="sg-adult-note">
+                    <span class="sg-adult-note__icon" aria-hidden="true">18+</span>
+                    <div>
+                        <strong>Не только для детей</strong>
+                        <p>Для самостоятельного взрослого пользователя предусмотрен отдельный профиль, включая настройки для СД2. Детский сценарий при этом остаётся основным.</p>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="sg-section sg-section--how sg-reveal" aria-labelledby="how-title">
+            <div class="sg-landing__container">
+                <header class="sg-section__header sg-section__header--center">
+                    <span class="sg-section__kicker">От измерения до понятного действия</span>
+                    <h2 id="how-title">Как SugarGuard работает в течение дня</h2>
+                    <p>Четыре шага без ручного переноса данных между телефоном, родителем и врачом.</p>
+                </header>
+
+                <ol class="sg-steps">
+                    <li>
+                        <span class="sg-steps__number">01</span>
+                        <div class="sg-steps__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3v18M5 8h8a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h11" /></svg>
+                        </div>
+                        <h3>Фиксируем данные</h3>
+                        <p>Ребёнок вводит глюкозу и питание вручную либо получает показания из совместимого источника CGM.</p>
+                    </li>
+                    <li>
+                        <span class="sg-steps__number">02</span>
+                        <div class="sg-steps__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 16.5A4.5 4.5 0 0 0 17 8h-1A7 7 0 1 0 5 16.9M8 17l4 4 4-4M12 12v9" /></svg>
+                        </div>
+                        <h3>Сохраняем и синхронизируем</h3>
+                        <p>Без сети запись остаётся на телефоне. Когда связь возвращается, очередь синхронизируется с кабинетом.</p>
+                    </li>
+                    <li>
+                        <span class="sg-steps__number">03</span>
+                        <div class="sg-steps__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3" /></svg>
+                        </div>
+                        <h3>Понимаем динамику</h3>
+                        <p>График, целевой диапазон и контекст питания помогают увидеть тенденцию, а не отдельную цифру.</p>
+                    </li>
+                    <li>
+                        <span class="sg-steps__number">04</span>
+                        <div class="sg-steps__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 1-3-6.2M20 4v7h-7M8 12l3 3 5-6" /></svg>
+                        </div>
+                        <h3>Реагируем вместе</h3>
+                        <p>Родитель получает важные уведомления, врач видит историю, а ребёнок - безопасную подсказку по ситуации.</p>
+                    </li>
+                </ol>
+
+                <div class="sg-medical-note">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.8 20h18.4L12 3Zm0 6v5m0 3h.01" /></svg>
+                    <p><strong>Важно:</strong> ИИ-подсказки носят информационный характер, не рассчитывают дозу инсулина и не заменяют консультацию врача или индивидуальный план лечения.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="sg-section sg-section--capabilities sg-reveal" aria-labelledby="capabilities-title">
+            <div class="sg-landing__container">
+                <header class="sg-section__header">
+                    <span class="sg-section__kicker">Не набор функций, а ежедневные сценарии</span>
+                    <h2 id="capabilities-title">Всё важное - в контексте конкретной ситуации</h2>
+                </header>
+
+                <div class="sg-capabilities-grid">
+                    <article class="sg-capability sg-capability--wide">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20V4m0 16h18M7 15l4-4 3 2 5-7" /></svg></div>
+                        <span class="sg-capability__label">Динамика</span>
+                        <h3>Следите за глюкозой, а не за разрозненными цифрами</h3>
+                        <p>День, 7 и фактические 30 дней, целевой диапазон, TIR и источник измерения помогают обсуждать с врачом полную картину.</p>
+                    </article>
+                    <article class="sg-capability">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8Zm3 0V6a3 3 0 0 1 6 0v2" /></svg></div>
+                        <span class="sg-capability__label">Питание</span>
+                        <h3>Держите безопасный перекус под рукой</h3>
+                        <p>«Рюкзак» хранит состав и ХЕ, а подсказка учитывает доступные продукты только когда это уместно.</p>
+                    </article>
+                    <article class="sg-capability">
+                        <div class="sg-capability__icon sg-capability__icon--alert" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v10m0 4h.01M5 21h14a2 2 0 0 0 1.7-3L13.7 5a2 2 0 0 0-3.4 0l-7 13A2 2 0 0 0 5 21Z" /></svg></div>
+                        <span class="sg-capability__label">SOS</span>
+                        <h3>Передайте взрослому главное одним действием</h3>
+                        <p>Экстренное сообщение включает текущую глюкозу и координаты, а на экране остаются прямые действия: родитель и 112.</p>
+                    </article>
+                    <article class="sg-capability">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3h8v4H8V3ZM5 5H3v16h18V5h-2M8 12h8m-8 4h5" /></svg></div>
+                        <span class="sg-capability__label">Врач</span>
+                        <h3>Дайте врачу картину без ручного сбора</h3>
+                        <p>Пациенты, группы риска, заметки, аналитика и экспорт собраны в отдельном клиническом кабинете.</p>
+                    </article>
+                    <article class="sg-capability sg-capability--wide">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.1 3.4 9.4 8 11 4.6-1.6 8-5.9 8-11V5l-8-3Zm-3 10 2 2 4-5" /></svg></div>
+                        <span class="sg-capability__label">Надёжность</span>
+                        <h3>Продолжайте вести дневник даже без интернета</h3>
+                        <p>Проверенная локальная сессия, зашифрованное хранение и очередь синхронизации поддерживают основные сценарии в дороге, школе и за городом.</p>
+                    </article>
+                    <article class="sg-capability">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7-1a3 3 0 1 0 0-6M3 21v-2a5.5 5.5 0 0 1 11 0v2m1-5.5a4.5 4.5 0 0 1 6 4.25V21" /></svg></div>
+                        <span class="sg-capability__label">Доступ</span>
+                        <h3>Подключайте близких и врача без передачи пароля</h3>
+                        <p>Одноразовые коды, понятные роли и список действующих связей помогают управлять доступом к данным конкретного пациента.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="interface" class="sg-section sg-section--interface sg-reveal" aria-labelledby="interface-title">
+            <div class="sg-landing__container">
+                <header class="sg-section__header sg-section__header--split">
+                    <div>
+                        <span class="sg-section__kicker">Продукт уже можно увидеть</span>
+                        <h2 id="interface-title">Ключевые экраны SugarGuard</h2>
+                    </div>
+                    <p>Обезличенные примеры показывают реальные сценарии мобильного приложения и веб-кабинетов.</p>
+                </header>
+
+                <div class="sg-screen-gallery">
+                    <article class="sg-screen-card sg-screen-card--mobile">
+                        <header><span>Мобильное приложение</span><h3>Главная</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-home" aria-hidden="true">
+                            <div class="sg-mini-title">Мой сахар</div>
+                            <div class="sg-mini-glucose"><strong>5,8</strong><span>ммоль/л</span><em>В норме</em></div>
+                            <svg viewBox="0 0 240 64" preserveAspectRatio="none"><path d="M2 49 C36 39, 48 50, 82 35 S132 28, 158 39 S204 14, 238 22" /></svg>
+                            <span class="sg-mini-action">Получить подсказку</span>
+                        </div>
+                    </article>
+
+                    <article class="sg-screen-card">
+                        <header><span>Мобильное приложение</span><h3>История</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-history" aria-hidden="true">
+                            <div class="sg-mini-tabs"><b>Сегодня</b><span>7 дней</span><span>30 дней</span></div>
+                            <div class="sg-mini-chart-zone"></div>
+                            <svg viewBox="0 0 300 100" preserveAspectRatio="none"><path d="M2 70 C45 61, 62 79, 99 52 S157 34, 190 47 S247 30, 298 38" /></svg>
+                            <div class="sg-mini-legend"><span>В диапазоне 82%</span><span>Среднее 6,4</span></div>
+                        </div>
+                    </article>
+
+                    <article class="sg-screen-card">
+                        <header><span>Мобильное приложение</span><h3>Рюкзак</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-backpack" aria-hidden="true">
+                            <div><strong>Быстрые перекусы</strong><span>6 позиций · 10,0 ХЕ</span></div>
+                            <ul role="presentation"><li><i>🥤</i><span><b>Сок 200 мл</b><small>2,0 ХЕ · 4 шт.</small></span></li><li><i>🍎</i><span><b>Яблоко</b><small>1,0 ХЕ · 2 шт.</small></span></li></ul>
+                        </div>
+                    </article>
+
+                    <article class="sg-screen-card sg-screen-card--wide">
+                        <header><span>Веб-кабинет родителя</span><h3>Обзор ребёнка</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-parent" aria-hidden="true">
+                            <div class="sg-mini-parent__stats"><span><small>Последняя глюкоза</small><b>5,8</b></span><span><small>TIR за 7 дней</small><b>82%</b></span><span><small>События</small><b>1</b></span></div>
+                            <div class="sg-mini-parent__graph"><svg viewBox="0 0 520 100" preserveAspectRatio="none"><path d="M2 72 C54 61, 78 80, 127 48 S210 31, 264 50 S348 70, 402 38 S476 26, 518 34" /></svg></div>
+                        </div>
+                    </article>
+
+                    <article class="sg-screen-card sg-screen-card--wide">
+                        <header><span>Кабинет врача</span><h3>Мои пациенты</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-doctor" aria-hidden="true">
+                            <div class="sg-mini-doctor__filters"><span>Все пациенты</span><span>Требуют внимания</span></div>
+                            <div class="sg-mini-patient"><i>АП</i><span><b>Пациент А.</b><small>Последнее измерение 24 мин назад</small></span><em>Стабильно</em></div>
+                            <div class="sg-mini-patient"><i>МК</i><span><b>Пациент М.</b><small>Нет свежих данных</small></span><em class="is-warning">Внимание</em></div>
+                        </div>
+                    </article>
+
+                    <article class="sg-screen-card">
+                        <header><span>Совместная работа</span><h3>Заметки врача</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-note" aria-hidden="true">
+                            <span>Сегодня, 14:30</span>
+                            <h4>Наблюдение по дневнику</h4>
+                            <p>Обсудить динамику после завтрака на следующей консультации.</p>
+                            <div><i>АС</i><span><b>Анна Смирнова</b><small>Врач</small></span></div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="trust" class="sg-section sg-section--trust sg-reveal" aria-labelledby="trust-title">
+            <div class="sg-landing__container sg-trust-grid">
+                <div class="sg-trust-copy">
+                    <span class="sg-section__kicker">Доверие строится на прозрачности</span>
+                    <h2 id="trust-title">Медицинские данные не должны становиться «чёрным ящиком»</h2>
+                    <p>Мы объясняем простыми словами, кто видит данные, как подключается врач и какие границы есть у автоматических подсказок.</p>
+
+                    <div class="sg-trust-points">
+                        <article>
+                            <span aria-hidden="true">01</span>
+                            <div><h3>Доступ только по связи</h3><p>Родитель или врач подключается одноразовым кодом. Действующую связь можно отозвать в кабинете.</p></div>
+                        </article>
+                        <article>
+                            <span aria-hidden="true">02</span>
+                            <div><h3>Данные защищены</h3><p>Передача идёт по HTTPS, чувствительные данные шифруются, а права проверяются для каждого профиля ребёнка.</p></div>
+                        </article>
+                        <article>
+                            <span aria-hidden="true">03</span>
+                            <div><h3>ИИ не назначает лечение</h3><p>Подсказка помогает сориентироваться, но не заменяет врача, не управляет помпой и не рассчитывает дозу инсулина.</p></div>
+                        </article>
+                    </div>
+                </div>
+
+                <aside class="sg-trust-card">
+                    <div class="sg-trust-card__shield" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.1 3.4 9.4 8 11 4.6-1.6 8-5.9 8-11V5l-8-3Zm-3 10 2 2 4-5" /></svg>
+                    </div>
+                    <span class="sg-trust-card__status">Статус проекта</span>
+                    <h3>Открытая пилотная эксплуатация</h3>
+                    <p>SugarGuard развивается и проходит проверку реальными сценариями. Мы не публикуем вымышленные отзывы или неподтверждённые показатели использования.</p>
+                    <div class="sg-trust-card__tech">
+                        <span>AES-256-GCM</span><span>JWT rotation</span><span>RBAC</span><span>Audit log</span>
+                    </div>
+                    <nav aria-label="Документы и поддержка">
+                        <a href="/privacy">Политика конфиденциальности <span>→</span></a>
+                        <a href="/personal-data">Обработка персональных данных <span>→</span></a>
+                        <a href="/terms">Условия пилотной версии <span>→</span></a>
+                        <a href="/contact">Поддержка и контакты <span>→</span></a>
+                    </nav>
+                    <small>Юридические реквизиты оператора будут опубликованы до начала коммерческой эксплуатации.</small>
+                </aside>
+            </div>
+        </section>
+
+        <section id="faq" class="sg-section sg-section--faq sg-reveal" aria-labelledby="faq-title">
+            <div class="sg-landing__container sg-faq-grid">
+                <header class="sg-section__header">
+                    <span class="sg-section__kicker">Перед установкой</span>
+                    <h2 id="faq-title">Частые вопросы</h2>
+                    <p>Коротко о совместимости, доступах, CGM и границах рекомендаций.</p>
+                    <a class="sg-text-link" href="/contact">Не нашли ответ? Написать в поддержку <span aria-hidden="true">→</span></a>
+                </header>
+
+                <div class="sg-faq-list">
+                    <details name="landing-faq" open>
+                        <summary>Кому подходит SugarGuard?<span aria-hidden="true"></span></summary>
+                        <p>Основной сценарий создан для ребёнка с диабетом, его родителей и врача. Также предусмотрен самостоятельный взрослый профиль, включая отдельные настройки для СД2.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Работает ли приложение без интернета?<span aria-hidden="true"></span></summary>
+                        <p>После подтверждённого онлайн-входа основные мобильные сценарии доступны офлайн. Новые записи хранятся локально и отправляются на сервер после восстановления связи.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Можно ли подключить нескольких родителей и врача?<span aria-hidden="true"></span></summary>
+                        <p>Да. Владелец профиля выдаёт отдельные одноразовые коды для родителя и врача, видит действующие связи и может отозвать доступ.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Как сейчас подключается CGM?<span aria-hidden="true"></span></summary>
+                        <p>Ручной ввод работает всегда. Получение CGM-показаний находится в пилотном режиме и на Android использует совместимый локальный источник данных. Конкретная инструкция показывается в приложении; поддержку модели датчика лучше уточнить до настройки.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Обязателен ли Telegram?<span aria-hidden="true"></span></summary>
+                        <p>Нет. Telegram - дополнительный канал уведомлений, который настраивает родитель. Кабинеты, история, связи и основные данные работают независимо от него.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>ИИ может назначить перекус или инсулин?<span aria-hidden="true"></span></summary>
+                        <p>ИИ формирует только информационную подсказку в заданных безопасных границах. Он не рассчитывает дозировку и не заменяет назначенный врачом план. При высоком сахаре продукты из рюкзака не предлагаются как перекус.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Можно ли выгрузить данные для врача?<span aria-hidden="true"></span></summary>
+                        <p>Да. В кабинетах предусмотрены отчёты и экспорт истории, чтобы обсуждать динамику на консультации без ручного переписывания измерений.</p>
+                    </details>
+                    <details name="landing-faq">
+                        <summary>Сколько стоит использование?<span aria-hidden="true"></span></summary>
+                        <p>Сейчас сервис работает как пилотная версия без отдельной оплаты за регистрацию. Условия коммерческого использования, если они появятся, будут опубликованы заранее.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section class="sg-final-cta" aria-labelledby="final-cta-title">
+            <div class="sg-final-cta__orb sg-final-cta__orb--one"></div>
+            <div class="sg-final-cta__orb sg-final-cta__orb--two"></div>
+            <div class="sg-landing__container sg-final-cta__inner">
+                <span>Начните с понятного первого шага</span>
+                <h2 id="final-cta-title">Установите приложение ребёнку и подключите родителя по одноразовому коду</h2>
+                <p>APK для Android, веб-кабинеты и поддержка уже доступны в пилотной версии.</p>
+                <div>
+                    <a class="sg-cta sg-cta--light" href="/downloads/android">Скачать приложение</a>
+                    <a class="sg-cta sg-cta--outline-light" href="/register">Создать аккаунт</a>
+                </div>
+                <small>При угрозе жизни не ждите ответа сервиса - звоните 112.</small>
             </div>
         </section>
     </main>
 
-    @* ПОДВАЛ *@
     <footer class="sg-landing__footer" role="contentinfo">
-        <div class="sg-landing__section-inner">
-            <span class="sg-landing__footer-copy">
-                &copy; @DateTime.Now.Year SugarGuard. Все права защищены.
-            </span>
-            <nav class="sg-landing__footer-nav" aria-label="Ссылки подвала">
-                <a href="/login" class="sg-landing__footer-link">Войти</a>
-                <a href="/register" class="sg-landing__footer-link">Регистрация</a>
-                <a href="/forgot-password" class="sg-landing__footer-link">Восстановление пароля</a>
+        <div class="sg-landing__container sg-footer-grid">
+            <div class="sg-footer-brand">
+                <a class="sg-landing__brand" href="/">
+                    <span class="sg-landing__logo" aria-hidden="true"><img src="/images/sugarguard-mark.svg" alt="" width="44" height="44" /></span>
+                    <span><strong>SugarGuard</strong><small>Цифровой дневник и совместный контроль</small></span>
+                </a>
+                <p>Пилотный цифровой сервис для контроля диабета. Не заменяет врача и не предназначен для экстренной медицинской помощи.</p>
+            </div>
+            <nav aria-label="Продукт">
+                <strong>Продукт</strong>
+                <a href="#how-it-works">Как работает</a>
+                <a href="#interface">Интерфейс</a>
+                <a href="#faq">FAQ</a>
+                <a href="/downloads/android">Скачать APK</a>
+            </nav>
+            <nav aria-label="Аккаунт">
+                <strong>Аккаунт</strong>
+                <a href="/login">Войти</a>
+                <a href="/register">Регистрация</a>
+                <a href="/forgot-password">Восстановить пароль</a>
+                <a href="/contact">Поддержка</a>
+            </nav>
+            <nav aria-label="Документы">
+                <strong>Документы</strong>
+                <a href="/privacy">Конфиденциальность</a>
+                <a href="/personal-data">Обработка ПДн</a>
+                <a href="/terms">Условия использования</a>
             </nav>
         </div>
+        <div class="sg-landing__container sg-footer-bottom">
+            <span>&copy; @DateTime.Now.Year SugarGuard</span>
+            <span>Пилотная версия · Сделано с вниманием к семьям, живущим с диабетом</span>
+        </div>
     </footer>
-
 </div>
-
-@* Стили *@
-<style>
-    /* Токены */
-    :root {
-        --sg-primary: #1b8e8b;
-        --sg-primary-2: #2678d9;
-        --sg-primary-soft: rgba(27,142,139,.12);
-        --sg-bg: #f4f7fb;
-        --sg-surface: #ffffff;
-        --sg-surface-2: #f0f4fa;
-        --sg-border: rgba(22,33,62,.10);
-        --sg-text: #16213e;
-        --sg-text-muted: #667694;
-        --sg-text-faint: #96a2b8;
-        --sg-success: #37a563;
-        --sg-warning: #e3a32b;
-        --sg-danger: #db5967;
-        --sg-radius-sm: 0.5rem;
-        --sg-radius-md: 0.875rem;
-        --sg-radius-lg: 1.25rem;
-        --sg-radius-xl: 1.75rem;
-        --sg-shadow-sm: 0 2px 8px rgba(22,33,62,.06);
-        --sg-shadow-md: 0 8px 24px rgba(22,33,62,.09);
-        --sg-shadow-lg: 0 20px 48px rgba(22,33,62,.13);
-        --sg-font-body: 'Satoshi', system-ui, sans-serif;
-        --sg-font-display: 'Clash Display', 'Satoshi', system-ui, sans-serif;
-        --sg-transition: 180ms cubic-bezier(.16,1,.3,1);
-    }
-
-    [data-theme="dark"] {
-        --sg-primary: #56d0bf;
-        --sg-primary-2: #6daeff;
-        --sg-primary-soft: rgba(86,208,191,.12);
-        --sg-bg: #0b1018;
-        --sg-surface: rgba(18,24,36,.82);
-        --sg-surface-2: rgba(17,24,37,.95);
-        --sg-border: rgba(213,228,255,.09);
-        --sg-text: #edf4ff;
-        --sg-text-muted: #9eaed0;
-        --sg-text-faint: #6f7d99;
-        --sg-success: #62d889;
-        --sg-warning: #f4bc56;
-        --sg-danger: #ff7a8b;
-        --sg-shadow-sm: 0 2px 8px rgba(0,0,0,.25);
-        --sg-shadow-md: 0 8px 24px rgba(0,0,0,.32);
-        --sg-shadow-lg: 0 20px 48px rgba(0,0,0,.45);
-    }
-
-    /* Шрифты */
-    @@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&f[]=clash-display@500,600&display=swap');
-
-    /* Базовый сброс для лендинга */
-    .sg-landing {
-        font-family: var(--sg-font-body);
-        background-color: var(--sg-bg);
-        color: var(--sg-text);
-        min-height: 100dvh;
-        -webkit-font-smoothing: antialiased;
-    }
-
-        /* Skip-ссылка доступности */
-        .sg-landing a[href="#main-content"] {
-            position: absolute;
-            top: -100%;
-            left: var(--sg-space-4, 1rem);
-            background: var(--sg-primary);
-            color: #fff;
-            padding: .5rem 1rem;
-            border-radius: var(--sg-radius-sm);
-            font-weight: 600;
-            z-index: 9999;
-            transition: top var(--sg-transition);
-        }
-
-            .sg-landing a[href="#main-content"]:focus {
-                top: .5rem;
-            }
-
-    /* Header */
-    .sg-landing__header {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        padding: .75rem 0;
-        border-bottom: 1px solid var(--sg-border);
-        background: color-mix(in oklab, var(--sg-surface) 88%, transparent);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-    }
-
-    .sg-landing__header-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 clamp(1rem, 4vw, 2rem);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    .sg-landing__brand {
-        display: flex;
-        align-items: center;
-        gap: .6rem;
-        text-decoration: none;
-        color: var(--sg-text);
-        font-weight: 700;
-        font-size: 1.05rem;
-    }
-
-    .sg-landing__logo {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--sg-radius-sm);
-        background: #fff;
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        box-shadow: 0 8px 20px rgba(27,142,139,.18);
-        overflow: hidden;
-    }
-
-    .sg-landing__logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .sg-landing__brand-name {
-        color: var(--sg-text);
-    }
-
-    /* Nav */
-    .sg-landing__nav {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        flex-wrap: wrap;
-    }
-
-    .sg-landing__nav-link {
-        display: inline-flex;
-        align-items: center;
-        padding: .5rem 1rem;
-        border-radius: var(--sg-radius-sm);
-        font-size: .875rem;
-        font-weight: 500;
-        text-decoration: none;
-        transition: background var(--sg-transition), color var(--sg-transition);
-        color: var(--sg-text-muted);
-        border: 1px solid transparent;
-        min-height: 40px;
-    }
-
-        .sg-landing__nav-link:hover {
-            background: var(--sg-primary-soft);
-            color: var(--sg-primary);
-        }
-
-    .sg-landing__nav-link--primary {
-        background: linear-gradient(135deg, var(--sg-primary), var(--sg-primary-2));
-        color: #fff;
-        border-color: transparent;
-        box-shadow: 0 4px 14px rgba(27,142,139,.25);
-    }
-
-        .sg-landing__nav-link--primary:hover {
-            background: linear-gradient(135deg, var(--sg-primary-2), var(--sg-primary));
-            color: #fff;
-            box-shadow: 0 6px 20px rgba(27,142,139,.35);
-            transform: translateY(-1px);
-        }
-
-    .sg-landing__nav-link:focus-visible {
-        outline: 2px solid var(--sg-primary);
-        outline-offset: 2px;
-    }
-
-    .sg-landing__theme-toggle {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--sg-radius-sm);
-        border: 1px solid var(--sg-border);
-        background: var(--sg-surface);
-        color: var(--sg-text);
-        display: inline-grid;
-        place-items: center;
-        font-size: 1rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background var(--sg-transition), color var(--sg-transition), border-color var(--sg-transition);
-    }
-
-        .sg-landing__theme-toggle:hover {
-            background: var(--sg-primary-soft);
-            color: var(--sg-primary);
-            border-color: rgba(27,142,139,.25);
-        }
-
-        .sg-landing__theme-toggle:focus-visible {
-            outline: 2px solid var(--sg-primary);
-            outline-offset: 2px;
-        }
-
-    /* Кнопки */
-    .sg-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .5rem;
-        min-height: 44px;
-        padding: .625rem 1.5rem;
-        border-radius: var(--sg-radius-sm);
-        font-size: .9rem;
-        font-weight: 600;
-        font-family: var(--sg-font-body);
-        text-decoration: none;
-        cursor: pointer;
-        border: 1px solid transparent;
-        transition: background var(--sg-transition), transform var(--sg-transition), box-shadow var(--sg-transition);
-        white-space: nowrap;
-    }
-
-    .sg-btn--primary {
-        background: linear-gradient(135deg, var(--sg-primary), var(--sg-primary-2));
-        color: #fff;
-        box-shadow: 0 6px 18px rgba(27,142,139,.28);
-    }
-
-        .sg-btn--primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 28px rgba(27,142,139,.38);
-        }
-
-        .sg-btn--primary:active {
-            transform: translateY(0);
-        }
-
-    .sg-btn--ghost {
-        background: transparent;
-        color: var(--sg-text-muted);
-        border-color: var(--sg-border);
-    }
-
-        .sg-btn--ghost:hover {
-            background: var(--sg-primary-soft);
-            color: var(--sg-primary);
-            border-color: rgba(27,142,139,.25);
-        }
-
-    .sg-btn--lg {
-        min-height: 52px;
-        padding: .75rem 2rem;
-        font-size: 1rem;
-        border-radius: var(--sg-radius-md);
-    }
-
-    .sg-btn:focus-visible {
-        outline: 2px solid var(--sg-primary);
-        outline-offset: 2px;
-    }
-
-    /* Общий контейнер секций */
-    .sg-landing__section-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 clamp(1rem, 4vw, 2rem);
-    }
-
-    .sg-landing__section-inner--narrow {
-        max-width: 640px;
-    }
-
-    .sg-landing__section-title {
-        font-family: var(--sg-font-display);
-        font-size: clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
-        font-weight: 600;
-        letter-spacing: -.03em;
-        color: var(--sg-text);
-        text-align: center;
-        margin: 0 0 2.5rem;
-    }
-
-    /* Hero */
-    .sg-landing__hero {
-        padding: clamp(3rem, 8vw, 6rem) 0 clamp(2rem, 5vw, 4rem);
-    }
-
-    .sg-landing__hero-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 clamp(1rem, 4vw, 2rem);
-        display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
-        gap: 3rem;
-        align-items: center;
-    }
-
-    .sg-landing__hero-content {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
-
-    .sg-landing__eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: .5rem;
-        font-size: .8rem;
-        font-weight: 600;
-        color: var(--sg-primary);
-        background: var(--sg-primary-soft);
-        padding: .375rem .875rem;
-        border-radius: 999px;
-        border: 1px solid rgba(27,142,139,.2);
-        width: fit-content;
-    }
-
-    .sg-landing__dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--sg-success);
-        box-shadow: 0 0 0 4px rgba(55,165,99,.2);
-        animation: sg-dot-pulse 2s ease-in-out infinite;
-    }
-
-    @@keyframes sg-dot-pulse {
-        0%, 100% {
-            box-shadow: 0 0 0 4px rgba(55,165,99,.2);
-        }
-
-        50% {
-            box-shadow: 0 0 0 7px rgba(55,165,99,.08);
-        }
-    }
-
-    .sg-landing__hero-title {
-        font-family: var(--sg-font-display);
-        font-size: clamp(2.5rem, 1.2rem + 4vw, 5rem);
-        font-weight: 600;
-        line-height: .96;
-        letter-spacing: -.04em;
-        color: var(--sg-text);
-        margin: 0;
-    }
-
-    .sg-landing__hero-desc {
-        font-size: clamp(1rem, .9rem + .25vw, 1.15rem);
-        color: var(--sg-text-muted);
-        line-height: 1.65;
-        margin: 0;
-        max-width: 52ch;
-    }
-
-    .sg-landing__hero-actions {
-        display: flex;
-        gap: .75rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    /* Hero visual */
-    .sg-landing__hero-visual {
-        min-width: 0;
-    }
-
-    .sg-landing__hero-illustration {
-        display: block;
-        width: 100%;
-        max-width: 560px;
-        margin-inline: auto;
-        border-radius: 28px;
-        box-shadow: 0 24px 54px rgba(21, 72, 79, .16);
-    }
-
-    .sg-landing__mock-card {
-        border-radius: var(--sg-radius-lg);
-        padding: 1.25rem 1.5rem;
-        border: 1px solid var(--sg-border);
-        box-shadow: var(--sg-shadow-md);
-        background: color-mix(in oklab, var(--sg-surface) 88%, transparent);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-    }
-
-    .sg-landing__mock-label {
-        font-size: .75rem;
-        font-weight: 600;
-        color: var(--sg-text-muted);
-        text-transform: uppercase;
-        letter-spacing: .07em;
-        margin-bottom: .5rem;
-    }
-
-    .sg-landing__mock-value {
-        font-family: var(--sg-font-display);
-        font-size: clamp(2rem, 1.5rem + 1.2vw, 3.2rem);
-        font-weight: 600;
-        line-height: 1;
-        color: var(--sg-text);
-        letter-spacing: -.03em;
-    }
-
-    .sg-landing__mock-unit {
-        font-family: var(--sg-font-body);
-        font-size: .9rem;
-        font-weight: 500;
-        color: var(--sg-text-muted);
-    }
-
-    .sg-landing__mock-status {
-        margin-top: .5rem;
-        font-size: .8rem;
-        font-weight: 600;
-    }
-
-    .sg-landing__mock-status--ok {
-        color: var(--sg-success);
-    }
-
-    .sg-landing__mock-status--bad {
-        color: var(--sg-danger);
-    }
-
-    .sg-landing__spark {
-        width: 100%;
-        height: 48px;
-        margin-top: .75rem;
-    }
-
-    .sg-landing__mock-rec-text {
-        font-size: .875rem;
-        color: var(--sg-text-muted);
-        line-height: 1.55;
-        margin: .25rem 0 .75rem;
-    }
-
-    .sg-landing__mock-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: .25rem .75rem;
-        border-radius: 999px;
-        background: rgba(227,163,43,.12);
-        color: var(--sg-warning);
-        font-size: .72rem;
-        font-weight: 700;
-        letter-spacing: .08em;
-        border: 1px solid rgba(227,163,43,.2);
-    }
-
-    /* Features */
-    .sg-landing__features {
-        padding: clamp(2.5rem, 6vw, 5rem) 0;
-        background: var(--sg-surface-2);
-        border-top: 1px solid var(--sg-border);
-        border-bottom: 1px solid var(--sg-border);
-    }
-
-    .sg-landing__features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-        gap: 1.25rem;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .sg-landing__feature-card {
-        background: color-mix(in oklab, var(--sg-surface) 90%, transparent);
-        border: 1px solid var(--sg-border);
-        border-radius: var(--sg-radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--sg-shadow-sm);
-        transition: transform var(--sg-transition), box-shadow var(--sg-transition);
-    }
-
-        .sg-landing__feature-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--sg-shadow-md);
-        }
-
-    .sg-landing__feature-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 44px;
-        height: 44px;
-        border-radius: var(--sg-radius-sm);
-        background: var(--sg-primary-soft);
-        color: var(--sg-primary);
-        margin-bottom: .875rem;
-        flex-shrink: 0;
-    }
-
-    .sg-landing__feature-title {
-        font-size: 1.0rem;
-        font-weight: 700;
-        color: var(--sg-text);
-        margin: 0 0 .5rem;
-    }
-
-    .sg-landing__feature-desc {
-        font-size: .875rem;
-        color: var(--sg-text-muted);
-        line-height: 1.6;
-        margin: 0;
-        max-width: none;
-    }
-
-    /* Roles */
-    .sg-landing__roles {
-        padding: clamp(2.5rem, 6vw, 5rem) 0;
-    }
-
-    .sg-landing__roles-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
-        gap: 1.25rem;
-    }
-
-    .sg-landing__role-card {
-        padding: 1.75rem 1.5rem;
-        border-radius: var(--sg-radius-lg);
-        border: 1px solid var(--sg-border);
-        background: color-mix(in oklab, var(--sg-surface) 85%, transparent);
-        box-shadow: var(--sg-shadow-sm);
-        transition: transform var(--sg-transition), box-shadow var(--sg-transition);
-    }
-
-        .sg-landing__role-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--sg-shadow-md);
-        }
-
-    .sg-landing__role-card--parent {
-        background: color-mix(in oklab, var(--sg-primary) 6%, var(--sg-surface));
-        border-color: rgba(27,142,139,.15);
-    }
-
-    .sg-landing__role-card--doctor {
-        background: color-mix(in oklab, #2678d9 5%, var(--sg-surface));
-        border-color: rgba(38,120,217,.12);
-    }
-
-    .sg-landing__role-card--admin {
-        background: color-mix(in oklab, #7a39bb 5%, var(--sg-surface));
-        border-color: rgba(122,57,187,.12);
-    }
-
-    .sg-landing__role-icon {
-        font-size: 2rem;
-        margin-bottom: .875rem;
-        line-height: 1;
-    }
-
-    .sg-landing__role-title {
-        font-size: 1.0rem;
-        font-weight: 700;
-        color: var(--sg-text);
-        margin: 0 0 .5rem;
-    }
-
-    .sg-landing__role-desc {
-        font-size: .875rem;
-        color: var(--sg-text-muted);
-        line-height: 1.6;
-        margin: 0;
-    }
-
-    /* CTA */
-    .sg-landing__cta {
-        padding: clamp(3rem, 6vw, 5rem) 0;
-        background: var(--sg-surface-2);
-        text-align: center;
-        border-top: 1px solid var(--sg-border);
-    }
-
-    .sg-landing__cta-title {
-        font-family: var(--sg-font-display);
-        font-size: clamp(1.75rem, 1.2rem + 2vw, 3rem);
-        font-weight: 600;
-        letter-spacing: -.03em;
-        color: var(--sg-text);
-        margin: 0 0 .875rem;
-    }
-
-    .sg-landing__cta-desc {
-        font-size: clamp(1rem, .9rem + .25vw, 1.1rem);
-        color: var(--sg-text-muted);
-        line-height: 1.6;
-        margin: 0 0 2rem;
-        max-width: 52ch;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .sg-landing__cta .sg-landing__hero-actions {
-        justify-content: center;
-    }
-
-    /* Footer */
-    .sg-landing__footer {
-        padding: 1.5rem 0;
-        border-top: 1px solid var(--sg-border);
-        background: var(--sg-bg);
-    }
-
-        .sg-landing__footer .sg-landing__section-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-    .sg-landing__footer-copy {
-        font-size: .8rem;
-        color: var(--sg-text-faint);
-    }
-
-    .sg-landing__footer-nav {
-        display: flex;
-        gap: 1.25rem;
-        flex-wrap: wrap;
-    }
-
-    .sg-landing__footer-link {
-        font-size: .8rem;
-        color: var(--sg-text-muted);
-        text-decoration: none;
-        transition: color var(--sg-transition);
-    }
-
-        .sg-landing__footer-link:hover {
-            color: var(--sg-primary);
-        }
-
-        .sg-landing__footer-link:focus-visible {
-            outline: 2px solid var(--sg-primary);
-            outline-offset: 2px;
-            border-radius: 2px;
-        }
-
-    /* Адаптивность */
-    @@media (max-width: 860px) {
-        .sg-landing__hero-inner {
-            grid-template-columns: 1fr;
-            gap: 2rem;
-        }
-
-        .sg-landing__hero-visual {
-            display: none;
-        }
-    }
-
-    @@media (max-width: 500px) {
-        .sg-landing__hero-actions {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-            .sg-landing__hero-actions .sg-btn {
-                justify-content: center;
-            }
-
-        .sg-landing__footer .sg-landing__section-inner {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .sg-landing__nav {
-            gap: .25rem;
-        }
-
-        .sg-landing__nav-link {
-            padding: .4rem .75rem;
-            font-size: .8rem;
-        }
-    }
-
-    @@media (prefers-reduced-motion: reduce) {
-        .sg-landing__dot {
-            animation: none;
-        }
-
-        .sg-btn,
-        .sg-landing__feature-card,
-        .sg-landing__role-card,
-        .sg-landing__nav-link {
-            transition: none;
-        }
-    }
-</style>
 
 @code {
     private bool isDarkTheme;
+    private string activeAudienceId = "parent";
 
-    /// <summary>
-    /// При монтировании компонента проверяем аутентификацию
-    /// </summary>
+    private string LandingClass => isDarkTheme ? "sg-landing sg-landing--dark" : "sg-landing";
+
+    private AudienceCard ActiveAudience =>
+        Audiences.First(audience => audience.Id == activeAudienceId);
+
+    private static readonly AudienceCard[] Audiences =
+    [
+        new(
+            "parent",
+            "01",
+            "Родителям",
+            "Спокойнее видеть целый день",
+            "Не теряйте важные события между звонками и сообщениями",
+            "В кабинете родителя измерения, питание, тревоги и врачебные заметки собраны вокруг конкретного ребёнка.",
+            ["Текущая глюкоза и история", "Уведомления и SOS-события", "Рюкзак, питание и экспорт отчётов"],
+            "Создать аккаунт родителя",
+            "/register",
+            "Кабинет родителя",
+            "За последние 7 дней",
+            "82%",
+            "в целевом диапазоне за 7 дней"),
+        new(
+            "doctor",
+            "02",
+            "Врачам",
+            "Картина по пациенту без ручного сбора",
+            "Сосредоточьтесь на динамике и пациентах, которым нужно внимание",
+            "Врач получает доступ только после подключения к ребёнку и работает в отдельном клиническом кабинете.",
+            ["Список пациентов и группы риска", "Графики, TIR и аналитика", "Заметки и экспорт данных"],
+            "Зарегистрироваться как врач",
+            "/register",
+            "Мои пациенты",
+            "Требуют внимания",
+            "2",
+            "пациента требуют внимания"),
+        new(
+            "admin",
+            "03",
+            "Администраторам",
+            "Прозрачность ролей и действий",
+            "Управляйте доступами без общих паролей и неясных полномочий",
+            "Административный контур отделён от медицинской работы и помогает контролировать пользователей, заявки и состояние системы.",
+            ["Роли и подтверждение врачей", "Аудит действий и журнал синхронизации", "Мониторинг сервисов и поддержка"],
+            "Посмотреть вход в систему",
+            "/login",
+            "Системная панель",
+            "Состояние сервисов",
+            "Все системы",
+            "работают штатно")
+    ];
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender)
+        {
+            return;
+        }
 
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
-            if (!user.Identity?.IsAuthenticated ?? true) return;
-
-            // Редирект по роли
-            var role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
-                       ?? user.FindFirst("role")?.Value;
-
-            var target = role switch
+            if (user.Identity?.IsAuthenticated == true)
             {
-                "Admin" or "SupportAdmin" => "/admin/dashboard",
-                "Doctor" => "/doctor/dashboard",
-                _ => "/parent/dashboard"
-            };
+                var role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                           ?? user.FindFirst("role")?.Value;
 
-            Navigation.NavigateTo(target, replace: true);
+                var target = role switch
+                {
+                    "Admin" or "SupportAdmin" => "/admin/dashboard",
+                    "Doctor" => "/doctor/dashboard",
+                    _ => "/parent/dashboard"
+                };
+
+                Navigation.NavigateTo(target, replace: true);
+                return;
+            }
         }
-        catch
+        catch (Exception exception)
         {
+            Logger.LogWarning(exception, "Не удалось проверить авторизацию на публичном лендинге");
         }
 
         try
@@ -1004,11 +681,22 @@
             isDarkTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
             StateHasChanged();
         }
-        catch
+        catch (JSException exception)
         {
-            isDarkTheme = false;
+            Logger.LogDebug(exception, "Не удалось прочитать сохранённую тему лендинга");
         }
     }
+
+    private void SelectAudience(string audienceId)
+    {
+        if (Audiences.Any(audience => audience.Id == audienceId))
+        {
+            activeAudienceId = audienceId;
+        }
+    }
+
+    private string AudienceTabClass(string audienceId) =>
+        activeAudienceId == audienceId ? "sg-audience-tab is-active" : "sg-audience-tab";
 
     private async Task ToggleThemeAsync()
     {
@@ -1018,9 +706,25 @@
             var theme = await JS.InvokeAsync<string>("sugarGuardTheme.getTheme");
             isDarkTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
         }
-        catch
+        catch (JSException exception)
         {
+            Logger.LogDebug(exception, "Не удалось переключить сохранённую тему лендинга");
             isDarkTheme = !isDarkTheme;
         }
     }
+
+    private sealed record AudienceCard(
+        string Id,
+        string Number,
+        string Label,
+        string Eyebrow,
+        string Title,
+        string Description,
+        string[] Benefits,
+        string CtaLabel,
+        string CtaHref,
+        string PreviewLabel,
+        string PreviewTitle,
+        string PreviewMetric,
+        string PreviewCaption);
 }

@@ -7,7 +7,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>Sync Logs — SugarGuard Admin</PageTitle>
+<PageTitle>Sync Logs - SugarGuard Admin</PageTitle>
 
 <div class="admin-ops-page">
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -113,7 +113,7 @@
                                 </td>
                                 <td><span class="admin-pill admin-pill--@GetStatusTone(item.Status)">@item.Status</span></td>
                                 <td>@(item.IsConflict ? "Да" : "Нет")</td>
-                                <td class="admin-error-cell">@(string.IsNullOrWhiteSpace(item.Error) ? "—" : item.Error)</td>
+                                <td class="admin-error-cell">@(string.IsNullOrWhiteSpace(item.Error) ? "-" : item.Error)</td>
                                 <td class="admin-actions-cell">
                                     @if (item.IsConflict)
                                     {
@@ -222,7 +222,7 @@
     {
         if (_logs.Count == 0)
         {
-            return "—";
+            return "-";
         }
 
         return _logs.Max(x => x.CreatedAt).ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture);
@@ -237,7 +237,7 @@
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "—";
+            return "-";
         }
 
         return value.Length <= 18 ? value : $"{value[..18]}...";

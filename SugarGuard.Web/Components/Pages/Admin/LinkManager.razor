@@ -9,7 +9,7 @@
 @inject SugarGuardApiService Api
 @inject ILogger<LinkManager> Logger
 
-<PageTitle>Управление связями — SugarGuard Admin</PageTitle>
+<PageTitle>Управление связями - SugarGuard Admin</PageTitle>
 
 <div class="link-manager-page">
 
@@ -31,7 +31,7 @@
                 aria-selected="@(_activeTab == Tab.ParentChild)"
                 @onclick="() => SetTab(Tab.ParentChild)">
             <span class="tab__icon">👨‍👧</span>
-            Родитель — Ребёнок
+            Родитель - Ребёнок
         </button>
         <button class="tab @(_activeTab == Tab.DoctorChild ? "tab--active" : string.Empty)"
                 type="button"
@@ -39,7 +39,7 @@
                 aria-selected="@(_activeTab == Tab.DoctorChild)"
                 @onclick="() => SetTab(Tab.DoctorChild)">
             <span class="tab__icon">🩺</span>
-            Врач — Ребёнок
+            Врач - Ребёнок
         </button>
     </div>
 
@@ -50,7 +50,7 @@
 
             @* Таблица существующих Parent–Child связей *@
             <section class="section-card">
-                <SectionHeader Title="Связи родитель — ребёнок"
+                <SectionHeader Title="Связи родитель - ребёнок"
                                Description="Создавайте связи на вкладке «Пользователи»; здесь можно проверить и удалить существующие." />
 
                 @if (_isPcLoading)
@@ -116,7 +116,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="links-pagination" aria-label="Страницы связей родитель — ребёнок">
+                    <div class="links-pagination" aria-label="Страницы связей родитель - ребёнок">
                         <span>Страница @_pcPage из @PcPageCount · по @LinksPageSize</span>
                         <button class="btn btn-ghost btn-sm" type="button" @onclick="PreviousPcPage" disabled="@(_pcPage <= 1)">Назад</button>
                         <button class="btn btn-ghost btn-sm" type="button" @onclick="NextPcPage" disabled="@(_pcPage >= PcPageCount)">Далее</button>
@@ -133,7 +133,7 @@
 
             @* Таблица существующих Doctor–Child связей *@
             <section class="section-card">
-                <SectionHeader Title="Связи врач — ребёнок"
+                <SectionHeader Title="Связи врач - ребёнок"
                                Description="Создавайте связи на вкладке «Пользователи»; здесь можно проверить и удалить существующие." />
 
                 @if (_isDcLoading)
@@ -199,7 +199,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="links-pagination" aria-label="Страницы связей врач — ребёнок">
+                    <div class="links-pagination" aria-label="Страницы связей врач - ребёнок">
                         <span>Страница @_dcPage из @DcPageCount · по @LinksPageSize</span>
                         <button class="btn btn-ghost btn-sm" type="button" @onclick="PreviousDcPage" disabled="@(_dcPage <= 1)">Назад</button>
                         <button class="btn btn-ghost btn-sm" type="button" @onclick="NextDcPage" disabled="@(_dcPage >= DcPageCount)">Далее</button>
@@ -358,8 +358,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Ошибка при загрузке связей Parent–Child.");
-            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Parent–Child.");
+            Logger.LogError(ex, "Ошибка при загрузке связей Parent-Child.");
+            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Parent-Child.");
         }
         finally
         {
@@ -389,8 +389,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Ошибка при загрузке связей Doctor–Child.");
-            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Doctor–Child.");
+            Logger.LogError(ex, "Ошибка при загрузке связей Doctor-Child.");
+            ShowNotification("error", "Ошибка загрузки", "Не удалось загрузить список связей Doctor-Child.");
         }
         finally
         {
@@ -421,11 +421,11 @@
 
                 _pcLinks.Remove(link);
                 _pcPage = Math.Clamp(_pcPage, 1, PcPageCount);
-                ShowNotification("success", "Связь удалена", $"Parent–Child: {TruncateGuid(link.ParentUserId)} / {TruncateGuid(link.ChildId)}");
+                ShowNotification("success", "Связь удалена", $"Parent-Child: {TruncateGuid(link.ParentUserId)} / {TruncateGuid(link.ChildId)}");
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Ошибка при удалении связи Parent–Child.");
+                Logger.LogError(ex, "Ошибка при удалении связи Parent-Child.");
                 ShowNotification("error", "Ошибка удаления", "Не удалось удалить связь. Попробуйте ещё раз.");
             }
             finally
@@ -460,11 +460,11 @@
 
                 _dcLinks.Remove(link);
                 _dcPage = Math.Clamp(_dcPage, 1, DcPageCount);
-                ShowNotification("success", "Связь удалена", $"Doctor–Child: {TruncateGuid(link.DoctorUserId)} / {TruncateGuid(link.ChildId)}");
+                ShowNotification("success", "Связь удалена", $"Doctor-Child: {TruncateGuid(link.DoctorUserId)} / {TruncateGuid(link.ChildId)}");
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Ошибка при удалении связи Doctor–Child.");
+                Logger.LogError(ex, "Ошибка при удалении связи Doctor-Child.");
                 ShowNotification("error", "Ошибка удаления", "Не удалось удалить связь. Попробуйте ещё раз.");
             }
             finally

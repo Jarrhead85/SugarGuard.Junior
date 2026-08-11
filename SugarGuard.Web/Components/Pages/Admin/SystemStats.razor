@@ -13,7 +13,7 @@
 @inject SugarGuardApiService Api
 @inject ILogger<SystemStats> Logger
 
-<PageTitle>Состояние системы — SugarGuard Admin</PageTitle>
+<PageTitle>Состояние системы - SugarGuard Admin</PageTitle>
 
 <div class="system-stats-page">
     @* Глобальная ошибка *@
@@ -519,13 +519,13 @@
     private static string FormatServerTime(DateTime? dt) =>
         dt.HasValue
             ? dt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture)
-            : "—";
+            : "-";
 
     private static bool IsHealthyStatus(string? status) =>
         string.Equals(status, "healthy", StringComparison.OrdinalIgnoreCase);
 
     private static string FormatPercent(double? value) =>
-        value.HasValue ? $"{value.Value.ToString("0.#", CultureInfo.CurrentCulture)}%" : "—";
+        value.HasValue ? $"{value.Value.ToString("0.#", CultureInfo.CurrentCulture)}%" : "-";
 
     private static string FormatMb(double value) =>
         value >= 1024
@@ -552,7 +552,7 @@
     {
         if (!duration.HasValue)
         {
-            return "—";
+            return "-";
         }
 
         var value = duration.Value;
