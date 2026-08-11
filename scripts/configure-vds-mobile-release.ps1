@@ -49,10 +49,11 @@ sudo systemctl status sugarguard-api.service --no-pager
 exit 1
 "@
 
-$encodedScript = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remoteScript))
+$remoteScriptWithUnixLineEndings = $remoteScript.Replace("`r`n", "`n")
+$encodedScript = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($remoteScriptWithUnixLineEndings))
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = "ssh"
-$psi.Arguments = "-i `"$KeyPath`" -o BatchMode=yes -o ConnectTimeout=15 $User@$Server `"tail -c +4 | base64 -d | bash`""
+$psi.Arguments = "-i `"$KeyPath`" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 $User@$Server `"tail -c +4 | base64 -d | bash`""
 $psi.UseShellExecute = $false
 $psi.RedirectStandardInput = $true
 $psi.RedirectStandardOutput = $true
