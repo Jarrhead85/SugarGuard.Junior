@@ -1,4 +1,14 @@
+@font-face {
+    font-family: "SugarGuard Nunito";
+    src: url("/fonts/sugarguard-nunito-variable.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 200 1000;
+    font-display: swap;
+}
+
 .sg-landing {
+    --sg-font-body: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+    --sg-font-heading: "SugarGuard Nunito", "Segoe UI Variable Display", "Segoe UI", sans-serif;
     --sg-bg: #f5f8fb;
     --sg-bg-warm: #fbfaf6;
     --sg-surface: #ffffff;
@@ -6,7 +16,7 @@
     --sg-surface-blue: #edf4ff;
     --sg-text: #10233d;
     --sg-muted: #52627a;
-    --sg-subtle: #697991;
+    --sg-subtle: #5d6d83;
     --sg-primary: #087370;
     --sg-primary-strong: #075f5d;
     --sg-primary-soft: #dff3f1;
@@ -32,7 +42,7 @@
         radial-gradient(circle at 92% 1%, rgb(62 202 192 / 12%), transparent 28rem),
         radial-gradient(circle at 4% 30%, rgb(72 129 220 / 8%), transparent 30rem),
         var(--sg-bg);
-    font-family: "Satoshi", "Segoe UI", sans-serif;
+    font-family: var(--sg-font-body);
     line-height: 1.55;
     color-scheme: light;
 }
@@ -66,6 +76,11 @@
         radial-gradient(circle at 92% 1%, rgb(65 206 196 / 10%), transparent 28rem),
         radial-gradient(circle at 4% 30%, rgb(72 129 220 / 9%), transparent 30rem),
         var(--sg-bg);
+}
+
+.sg-landing--dark .sg-landing__hero::before {
+    opacity: .22;
+    background-blend-mode: multiply;
 }
 
 .sg-landing *,
@@ -109,6 +124,18 @@
 .sg-landing h3 {
     letter-spacing: -.035em;
     line-height: 1.08;
+}
+
+.sg-landing h1,
+.sg-landing h2,
+.sg-audience-panel__copy h3,
+.sg-steps h3,
+.sg-capability h3,
+.sg-trust-card h3 {
+    font-family: var(--sg-font-heading);
+    font-weight: 700;
+    letter-spacing: -.026em;
+    text-wrap: balance;
 }
 
 .sg-landing :where(a, button, summary, [role="tab"]):focus-visible {
@@ -307,7 +334,30 @@
 
 .sg-landing__hero {
     position: relative;
+    isolation: isolate;
     padding: clamp(3.4rem, 7vw, 6.5rem) 0 clamp(4rem, 7vw, 6rem);
+}
+
+.sg-landing__hero::before {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    content: "";
+    background:
+        linear-gradient(90deg, var(--sg-bg) 0%, color-mix(in srgb, var(--sg-bg) 92%, transparent) 43%, transparent 72%),
+        url("/images/landing-watercolor-flow.webp") 50% 72% / cover no-repeat;
+    opacity: .78;
+    pointer-events: none;
+}
+
+.sg-landing__hero::after {
+    position: absolute;
+    z-index: -1;
+    inset: auto 0 0;
+    height: 7rem;
+    content: "";
+    background: linear-gradient(to bottom, transparent, var(--sg-bg));
+    pointer-events: none;
 }
 
 .sg-landing__hero-grid {
@@ -364,10 +414,11 @@
 }
 
 .sg-landing__hero h1 {
-    max-width: 12.5ch;
+    max-width: 14.5ch;
     margin-bottom: 1.35rem;
-    font-size: clamp(2.55rem, 5.1vw, 5.15rem);
-    font-weight: 760;
+    font-size: clamp(2.55rem, 4.4vw, 4.55rem);
+    font-weight: 720;
+    line-height: 1.04;
 }
 
 .sg-landing__hero-lead {
@@ -636,7 +687,7 @@
 .sg-phone-mockup__chart > div {
     display: flex;
     justify-content: space-between;
-    color: #8795a7;
+    color: #52627a;
     font-size: .5rem;
 }
 
@@ -662,7 +713,7 @@
 .sg-phone-mockup__nav {
     margin-top: .55rem;
     padding: .5rem .8rem .1rem;
-    color: #9aa7b7;
+    color: #52627a;
     font-size: .65rem;
 }
 
@@ -715,7 +766,7 @@
 .sg-dashboard-mockup__heading small,
 .sg-dashboard-mockup__metrics small,
 .sg-dashboard-mockup__event small {
-    color: #6e8095;
+    color: #52627a;
     font-size: .55rem;
 }
 
@@ -743,7 +794,7 @@
 }
 
 .sg-dashboard-mockup__metrics span {
-    color: #708196;
+    color: #52627a;
     font-size: .5rem;
 }
 
@@ -770,7 +821,7 @@
 }
 
 .sg-dashboard-mockup__graph-head small {
-    color: #708196;
+    color: #52627a;
     font-size: .5rem;
 }
 
@@ -901,7 +952,10 @@
 .sg-section--audiences,
 .sg-section--interface,
 .sg-section--faq {
-    background: color-mix(in srgb, var(--sg-surface) 68%, transparent);
+    background:
+        linear-gradient(color-mix(in srgb, var(--sg-surface) 84%, transparent), color-mix(in srgb, var(--sg-surface) 92%, transparent)),
+        url("/images/landing-watercolor-wash.webp") center / cover no-repeat;
+    background-blend-mode: normal, soft-light;
 }
 
 .sg-audience-tabs {
@@ -937,7 +991,7 @@
     background: color-mix(in srgb, var(--sg-surface) 70%, transparent);
 }
 
-.sg-audience-tabs button[aria-selected="true"] {
+.sg-audience-tabs button[aria-pressed="true"] {
     color: var(--sg-primary-strong);
     border-color: var(--sg-border);
     background: var(--sg-surface);
@@ -1204,22 +1258,27 @@
 }
 
 .sg-capabilities-grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 1rem;
 }
 
 .sg-capability {
-    grid-column: span 2;
-    min-height: 20rem;
+    width: calc((100% - 2rem) / 3);
+    min-width: 0;
+    min-height: 21rem;
+    flex: 0 1 calc((100% - 2rem) / 3);
     padding: clamp(1.4rem, 3vw, 2.2rem);
     border: 1px solid var(--sg-border);
     border-radius: var(--sg-radius-md);
-    background: var(--sg-surface);
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--sg-surface) 98%, transparent), color-mix(in srgb, var(--sg-primary-soft) 26%, var(--sg-surface)));
+    box-shadow: 0 12px 32px rgb(28 89 105 / 6%);
 }
 
 .sg-capability--wide {
-    grid-column: span 3;
+    grid-column: auto;
 }
 
 .sg-capability__icon--alert {
@@ -1245,13 +1304,13 @@
 
 .sg-screen-gallery {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
     gap: 1rem;
 }
 
 .sg-screen-card {
-    grid-column: span 4;
+    grid-column: auto;
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--sg-border);
@@ -1260,11 +1319,11 @@
 }
 
 .sg-screen-card--wide {
-    grid-column: span 6;
+    grid-column: auto;
 }
 
 .sg-screen-card--mobile {
-    grid-column: span 4;
+    grid-column: auto;
 }
 
 .sg-screen-card > header {
@@ -1281,7 +1340,8 @@
     font-size: .75rem;
 }
 
-.sg-screen-card > header strong {
+.sg-screen-card > header h3 {
+    margin: 0;
     font-size: .84rem;
 }
 
@@ -1325,7 +1385,7 @@
 }
 
 .sg-mini-glucose span {
-    color: #708196;
+    color: #52627a;
     font-size: .68rem;
 }
 
@@ -1459,7 +1519,7 @@
 
 .sg-mini-backpack small,
 .sg-mini-patient small {
-    color: #708196;
+    color: #52627a;
     font-size: .62rem;
 }
 
@@ -1478,7 +1538,7 @@
 }
 
 .sg-mini-parent__stats small {
-    color: #708196;
+    color: #52627a;
     font-size: .6rem;
 }
 
@@ -1547,7 +1607,7 @@
     font-size: .65rem;
 }
 
-.sg-mini-note h3 {
+.sg-mini-note h4 {
     margin: .6rem 0 .45rem;
     font-size: 1.2rem;
 }
@@ -1569,7 +1629,7 @@
 }
 
 .sg-mini-note small {
-    color: #708196;
+    color: #52627a;
     font-size: .6rem;
 }
 
@@ -1788,7 +1848,9 @@
     position: relative;
     overflow: hidden;
     color: #fff;
-    background: linear-gradient(120deg, #075f5d 0%, #145b92 52%, #1f55ad 100%);
+    background:
+        linear-gradient(120deg, rgb(7 95 93 / 95%) 0%, rgb(20 91 146 / 94%) 52%, rgb(31 85 173 / 94%) 100%),
+        url("/images/landing-watercolor-wash.webp") center / cover no-repeat;
 }
 
 .sg-final-cta__inner {
@@ -1966,16 +2028,12 @@
     }
 
     .sg-capability {
-        grid-column: span 3;
+        width: calc((100% - 1rem) / 2);
+        flex-basis: calc((100% - 1rem) / 2);
     }
 
-    .sg-screen-card,
-    .sg-screen-card--mobile {
-        grid-column: span 6;
-    }
-
-    .sg-screen-card--wide {
-        grid-column: span 6;
+    .sg-screen-gallery {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -2072,6 +2130,13 @@
         padding-top: 2.9rem;
     }
 
+    .sg-landing__hero::before {
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--sg-bg) 96%, transparent) 0%, color-mix(in srgb, var(--sg-bg) 78%, transparent) 52%, transparent 100%),
+            url("/images/landing-watercolor-flow.webp") 65% 70% / cover no-repeat;
+        opacity: .58;
+    }
+
     .sg-landing__hero h1 {
         max-width: none;
         font-size: clamp(2.1rem, 10vw, 3.35rem);
@@ -2116,8 +2181,12 @@
 
     .sg-landing__signal-grid,
     .sg-steps,
-    .sg-capabilities-grid,
     .sg-screen-gallery {
+        grid-template-columns: 1fr;
+    }
+
+    .sg-capabilities-grid {
+        display: grid;
         grid-template-columns: 1fr;
     }
 
@@ -2161,7 +2230,9 @@
     }
 
     .sg-capability {
+        width: 100%;
         min-height: auto;
+        flex-basis: auto;
     }
 
     .sg-screen-card__canvas {

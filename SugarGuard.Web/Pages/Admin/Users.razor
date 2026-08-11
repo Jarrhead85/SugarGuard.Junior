@@ -8,7 +8,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>Пользователи — SugarGuard Admin</PageTitle>
+<PageTitle>Пользователи - SugarGuard Admin</PageTitle>
 
 <div class="admin-users-page">
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
@@ -157,7 +157,7 @@
 
                                         <div class="sg-user-meta">
                                             <span><strong>ID:</strong> @user.UserId</span>
-                                            <span><strong>Telegram:</strong> @(user.TelegramId?.ToString() ?? "—")</span>
+                                            <span><strong>Telegram:</strong> @(user.TelegramId?.ToString() ?? "-")</span>
                                             <span><strong>Создан:</strong> @FormatUtc(user.CreatedAt)</span>
                                         </div>
                                     </div>
@@ -188,7 +188,7 @@
                         </div>
 
                         <div class="sg-pagination" aria-label="Страницы пользователей">
-                            <span>Показано @UsersPageStart–@UsersPageEnd из @_totalUsers</span>
+                            <span>Показано @UsersPageStart-@UsersPageEnd из @_totalUsers</span>
                             <div class="sg-pagination-actions">
                                 <button class="sg-btn sg-btn-soft" type="button" @onclick="FirstUsersPageAsync" disabled="@(_usersPage <= 1 || _isRefreshing)">Первая</button>
                                 <button class="sg-btn sg-btn-soft" type="button" @onclick="PreviousUsersPageAsync" disabled="@(_usersPage <= 1 || _isRefreshing)">Назад</button>
@@ -220,7 +220,7 @@
 
                 <section class="sg-panel">
                     <SectionHeader Title="Профили детей"
-                                   Description="Дети — отдельные профили, а не учётные записи. Здесь отображаются все профили, доступные для связей." />
+                                   Description="Дети - отдельные профили, а не учётные записи. Здесь отображаются все профили, доступные для связей." />
                     <div class="sg-child-catalog">
                         @foreach (var child in _children)
                         {
@@ -330,7 +330,7 @@
                     <ul class="sg-hints-list">
                         <li>Для parent-child выбирайте только пользователей с ролью <strong>Parent</strong>.</li>
                         <li>Для doctor-child допустимы роли <strong>Doctor</strong>, <strong>Admin</strong> и <strong>SupportAdmin</strong>.</li>
-                        <li>Родитель, врач и ребёнок выбираются из списков — GUID вводить не нужно.</li>
+                        <li>Родитель, врач и ребёнок выбираются из списков - GUID вводить не нужно.</li>
                         <li>Массовая смена статуса требует отдельного подтверждения и фиксируется в журнале аудита.</li>
                     </ul>
                 </section>

@@ -11,7 +11,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<Alerts> Logger
 
-<PageTitle>Группы риска — SugarGuard</PageTitle>
+<PageTitle>Группы риска - SugarGuard</PageTitle>
 
 <section class="doctor-simple-page">
     <header class="doctor-simple-hero">
@@ -216,7 +216,7 @@
 
     private static string FormatGlucose(DoctorPatientSummaryVm patient)
         => patient.LatestGlucose is null
-            ? "—"
+            ? "-"
             : $"{patient.LatestGlucose.Value:0.0} ммоль/л";
 
     private void NavigateToPatient(Guid childId)

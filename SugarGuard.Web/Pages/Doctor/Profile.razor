@@ -13,7 +13,7 @@
 @inject SugarGuardApiService ApiService
 @inject ILogger<Profile> Logger
 
-<PageTitle>Профиль врача — SugarGuard</PageTitle>
+<PageTitle>Профиль врача - SugarGuard</PageTitle>
 
 <section class="doctor-profile-page">
     <header class="doctor-profile-hero">
@@ -96,7 +96,7 @@
             </article>
             <article class="doctor-profile-card">
                 <span>Средний TIR</span>
-                <strong>@(_averageTir?.ToString("0.#") ?? "—")%</strong>
+                <strong>@(_averageTir?.ToString("0.#") ?? "-")%</strong>
                 <p>по доступным данным за 7 дней</p>
             </article>
         </section>
@@ -112,7 +112,7 @@
 @code {
     private bool _isLoading = true;
     private string DisplayName = "Врач SugarGuard";
-    private string Email = "—";
+    private string Email = "-";
     private string Role = "Doctor";
     private int _patientsCount;
     private int _criticalToday;
@@ -128,7 +128,7 @@
     private readonly CancellationTokenSource _profileRefreshCts = new();
     private Task? _profileRefreshTask;
 
-    private string Initials => string.IsNullOrWhiteSpace(Email) || Email == "—"
+    private string Initials => string.IsNullOrWhiteSpace(Email) || Email == "-"
         ? "DR"
         : Email[0].ToString().ToUpperInvariant();
 
@@ -152,7 +152,7 @@
             Email = user.FindFirst(ClaimTypes.Email)?.Value
                 ?? user.FindFirst("email")?.Value
                 ?? user.Identity?.Name
-                ?? "—";
+                ?? "-";
             Role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Doctor";
             DisplayName = user.Identity?.Name is { Length: > 0 } name && !name.Contains('@', StringComparison.Ordinal)
                 ? name

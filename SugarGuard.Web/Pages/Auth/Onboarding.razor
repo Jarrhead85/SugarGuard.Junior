@@ -15,7 +15,7 @@
 @inject ILogger<Onboarding> Logger
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Добро пожаловать — SugarGuard</PageTitle>
+<PageTitle>Добро пожаловать - SugarGuard</PageTitle>
 
 @if (_isLoading)
 {
@@ -260,7 +260,7 @@ else
                         class="form-select"
                         @bind="_childForm.DiabetesType"
                         disabled="@_isBusy">
-                    <option value="">— Выберите тип —</option>
+                    <option value="">- Выберите тип -</option>
                     <option value="Type1">Тип 1</option>
                     <option value="Type2">Тип 2</option>
                     <option value="Gestational">Гестационный</option>
@@ -338,7 +338,7 @@ else
                                @bind="_settingsForm.TargetGlucoseMin"
                                disabled="@_isBusy"/>
                     </div>
-                    <div class="range-divider">—</div>
+                    <div class="range-divider">-</div>
                     <div class="range-input-wrap">
                         <label class="form-label-sub" for="target-max">До</label>
                         <input id="target-max"
@@ -349,7 +349,7 @@ else
                                disabled="@_isBusy"/>
                     </div>
                 </div>
-                <span class="form-hint">Норма: 4.0 — 10.0 ммоль/л</span>
+                <span class="form-hint">Норма: 4.0 - 10.0 ммоль/л</span>
             </div>
 
             <div class="form-group">
@@ -461,7 +461,7 @@ else
                     }
                     else
                     {
-                        <span>Готово — перейти в приложение</span>
+                        <span>Готово - перейти в приложение</span>
                     }
                 </button>
             </div>
@@ -482,7 +482,7 @@ else
             </div>
             <h2 class="step-title">Всё готово!</h2>
             <p class="step-description">
-                Настройка завершена. Добро пожаловать в SugarGuard —
+                Настройка завершена. Добро пожаловать в SugarGuard -
                 теперь вы можете контролировать уровень глюкозы
                 и получать персонализированные рекомендации.
             </p>

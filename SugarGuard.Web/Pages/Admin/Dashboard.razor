@@ -13,7 +13,7 @@
 @inject ILogger<Dashboard> Logger
 @inject ICurrentUserService CurrentUser
 
-<PageTitle>Дашборд — SugarGuard Admin</PageTitle>
+<PageTitle>Дашборд - SugarGuard Admin</PageTitle>
 
 <div class="admin-dashboard-v2">
     @if (!string.IsNullOrWhiteSpace(_statusMessage))
@@ -168,7 +168,7 @@
 
             <article class="admin-mini-card">
                 <span>Uptime API</span>
-                <strong>@(IsHealthy ? "OK" : "—")</strong>
+                <strong>@(IsHealthy ? "OK" : "-")</strong>
                 <small>@(_health?.Database == true ? "База доступна" : "Проверьте health")</small>
             </article>
 
@@ -356,7 +356,7 @@
     private string GrowthAreaPath => GrowthPoints.Count == 0
         ? string.Empty
         : $"M {GrowthPolyline} L {GrowthPoints[^1].X.ToString(CultureInfo.InvariantCulture)},86 L {GrowthPoints[0].X.ToString(CultureInfo.InvariantCulture)},86 Z";
-    private GrowthPoint LastPoint => GrowthPoints.Count == 0 ? new GrowthPoint("—", 112, 82, 0) : GrowthPoints[^1];
+    private GrowthPoint LastPoint => GrowthPoints.Count == 0 ? new GrowthPoint("-", 112, 82, 0) : GrowthPoints[^1];
 
     private string LastPointMarkerStyle => $"left:{(LastPoint.X / 120d * 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;top:{(LastPoint.Y / 90d * 100d).ToString("0.###", CultureInfo.InvariantCulture)}%;";
 
@@ -569,7 +569,7 @@
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return "—";
+            return "-";
         }
 
         return value.Length <= 10 ? value : $"{value[..8]}…";
@@ -598,7 +598,7 @@
 
     private static string FormatPercent(double? value) => value.HasValue
         ? $"{value.Value.ToString("0.#", RuCulture)}%"
-        : "—";
+        : "-";
 
     private static string FormatBytesPerSecond(long? bytesPerSecond)
     {
@@ -620,7 +620,7 @@
     {
         if (!value.HasValue)
         {
-            return "—";
+            return "-";
         }
 
         var uptime = value.Value;
@@ -632,7 +632,7 @@
     private static string FormatLocal(DateTime value) => $"{ToMoscowTime(value).ToString("dd.MM.yyyy HH:mm", RuCulture)} МСК";
     private static string FormatMoscow(DateTime? value) => value.HasValue ? FormatLocal(value.Value) : "нет данных";
     private static string FormatDate(DateTime value) => ToMoscowTime(value).ToString("dd.MM.yyyy", RuCulture);
-    private static string FormatDate(DateTime? value) => value.HasValue ? FormatDate(value.Value) : "—";
+    private static string FormatDate(DateTime? value) => value.HasValue ? FormatDate(value.Value) : "-";
     private static string FormatShortTime(DateTime value) => ToMoscowTime(value).ToString("HH:mm", RuCulture);
 
     private static DateTime ToMoscowTime(DateTime value)

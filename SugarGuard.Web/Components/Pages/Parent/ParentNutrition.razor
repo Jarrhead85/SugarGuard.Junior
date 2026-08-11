@@ -12,7 +12,7 @@
 
 @if (!Embedded)
 {
-    <PageTitle>Дневник питания — SugarGuard</PageTitle>
+    <PageTitle>Дневник питания - SugarGuard</PageTitle>
 }
 
 <main class="nutrition-page @(Embedded ? "nutrition-page--embedded" : "")">
@@ -722,7 +722,7 @@
     };
 
     private static string FormatBreadUnits(decimal? value) =>
-        value.HasValue ? value.Value.ToString("0.#") : "—";
+        value.HasValue ? value.Value.ToString("0.#") : "-";
 
     private static int GetAge(DateOnly dateOfBirth)
     {

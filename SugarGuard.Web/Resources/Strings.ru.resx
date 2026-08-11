@@ -577,7 +577,7 @@
   </data>
 
   <data name="Backpack_Filter_Medium" xml:space="preserve">
-    <value>1–2 ХЕ</value>
+    <value>1-2 ХЕ</value>
   </data>
 
   <data name="Backpack_Filter_High" xml:space="preserve">
@@ -997,7 +997,7 @@
   </data>
 
   <data name="Sync_Status_Offline" xml:space="preserve">
-    <value>Нет соединения — данные сохранены локально</value>
+    <value>Нет соединения - данные сохранены локально</value>
   </data>
 
   <data name="Sync_Conflict_Title" xml:space="preserve">
@@ -1142,12 +1142,12 @@
   </data>
 
   <data name="Validation_MinLength" xml:space="preserve">
-    <value>Минимальная длина — {0} символов</value>
+    <value>Минимальная длина - {0} символов</value>
     <comment>{0} — минимальное количество символов</comment>
   </data>
 
   <data name="Validation_MaxLength" xml:space="preserve">
-    <value>Максимальная длина — {0} символов</value>
+    <value>Максимальная длина - {0} символов</value>
     <comment>{0} — максимальное количество символов</comment>
   </data>
 

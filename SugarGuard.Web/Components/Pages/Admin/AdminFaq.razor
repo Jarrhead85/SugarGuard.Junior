@@ -7,7 +7,7 @@
 
 @inject SugarGuardApiService Api
 
-<PageTitle>FAQ — SugarGuard Admin</PageTitle>
+<PageTitle>FAQ - SugarGuard Admin</PageTitle>
 
 <div class="admin-faq-page">
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -165,7 +165,7 @@
 
                 <ul class="admin-note-list">
                     <li>Не публикуйте медицинские назначения без явного указания обратиться к врачу.</li>
-                    <li>Пишите простым языком: один вопрос — один ответ.</li>
+                    <li>Пишите простым языком: один вопрос - один ответ.</li>
                     <li>Черновик можно подготовить заранее и опубликовать позже.</li>
                 </ul>
             </section>
@@ -330,7 +330,7 @@
     {
         if (_articles.Count == 0)
         {
-            return "—";
+            return "-";
         }
 
         return _articles.Max(x => x.UpdatedAt).ToLocalTime().ToString("dd.MM", CultureInfo.InvariantCulture);

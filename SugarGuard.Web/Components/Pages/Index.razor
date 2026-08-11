@@ -10,7 +10,7 @@
 @inject IJSRuntime JS
 @inject ILogger<Index> Logger
 
-<PageTitle>SugarGuard — диабет ребёнка под совместным контролем</PageTitle>
+<PageTitle>SugarGuard - диабет ребёнка под совместным контролем</PageTitle>
 <HeadContent>
     <meta name="description"
           content="SugarGuard объединяет измерения глюкозы, питание, подсказки, уведомления и наблюдение врача в Android-приложении и веб-кабинете." />
@@ -18,8 +18,8 @@
     <link rel="canonical" href="https://sugar-guard.ru/" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ru_RU" />
-    <meta property="og:title" content="SugarGuard — диабет ребёнка под совместным контролем" />
-    <meta property="og:description" content="Глюкоза, питание, отчёты и информационные подсказки — в Android-приложении и веб-кабинетах для семьи и врача." />
+    <meta property="og:title" content="SugarGuard - диабет ребёнка под совместным контролем" />
+    <meta property="og:description" content="Глюкоза, питание, отчёты и информационные подсказки - в Android-приложении и веб-кабинетах для семьи и врача." />
     <meta property="og:url" content="https://sugar-guard.ru/" />
 </HeadContent>
 
@@ -28,7 +28,7 @@
 
     <header class="sg-landing__header">
         <div class="sg-landing__container sg-landing__header-inner">
-            <a class="sg-landing__brand" href="/" aria-label="SugarGuard — на главную">
+            <a class="sg-landing__brand" href="/" aria-label="SugarGuard - на главную">
                 <span class="sg-landing__logo" aria-hidden="true">
                     <img src="/images/sugarguard-mark.svg" alt="" width="44" height="44" />
                 </span>
@@ -85,9 +85,9 @@
                         <span class="sg-platform-badge">Android + Web</span>
                     </div>
 
-                    <h1 id="hero-title">Диабет ребёнка — под совместным контролем семьи и врача</h1>
+                    <h1 id="hero-title">Диабет ребёнка - под совместным контролем семьи и врача</h1>
                     <p class="sg-landing__hero-lead">
-                        Глюкоза, питание, тревожные события, заметки врача и понятные подсказки —
+                        Глюкоза, питание, тревожные события, заметки врача и понятные подсказки -
                         в мобильном приложении ребёнка и связанных веб-кабинетах.
                     </p>
 
@@ -197,14 +197,14 @@
                     </div>
                 </div>
                 <p class="sg-visually-hidden">
-                    Демонстрация мобильного приложения с текущей глюкозой и веб-кабинета родителя с графиком и уведомлением.
+                    Предварительный просмотр мобильного приложения с текущей глюкозой и веб-кабинета родителя с графиком и уведомлением.
                 </p>
             </div>
         </section>
 
         <section class="sg-landing__signal-bar" aria-label="Ключевые свойства продукта">
             <div class="sg-landing__container sg-landing__signal-grid">
-                <div><strong>Android 5.0+</strong><span>Мобильное приложение ребёнка</span></div>
+                <div><strong>Android-приложение</strong><span>Дневник ребёнка на телефоне</span></div>
                 <div><strong>Web-кабинеты</strong><span>Родитель, врач и администратор</span></div>
                 <div><strong>Офлайн-сценарии</strong><span>Записи сохраняются до синхронизации</span></div>
                 <div><strong>Экспорт данных</strong><span>Отчёты для обсуждения с врачом</span></div>
@@ -214,20 +214,18 @@
         <section id="audiences" class="sg-section sg-section--audiences sg-reveal" aria-labelledby="audiences-title">
             <div class="sg-landing__container">
                 <header class="sg-section__header">
-                    <span class="sg-section__kicker">Один сервис — разные задачи</span>
+                    <span class="sg-section__kicker">Один сервис - разные задачи</span>
                     <h2 id="audiences-title">Каждый видит только то, что нужно для его роли</h2>
                     <p>Выберите свой сценарий и посмотрите, какую ежедневную проблему решает SugarGuard.</p>
                 </header>
 
-                <div class="sg-audience-tabs" role="tablist" aria-label="Сценарии пользователей">
+                <div class="sg-audience-tabs" role="group" aria-label="Сценарии пользователей">
                     @foreach (var audience in Audiences)
                     {
                         <button id="audience-tab-@audience.Id"
                                 class="@AudienceTabClass(audience.Id)"
                                 type="button"
-                                role="tab"
-                                aria-selected="@(activeAudienceId == audience.Id ? "true" : "false")"
-                                aria-controls="audience-panel"
+                                aria-pressed="@(activeAudienceId == audience.Id ? "true" : "false")"
                                 @onclick="() => SelectAudience(audience.Id)">
                             <span>@audience.Number</span>
                             @audience.Label
@@ -237,9 +235,7 @@
 
                 <div id="audience-panel"
                      class="sg-audience-panel"
-                     role="tabpanel"
-                     aria-live="polite"
-                     aria-labelledby="audience-tab-@ActiveAudience.Id">
+                     aria-live="polite">
                     <div class="sg-audience-panel__copy">
                         <span class="sg-audience-panel__eyebrow">@ActiveAudience.Eyebrow</span>
                         <h3>@ActiveAudience.Title</h3>
@@ -320,7 +316,7 @@
                             <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 1-3-6.2M20 4v7h-7M8 12l3 3 5-6" /></svg>
                         </div>
                         <h3>Реагируем вместе</h3>
-                        <p>Родитель получает важные уведомления, врач видит историю, а ребёнок — безопасную подсказку по ситуации.</p>
+                        <p>Родитель получает важные уведомления, врач видит историю, а ребёнок - безопасную подсказку по ситуации.</p>
                     </li>
                 </ol>
 
@@ -335,7 +331,7 @@
             <div class="sg-landing__container">
                 <header class="sg-section__header">
                     <span class="sg-section__kicker">Не набор функций, а ежедневные сценарии</span>
-                    <h2 id="capabilities-title">Всё важное — в контексте конкретной ситуации</h2>
+                    <h2 id="capabilities-title">Всё важное - в контексте конкретной ситуации</h2>
                 </header>
 
                 <div class="sg-capabilities-grid">
@@ -369,6 +365,12 @@
                         <h3>Продолжайте вести дневник даже без интернета</h3>
                         <p>Проверенная локальная сессия, зашифрованное хранение и очередь синхронизации поддерживают основные сценарии в дороге, школе и за городом.</p>
                     </article>
+                    <article class="sg-capability">
+                        <div class="sg-capability__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7-1a3 3 0 1 0 0-6M3 21v-2a5.5 5.5 0 0 1 11 0v2m1-5.5a4.5 4.5 0 0 1 6 4.25V21" /></svg></div>
+                        <span class="sg-capability__label">Доступ</span>
+                        <h3>Подключайте близких и врача без передачи пароля</h3>
+                        <p>Одноразовые коды, понятные роли и список действующих связей помогают управлять доступом к данным конкретного пациента.</p>
+                    </article>
                 </div>
             </div>
         </section>
@@ -380,13 +382,13 @@
                         <span class="sg-section__kicker">Продукт уже можно увидеть</span>
                         <h2 id="interface-title">Ключевые экраны SugarGuard</h2>
                     </div>
-                    <p>Обезличенные демонстрационные данные показывают реальные сценарии мобильного приложения и веб-кабинетов.</p>
+                    <p>Обезличенные примеры показывают реальные сценарии мобильного приложения и веб-кабинетов.</p>
                 </header>
 
                 <div class="sg-screen-gallery">
                     <article class="sg-screen-card sg-screen-card--mobile">
-                        <header><span>Мобильное приложение</span><strong>Главная</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-home">
+                        <header><span>Мобильное приложение</span><h3>Главная</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-home" aria-hidden="true">
                             <div class="sg-mini-title">Мой сахар</div>
                             <div class="sg-mini-glucose"><strong>5,8</strong><span>ммоль/л</span><em>В норме</em></div>
                             <svg viewBox="0 0 240 64" preserveAspectRatio="none"><path d="M2 49 C36 39, 48 50, 82 35 S132 28, 158 39 S204 14, 238 22" /></svg>
@@ -395,8 +397,8 @@
                     </article>
 
                     <article class="sg-screen-card">
-                        <header><span>Мобильное приложение</span><strong>История</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-history">
+                        <header><span>Мобильное приложение</span><h3>История</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-history" aria-hidden="true">
                             <div class="sg-mini-tabs"><b>Сегодня</b><span>7 дней</span><span>30 дней</span></div>
                             <div class="sg-mini-chart-zone"></div>
                             <svg viewBox="0 0 300 100" preserveAspectRatio="none"><path d="M2 70 C45 61, 62 79, 99 52 S157 34, 190 47 S247 30, 298 38" /></svg>
@@ -405,24 +407,24 @@
                     </article>
 
                     <article class="sg-screen-card">
-                        <header><span>Мобильное приложение</span><strong>Рюкзак</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-backpack">
+                        <header><span>Мобильное приложение</span><h3>Рюкзак</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-backpack" aria-hidden="true">
                             <div><strong>Быстрые перекусы</strong><span>6 позиций · 10,0 ХЕ</span></div>
                             <ul role="presentation"><li><i>🥤</i><span><b>Сок 200 мл</b><small>2,0 ХЕ · 4 шт.</small></span></li><li><i>🍎</i><span><b>Яблоко</b><small>1,0 ХЕ · 2 шт.</small></span></li></ul>
                         </div>
                     </article>
 
                     <article class="sg-screen-card sg-screen-card--wide">
-                        <header><span>Веб-кабинет родителя</span><strong>Обзор ребёнка</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-parent">
+                        <header><span>Веб-кабинет родителя</span><h3>Обзор ребёнка</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-parent" aria-hidden="true">
                             <div class="sg-mini-parent__stats"><span><small>Последняя глюкоза</small><b>5,8</b></span><span><small>TIR за 7 дней</small><b>82%</b></span><span><small>События</small><b>1</b></span></div>
                             <div class="sg-mini-parent__graph"><svg viewBox="0 0 520 100" preserveAspectRatio="none"><path d="M2 72 C54 61, 78 80, 127 48 S210 31, 264 50 S348 70, 402 38 S476 26, 518 34" /></svg></div>
                         </div>
                     </article>
 
                     <article class="sg-screen-card sg-screen-card--wide">
-                        <header><span>Кабинет врача</span><strong>Мои пациенты</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-doctor">
+                        <header><span>Кабинет врача</span><h3>Мои пациенты</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-doctor" aria-hidden="true">
                             <div class="sg-mini-doctor__filters"><span>Все пациенты</span><span>Требуют внимания</span></div>
                             <div class="sg-mini-patient"><i>АП</i><span><b>Пациент А.</b><small>Последнее измерение 24 мин назад</small></span><em>Стабильно</em></div>
                             <div class="sg-mini-patient"><i>МК</i><span><b>Пациент М.</b><small>Нет свежих данных</small></span><em class="is-warning">Внимание</em></div>
@@ -430,12 +432,12 @@
                     </article>
 
                     <article class="sg-screen-card">
-                        <header><span>Совместная работа</span><strong>Заметки врача</strong></header>
-                        <div class="sg-screen-card__canvas sg-mini-note">
+                        <header><span>Совместная работа</span><h3>Заметки врача</h3></header>
+                        <div class="sg-screen-card__canvas sg-mini-note" aria-hidden="true">
                             <span>Сегодня, 14:30</span>
-                            <h3>Наблюдение по дневнику</h3>
+                            <h4>Наблюдение по дневнику</h4>
                             <p>Обсудить динамику после завтрака на следующей консультации.</p>
-                            <div><i>ДЭ</i><span><b>Демо Эндокринолог</b><small>Врач</small></span></div>
+                            <div><i>АС</i><span><b>Анна Смирнова</b><small>Врач</small></span></div>
                         </div>
                     </article>
                 </div>
@@ -514,7 +516,7 @@
                     </details>
                     <details name="landing-faq">
                         <summary>Обязателен ли Telegram?<span aria-hidden="true"></span></summary>
-                        <p>Нет. Telegram — дополнительный канал уведомлений, который настраивает родитель. Кабинеты, история, связи и основные данные работают независимо от него.</p>
+                        <p>Нет. Telegram - дополнительный канал уведомлений, который настраивает родитель. Кабинеты, история, связи и основные данные работают независимо от него.</p>
                     </details>
                     <details name="landing-faq">
                         <summary>ИИ может назначить перекус или инсулин?<span aria-hidden="true"></span></summary>
@@ -543,7 +545,7 @@
                     <a class="sg-cta sg-cta--light" href="/downloads/android">Скачать приложение</a>
                     <a class="sg-cta sg-cta--outline-light" href="/register">Создать аккаунт</a>
                 </div>
-                <small>При угрозе жизни не ждите ответа сервиса — звоните 112.</small>
+                <small>При угрозе жизни не ждите ответа сервиса - звоните 112.</small>
             </div>
         </section>
     </main>
@@ -555,7 +557,7 @@
                     <span class="sg-landing__logo" aria-hidden="true"><img src="/images/sugarguard-mark.svg" alt="" width="44" height="44" /></span>
                     <span><strong>SugarGuard</strong><small>Цифровой дневник и совместный контроль</small></span>
                 </a>
-                <p>Пилотный digital health-сервис. Не заменяет врача и не предназначен для экстренной медицинской помощи.</p>
+                <p>Пилотный цифровой сервис для контроля диабета. Не заменяет врача и не предназначен для экстренной медицинской помощи.</p>
             </div>
             <nav aria-label="Продукт">
                 <strong>Продукт</strong>
@@ -576,7 +578,6 @@
                 <a href="/privacy">Конфиденциальность</a>
                 <a href="/personal-data">Обработка ПДн</a>
                 <a href="/terms">Условия использования</a>
-                <a href="https://github.com/Jarrhead85/SugarGuard.Junior" target="_blank" rel="noopener noreferrer">Открытый репозиторий</a>
             </nav>
         </div>
         <div class="sg-landing__container sg-footer-bottom">

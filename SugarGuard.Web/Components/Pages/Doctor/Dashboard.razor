@@ -11,7 +11,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<Dashboard> Logger
 
-<PageTitle>Дашборд врача — SugarGuard</PageTitle>
+<PageTitle>Дашборд врача - SugarGuard</PageTitle>
 
 <div class="doctor-dashboard" aria-label="Обзор кабинета врача">
 
@@ -43,7 +43,7 @@
             <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.TotalPatients, null, KpiVariant.Neutral)">
                 <p class="kpi-card__label">Всего пациентов</p>
                 <strong class="kpi-card__value">
-                    @(_cohort?.TotalPatients.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                    @(_cohort?.TotalPatients.ToString("N0", CultureInfo.InvariantCulture) ?? "-")
                 </strong>
                 <p class="kpi-card__hint">в моей группе пациентов</p>
             </div>
@@ -51,7 +51,7 @@
             <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.PatientsWithCriticalToday, 0, KpiVariant.Danger)">
                 <p class="kpi-card__label">Критических сегодня</p>
                 <strong class="kpi-card__value kpi-card__value--danger">
-                    @(_cohort?.PatientsWithCriticalToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                    @(_cohort?.PatientsWithCriticalToday.ToString("N0", CultureInfo.InvariantCulture) ?? "-")
                 </strong>
                 <p class="kpi-card__hint">пациентов с критическим сахаром</p>
             </div>
@@ -67,7 +67,7 @@
             <div class="doctor-dashboard__kpi card @GetKpiClass(_cohort?.PatientsWithoutMeasurementsToday, 0, KpiVariant.Warning)">
                 <p class="kpi-card__label">Без измерений</p>
                 <strong class="kpi-card__value kpi-card__value--warning">
-                    @(_cohort?.PatientsWithoutMeasurementsToday.ToString("N0", CultureInfo.InvariantCulture) ?? "—")
+                    @(_cohort?.PatientsWithoutMeasurementsToday.ToString("N0", CultureInfo.InvariantCulture) ?? "-")
                 </strong>
                 <p class="kpi-card__hint">пациентов сегодня</p>
             </div>
@@ -278,7 +278,7 @@
     {
         if (!value.HasValue)
         {
-            return "—";
+            return "-";
         }
 
         return value.Value.ToString("N1", CultureInfo.InvariantCulture) + "%";
