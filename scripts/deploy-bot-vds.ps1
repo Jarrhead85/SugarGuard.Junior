@@ -109,6 +109,21 @@ if ! sudo systemctl start sugarguard-bot.service || ! sudo systemctl is-active -
     exit 1
 fi
 
+# Enforce immutable release files after startup as well. This both protects the
+# running binary and turns permission regressions into a failed deployment.
+sudo chown -R root:sugarguard "`$target"
+sudo find "`$target" -type d -exec chmod 0750 {} +
+sudo find "`$target" -type f -exec chmod 0640 {} +
+sudo chmod 0750 "`$target/SugarGuard.Bot"
+if [ -f "`$target/appsettings.json" ]; then
+    sudo chmod 0640 "`$target/appsettings.json"
+fi
+
+if sudo -u sugarguard find "`$target" -writable -print -quit | grep -q .; then
+    echo "Telegram bot release contains files writable by the service account." >&2
+    exit 1
+fi
+
 sudo rm -rf "`${target}.old"
 sudo rm -f "`$package"
 sudo rm -f "`$config_backup"
