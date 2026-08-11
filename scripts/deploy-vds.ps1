@@ -284,7 +284,11 @@ Invoke-Step "Deploy on VDS" {
     $remoteScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) "sugarguard-deploy-$timestamp.sh"
     $remoteScriptTarget = "/tmp/sugarguard-deploy-$timestamp.sh"
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScript, $utf8NoBom)
+    # Bash treats a trailing carriage return as part of the option name
+    # (for example, `pipefail\r`). Always upload Unix line endings even when
+    # this PowerShell script is checked out with CRLF on Windows.
+    $remoteScriptWithUnixLineEndings = $remoteScript.Replace("`r`n", "`n")
+    [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptWithUnixLineEndings, $utf8NoBom)
     try {
         scp @sshArgs $remoteScriptPath "${User}@${Server}:$remoteScriptTarget"
         if ($LASTEXITCODE -ne 0) {
